@@ -34,4 +34,12 @@ struct Vector2 {
     float length() const {
         return std::sqrt(lengthSquared());
     }
+
+    Vector2 normalized() const {
+        float len = length();
+        if (len > 0.0f) {
+            return {x / len, y / len};
+        }
+        return {0.0f, 0.0f};
+    }
 };

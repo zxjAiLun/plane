@@ -1,4 +1,5 @@
 #include "Renderer.hpp"
+#include "Config.hpp"
 
 Renderer::Renderer(sf::RenderWindow& window)
     : window_(window) {
@@ -52,19 +53,23 @@ void Renderer::drawEnemies(const GameWorld& world) {
 }
 
 void Renderer::drawGameOver(const GameWorld& /*world*/) {
-    sf::RectangleShape overlay({static_cast<float>(800), static_cast<float>(600)});
+    const float width = static_cast<float>(Config::WindowWidth);
+    const float height = static_cast<float>(Config::WindowHeight);
+    const sf::Vector2f center{width / 2.0f, height / 2.0f};
+
+    sf::RectangleShape overlay({width, height});
     overlay.setFillColor(sf::Color(0, 0, 0, 150));
     window_.draw(overlay);
 
     sf::RectangleShape gameOverBox({300.0f, 100.0f});
     gameOverBox.setFillColor(sf::Color::Red);
     gameOverBox.setOrigin({150.0f, 50.0f});
-    gameOverBox.setPosition({400.0f, 250.0f});
+    gameOverBox.setPosition({center.x, center.y - 50.0f});
     window_.draw(gameOverBox);
 
     sf::RectangleShape restartBox({200.0f, 40.0f});
     restartBox.setFillColor(sf::Color::White);
     restartBox.setOrigin({100.0f, 20.0f});
-    restartBox.setPosition({400.0f, 350.0f});
+    restartBox.setPosition({center.x, center.y + 50.0f});
     window_.draw(restartBox);
 }

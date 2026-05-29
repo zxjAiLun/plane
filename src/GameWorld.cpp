@@ -1,6 +1,8 @@
 #include "GameWorld.hpp"
 #include "Collision.hpp"
 
+#include <algorithm>
+
 GameWorld::GameWorld()
     : score_(0)
     , gameOver_(false) {
@@ -47,7 +49,7 @@ void GameWorld::updateObjects(float dt) {
         bullet.update(dt);
     }
     for (auto& enemy : enemies_) {
-        enemy.update(dt);
+        enemy.update(dt, player_.position());
     }
 }
 
@@ -89,7 +91,7 @@ void GameWorld::handleCollisions() {
                 enemy.position(), enemy.radius()
             )) {
             player_.takeDamage(enemy.contactDamage());
-            enemy.takeDamage(9999);
+            enemy.kill();
 
             if (player_.isDead()) {
                 gameOver_ = true;

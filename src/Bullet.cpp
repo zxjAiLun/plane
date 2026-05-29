@@ -4,7 +4,7 @@
 Bullet::Bullet(const Vector2& position, const Vector2& velocity, int damage)
     : position_(position)
     , velocity_(velocity)
-    , radius_(5.0f)
+    , radius_(Config::BulletRadius)
     , damage_(damage)
     , alive_(true) {
 }
