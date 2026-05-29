@@ -2,9 +2,9 @@
 
 #include "Vector2.hpp"
 
-class Bullet {
+class Projectile {
 public:
-    Bullet(const Vector2& position, const Vector2& velocity, int damage);
+    Projectile(const Vector2& position, const Vector2& velocity, int damage);
 
     void update(float dt);
 

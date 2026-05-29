@@ -25,7 +25,9 @@ add_executable(PlaneShooter
     src/Input.cpp
     src/Player.cpp
     src/Renderer.cpp
-    src/Bullet.cpp
+    src/Projectile.cpp
+    src/Weapon.cpp
+    src/ExperienceOrb.cpp
     src/Timer.cpp
     src/Enemy.cpp
     src/EnemySpawner.cpp

@@ -8,9 +8,12 @@ namespace Config {
     constexpr float PlayerRadius = 20.0f;
     constexpr int PlayerHp = 3;
 
-    constexpr float BulletSpeed = 500.0f;
-    constexpr float BulletRadius = 5.0f;
-    constexpr int BulletDamage = 1;
+    constexpr float ProjectileSpeed = 500.0f;
+    constexpr float ProjectileRadius = 5.0f;
+    constexpr int ProjectileDamage = 1;
+
+    constexpr float WeaponCooldown = 0.3f;
+    constexpr float WeaponRange = 400.0f;
 
     constexpr float ShootCooldown = 0.2f;
 
@@ -20,4 +23,11 @@ namespace Config {
     constexpr int EnemyContactDamage = 1;
 
     constexpr float EnemySpawnInterval = 1.0f;
+
+    constexpr float ExpOrbRadius = 8.0f;
+    constexpr int ExpPerKill = 1;
+    constexpr float PickupRange = 50.0f;
+    constexpr int BaseExpToLevel = 5;
+
+    constexpr float VictoryTime = 60.0f;
 }

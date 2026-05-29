@@ -2,15 +2,17 @@
 #include "Config.hpp"
 
 Player::Player()
-    : position_(Config::WindowWidth / 2.0f, Config::WindowHeight - 80.0f)
+    : position_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
     , speed_(Config::PlayerSpeed)
     , radius_(Config::PlayerRadius)
     , hp_(Config::PlayerHp)
-    , shootCooldown_(Config::ShootCooldown) {
+    , level_(1)
+    , exp_(0)
+    , expToNextLevel_(Config::BaseExpToLevel)
+    , levelUpPending_(false) {
 }
 
-void Player::update(float dt) {
-    shootCooldown_.update(dt);
+void Player::update(float /*dt*/) {
 }
 
 void Player::moveLeft(float dt) {
@@ -41,15 +43,6 @@ void Player::moveDown(float dt) {
     }
 }
 
-std::optional<Bullet> Player::tryShoot() {
-    if (shootCooldown_.isReady()) {
-        shootCooldown_.reset();
-        Vector2 velocity(0.0f, -Config::BulletSpeed);
-        return Bullet(position_, velocity, Config::BulletDamage);
-    }
-    return std::nullopt;
-}
-
 void Player::takeDamage(int damage) {
     hp_ -= damage;
 }
@@ -58,6 +51,27 @@ bool Player::isDead() const {
     return hp_ <= 0;
 }
 
+void Player::gainExp(int amount) {
+    exp_ += amount;
+    while (exp_ >= expToNextLevel_) {
+        exp_ -= expToNextLevel_;
+        level_++;
+        expToNextLevel_ = Config::BaseExpToLevel + (level_ - 1) * 2;
+        levelUpPending_ = true;
+    }
+}
+
+bool Player::isLevelUp() const {
+    return levelUpPending_;
+}
+
+void Player::confirmLevelUp() {
+    levelUpPending_ = false;
+}
+
 const Vector2& Player::position() const { return position_; }
 float Player::radius() const { return radius_; }
 int Player::hp() const { return hp_; }
+int Player::level() const { return level_; }
+int Player::exp() const { return exp_; }
+int Player::expToNextLevel() const { return expToNextLevel_; }

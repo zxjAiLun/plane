@@ -11,9 +11,12 @@ public:
 
 private:
     void drawPlayer(const GameWorld& world);
-    void drawBullets(const GameWorld& world);
+    void drawProjectiles(const GameWorld& world);
     void drawEnemies(const GameWorld& world);
+    void drawOrbs(const GameWorld& world);
     void drawGameOver(const GameWorld& world);
+    void drawLevelUp(const GameWorld& world);
+    void drawVictory(const GameWorld& world);
 
 private:
     sf::RenderWindow& window_;

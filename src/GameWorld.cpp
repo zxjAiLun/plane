@@ -1,21 +1,43 @@
 #include "GameWorld.hpp"
 #include "Collision.hpp"
+#include "Config.hpp"
 
 #include <algorithm>
 
 GameWorld::GameWorld()
-    : score_(0)
-    , gameOver_(false) {
+    : state_(GameState::Playing)
+    , score_(0)
+    , survivalTime_(0.0f) {
 }
 
 void GameWorld::update(float dt, const Input& input) {
-    if (gameOver_) {
-        if (input.restart()) {
-            reset();
-        }
-        return;
-    }
+    switch (state_) {
+        case GameState::Playing:
+            updatePlaying(dt, input);
+            break;
 
+        case GameState::LevelUp:
+            if (input.restart()) {
+                player_.confirmLevelUp();
+                state_ = GameState::Playing;
+            }
+            break;
+
+        case GameState::GameOver:
+            if (input.restart()) {
+                reset();
+            }
+            break;
+
+        case GameState::Victory:
+            if (input.restart()) {
+                reset();
+            }
+            break;
+    }
+}
+
+void GameWorld::updatePlaying(float dt, const Input& input) {
     if (input.moveLeft()) player_.moveLeft(dt);
     if (input.moveRight()) player_.moveRight(dt);
     if (input.moveUp()) player_.moveUp(dt);
@@ -23,30 +45,46 @@ void GameWorld::update(float dt, const Input& input) {
 
     player_.update(dt);
 
-    if (input.shoot()) {
-        if (auto bullet = player_.tryShoot()) {
-            bullets_.push_back(*bullet);
-        }
+    weapon_.update(dt);
+    if (auto projectile = weapon_.tryShoot(player_.position(), enemies_)) {
+        projectiles_.push_back(*projectile);
     }
 
     spawnEnemies(dt);
     updateObjects(dt);
     handleCollisions();
     removeDeadObjects();
+
+    survivalTime_ += dt;
+
+    if (player_.isLevelUp()) {
+        state_ = GameState::LevelUp;
+    }
+
+    if (player_.isDead()) {
+        state_ = GameState::GameOver;
+    }
+
+    if (survivalTime_ >= Config::VictoryTime) {
+        state_ = GameState::Victory;
+    }
 }
 
 void GameWorld::reset() {
     player_ = Player();
-    bullets_.clear();
+    projectiles_.clear();
     enemies_.clear();
+    orbs_.clear();
     spawner_.reset();
+    weapon_.reset();
+    state_ = GameState::Playing;
     score_ = 0;
-    gameOver_ = false;
+    survivalTime_ = 0.0f;
 }
 
 void GameWorld::updateObjects(float dt) {
-    for (auto& bullet : bullets_) {
-        bullet.update(dt);
+    for (auto& projectile : projectiles_) {
+        projectile.update(dt);
     }
     for (auto& enemy : enemies_) {
         enemy.update(dt, player_.position());
@@ -61,21 +99,22 @@ void GameWorld::spawnEnemies(float dt) {
 }
 
 void GameWorld::handleCollisions() {
-    for (auto& bullet : bullets_) {
+    for (auto& projectile : projectiles_) {
         for (auto& enemy : enemies_) {
-            if (!bullet.isAlive() || enemy.isDead()) {
+            if (!projectile.isAlive() || enemy.isDead()) {
                 continue;
             }
 
             if (Collision::circleCircle(
-                    bullet.position(), bullet.radius(),
+                    projectile.position(), projectile.radius(),
                     enemy.position(), enemy.radius()
                 )) {
-                enemy.takeDamage(bullet.damage());
-                bullet.kill();
+                enemy.takeDamage(projectile.damage());
+                projectile.kill();
 
                 if (enemy.isDead()) {
                     score_ += 100;
+                    orbs_.push_back(ExperienceOrb(enemy.position(), Config::ExpPerKill));
                 }
             }
         }
@@ -92,19 +131,28 @@ void GameWorld::handleCollisions() {
             )) {
             player_.takeDamage(enemy.contactDamage());
             enemy.kill();
+        }
+    }
 
-            if (player_.isDead()) {
-                gameOver_ = true;
-            }
+    for (auto& orb : orbs_) {
+        if (orb.isCollected()) {
+            continue;
+        }
+
+        float pickupRange = Config::PickupRange + player_.radius();
+        Vector2 diff = player_.position() - orb.position();
+        if (diff.lengthSquared() <= pickupRange * pickupRange) {
+            orb.collect();
+            player_.gainExp(orb.value());
         }
     }
 }
 
 void GameWorld::removeDeadObjects() {
-    auto bulletIt = std::remove_if(bullets_.begin(), bullets_.end(),
-        [](const Bullet& b) { return !b.isAlive(); });
-    if (bulletIt != bullets_.end()) {
-        bullets_.erase(bulletIt, bullets_.end());
+    auto projIt = std::remove_if(projectiles_.begin(), projectiles_.end(),
+        [](const Projectile& p) { return !p.isAlive(); });
+    if (projIt != projectiles_.end()) {
+        projectiles_.erase(projIt, projectiles_.end());
     }
 
     auto enemyIt = std::remove_if(enemies_.begin(), enemies_.end(),
@@ -112,10 +160,18 @@ void GameWorld::removeDeadObjects() {
     if (enemyIt != enemies_.end()) {
         enemies_.erase(enemyIt, enemies_.end());
     }
+
+    auto orbIt = std::remove_if(orbs_.begin(), orbs_.end(),
+        [](const ExperienceOrb& o) { return o.isCollected(); });
+    if (orbIt != orbs_.end()) {
+        orbs_.erase(orbIt, orbs_.end());
+    }
 }
 
 const Player& GameWorld::player() const { return player_; }
-const std::vector<Bullet>& GameWorld::bullets() const { return bullets_; }
+const std::vector<Projectile>& GameWorld::projectiles() const { return projectiles_; }
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
+const std::vector<ExperienceOrb>& GameWorld::orbs() const { return orbs_; }
+GameState GameWorld::state() const { return state_; }
 int GameWorld::score() const { return score_; }
-bool GameWorld::isGameOver() const { return gameOver_; }
+float GameWorld::survivalTime() const { return survivalTime_; }

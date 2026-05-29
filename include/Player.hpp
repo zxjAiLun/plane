@@ -1,9 +1,6 @@
 #pragma once
 
-#include <optional>
 #include "Vector2.hpp"
-#include "Bullet.hpp"
-#include "Timer.hpp"
 
 class Player {
 public:
@@ -16,14 +13,19 @@ public:
     void moveUp(float dt);
     void moveDown(float dt);
 
-    std::optional<Bullet> tryShoot();
-
     void takeDamage(int damage);
     bool isDead() const;
+
+    void gainExp(int amount);
+    bool isLevelUp() const;
+    void confirmLevelUp();
 
     const Vector2& position() const;
     float radius() const;
     int hp() const;
+    int level() const;
+    int exp() const;
+    int expToNextLevel() const;
 
 private:
     Vector2 position_;
@@ -31,5 +33,8 @@ private:
     float radius_;
     int hp_;
 
-    Timer shootCooldown_;
+    int level_;
+    int exp_;
+    int expToNextLevel_;
+    bool levelUpPending_;
 };

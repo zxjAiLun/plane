@@ -9,18 +9,29 @@ void Renderer::render(const GameWorld& world) {
     window_.clear(sf::Color::Black);
 
     drawPlayer(world);
-    drawBullets(world);
+    drawProjectiles(world);
     drawEnemies(world);
+    drawOrbs(world);
 
-    if (world.isGameOver()) {
-        drawGameOver(world);
+    switch (world.state()) {
+        case GameState::GameOver:
+            drawGameOver(world);
+            break;
+        case GameState::LevelUp:
+            drawLevelUp(world);
+            break;
+        case GameState::Victory:
+            drawVictory(world);
+            break;
+        case GameState::Playing:
+            break;
     }
 
     window_.display();
 }
 
 void Renderer::drawPlayer(const GameWorld& world) {
-    if (world.isGameOver()) {
+    if (world.state() != GameState::Playing) {
         return;
     }
 
@@ -32,12 +43,12 @@ void Renderer::drawPlayer(const GameWorld& world) {
     window_.draw(shape);
 }
 
-void Renderer::drawBullets(const GameWorld& world) {
-    for (const auto& bullet : world.bullets()) {
-        sf::CircleShape shape(bullet.radius());
+void Renderer::drawProjectiles(const GameWorld& world) {
+    for (const auto& projectile : world.projectiles()) {
+        sf::CircleShape shape(projectile.radius());
         shape.setFillColor(sf::Color::Yellow);
-        shape.setOrigin({bullet.radius(), bullet.radius()});
-        shape.setPosition({bullet.position().x, bullet.position().y});
+        shape.setOrigin({projectile.radius(), projectile.radius()});
+        shape.setPosition({projectile.position().x, projectile.position().y});
         window_.draw(shape);
     }
 }
@@ -52,6 +63,16 @@ void Renderer::drawEnemies(const GameWorld& world) {
     }
 }
 
+void Renderer::drawOrbs(const GameWorld& world) {
+    for (const auto& orb : world.orbs()) {
+        sf::CircleShape shape(orb.radius());
+        shape.setFillColor(sf::Color::Cyan);
+        shape.setOrigin({orb.radius(), orb.radius()});
+        shape.setPosition({orb.position().x, orb.position().y});
+        window_.draw(shape);
+    }
+}
+
 void Renderer::drawGameOver(const GameWorld& /*world*/) {
     const float width = static_cast<float>(Config::WindowWidth);
     const float height = static_cast<float>(Config::WindowHeight);
@@ -61,11 +82,55 @@ void Renderer::drawGameOver(const GameWorld& /*world*/) {
     overlay.setFillColor(sf::Color(0, 0, 0, 150));
     window_.draw(overlay);
 
-    sf::RectangleShape gameOverBox({300.0f, 100.0f});
-    gameOverBox.setFillColor(sf::Color::Red);
-    gameOverBox.setOrigin({150.0f, 50.0f});
-    gameOverBox.setPosition({center.x, center.y - 50.0f});
-    window_.draw(gameOverBox);
+    sf::RectangleShape box({300.0f, 100.0f});
+    box.setFillColor(sf::Color::Red);
+    box.setOrigin({150.0f, 50.0f});
+    box.setPosition({center.x, center.y - 50.0f});
+    window_.draw(box);
+
+    sf::RectangleShape restartBox({200.0f, 40.0f});
+    restartBox.setFillColor(sf::Color::White);
+    restartBox.setOrigin({100.0f, 20.0f});
+    restartBox.setPosition({center.x, center.y + 50.0f});
+    window_.draw(restartBox);
+}
+
+void Renderer::drawLevelUp(const GameWorld& /*world*/) {
+    const float width = static_cast<float>(Config::WindowWidth);
+    const float height = static_cast<float>(Config::WindowHeight);
+    const sf::Vector2f center{width / 2.0f, height / 2.0f};
+
+    sf::RectangleShape overlay({width, height});
+    overlay.setFillColor(sf::Color(0, 0, 100, 180));
+    window_.draw(overlay);
+
+    sf::RectangleShape box({300.0f, 150.0f});
+    box.setFillColor(sf::Color::Blue);
+    box.setOrigin({150.0f, 75.0f});
+    box.setPosition({center.x, center.y});
+    window_.draw(box);
+
+    sf::RectangleShape confirmBox({200.0f, 40.0f});
+    confirmBox.setFillColor(sf::Color::White);
+    confirmBox.setOrigin({100.0f, 20.0f});
+    confirmBox.setPosition({center.x, center.y + 80.0f});
+    window_.draw(confirmBox);
+}
+
+void Renderer::drawVictory(const GameWorld& /*world*/) {
+    const float width = static_cast<float>(Config::WindowWidth);
+    const float height = static_cast<float>(Config::WindowHeight);
+    const sf::Vector2f center{width / 2.0f, height / 2.0f};
+
+    sf::RectangleShape overlay({width, height});
+    overlay.setFillColor(sf::Color(0, 100, 0, 180));
+    window_.draw(overlay);
+
+    sf::RectangleShape box({300.0f, 100.0f});
+    box.setFillColor(sf::Color::Green);
+    box.setOrigin({150.0f, 50.0f});
+    box.setPosition({center.x, center.y - 50.0f});
+    window_.draw(box);
 
     sf::RectangleShape restartBox({200.0f, 40.0f});
     restartBox.setFillColor(sf::Color::White);
