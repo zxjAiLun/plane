@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Vector2.hpp"
+#include "PlayerStats.hpp"
+#include "Upgrade.hpp"
 
 class Player {
 public:
@@ -19,22 +21,28 @@ public:
     void gainExp(int amount);
     bool isLevelUp() const;
     void confirmLevelUp();
+    void applyUpgrade(UpgradeType type);
 
     const Vector2& position() const;
     float radius() const;
     int hp() const;
+    int maxHp() const;
     int level() const;
     int exp() const;
     int expToNextLevel() const;
+    const PlayerStats& stats() const;
 
 private:
     Vector2 position_;
-    float speed_;
+    float baseSpeed_;
     float radius_;
     int hp_;
+    int maxHp_;
 
     int level_;
     int exp_;
     int expToNextLevel_;
     bool levelUpPending_;
+
+    PlayerStats stats_;
 };

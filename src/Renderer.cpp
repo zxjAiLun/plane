@@ -2,7 +2,22 @@
 #include "Config.hpp"
 
 Renderer::Renderer(sf::RenderWindow& window)
-    : window_(window) {
+    : window_(window)
+    , fontLoaded_(false) {
+    const char* fontPaths[] = {
+        "assets/font.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/ubuntu/UbuntuSans[wdth,wght].ttf",
+        "C:/Windows/Fonts/segoeui.ttf",
+        "C:/Windows/Fonts/arial.ttf"
+    };
+
+    for (const char* path : fontPaths) {
+        if (font_.openFromFile(path)) {
+            fontLoaded_ = true;
+            break;
+        }
+    }
 }
 
 void Renderer::render(const GameWorld& world) {
@@ -12,6 +27,15 @@ void Renderer::render(const GameWorld& world) {
     drawProjectiles(world);
     drawEnemies(world);
     drawOrbs(world);
+
+    drawText("HP " + std::to_string(world.player().hp()) + "/" + std::to_string(world.player().maxHp()),
+        {16.0f, 12.0f}, 18, sf::Color::White);
+    drawText("LV " + std::to_string(world.player().level())
+        + "  EXP " + std::to_string(world.player().exp()) + "/" + std::to_string(world.player().expToNextLevel()),
+        {16.0f, 36.0f}, 18, sf::Color::White);
+    drawText("TIME " + std::to_string(static_cast<int>(world.survivalTime()))
+        + "  SCORE " + std::to_string(world.score()),
+        {16.0f, 60.0f}, 18, sf::Color::White);
 
     switch (world.state()) {
         case GameState::GameOver:
@@ -31,10 +55,6 @@ void Renderer::render(const GameWorld& world) {
 }
 
 void Renderer::drawPlayer(const GameWorld& world) {
-    if (world.state() != GameState::Playing) {
-        return;
-    }
-
     const auto& player = world.player();
     sf::CircleShape shape(player.radius());
     shape.setFillColor(sf::Color::Green);
@@ -82,20 +102,13 @@ void Renderer::drawGameOver(const GameWorld& /*world*/) {
     overlay.setFillColor(sf::Color(0, 0, 0, 150));
     window_.draw(overlay);
 
-    sf::RectangleShape box({300.0f, 100.0f});
-    box.setFillColor(sf::Color::Red);
-    box.setOrigin({150.0f, 50.0f});
-    box.setPosition({center.x, center.y - 50.0f});
-    window_.draw(box);
-
-    sf::RectangleShape restartBox({200.0f, 40.0f});
-    restartBox.setFillColor(sf::Color::White);
-    restartBox.setOrigin({100.0f, 20.0f});
-    restartBox.setPosition({center.x, center.y + 50.0f});
-    window_.draw(restartBox);
+    drawBox({center.x, center.y - 50.0f}, {300.0f, 100.0f}, sf::Color::Red);
+    drawCenteredText("GAME OVER", {center.x, center.y - 58.0f}, 28, sf::Color::White);
+    drawBox({center.x, center.y + 50.0f}, {200.0f, 40.0f}, sf::Color::White);
+    drawCenteredText("Press R", {center.x, center.y + 43.0f}, 20, sf::Color::Black);
 }
 
-void Renderer::drawLevelUp(const GameWorld& /*world*/) {
+void Renderer::drawLevelUp(const GameWorld& world) {
     const float width = static_cast<float>(Config::WindowWidth);
     const float height = static_cast<float>(Config::WindowHeight);
     const sf::Vector2f center{width / 2.0f, height / 2.0f};
@@ -104,17 +117,21 @@ void Renderer::drawLevelUp(const GameWorld& /*world*/) {
     overlay.setFillColor(sf::Color(0, 0, 100, 180));
     window_.draw(overlay);
 
-    sf::RectangleShape box({300.0f, 150.0f});
-    box.setFillColor(sf::Color::Blue);
-    box.setOrigin({150.0f, 75.0f});
-    box.setPosition({center.x, center.y});
-    window_.draw(box);
+    const auto& upgrades = world.currentUpgrades();
+    drawCenteredText("LEVEL UP", {center.x, center.y - 175.0f}, 30, sf::Color::White);
+    for (int i = 0; i < 3; ++i) {
+        float y = center.y - 100.0f + i * 80.0f;
+        sf::Color color = sf::Color(50, 50, 150);
+        if (i == 0) color = sf::Color(80, 80, 200);
+        if (i == 1) color = sf::Color(60, 60, 180);
+        if (i == 2) color = sf::Color(40, 40, 160);
 
-    sf::RectangleShape confirmBox({200.0f, 40.0f});
-    confirmBox.setFillColor(sf::Color::White);
-    confirmBox.setOrigin({100.0f, 20.0f});
-    confirmBox.setPosition({center.x, center.y + 80.0f});
-    window_.draw(confirmBox);
+        drawBox({center.x, y}, {350.0f, 60.0f}, color);
+        drawText(std::to_string(i + 1) + ". " + upgrades[i].name,
+            {center.x - 155.0f, y - 22.0f}, 18, sf::Color::White);
+        drawText(upgrades[i].description,
+            {center.x - 155.0f, y + 2.0f}, 14, sf::Color(210, 220, 255));
+    }
 }
 
 void Renderer::drawVictory(const GameWorld& /*world*/) {
@@ -126,15 +143,40 @@ void Renderer::drawVictory(const GameWorld& /*world*/) {
     overlay.setFillColor(sf::Color(0, 100, 0, 180));
     window_.draw(overlay);
 
-    sf::RectangleShape box({300.0f, 100.0f});
-    box.setFillColor(sf::Color::Green);
-    box.setOrigin({150.0f, 50.0f});
-    box.setPosition({center.x, center.y - 50.0f});
-    window_.draw(box);
+    drawBox({center.x, center.y - 50.0f}, {300.0f, 100.0f}, sf::Color::Green);
+    drawCenteredText("VICTORY", {center.x, center.y - 58.0f}, 28, sf::Color::White);
+    drawBox({center.x, center.y + 50.0f}, {200.0f, 40.0f}, sf::Color::White);
+    drawCenteredText("Press R", {center.x, center.y + 43.0f}, 20, sf::Color::Black);
+}
 
-    sf::RectangleShape restartBox({200.0f, 40.0f});
-    restartBox.setFillColor(sf::Color::White);
-    restartBox.setOrigin({100.0f, 20.0f});
-    restartBox.setPosition({center.x, center.y + 50.0f});
-    window_.draw(restartBox);
+void Renderer::drawBox(const sf::Vector2f& center, const sf::Vector2f& size, const sf::Color& color) {
+    sf::RectangleShape box(size);
+    box.setFillColor(color);
+    box.setOrigin({size.x / 2.0f, size.y / 2.0f});
+    box.setPosition(center);
+    window_.draw(box);
+}
+
+void Renderer::drawText(const std::string& text, const sf::Vector2f& position, unsigned int size, const sf::Color& color) {
+    if (!fontLoaded_) {
+        return;
+    }
+
+    sf::Text drawable(font_, text, size);
+    drawable.setFillColor(color);
+    drawable.setPosition(position);
+    window_.draw(drawable);
+}
+
+void Renderer::drawCenteredText(const std::string& text, const sf::Vector2f& center, unsigned int size, const sf::Color& color) {
+    if (!fontLoaded_) {
+        return;
+    }
+
+    sf::Text drawable(font_, text, size);
+    drawable.setFillColor(color);
+    const auto bounds = drawable.getLocalBounds();
+    drawable.setOrigin({bounds.position.x + bounds.size.x / 2.0f, bounds.position.y + bounds.size.y / 2.0f});
+    drawable.setPosition(center);
+    window_.draw(drawable);
 }

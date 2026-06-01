@@ -1,5 +1,7 @@
 build/
+build-wsl/
 .cache/
+docs/
 *.exe
 *.obj
 *.pdb

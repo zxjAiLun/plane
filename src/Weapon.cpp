@@ -5,7 +5,9 @@ Weapon::Weapon()
     : cooldown_(Config::WeaponCooldown)
     , range_(Config::WeaponRange)
     , projectileSpeed_(Config::ProjectileSpeed)
-    , damage_(Config::ProjectileDamage) {
+    , baseDamage_(Config::ProjectileDamage)
+    , cooldownDuration_(Config::WeaponCooldown)
+    , damageMultiplier_(1.0f) {
 }
 
 void Weapon::update(float dt) {
@@ -43,10 +45,18 @@ std::optional<Projectile> Weapon::tryShoot(
 
     Vector2 direction = (nearestEnemy->position() - ownerPosition).normalized();
     Vector2 velocity = direction * projectileSpeed_;
+    int damage = static_cast<int>(baseDamage_ * damageMultiplier_);
 
-    return Projectile(ownerPosition, velocity, damage_);
+    return Projectile(ownerPosition, velocity, damage);
+}
+
+void Weapon::applyStats(const PlayerStats& stats) {
+    damageMultiplier_ = stats.damageMultiplier;
+    cooldown_.setDuration(cooldownDuration_ / stats.fireRateMultiplier);
 }
 
 void Weapon::reset() {
     cooldown_.reset();
+    cooldown_.setDuration(cooldownDuration_);
+    damageMultiplier_ = 1.0f;
 }

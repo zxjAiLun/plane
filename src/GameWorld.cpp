@@ -3,22 +3,27 @@
 #include "Config.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 
 GameWorld::GameWorld()
     : state_(GameState::Playing)
     , score_(0)
-    , survivalTime_(0.0f) {
+    , survivalTime_(0.0f)
+    , currentUpgrades_{} {
+    generateUpgrades();
 }
 
-void GameWorld::update(float dt, const Input& input) {
+void GameWorld::update(float dt, Input& input) {
     switch (state_) {
         case GameState::Playing:
             updatePlaying(dt, input);
             break;
 
         case GameState::LevelUp:
-            if (input.restart()) {
-                player_.confirmLevelUp();
+            if (input.upgradeChoice() >= 1 && input.upgradeChoice() <= 3) {
+                int idx = input.upgradeChoice() - 1;
+                player_.applyUpgrade(currentUpgrades_[idx].type);
+                weapon_.applyStats(player_.stats());
                 state_ = GameState::Playing;
             }
             break;
@@ -35,9 +40,11 @@ void GameWorld::update(float dt, const Input& input) {
             }
             break;
     }
+
+    input.update();
 }
 
-void GameWorld::updatePlaying(float dt, const Input& input) {
+void GameWorld::updatePlaying(float dt, Input& input) {
     if (input.moveLeft()) player_.moveLeft(dt);
     if (input.moveRight()) player_.moveRight(dt);
     if (input.moveUp()) player_.moveUp(dt);
@@ -57,16 +64,13 @@ void GameWorld::updatePlaying(float dt, const Input& input) {
 
     survivalTime_ += dt;
 
-    if (player_.isLevelUp()) {
-        state_ = GameState::LevelUp;
-    }
-
     if (player_.isDead()) {
         state_ = GameState::GameOver;
-    }
-
-    if (survivalTime_ >= Config::VictoryTime) {
+    } else if (survivalTime_ >= Config::VictoryTime) {
         state_ = GameState::Victory;
+    } else if (player_.isLevelUp()) {
+        generateUpgrades();
+        state_ = GameState::LevelUp;
     }
 }
 
@@ -80,6 +84,7 @@ void GameWorld::reset() {
     state_ = GameState::Playing;
     score_ = 0;
     survivalTime_ = 0.0f;
+    generateUpgrades();
 }
 
 void GameWorld::updateObjects(float dt) {
@@ -134,12 +139,12 @@ void GameWorld::handleCollisions() {
         }
     }
 
+    float pickupRange = (Config::PickupRange + player_.radius()) * player_.stats().pickupRangeMultiplier;
     for (auto& orb : orbs_) {
         if (orb.isCollected()) {
             continue;
         }
 
-        float pickupRange = Config::PickupRange + player_.radius();
         Vector2 diff = player_.position() - orb.position();
         if (diff.lengthSquared() <= pickupRange * pickupRange) {
             orb.collect();
@@ -168,10 +173,31 @@ void GameWorld::removeDeadObjects() {
     }
 }
 
+void GameWorld::generateUpgrades() {
+    static const std::array<Upgrade, 5> allUpgrades = {{
+        {UpgradeType::Damage,    "+20% Damage",    "Increase weapon damage"},
+        {UpgradeType::FireRate,  "+20% Fire Rate", "Shoot faster"},
+        {UpgradeType::MoveSpeed, "+10% Move Speed", "Move faster"},
+        {UpgradeType::PickupRange, "+25% Pickup Range", "Collect exp from further"},
+        {UpgradeType::MaxHp,     "+1 Max HP",      "Increase max health"},
+    }};
+
+    std::array<bool, 5> used{};
+    for (int i = 0; i < 3; ++i) {
+        int idx;
+        do {
+            idx = std::rand() % allUpgrades.size();
+        } while (used[idx]);
+        used[idx] = true;
+        currentUpgrades_[i] = allUpgrades[idx];
+    }
+}
+
 const Player& GameWorld::player() const { return player_; }
 const std::vector<Projectile>& GameWorld::projectiles() const { return projectiles_; }
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
 const std::vector<ExperienceOrb>& GameWorld::orbs() const { return orbs_; }
+const std::array<Upgrade, 3>& GameWorld::currentUpgrades() const { return currentUpgrades_; }
 GameState GameWorld::state() const { return state_; }
 int GameWorld::score() const { return score_; }
 float GameWorld::survivalTime() const { return survivalTime_; }
