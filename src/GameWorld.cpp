@@ -59,9 +59,9 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     player_.update(dt);
 
     weapon_.update(dt);
-    if (input.primaryFire()) {
+    if (input.primaryFireHeld()) {
         if (auto projectile = weapon_.tryShoot(player_.position(), aimPosition_)) {
-        projectiles_.push_back(*projectile);
+            projectiles_.push_back(*projectile);
         }
     }
 

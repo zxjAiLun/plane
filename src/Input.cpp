@@ -48,6 +48,7 @@ void Input::handleMousePressed(sf::Mouse::Button button, sf::Vector2i position) 
     }
 
     primaryFire_ = true;
+    primaryFireHeld_ = true;
 
     const float centerX = Config::WindowWidth / 2.0f;
     const float centerY = Config::WindowHeight / 2.0f;
@@ -68,11 +69,20 @@ void Input::handleMousePressed(sf::Mouse::Button button, sf::Vector2i position) 
     }
 }
 
+void Input::handleMouseReleased(sf::Mouse::Button button, sf::Vector2i position) {
+    mousePosition_ = position;
+
+    if (button == sf::Mouse::Button::Left) {
+        primaryFireHeld_ = false;
+    }
+}
+
 bool Input::moveLeft() const { return moveLeft_; }
 bool Input::moveRight() const { return moveRight_; }
 bool Input::moveUp() const { return moveUp_; }
 bool Input::moveDown() const { return moveDown_; }
 bool Input::primaryFire() const { return primaryFire_; }
+bool Input::primaryFireHeld() const { return primaryFireHeld_; }
 bool Input::restart() const { return restart_; }
 bool Input::quit() const { return quit_; }
 int Input::upgradeChoice() const { return upgradeChoice_; }

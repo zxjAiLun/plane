@@ -40,6 +40,9 @@ void Game::processInput() {
         if (const auto* mouse = event->getIf<sf::Event::MouseButtonPressed>()) {
             input_.handleMousePressed(mouse->button, mouse->position);
         }
+        if (const auto* mouse = event->getIf<sf::Event::MouseButtonReleased>()) {
+            input_.handleMouseReleased(mouse->button, mouse->position);
+        }
     }
 }
 
