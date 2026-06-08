@@ -35,5 +35,9 @@ namespace Config {
     constexpr float PickupRange = 50.0f;
     constexpr int BaseExpToLevel = 5;
 
+    constexpr float ItemDropRadius = 7.0f;
+    constexpr float ItemPickupRange = 32.0f;
+    constexpr int ItemDropChancePercent = 35;
+
     constexpr float VictoryTime = 60.0f;
 }

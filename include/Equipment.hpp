@@ -13,6 +13,8 @@ enum class EquipmentSlot {
     Count
 };
 
+constexpr std::size_t EquipmentSlotCount = static_cast<std::size_t>(EquipmentSlot::Count);
+
 class Equipment {
 public:
     void setSlotStats(EquipmentSlot slot, const Stats& stats) {
@@ -41,5 +43,5 @@ private:
     }
 
 private:
-    std::array<Stats, slotIndex(EquipmentSlot::Count)> slotStats_{};
+    std::array<Stats, EquipmentSlotCount> slotStats_{};
 };

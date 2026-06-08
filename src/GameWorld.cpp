@@ -99,6 +99,8 @@ void GameWorld::reset() {
     projectiles_.clear();
     enemies_.clear();
     orbs_.clear();
+    droppedItems_.clear();
+    inventory_.clear();
     spawner_.reset();
     weapon_.reset();
     dashCooldown_.setDuration(0.0f);
@@ -177,6 +179,18 @@ void GameWorld::handleCollisions() {
             player_.gainExp(orb.value());
         }
     }
+
+    const float itemPickupRange = Config::ItemPickupRange + player_.radius();
+    for (auto& droppedItem : droppedItems_) {
+        if (droppedItem.isCollected()) {
+            continue;
+        }
+
+        Vector2 diff = player_.position() - droppedItem.position();
+        if (diff.lengthSquared() <= itemPickupRange * itemPickupRange) {
+            inventory_.add(droppedItem.collect());
+        }
+    }
 }
 
 void GameWorld::removeDeadObjects() {
@@ -196,6 +210,12 @@ void GameWorld::removeDeadObjects() {
         [](const ExperienceOrb& o) { return o.isCollected(); });
     if (orbIt != orbs_.end()) {
         orbs_.erase(orbIt, orbs_.end());
+    }
+
+    auto itemIt = std::remove_if(droppedItems_.begin(), droppedItems_.end(),
+        [](const DroppedItem& item) { return item.isCollected(); });
+    if (itemIt != droppedItems_.end()) {
+        droppedItems_.erase(itemIt, droppedItems_.end());
     }
 }
 
@@ -274,12 +294,18 @@ void GameWorld::trySecondarySkill(Input& input) {
 void GameWorld::rewardEnemyKill(const Enemy& enemy) {
     score_ += 100;
     orbs_.push_back(ExperienceOrb(enemy.position(), Config::ExpPerKill));
+
+    if ((std::rand() % 100) < Config::ItemDropChancePercent) {
+        droppedItems_.push_back(DroppedItem(enemy.position(), lootGenerator_.generate(1)));
+    }
 }
 
 const Player& GameWorld::player() const { return player_; }
 const std::vector<Projectile>& GameWorld::projectiles() const { return projectiles_; }
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
 const std::vector<ExperienceOrb>& GameWorld::orbs() const { return orbs_; }
+const std::vector<DroppedItem>& GameWorld::droppedItems() const { return droppedItems_; }
+const Inventory& GameWorld::inventory() const { return inventory_; }
 const std::array<Upgrade, 3>& GameWorld::currentUpgrades() const { return currentUpgrades_; }
 const Vector2& GameWorld::aimPosition() const { return aimPosition_; }
 float GameWorld::novaEffectProgress() const {

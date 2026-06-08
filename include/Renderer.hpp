@@ -17,6 +17,8 @@ private:
     void drawProjectiles(const GameWorld& world);
     void drawEnemies(const GameWorld& world);
     void drawOrbs(const GameWorld& world);
+    void drawDroppedItems(const GameWorld& world);
+    void drawInventory(const GameWorld& world);
     void drawGameOver(const GameWorld& world);
     void drawLevelUp(const GameWorld& world);
     void drawVictory(const GameWorld& world);

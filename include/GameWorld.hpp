@@ -6,7 +6,10 @@
 #include "Projectile.hpp"
 #include "Enemy.hpp"
 #include "ExperienceOrb.hpp"
+#include "DroppedItem.hpp"
 #include "EnemySpawner.hpp"
+#include "Inventory.hpp"
+#include "LootGenerator.hpp"
 #include "Weapon.hpp"
 #include "Upgrade.hpp"
 #include "Input.hpp"
@@ -30,6 +33,8 @@ public:
     const std::vector<Projectile>& projectiles() const;
     const std::vector<Enemy>& enemies() const;
     const std::vector<ExperienceOrb>& orbs() const;
+    const std::vector<DroppedItem>& droppedItems() const;
+    const Inventory& inventory() const;
     const std::array<Upgrade, 3>& currentUpgrades() const;
     const Vector2& aimPosition() const;
     float novaEffectProgress() const;
@@ -57,6 +62,9 @@ private:
     std::vector<Projectile> projectiles_;
     std::vector<Enemy> enemies_;
     std::vector<ExperienceOrb> orbs_;
+    std::vector<DroppedItem> droppedItems_;
+    Inventory inventory_;
+    LootGenerator lootGenerator_;
     EnemySpawner spawner_;
     Weapon weapon_;
     Timer dashCooldown_;

@@ -1,7 +1,19 @@
 #include "Renderer.hpp"
 #include "Config.hpp"
 
+#include <algorithm>
 #include <cstdint>
+
+namespace {
+sf::Color rarityColor(Rarity rarity) {
+    switch (rarity) {
+        case Rarity::Normal: return sf::Color(220, 220, 220);
+        case Rarity::Magic: return sf::Color(90, 150, 255);
+        case Rarity::Rare: return sf::Color(255, 210, 80);
+    }
+    return sf::Color::White;
+}
+}
 
 Renderer::Renderer(sf::RenderWindow& window)
     : window_(window)
@@ -31,6 +43,7 @@ void Renderer::render(const GameWorld& world) {
     drawProjectiles(world);
     drawEnemies(world);
     drawOrbs(world);
+    drawDroppedItems(world);
 
     drawText("HP " + std::to_string(world.player().hp()) + "/" + std::to_string(world.player().maxHp()),
         {16.0f, 12.0f}, 18, sf::Color::White);
@@ -40,6 +53,7 @@ void Renderer::render(const GameWorld& world) {
     drawText("TIME " + std::to_string(static_cast<int>(world.survivalTime()))
         + "  SCORE " + std::to_string(world.score()),
         {16.0f, 60.0f}, 18, sf::Color::White);
+    drawInventory(world);
 
     switch (world.state()) {
         case GameState::GameOver:
@@ -138,6 +152,35 @@ void Renderer::drawOrbs(const GameWorld& world) {
         shape.setOrigin({orb.radius(), orb.radius()});
         shape.setPosition({orb.position().x, orb.position().y});
         window_.draw(shape);
+    }
+}
+
+void Renderer::drawDroppedItems(const GameWorld& world) {
+    for (const auto& droppedItem : world.droppedItems()) {
+        const auto& item = droppedItem.item();
+        sf::RectangleShape shape({droppedItem.radius() * 2.0f, droppedItem.radius() * 2.0f});
+        shape.setFillColor(rarityColor(item.rarity));
+        shape.setOrigin({droppedItem.radius(), droppedItem.radius()});
+        shape.setPosition({droppedItem.position().x, droppedItem.position().y});
+        window_.draw(shape);
+    }
+}
+
+void Renderer::drawInventory(const GameWorld& world) {
+    const auto& items = world.inventory().items();
+    const float x = static_cast<float>(Config::WindowWidth) - 260.0f;
+    float y = 12.0f;
+
+    drawText("Inventory", {x, y}, 16, sf::Color::White);
+    y += 22.0f;
+
+    const std::size_t visibleCount = std::min<std::size_t>(items.size(), 9);
+    for (std::size_t i = 0; i < visibleCount; ++i) {
+        const auto& item = items[i];
+        const std::string line = std::to_string(i + 1) + ". "
+            + item.name + " [" + slotName(item.slot) + "]";
+        drawText(line, {x, y}, 13, rarityColor(item.rarity));
+        y += 18.0f;
     }
 }
 
