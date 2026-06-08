@@ -3,6 +3,7 @@
 
 void Input::update() {
     primaryFire_ = false;
+    dash_ = false;
     upgradeChoice_ = 0;
 }
 
@@ -12,6 +13,7 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::Right: moveRight_ = true; break;
         case sf::Keyboard::Key::Up:    moveUp_ = true; break;
         case sf::Keyboard::Key::Down:  moveDown_ = true; break;
+        case sf::Keyboard::Key::Space: dash_ = true; break;
         case sf::Keyboard::Key::R:     restart_ = true; break;
         case sf::Keyboard::Key::Escape: quit_ = true; break;
         case sf::Keyboard::Key::Num1: upgradeChoice_ = 1; break;
@@ -83,6 +85,7 @@ bool Input::moveUp() const { return moveUp_; }
 bool Input::moveDown() const { return moveDown_; }
 bool Input::primaryFire() const { return primaryFire_; }
 bool Input::primaryFireHeld() const { return primaryFireHeld_; }
+bool Input::dash() const { return dash_; }
 bool Input::restart() const { return restart_; }
 bool Input::quit() const { return quit_; }
 int Input::upgradeChoice() const { return upgradeChoice_; }

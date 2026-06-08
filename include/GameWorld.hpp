@@ -10,6 +10,7 @@
 #include "Weapon.hpp"
 #include "Upgrade.hpp"
 #include "Input.hpp"
+#include "Timer.hpp"
 
 enum class GameState {
     Playing,
@@ -43,6 +44,7 @@ private:
     void handleCollisions();
     void removeDeadObjects();
     void generateUpgrades();
+    void tryDash(Input& input);
 
     float currentSpawnInterval() const;
 
@@ -53,6 +55,7 @@ private:
     std::vector<ExperienceOrb> orbs_;
     EnemySpawner spawner_;
     Weapon weapon_;
+    Timer dashCooldown_;
 
     GameState state_;
     int score_;

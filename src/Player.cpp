@@ -1,6 +1,8 @@
 #include "Player.hpp"
 #include "Config.hpp"
 
+#include <algorithm>
+
 Player::Player()
     : position_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
     , baseSpeed_(Config::PlayerSpeed)
@@ -43,6 +45,11 @@ void Player::moveDown(float dt) {
     if (position_.y + radius_ > Config::WindowHeight) {
         position_.y = Config::WindowHeight - radius_;
     }
+}
+
+void Player::setPosition(const Vector2& position) {
+    position_.x = std::clamp(position.x, radius_, Config::WindowWidth - radius_);
+    position_.y = std::clamp(position.y, radius_, Config::WindowHeight - radius_);
 }
 
 void Player::takeDamage(int damage) {

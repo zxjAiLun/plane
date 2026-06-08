@@ -14,6 +14,7 @@ public:
     void moveRight(float dt);
     void moveUp(float dt);
     void moveDown(float dt);
+    void setPosition(const Vector2& position);
 
     void takeDamage(int damage);
     bool isDead() const;

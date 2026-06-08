@@ -14,6 +14,9 @@ namespace Config {
 
     constexpr float WeaponCooldown = 0.3f;
 
+    constexpr float DashDistance = 120.0f;
+    constexpr float DashCooldown = 0.8f;
+
     constexpr float EnemySpeed = 120.0f;
     constexpr float EnemyRadius = 20.0f;
     constexpr int EnemyHp = 1;

@@ -6,7 +6,8 @@
 #include <cstdlib>
 
 GameWorld::GameWorld()
-    : state_(GameState::Playing)
+    : dashCooldown_(0.0f)
+    , state_(GameState::Playing)
     , score_(0)
     , survivalTime_(0.0f)
     , aimPosition_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
@@ -57,6 +58,8 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     if (input.moveDown()) player_.moveDown(dt);
 
     player_.update(dt);
+    dashCooldown_.update(dt);
+    tryDash(input);
 
     weapon_.update(dt);
     if (input.primaryFireHeld()) {
@@ -90,6 +93,8 @@ void GameWorld::reset() {
     orbs_.clear();
     spawner_.reset();
     weapon_.reset();
+    dashCooldown_.setDuration(0.0f);
+    dashCooldown_.reset();
     state_ = GameState::Playing;
     score_ = 0;
     survivalTime_ = 0.0f;
@@ -200,6 +205,21 @@ void GameWorld::generateUpgrades() {
         used[idx] = true;
         currentUpgrades_[i] = allUpgrades[idx];
     }
+}
+
+void GameWorld::tryDash(Input& input) {
+    if (!input.dash() || !dashCooldown_.isReady()) {
+        return;
+    }
+
+    Vector2 direction = (aimPosition_ - player_.position()).normalized();
+    if (direction.lengthSquared() == 0.0f) {
+        return;
+    }
+
+    player_.setPosition(player_.position() + direction * Config::DashDistance);
+    dashCooldown_.setDuration(Config::DashCooldown);
+    dashCooldown_.reset();
 }
 
 const Player& GameWorld::player() const { return player_; }

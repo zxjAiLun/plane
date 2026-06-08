@@ -20,6 +20,7 @@ public:
     bool moveDown() const;
     bool primaryFire() const;
     bool primaryFireHeld() const;
+    bool dash() const;
     bool restart() const;
     bool quit() const;
     int upgradeChoice() const;
@@ -32,6 +33,7 @@ private:
     bool moveDown_ = false;
     bool primaryFire_ = false;
     bool primaryFireHeld_ = false;
+    bool dash_ = false;
     bool restart_ = false;
     bool quit_ = false;
     int upgradeChoice_ = 0;
