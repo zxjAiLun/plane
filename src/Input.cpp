@@ -7,6 +7,7 @@ void Input::update() {
     nova_ = false;
     secondarySkill_ = false;
     upgradeChoice_ = 0;
+    inventoryChoice_ = 0;
 }
 
 void Input::handleKeyPressed(sf::Keyboard::Key key) {
@@ -19,12 +20,24 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::Q:     nova_ = true; break;
         case sf::Keyboard::Key::R:     restart_ = true; break;
         case sf::Keyboard::Key::Escape: quit_ = true; break;
-        case sf::Keyboard::Key::Num1: upgradeChoice_ = 1; break;
-        case sf::Keyboard::Key::Num2: upgradeChoice_ = 2; break;
-        case sf::Keyboard::Key::Num3: upgradeChoice_ = 3; break;
-        case sf::Keyboard::Key::Numpad1: upgradeChoice_ = 1; break;
-        case sf::Keyboard::Key::Numpad2: upgradeChoice_ = 2; break;
-        case sf::Keyboard::Key::Numpad3: upgradeChoice_ = 3; break;
+        case sf::Keyboard::Key::Num1: upgradeChoice_ = 1; inventoryChoice_ = 1; break;
+        case sf::Keyboard::Key::Num2: upgradeChoice_ = 2; inventoryChoice_ = 2; break;
+        case sf::Keyboard::Key::Num3: upgradeChoice_ = 3; inventoryChoice_ = 3; break;
+        case sf::Keyboard::Key::Num4: inventoryChoice_ = 4; break;
+        case sf::Keyboard::Key::Num5: inventoryChoice_ = 5; break;
+        case sf::Keyboard::Key::Num6: inventoryChoice_ = 6; break;
+        case sf::Keyboard::Key::Num7: inventoryChoice_ = 7; break;
+        case sf::Keyboard::Key::Num8: inventoryChoice_ = 8; break;
+        case sf::Keyboard::Key::Num9: inventoryChoice_ = 9; break;
+        case sf::Keyboard::Key::Numpad1: upgradeChoice_ = 1; inventoryChoice_ = 1; break;
+        case sf::Keyboard::Key::Numpad2: upgradeChoice_ = 2; inventoryChoice_ = 2; break;
+        case sf::Keyboard::Key::Numpad3: upgradeChoice_ = 3; inventoryChoice_ = 3; break;
+        case sf::Keyboard::Key::Numpad4: inventoryChoice_ = 4; break;
+        case sf::Keyboard::Key::Numpad5: inventoryChoice_ = 5; break;
+        case sf::Keyboard::Key::Numpad6: inventoryChoice_ = 6; break;
+        case sf::Keyboard::Key::Numpad7: inventoryChoice_ = 7; break;
+        case sf::Keyboard::Key::Numpad8: inventoryChoice_ = 8; break;
+        case sf::Keyboard::Key::Numpad9: inventoryChoice_ = 9; break;
         default: break;
     }
 }
@@ -99,4 +112,5 @@ bool Input::secondarySkill() const { return secondarySkill_; }
 bool Input::restart() const { return restart_; }
 bool Input::quit() const { return quit_; }
 int Input::upgradeChoice() const { return upgradeChoice_; }
+int Input::inventoryChoice() const { return inventoryChoice_; }
 sf::Vector2i Input::mousePosition() const { return mousePosition_; }

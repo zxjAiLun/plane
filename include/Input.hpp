@@ -26,6 +26,7 @@ public:
     bool restart() const;
     bool quit() const;
     int upgradeChoice() const;
+    int inventoryChoice() const;
     sf::Vector2i mousePosition() const;
 
 private:
@@ -41,5 +42,6 @@ private:
     bool restart_ = false;
     bool quit_ = false;
     int upgradeChoice_ = 0;
+    int inventoryChoice_ = 0;
     sf::Vector2i mousePosition_{0, 0};
 };
