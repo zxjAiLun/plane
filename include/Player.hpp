@@ -20,7 +20,6 @@ public:
 
     void gainExp(int amount);
     bool isLevelUp() const;
-    void confirmLevelUp();
     void applyUpgrade(UpgradeType type);
 
     const Vector2& position() const;
@@ -42,7 +41,7 @@ private:
     int level_;
     int exp_;
     int expToNextLevel_;
-    bool levelUpPending_;
+    int pendingLevelUps_;
 
     PlayerStats stats_;
 };

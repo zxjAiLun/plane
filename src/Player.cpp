@@ -10,7 +10,7 @@ Player::Player()
     , level_(1)
     , exp_(0)
     , expToNextLevel_(Config::BaseExpToLevel)
-    , levelUpPending_(false)
+    , pendingLevelUps_(0)
     , stats_() {
 }
 
@@ -59,16 +59,12 @@ void Player::gainExp(int amount) {
         exp_ -= expToNextLevel_;
         level_++;
         expToNextLevel_ = Config::BaseExpToLevel + (level_ - 1) * 2;
-        levelUpPending_ = true;
+        ++pendingLevelUps_;
     }
 }
 
 bool Player::isLevelUp() const {
-    return levelUpPending_;
-}
-
-void Player::confirmLevelUp() {
-    levelUpPending_ = false;
+    return pendingLevelUps_ > 0;
 }
 
 void Player::applyUpgrade(UpgradeType type) {
@@ -90,7 +86,9 @@ void Player::applyUpgrade(UpgradeType type) {
             hp_ += 1;
             break;
     }
-    levelUpPending_ = false;
+    if (pendingLevelUps_ > 0) {
+        --pendingLevelUps_;
+    }
 }
 
 const Vector2& Player::position() const { return position_; }

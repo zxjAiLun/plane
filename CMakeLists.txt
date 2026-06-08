@@ -39,3 +39,12 @@ add_executable(PlaneShooter
 
 target_include_directories(PlaneShooter PRIVATE include)
 target_link_libraries(PlaneShooter PRIVATE SFML::Graphics SFML::Window SFML::System)
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets")
+    add_custom_command(
+        TARGET PlaneShooter POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${CMAKE_SOURCE_DIR}/assets"
+                "$<TARGET_FILE_DIR:PlaneShooter>/assets"
+    )
+endif()

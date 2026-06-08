@@ -3,7 +3,6 @@
 
 Weapon::Weapon()
     : cooldown_(Config::WeaponCooldown)
-    , range_(Config::WeaponRange)
     , projectileSpeed_(Config::ProjectileSpeed)
     , baseDamage_(Config::ProjectileDamage)
     , cooldownDuration_(Config::WeaponCooldown)
@@ -16,34 +15,19 @@ void Weapon::update(float dt) {
 
 std::optional<Projectile> Weapon::tryShoot(
     const Vector2& ownerPosition,
-    const std::vector<Enemy>& enemies
+    const Vector2& targetPosition
 ) {
     if (!cooldown_.isReady()) {
         return std::nullopt;
     }
 
-    const Enemy* nearestEnemy = nullptr;
-    float nearestDistSq = range_ * range_;
-
-    for (const auto& enemy : enemies) {
-        if (enemy.isDead()) continue;
-
-        Vector2 diff = enemy.position() - ownerPosition;
-        float distSq = diff.lengthSquared();
-
-        if (distSq < nearestDistSq) {
-            nearestDistSq = distSq;
-            nearestEnemy = &enemy;
-        }
-    }
-
-    if (!nearestEnemy) {
+    Vector2 direction = (targetPosition - ownerPosition).normalized();
+    if (direction.lengthSquared() <= 0.0f) {
         return std::nullopt;
     }
 
     cooldown_.reset();
 
-    Vector2 direction = (nearestEnemy->position() - ownerPosition).normalized();
     Vector2 velocity = direction * projectileSpeed_;
     int damage = static_cast<int>(baseDamage_ * damageMultiplier_);
 

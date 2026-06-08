@@ -1,9 +1,7 @@
 #pragma once
 
 #include <optional>
-#include <vector>
 #include "Projectile.hpp"
-#include "Enemy.hpp"
 #include "Timer.hpp"
 #include "PlayerStats.hpp"
 
@@ -14,7 +12,7 @@ public:
     void update(float dt);
     std::optional<Projectile> tryShoot(
         const Vector2& ownerPosition,
-        const std::vector<Enemy>& enemies
+        const Vector2& targetPosition
     );
 
     void applyStats(const PlayerStats& stats);
@@ -22,7 +20,6 @@ public:
 
 private:
     Timer cooldown_;
-    float range_;
     float projectileSpeed_;
     int baseDamage_;
     float cooldownDuration_;

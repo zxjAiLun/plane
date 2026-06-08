@@ -12,6 +12,7 @@ public:
 
 private:
     void drawPlayer(const GameWorld& world);
+    void drawAimIndicator(const GameWorld& world);
     void drawProjectiles(const GameWorld& world);
     void drawEnemies(const GameWorld& world);
     void drawOrbs(const GameWorld& world);

@@ -11,8 +11,10 @@ public:
     void update(float dt);
     std::optional<Enemy> trySpawn();
 
+    void setSpawnInterval(float interval);
     void reset();
 
 private:
+    float defaultInterval_;
     Timer spawnTimer_;
 };

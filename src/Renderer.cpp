@@ -24,6 +24,7 @@ void Renderer::render(const GameWorld& world) {
     window_.clear(sf::Color::Black);
 
     drawPlayer(world);
+    drawAimIndicator(world);
     drawProjectiles(world);
     drawEnemies(world);
     drawOrbs(world);
@@ -61,6 +62,31 @@ void Renderer::drawPlayer(const GameWorld& world) {
     shape.setOrigin({player.radius(), player.radius()});
     shape.setPosition({player.position().x, player.position().y});
     window_.draw(shape);
+}
+
+void Renderer::drawAimIndicator(const GameWorld& world) {
+    const auto& player = world.player();
+    const auto& aim = world.aimPosition();
+
+    sf::VertexArray line(sf::PrimitiveType::Lines, 2);
+    line[0].position = {player.position().x, player.position().y};
+    line[0].color = sf::Color(120, 220, 255, 160);
+    line[1].position = {aim.x, aim.y};
+    line[1].color = sf::Color(120, 220, 255, 80);
+    window_.draw(line);
+
+    constexpr float reticleSize = 8.0f;
+    sf::VertexArray reticle(sf::PrimitiveType::Lines, 4);
+    reticle[0].position = {aim.x - reticleSize, aim.y};
+    reticle[1].position = {aim.x + reticleSize, aim.y};
+    reticle[2].position = {aim.x, aim.y - reticleSize};
+    reticle[3].position = {aim.x, aim.y + reticleSize};
+
+    for (std::size_t i = 0; i < reticle.getVertexCount(); ++i) {
+        reticle[i].color = sf::Color(120, 220, 255);
+    }
+
+    window_.draw(reticle);
 }
 
 void Renderer::drawProjectiles(const GameWorld& world) {

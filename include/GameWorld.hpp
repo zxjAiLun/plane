@@ -30,6 +30,7 @@ public:
     const std::vector<Enemy>& enemies() const;
     const std::vector<ExperienceOrb>& orbs() const;
     const std::array<Upgrade, 3>& currentUpgrades() const;
+    const Vector2& aimPosition() const;
 
     GameState state() const;
     int score() const;
@@ -43,6 +44,8 @@ private:
     void removeDeadObjects();
     void generateUpgrades();
 
+    float currentSpawnInterval() const;
+
 private:
     Player player_;
     std::vector<Projectile> projectiles_;
@@ -54,6 +57,7 @@ private:
     GameState state_;
     int score_;
     float survivalTime_;
+    Vector2 aimPosition_;
 
     std::array<Upgrade, 3> currentUpgrades_;
 };

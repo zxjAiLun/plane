@@ -3,11 +3,16 @@
 #include <cstdlib>
 
 EnemySpawner::EnemySpawner()
-    : spawnTimer_(Config::EnemySpawnInterval) {
+    : defaultInterval_(Config::EnemySpawnInterval)
+    , spawnTimer_(Config::EnemySpawnInterval) {
 }
 
 void EnemySpawner::update(float dt) {
     spawnTimer_.update(dt);
+}
+
+void EnemySpawner::setSpawnInterval(float interval) {
+    spawnTimer_.setDuration(interval);
 }
 
 std::optional<Enemy> EnemySpawner::trySpawn() {
@@ -45,5 +50,6 @@ std::optional<Enemy> EnemySpawner::trySpawn() {
 }
 
 void EnemySpawner::reset() {
+    spawnTimer_.setDuration(defaultInterval_);
     spawnTimer_.reset();
 }

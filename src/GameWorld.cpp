@@ -9,11 +9,17 @@ GameWorld::GameWorld()
     : state_(GameState::Playing)
     , score_(0)
     , survivalTime_(0.0f)
+    , aimPosition_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
     , currentUpgrades_{} {
     generateUpgrades();
 }
 
 void GameWorld::update(float dt, Input& input) {
+    aimPosition_ = Vector2(
+        static_cast<float>(input.mousePosition().x),
+        static_cast<float>(input.mousePosition().y)
+    );
+
     switch (state_) {
         case GameState::Playing:
             updatePlaying(dt, input);
@@ -53,12 +59,15 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     player_.update(dt);
 
     weapon_.update(dt);
-    if (auto projectile = weapon_.tryShoot(player_.position(), enemies_)) {
+    if (input.primaryFire()) {
+        if (auto projectile = weapon_.tryShoot(player_.position(), aimPosition_)) {
         projectiles_.push_back(*projectile);
+        }
     }
 
     spawnEnemies(dt);
     updateObjects(dt);
+    spawner_.setSpawnInterval(currentSpawnInterval());
     handleCollisions();
     removeDeadObjects();
 
@@ -198,6 +207,15 @@ const std::vector<Projectile>& GameWorld::projectiles() const { return projectil
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
 const std::vector<ExperienceOrb>& GameWorld::orbs() const { return orbs_; }
 const std::array<Upgrade, 3>& GameWorld::currentUpgrades() const { return currentUpgrades_; }
+const Vector2& GameWorld::aimPosition() const { return aimPosition_; }
 GameState GameWorld::state() const { return state_; }
 int GameWorld::score() const { return score_; }
 float GameWorld::survivalTime() const { return survivalTime_; }
+
+float GameWorld::currentSpawnInterval() const {
+    constexpr float startInterval = Config::EnemySpawnInterval;
+    constexpr float endInterval = 0.15f;
+
+    const float progress = std::min(survivalTime_ / Config::VictoryTime, 1.0f);
+    return startInterval + (endInterval - startInterval) * progress;
+}

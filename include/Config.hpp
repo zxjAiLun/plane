@@ -13,9 +13,6 @@ namespace Config {
     constexpr int ProjectileDamage = 1;
 
     constexpr float WeaponCooldown = 0.3f;
-    constexpr float WeaponRange = 400.0f;
-
-    constexpr float ShootCooldown = 0.2f;
 
     constexpr float EnemySpeed = 120.0f;
     constexpr float EnemyRadius = 20.0f;
