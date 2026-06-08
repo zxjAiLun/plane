@@ -22,6 +22,7 @@ public:
     bool primaryFireHeld() const;
     bool dash() const;
     bool nova() const;
+    bool secondarySkill() const;
     bool restart() const;
     bool quit() const;
     int upgradeChoice() const;
@@ -36,6 +37,7 @@ private:
     bool primaryFireHeld_ = false;
     bool dash_ = false;
     bool nova_ = false;
+    bool secondarySkill_ = false;
     bool restart_ = false;
     bool quit_ = false;
     int upgradeChoice_ = 0;

@@ -5,6 +5,7 @@ void Input::update() {
     primaryFire_ = false;
     dash_ = false;
     nova_ = false;
+    secondarySkill_ = false;
     upgradeChoice_ = 0;
 }
 
@@ -46,6 +47,11 @@ void Input::handleMouseMoved(sf::Vector2i position) {
 
 void Input::handleMousePressed(sf::Mouse::Button button, sf::Vector2i position) {
     mousePosition_ = position;
+
+    if (button == sf::Mouse::Button::Right) {
+        secondarySkill_ = true;
+        return;
+    }
 
     if (button != sf::Mouse::Button::Left) {
         return;
@@ -89,6 +95,7 @@ bool Input::primaryFire() const { return primaryFire_; }
 bool Input::primaryFireHeld() const { return primaryFireHeld_; }
 bool Input::dash() const { return dash_; }
 bool Input::nova() const { return nova_; }
+bool Input::secondarySkill() const { return secondarySkill_; }
 bool Input::restart() const { return restart_; }
 bool Input::quit() const { return quit_; }
 int Input::upgradeChoice() const { return upgradeChoice_; }

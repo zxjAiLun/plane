@@ -8,6 +8,7 @@
 GameWorld::GameWorld()
     : dashCooldown_(0.0f)
     , novaCooldown_(0.0f)
+    , secondarySkillCooldown_(0.0f)
     , state_(GameState::Playing)
     , score_(0)
     , survivalTime_(0.0f)
@@ -62,9 +63,11 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     player_.update(dt);
     dashCooldown_.update(dt);
     novaCooldown_.update(dt);
+    secondarySkillCooldown_.update(dt);
     novaEffectTimer_ = std::max(0.0f, novaEffectTimer_ - dt);
     tryDash(input);
     tryNova(input);
+    trySecondarySkill(input);
 
     weapon_.update(dt);
     if (input.primaryFireHeld()) {
@@ -102,6 +105,8 @@ void GameWorld::reset() {
     dashCooldown_.reset();
     novaCooldown_.setDuration(0.0f);
     novaCooldown_.reset();
+    secondarySkillCooldown_.setDuration(0.0f);
+    secondarySkillCooldown_.reset();
     state_ = GameState::Playing;
     score_ = 0;
     survivalTime_ = 0.0f;
@@ -255,6 +260,15 @@ void GameWorld::tryNova(Input& input) {
     novaEffectTimer_ = Config::NovaEffectDuration;
     novaCooldown_.setDuration(Config::NovaCooldown);
     novaCooldown_.reset();
+}
+
+void GameWorld::trySecondarySkill(Input& input) {
+    if (!input.secondarySkill() || !secondarySkillCooldown_.isReady()) {
+        return;
+    }
+
+    secondarySkillCooldown_.setDuration(Config::SecondarySkillCooldown);
+    secondarySkillCooldown_.reset();
 }
 
 void GameWorld::rewardEnemyKill(const Enemy& enemy) {

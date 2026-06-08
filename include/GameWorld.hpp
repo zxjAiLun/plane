@@ -47,6 +47,7 @@ private:
     void generateUpgrades();
     void tryDash(Input& input);
     void tryNova(Input& input);
+    void trySecondarySkill(Input& input);
     void rewardEnemyKill(const Enemy& enemy);
 
     float currentSpawnInterval() const;
@@ -60,6 +61,7 @@ private:
     Weapon weapon_;
     Timer dashCooldown_;
     Timer novaCooldown_;
+    Timer secondarySkillCooldown_;
 
     GameState state_;
     int score_;

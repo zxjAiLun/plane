@@ -21,6 +21,7 @@ namespace Config {
     constexpr int NovaDamage = 2;
     constexpr float NovaCooldown = 1.5f;
     constexpr float NovaEffectDuration = 0.25f;
+    constexpr float SecondarySkillCooldown = 1.0f;
 
     constexpr float EnemySpeed = 120.0f;
     constexpr float EnemyRadius = 20.0f;
