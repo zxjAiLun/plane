@@ -1,6 +1,8 @@
 #include "Renderer.hpp"
 #include "Config.hpp"
 
+#include <cstdint>
+
 Renderer::Renderer(sf::RenderWindow& window)
     : window_(window)
     , fontLoaded_(false) {
@@ -23,6 +25,7 @@ Renderer::Renderer(sf::RenderWindow& window)
 void Renderer::render(const GameWorld& world) {
     window_.clear(sf::Color::Black);
 
+    drawNovaEffect(world);
     drawPlayer(world);
     drawAimIndicator(world);
     drawProjectiles(world);
@@ -60,6 +63,25 @@ void Renderer::drawPlayer(const GameWorld& world) {
     sf::CircleShape shape(player.radius());
     shape.setFillColor(sf::Color::Green);
     shape.setOrigin({player.radius(), player.radius()});
+    shape.setPosition({player.position().x, player.position().y});
+    window_.draw(shape);
+}
+
+void Renderer::drawNovaEffect(const GameWorld& world) {
+    const float progress = world.novaEffectProgress();
+    if (progress <= 0.0f) {
+        return;
+    }
+
+    const auto& player = world.player();
+    const float radius = Config::NovaRadius * (1.0f - progress * 0.25f);
+    const auto alpha = static_cast<std::uint8_t>(180.0f * progress);
+
+    sf::CircleShape shape(radius);
+    shape.setFillColor(sf::Color(80, 180, 255, alpha / 4));
+    shape.setOutlineColor(sf::Color(120, 220, 255, alpha));
+    shape.setOutlineThickness(3.0f);
+    shape.setOrigin({radius, radius});
     shape.setPosition({player.position().x, player.position().y});
     window_.draw(shape);
 }

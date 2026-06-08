@@ -7,10 +7,12 @@
 
 GameWorld::GameWorld()
     : dashCooldown_(0.0f)
+    , novaCooldown_(0.0f)
     , state_(GameState::Playing)
     , score_(0)
     , survivalTime_(0.0f)
     , aimPosition_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
+    , novaEffectTimer_(0.0f)
     , currentUpgrades_{} {
     generateUpgrades();
 }
@@ -59,7 +61,10 @@ void GameWorld::updatePlaying(float dt, Input& input) {
 
     player_.update(dt);
     dashCooldown_.update(dt);
+    novaCooldown_.update(dt);
+    novaEffectTimer_ = std::max(0.0f, novaEffectTimer_ - dt);
     tryDash(input);
+    tryNova(input);
 
     weapon_.update(dt);
     if (input.primaryFireHeld()) {
@@ -95,9 +100,12 @@ void GameWorld::reset() {
     weapon_.reset();
     dashCooldown_.setDuration(0.0f);
     dashCooldown_.reset();
+    novaCooldown_.setDuration(0.0f);
+    novaCooldown_.reset();
     state_ = GameState::Playing;
     score_ = 0;
     survivalTime_ = 0.0f;
+    novaEffectTimer_ = 0.0f;
     generateUpgrades();
 }
 
@@ -132,8 +140,7 @@ void GameWorld::handleCollisions() {
                 projectile.kill();
 
                 if (enemy.isDead()) {
-                    score_ += 100;
-                    orbs_.push_back(ExperienceOrb(enemy.position(), Config::ExpPerKill));
+                    rewardEnemyKill(enemy);
                 }
             }
         }
@@ -222,12 +229,48 @@ void GameWorld::tryDash(Input& input) {
     dashCooldown_.reset();
 }
 
+void GameWorld::tryNova(Input& input) {
+    if (!input.nova() || !novaCooldown_.isReady()) {
+        return;
+    }
+
+    const int damage = static_cast<int>(Config::NovaDamage * player_.stats().damageMultiplier);
+    for (auto& enemy : enemies_) {
+        if (enemy.isDead()) {
+            continue;
+        }
+
+        if (Collision::circleCircle(
+                player_.position(), Config::NovaRadius,
+                enemy.position(), enemy.radius()
+            )) {
+            enemy.takeDamage(damage);
+
+            if (enemy.isDead()) {
+                rewardEnemyKill(enemy);
+            }
+        }
+    }
+
+    novaEffectTimer_ = Config::NovaEffectDuration;
+    novaCooldown_.setDuration(Config::NovaCooldown);
+    novaCooldown_.reset();
+}
+
+void GameWorld::rewardEnemyKill(const Enemy& enemy) {
+    score_ += 100;
+    orbs_.push_back(ExperienceOrb(enemy.position(), Config::ExpPerKill));
+}
+
 const Player& GameWorld::player() const { return player_; }
 const std::vector<Projectile>& GameWorld::projectiles() const { return projectiles_; }
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
 const std::vector<ExperienceOrb>& GameWorld::orbs() const { return orbs_; }
 const std::array<Upgrade, 3>& GameWorld::currentUpgrades() const { return currentUpgrades_; }
 const Vector2& GameWorld::aimPosition() const { return aimPosition_; }
+float GameWorld::novaEffectProgress() const {
+    return novaEffectTimer_ / Config::NovaEffectDuration;
+}
 GameState GameWorld::state() const { return state_; }
 int GameWorld::score() const { return score_; }
 float GameWorld::survivalTime() const { return survivalTime_; }

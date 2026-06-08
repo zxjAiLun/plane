@@ -32,6 +32,7 @@ public:
     const std::vector<ExperienceOrb>& orbs() const;
     const std::array<Upgrade, 3>& currentUpgrades() const;
     const Vector2& aimPosition() const;
+    float novaEffectProgress() const;
 
     GameState state() const;
     int score() const;
@@ -45,6 +46,8 @@ private:
     void removeDeadObjects();
     void generateUpgrades();
     void tryDash(Input& input);
+    void tryNova(Input& input);
+    void rewardEnemyKill(const Enemy& enemy);
 
     float currentSpawnInterval() const;
 
@@ -56,11 +59,13 @@ private:
     EnemySpawner spawner_;
     Weapon weapon_;
     Timer dashCooldown_;
+    Timer novaCooldown_;
 
     GameState state_;
     int score_;
     float survivalTime_;
     Vector2 aimPosition_;
+    float novaEffectTimer_;
 
     std::array<Upgrade, 3> currentUpgrades_;
 };

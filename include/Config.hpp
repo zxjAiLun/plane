@@ -17,6 +17,11 @@ namespace Config {
     constexpr float DashDistance = 120.0f;
     constexpr float DashCooldown = 0.8f;
 
+    constexpr float NovaRadius = 110.0f;
+    constexpr int NovaDamage = 2;
+    constexpr float NovaCooldown = 1.5f;
+    constexpr float NovaEffectDuration = 0.25f;
+
     constexpr float EnemySpeed = 120.0f;
     constexpr float EnemyRadius = 20.0f;
     constexpr int EnemyHp = 1;
