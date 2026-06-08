@@ -36,7 +36,7 @@ std::optional<Projectile> Weapon::tryShoot(
 
 void Weapon::applyStats(const PlayerStats& stats) {
     damageMultiplier_ = stats.damageMultiplier;
-    cooldown_.setDuration(cooldownDuration_ / stats.fireRateMultiplier);
+    cooldown_.setDuration(cooldownDuration_ / stats.attackSpeedMultiplier);
 }
 
 void Weapon::reset() {

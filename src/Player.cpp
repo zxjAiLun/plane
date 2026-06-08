@@ -80,7 +80,7 @@ void Player::applyUpgrade(UpgradeType type) {
             stats_.damageMultiplier += 0.2f;
             break;
         case UpgradeType::FireRate:
-            stats_.fireRateMultiplier += 0.2f;
+            stats_.attackSpeedMultiplier += 0.2f;
             break;
         case UpgradeType::MoveSpeed:
             stats_.moveSpeedMultiplier += 0.1f;
