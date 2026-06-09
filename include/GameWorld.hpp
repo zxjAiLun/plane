@@ -47,6 +47,7 @@ public:
     int enemiesRemainingInWave() const;
 
 private:
+    void startNextMap();
     void updatePlaying(float dt, Input& input);
     void updateObjects(float dt);
     void spawnEnemies(float dt);

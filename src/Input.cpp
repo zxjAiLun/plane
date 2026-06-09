@@ -6,6 +6,7 @@ void Input::update() {
     dash_ = false;
     nova_ = false;
     secondarySkill_ = false;
+    nextMap_ = false;
     upgradeChoice_ = 0;
     inventoryChoice_ = 0;
 }
@@ -18,6 +19,7 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::Down:  moveDown_ = true; break;
         case sf::Keyboard::Key::Space: dash_ = true; break;
         case sf::Keyboard::Key::Q:     nova_ = true; break;
+        case sf::Keyboard::Key::E:     nextMap_ = true; break;
         case sf::Keyboard::Key::R:     restart_ = true; break;
         case sf::Keyboard::Key::Escape: quit_ = true; break;
         case sf::Keyboard::Key::Num1: upgradeChoice_ = 1; inventoryChoice_ = 1; break;
@@ -109,6 +111,7 @@ bool Input::primaryFireHeld() const { return primaryFireHeld_; }
 bool Input::dash() const { return dash_; }
 bool Input::nova() const { return nova_; }
 bool Input::secondarySkill() const { return secondarySkill_; }
+bool Input::nextMap() const { return nextMap_; }
 bool Input::restart() const { return restart_; }
 bool Input::quit() const { return quit_; }
 int Input::upgradeChoice() const { return upgradeChoice_; }

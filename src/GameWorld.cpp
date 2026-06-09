@@ -48,7 +48,9 @@ void GameWorld::update(float dt, Input& input) {
             break;
 
         case GameState::MapComplete:
-            if (input.restart()) {
+            if (input.nextMap()) {
+                startNextMap();
+            } else if (input.restart()) {
                 reset();
             }
             break;
@@ -122,6 +124,27 @@ void GameWorld::reset() {
     currentWave_ = 0;
     enemiesSpawnedInWave_ = 0;
     generateUpgrades();
+}
+
+void GameWorld::startNextMap() {
+    ++mapLevel_;
+    currentWave_ = 0;
+    enemiesSpawnedInWave_ = 0;
+    survivalTime_ = 0.0f;
+    novaEffectTimer_ = 0.0f;
+
+    projectiles_.clear();
+    enemies_.clear();
+    orbs_.clear();
+    droppedItems_.clear();
+    spawner_.reset();
+    dashCooldown_.setDuration(0.0f);
+    dashCooldown_.reset();
+    novaCooldown_.setDuration(0.0f);
+    novaCooldown_.reset();
+    secondarySkillCooldown_.setDuration(0.0f);
+    secondarySkillCooldown_.reset();
+    state_ = GameState::Playing;
 }
 
 void GameWorld::updateObjects(float dt) {

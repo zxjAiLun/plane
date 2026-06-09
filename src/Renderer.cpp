@@ -269,8 +269,8 @@ void Renderer::drawMapComplete(const GameWorld& /*world*/) {
 
     drawBox({center.x, center.y - 50.0f}, {300.0f, 100.0f}, sf::Color::Green);
     drawCenteredText("MAP COMPLETE", {center.x, center.y - 58.0f}, 28, sf::Color::White);
-    drawBox({center.x, center.y + 50.0f}, {200.0f, 40.0f}, sf::Color::White);
-    drawCenteredText("Press R", {center.x, center.y + 43.0f}, 20, sf::Color::Black);
+    drawBox({center.x, center.y + 50.0f}, {280.0f, 40.0f}, sf::Color::White);
+    drawCenteredText("E Next Map / R Restart", {center.x, center.y + 43.0f}, 18, sf::Color::Black);
 }
 
 void Renderer::drawBox(const sf::Vector2f& center, const sf::Vector2f& size, const sf::Color& color) {
