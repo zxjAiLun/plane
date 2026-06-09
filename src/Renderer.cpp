@@ -77,6 +77,10 @@ void Renderer::render(const GameWorld& world) {
     drawText("TIME " + std::to_string(static_cast<int>(world.survivalTime()))
         + "  SCORE " + std::to_string(world.score()),
         {16.0f, 60.0f}, 18, sf::Color::White);
+    drawText("MAP " + std::to_string(world.mapLevel())
+        + "  WAVE " + std::to_string(world.currentWave()) + "/" + std::to_string(Config::MapWaveCount)
+        + "  LEFT " + std::to_string(world.enemiesRemainingInWave()),
+        {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));
     const auto& stats = world.player().stats();
     drawText("DMG +" + std::to_string(multiplierPercent(stats.damageMultiplier))
         + "%  AS +" + std::to_string(multiplierPercent(stats.attackSpeedMultiplier))
@@ -91,8 +95,8 @@ void Renderer::render(const GameWorld& world) {
         case GameState::LevelUp:
             drawLevelUp(world);
             break;
-        case GameState::Victory:
-            drawVictory(world);
+        case GameState::MapComplete:
+            drawMapComplete(world);
             break;
         case GameState::Playing:
             break;
@@ -254,7 +258,7 @@ void Renderer::drawLevelUp(const GameWorld& world) {
     }
 }
 
-void Renderer::drawVictory(const GameWorld& /*world*/) {
+void Renderer::drawMapComplete(const GameWorld& /*world*/) {
     const float width = static_cast<float>(Config::WindowWidth);
     const float height = static_cast<float>(Config::WindowHeight);
     const sf::Vector2f center{width / 2.0f, height / 2.0f};
@@ -264,7 +268,7 @@ void Renderer::drawVictory(const GameWorld& /*world*/) {
     window_.draw(overlay);
 
     drawBox({center.x, center.y - 50.0f}, {300.0f, 100.0f}, sf::Color::Green);
-    drawCenteredText("VICTORY", {center.x, center.y - 58.0f}, 28, sf::Color::White);
+    drawCenteredText("MAP COMPLETE", {center.x, center.y - 58.0f}, 28, sf::Color::White);
     drawBox({center.x, center.y + 50.0f}, {200.0f, 40.0f}, sf::Color::White);
     drawCenteredText("Press R", {center.x, center.y + 43.0f}, 20, sf::Color::Black);
 }

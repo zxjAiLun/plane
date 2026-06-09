@@ -19,7 +19,7 @@ enum class GameState {
     Playing,
     LevelUp,
     GameOver,
-    Victory
+    MapComplete
 };
 
 class GameWorld {
@@ -42,6 +42,9 @@ public:
     GameState state() const;
     int score() const;
     float survivalTime() const;
+    int mapLevel() const;
+    int currentWave() const;
+    int enemiesRemainingInWave() const;
 
 private:
     void updatePlaying(float dt, Input& input);
@@ -55,6 +58,9 @@ private:
     void trySecondarySkill(Input& input);
     void tryEquipInventoryItem(Input& input);
     void rewardEnemyKill(const Enemy& enemy);
+    void advanceWaveIfComplete();
+    bool isMapCleared() const;
+    int enemiesPerWave() const;
 
     float currentSpawnInterval() const;
 
@@ -77,6 +83,9 @@ private:
     float survivalTime_;
     Vector2 aimPosition_;
     float novaEffectTimer_;
+    int mapLevel_;
+    int currentWave_;
+    int enemiesSpawnedInWave_;
 
     std::array<Upgrade, 3> currentUpgrades_;
 };

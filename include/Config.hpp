@@ -39,5 +39,7 @@ namespace Config {
     constexpr float ItemPickupRange = 32.0f;
     constexpr int ItemDropChancePercent = 35;
 
-    constexpr float VictoryTime = 60.0f;
+    constexpr int MapWaveCount = 3;
+    constexpr int BaseEnemiesPerWave = 6;
+    constexpr int EnemiesPerMapLevel = 2;
 }

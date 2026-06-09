@@ -14,6 +14,9 @@ GameWorld::GameWorld()
     , survivalTime_(0.0f)
     , aimPosition_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
     , novaEffectTimer_(0.0f)
+    , mapLevel_(1)
+    , currentWave_(0)
+    , enemiesSpawnedInWave_(0)
     , currentUpgrades_{} {
     generateUpgrades();
 }
@@ -44,7 +47,7 @@ void GameWorld::update(float dt, Input& input) {
             }
             break;
 
-        case GameState::Victory:
+        case GameState::MapComplete:
             if (input.restart()) {
                 reset();
             }
@@ -82,13 +85,14 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     spawner_.setSpawnInterval(currentSpawnInterval());
     handleCollisions();
     removeDeadObjects();
+    advanceWaveIfComplete();
 
     survivalTime_ += dt;
 
     if (player_.isDead()) {
         state_ = GameState::GameOver;
-    } else if (survivalTime_ >= Config::VictoryTime) {
-        state_ = GameState::Victory;
+    } else if (isMapCleared()) {
+        state_ = GameState::MapComplete;
     } else if (player_.isLevelUp()) {
         generateUpgrades();
         state_ = GameState::LevelUp;
@@ -114,6 +118,9 @@ void GameWorld::reset() {
     score_ = 0;
     survivalTime_ = 0.0f;
     novaEffectTimer_ = 0.0f;
+    mapLevel_ = 1;
+    currentWave_ = 0;
+    enemiesSpawnedInWave_ = 0;
     generateUpgrades();
 }
 
@@ -127,9 +134,14 @@ void GameWorld::updateObjects(float dt) {
 }
 
 void GameWorld::spawnEnemies(float dt) {
+    if (currentWave_ >= Config::MapWaveCount || enemiesSpawnedInWave_ >= enemiesPerWave()) {
+        return;
+    }
+
     spawner_.update(dt);
     if (auto enemy = spawner_.trySpawn()) {
         enemies_.push_back(*enemy);
+        ++enemiesSpawnedInWave_;
     }
 }
 
@@ -313,6 +325,26 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
     }
 }
 
+void GameWorld::advanceWaveIfComplete() {
+    if (currentWave_ >= Config::MapWaveCount) {
+        return;
+    }
+
+    if (enemiesSpawnedInWave_ >= enemiesPerWave() && enemies_.empty()) {
+        ++currentWave_;
+        enemiesSpawnedInWave_ = 0;
+        spawner_.reset();
+    }
+}
+
+bool GameWorld::isMapCleared() const {
+    return currentWave_ >= Config::MapWaveCount;
+}
+
+int GameWorld::enemiesPerWave() const {
+    return Config::BaseEnemiesPerWave + (mapLevel_ - 1) * Config::EnemiesPerMapLevel;
+}
+
 const Player& GameWorld::player() const { return player_; }
 const std::vector<Projectile>& GameWorld::projectiles() const { return projectiles_; }
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
@@ -327,11 +359,18 @@ float GameWorld::novaEffectProgress() const {
 GameState GameWorld::state() const { return state_; }
 int GameWorld::score() const { return score_; }
 float GameWorld::survivalTime() const { return survivalTime_; }
+int GameWorld::mapLevel() const { return mapLevel_; }
+int GameWorld::currentWave() const {
+    return std::min(currentWave_ + 1, Config::MapWaveCount);
+}
+int GameWorld::enemiesRemainingInWave() const {
+    return enemiesPerWave() - enemiesSpawnedInWave_ + static_cast<int>(enemies_.size());
+}
 
 float GameWorld::currentSpawnInterval() const {
     constexpr float startInterval = Config::EnemySpawnInterval;
-    constexpr float endInterval = 0.15f;
+    constexpr float intervalPerMapLevel = 0.04f;
+    constexpr float minimumInterval = 0.25f;
 
-    const float progress = std::min(survivalTime_ / Config::VictoryTime, 1.0f);
-    return startInterval + (endInterval - startInterval) * progress;
+    return std::max(minimumInterval, startInterval - (mapLevel_ - 1) * intervalPerMapLevel);
 }
