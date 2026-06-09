@@ -3,6 +3,8 @@
 #include "Vector2.hpp"
 #include "PlayerStats.hpp"
 #include "Upgrade.hpp"
+#include "Equipment.hpp"
+#include "Item.hpp"
 
 class Player {
 public:
@@ -22,6 +24,7 @@ public:
     void gainExp(int amount);
     bool isLevelUp() const;
     void applyUpgrade(UpgradeType type);
+    void equipItem(const Item& item);
 
     const Vector2& position() const;
     float radius() const;
@@ -31,6 +34,10 @@ public:
     int exp() const;
     int expToNextLevel() const;
     const PlayerStats& stats() const;
+    const Equipment& equipment() const;
+
+private:
+    void recalculateStats();
 
 private:
     Vector2 position_;
@@ -44,5 +51,7 @@ private:
     int expToNextLevel_;
     int pendingLevelUps_;
 
+    PlayerStats upgradeStats_;
     PlayerStats stats_;
+    Equipment equipment_;
 };

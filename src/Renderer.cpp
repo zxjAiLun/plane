@@ -13,6 +13,30 @@ sf::Color rarityColor(Rarity rarity) {
     }
     return sf::Color::White;
 }
+
+int multiplierPercent(float multiplier) {
+    return static_cast<int>((multiplier - 1.0f) * 100.0f + 0.5f);
+}
+
+std::string statsSummary(const Stats& stats) {
+    std::string summary;
+    if (stats.maxHp > 0) {
+        summary += "+" + std::to_string(stats.maxHp) + " HP ";
+    }
+    if (stats.damageMultiplier > 1.0f) {
+        summary += "+" + std::to_string(multiplierPercent(stats.damageMultiplier)) + "% DMG ";
+    }
+    if (stats.attackSpeedMultiplier > 1.0f) {
+        summary += "+" + std::to_string(multiplierPercent(stats.attackSpeedMultiplier)) + "% AS ";
+    }
+    if (stats.moveSpeedMultiplier > 1.0f) {
+        summary += "+" + std::to_string(multiplierPercent(stats.moveSpeedMultiplier)) + "% MS ";
+    }
+    if (stats.pickupRangeMultiplier > 1.0f) {
+        summary += "+" + std::to_string(multiplierPercent(stats.pickupRangeMultiplier)) + "% PICKUP ";
+    }
+    return summary;
+}
 }
 
 Renderer::Renderer(sf::RenderWindow& window)
@@ -53,6 +77,11 @@ void Renderer::render(const GameWorld& world) {
     drawText("TIME " + std::to_string(static_cast<int>(world.survivalTime()))
         + "  SCORE " + std::to_string(world.score()),
         {16.0f, 60.0f}, 18, sf::Color::White);
+    const auto& stats = world.player().stats();
+    drawText("DMG +" + std::to_string(multiplierPercent(stats.damageMultiplier))
+        + "%  AS +" + std::to_string(multiplierPercent(stats.attackSpeedMultiplier))
+        + "%  MS +" + std::to_string(multiplierPercent(stats.moveSpeedMultiplier)) + "%",
+        {16.0f, 84.0f}, 16, sf::Color(210, 220, 255));
     drawInventory(world);
 
     switch (world.state()) {
@@ -178,7 +207,7 @@ void Renderer::drawInventory(const GameWorld& world) {
     for (std::size_t i = 0; i < visibleCount; ++i) {
         const auto& item = items[i];
         const std::string line = std::to_string(i + 1) + ". "
-            + item.name + " [" + slotName(item.slot) + "]";
+            + item.name + " [" + slotName(item.slot) + "] " + statsSummary(item.stats);
         drawText(line, {x, y}, 13, rarityColor(item.rarity));
         y += 18.0f;
     }

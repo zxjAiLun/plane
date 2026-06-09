@@ -68,6 +68,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     tryDash(input);
     tryNova(input);
     trySecondarySkill(input);
+    tryEquipInventoryItem(input);
 
     weapon_.update(dt);
     if (input.primaryFireHeld()) {
@@ -289,6 +290,18 @@ void GameWorld::trySecondarySkill(Input& input) {
 
     secondarySkillCooldown_.setDuration(Config::SecondarySkillCooldown);
     secondarySkillCooldown_.reset();
+}
+
+void GameWorld::tryEquipInventoryItem(Input& input) {
+    if (input.inventoryChoice() <= 0) {
+        return;
+    }
+
+    const auto index = static_cast<std::size_t>(input.inventoryChoice() - 1);
+    if (auto item = inventory_.take(index)) {
+        player_.equipItem(*item);
+        weapon_.applyStats(player_.stats());
+    }
 }
 
 void GameWorld::rewardEnemyKill(const Enemy& enemy) {

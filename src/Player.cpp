@@ -13,7 +13,9 @@ Player::Player()
     , exp_(0)
     , expToNextLevel_(Config::BaseExpToLevel)
     , pendingLevelUps_(0)
+    , upgradeStats_()
     , stats_() {
+    recalculateStats();
 }
 
 void Player::update(float /*dt*/) {
@@ -75,26 +77,52 @@ bool Player::isLevelUp() const {
 }
 
 void Player::applyUpgrade(UpgradeType type) {
+    int maxHpBefore = maxHp_;
+
     switch (type) {
         case UpgradeType::Damage:
-            stats_.damageMultiplier += 0.2f;
+            upgradeStats_.damageMultiplier += 0.2f;
             break;
         case UpgradeType::FireRate:
-            stats_.attackSpeedMultiplier += 0.2f;
+            upgradeStats_.attackSpeedMultiplier += 0.2f;
             break;
         case UpgradeType::MoveSpeed:
-            stats_.moveSpeedMultiplier += 0.1f;
+            upgradeStats_.moveSpeedMultiplier += 0.1f;
             break;
         case UpgradeType::PickupRange:
-            stats_.pickupRangeMultiplier += 0.25f;
+            upgradeStats_.pickupRangeMultiplier += 0.25f;
             break;
         case UpgradeType::MaxHp:
-            maxHp_ += 1;
-            hp_ += 1;
+            upgradeStats_.maxHp += 1;
             break;
     }
+
+    recalculateStats();
+    hp_ += std::max(0, maxHp_ - maxHpBefore);
+
     if (pendingLevelUps_ > 0) {
         --pendingLevelUps_;
+    }
+}
+
+void Player::equipItem(const Item& item) {
+    const int maxHpBefore = maxHp_;
+    equipment_.setSlotStats(item.slot, item.stats);
+    recalculateStats();
+
+    const int maxHpDelta = maxHp_ - maxHpBefore;
+    if (maxHpDelta > 0) {
+        hp_ += maxHpDelta;
+    } else if (hp_ > maxHp_) {
+        hp_ = maxHp_;
+    }
+}
+
+void Player::recalculateStats() {
+    stats_ = combineStats(upgradeStats_, equipment_.combinedStats());
+    maxHp_ = Config::PlayerHp + stats_.maxHp;
+    if (hp_ > maxHp_) {
+        hp_ = maxHp_;
     }
 }
 
@@ -106,3 +134,4 @@ int Player::level() const { return level_; }
 int Player::exp() const { return exp_; }
 int Player::expToNextLevel() const { return expToNextLevel_; }
 const PlayerStats& Player::stats() const { return stats_; }
+const Equipment& Player::equipment() const { return equipment_; }

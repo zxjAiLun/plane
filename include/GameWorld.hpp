@@ -53,6 +53,7 @@ private:
     void tryDash(Input& input);
     void tryNova(Input& input);
     void trySecondarySkill(Input& input);
+    void tryEquipInventoryItem(Input& input);
     void rewardEnemyKill(const Enemy& enemy);
 
     float currentSpawnInterval() const;
