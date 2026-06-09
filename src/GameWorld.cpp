@@ -3,6 +3,7 @@
 #include "Config.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 GameWorld::GameWorld()
@@ -17,8 +18,10 @@ GameWorld::GameWorld()
     , mapLevel_(1)
     , currentWave_(0)
     , enemiesSpawnedInWave_(0)
+    , mapModifier_()
     , currentUpgrades_{} {
     generateUpgrades();
+    generateMapModifier();
 }
 
 void GameWorld::update(float dt, Input& input) {
@@ -124,6 +127,7 @@ void GameWorld::reset() {
     currentWave_ = 0;
     enemiesSpawnedInWave_ = 0;
     generateUpgrades();
+    generateMapModifier();
 }
 
 void GameWorld::startNextMap() {
@@ -145,6 +149,7 @@ void GameWorld::startNextMap() {
     secondarySkillCooldown_.setDuration(0.0f);
     secondarySkillCooldown_.reset();
     state_ = GameState::Playing;
+    generateMapModifier();
 }
 
 void GameWorld::updateObjects(float dt) {
@@ -162,7 +167,7 @@ void GameWorld::spawnEnemies(float dt) {
     }
 
     spawner_.update(dt);
-    if (auto enemy = spawner_.trySpawn()) {
+    if (auto enemy = spawner_.trySpawn(enemyHpForMap(), enemyDamageForMap())) {
         enemies_.push_back(*enemy);
         ++enemiesSpawnedInWave_;
     }
@@ -343,8 +348,10 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
     score_ += 100;
     orbs_.push_back(ExperienceOrb(enemy.position(), Config::ExpPerKill));
 
-    if ((std::rand() % 100) < Config::ItemDropChancePercent) {
-        droppedItems_.push_back(DroppedItem(enemy.position(), lootGenerator_.generate(1)));
+    const int dropChance = std::min(100,
+        static_cast<int>(Config::ItemDropChancePercent * mapModifier_.itemQuantityMultiplier));
+    if ((std::rand() % 100) < dropChance) {
+        droppedItems_.push_back(DroppedItem(enemy.position(), lootGenerator_.generate(mapLevel_)));
     }
 }
 
@@ -368,6 +375,31 @@ int GameWorld::enemiesPerWave() const {
     return Config::BaseEnemiesPerWave + (mapLevel_ - 1) * Config::EnemiesPerMapLevel;
 }
 
+int GameWorld::enemyHpForMap() const {
+    const float levelMultiplier = 1.0f + (mapLevel_ - 1) * 0.25f;
+    return std::max(1, static_cast<int>(std::ceil(
+        Config::EnemyHp * levelMultiplier * mapModifier_.monsterHpMultiplier
+    )));
+}
+
+int GameWorld::enemyDamageForMap() const {
+    return Config::EnemyContactDamage + (mapLevel_ - 1) / 3 + mapModifier_.monsterDamageBonus;
+}
+
+void GameWorld::generateMapModifier() {
+    switch (std::rand() % 3) {
+        case 0:
+            mapModifier_ = {"Monsters have +50% life", 1.5f, 0, 1.0f};
+            break;
+        case 1:
+            mapModifier_ = {"Monsters deal +1 damage", 1.0f, 1, 1.0f};
+            break;
+        case 2:
+            mapModifier_ = {"Items drop 50% more often", 1.0f, 0, 1.5f};
+            break;
+    }
+}
+
 const Player& GameWorld::player() const { return player_; }
 const std::vector<Projectile>& GameWorld::projectiles() const { return projectiles_; }
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
@@ -389,6 +421,7 @@ int GameWorld::currentWave() const {
 int GameWorld::enemiesRemainingInWave() const {
     return enemiesPerWave() - enemiesSpawnedInWave_ + static_cast<int>(enemies_.size());
 }
+const MapModifier& GameWorld::mapModifier() const { return mapModifier_; }
 
 float GameWorld::currentSpawnInterval() const {
     constexpr float startInterval = Config::EnemySpawnInterval;

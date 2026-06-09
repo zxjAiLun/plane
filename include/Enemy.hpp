@@ -4,7 +4,7 @@
 
 class Enemy {
 public:
-    Enemy(const Vector2& position, int hp);
+    Enemy(const Vector2& position, int hp, int contactDamage);
 
     void update(float dt, const Vector2& targetPosition);
 

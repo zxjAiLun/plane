@@ -1,11 +1,11 @@
 #include "Enemy.hpp"
 #include "Config.hpp"
 
-Enemy::Enemy(const Vector2& position, int hp)
+Enemy::Enemy(const Vector2& position, int hp, int contactDamage)
     : position_(position)
     , radius_(Config::EnemyRadius)
     , hp_(hp)
-    , contactDamage_(Config::EnemyContactDamage) {
+    , contactDamage_(contactDamage) {
 }
 
 void Enemy::update(float dt, const Vector2& targetPosition) {

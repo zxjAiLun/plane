@@ -81,6 +81,8 @@ void Renderer::render(const GameWorld& world) {
         + "  WAVE " + std::to_string(world.currentWave()) + "/" + std::to_string(Config::MapWaveCount)
         + "  LEFT " + std::to_string(world.enemiesRemainingInWave()),
         {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));
+    drawText(world.mapModifier().description,
+        {16.0f, 130.0f}, 14, sf::Color(255, 220, 150));
     const auto& stats = world.player().stats();
     drawText("DMG +" + std::to_string(multiplierPercent(stats.damageMultiplier))
         + "%  AS +" + std::to_string(multiplierPercent(stats.attackSpeedMultiplier))

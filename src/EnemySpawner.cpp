@@ -15,7 +15,7 @@ void EnemySpawner::setSpawnInterval(float interval) {
     spawnTimer_.setDuration(interval);
 }
 
-std::optional<Enemy> EnemySpawner::trySpawn() {
+std::optional<Enemy> EnemySpawner::trySpawn(int hp, int contactDamage) {
     if (spawnTimer_.isReady()) {
         spawnTimer_.reset();
 
@@ -44,7 +44,7 @@ std::optional<Enemy> EnemySpawner::trySpawn() {
 
         Vector2 position(x, y);
 
-        return Enemy(position, Config::EnemyHp);
+        return Enemy(position, hp, contactDamage);
     }
     return std::nullopt;
 }

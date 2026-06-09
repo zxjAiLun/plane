@@ -9,7 +9,7 @@ public:
     EnemySpawner();
 
     void update(float dt);
-    std::optional<Enemy> trySpawn();
+    std::optional<Enemy> trySpawn(int hp, int contactDamage);
 
     void setSpawnInterval(float interval);
     void reset();

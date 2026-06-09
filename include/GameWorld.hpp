@@ -10,6 +10,7 @@
 #include "EnemySpawner.hpp"
 #include "Inventory.hpp"
 #include "LootGenerator.hpp"
+#include "MapModifier.hpp"
 #include "Weapon.hpp"
 #include "Upgrade.hpp"
 #include "Input.hpp"
@@ -45,6 +46,7 @@ public:
     int mapLevel() const;
     int currentWave() const;
     int enemiesRemainingInWave() const;
+    const MapModifier& mapModifier() const;
 
 private:
     void startNextMap();
@@ -62,6 +64,9 @@ private:
     void advanceWaveIfComplete();
     bool isMapCleared() const;
     int enemiesPerWave() const;
+    int enemyHpForMap() const;
+    int enemyDamageForMap() const;
+    void generateMapModifier();
 
     float currentSpawnInterval() const;
 
@@ -87,6 +92,7 @@ private:
     int mapLevel_;
     int currentWave_;
     int enemiesSpawnedInWave_;
+    MapModifier mapModifier_;
 
     std::array<Upgrade, 3> currentUpgrades_;
 };
