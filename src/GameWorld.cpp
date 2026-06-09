@@ -21,7 +21,11 @@ GameWorld::GameWorld()
     , mapLevel_(1)
     , currentWave_(0)
     , enemiesSpawnedInWave_(0)
-    , mapModifier_() {
+    , mapModifier_()
+    , mapKills_(0)
+    , mapExperienceGained_(0)
+    , mapItemsDropped_(0)
+    , mapItemsPickedUp_(0) {
     generateMapModifier();
 }
 
@@ -119,6 +123,10 @@ void GameWorld::reset() {
     mapLevel_ = 1;
     currentWave_ = 0;
     enemiesSpawnedInWave_ = 0;
+    mapKills_ = 0;
+    mapExperienceGained_ = 0;
+    mapItemsDropped_ = 0;
+    mapItemsPickedUp_ = 0;
     generateMapModifier();
 }
 
@@ -141,6 +149,10 @@ void GameWorld::startNextMap() {
     secondarySkillCooldown_.setDuration(0.0f);
     secondarySkillCooldown_.reset();
     state_ = GameState::Playing;
+    mapKills_ = 0;
+    mapExperienceGained_ = 0;
+    mapItemsDropped_ = 0;
+    mapItemsPickedUp_ = 0;
     generateMapModifier();
 }
 
@@ -159,7 +171,12 @@ void GameWorld::spawnEnemies(float dt) {
     }
 
     spawner_.update(dt);
-    if (auto enemy = spawner_.trySpawn(enemyHpForMap(), enemyDamageForMap())) {
+    const bool spawnElite = shouldSpawnElite();
+    const int hp = spawnElite ? enemyHpForMap() * 5 : enemyHpForMap();
+    const int damage = spawnElite ? enemyDamageForMap() + 1 : enemyDamageForMap();
+    const EnemyType type = spawnElite ? EnemyType::Elite : EnemyType::Normal;
+
+    if (auto enemy = spawner_.trySpawn(hp, damage, type)) {
         enemies_.push_back(*enemy);
         ++enemiesSpawnedInWave_;
     }
@@ -302,6 +319,7 @@ void GameWorld::tryPickupDroppedItem(Input& input) {
         Vector2 diff = player_.position() - droppedItem.position();
         if (diff.lengthSquared() <= itemPickupRange * itemPickupRange) {
             inventory_.add(droppedItem.collect());
+            ++mapItemsPickedUp_;
             return;
         }
     }
@@ -341,13 +359,22 @@ void GameWorld::tryEquipInventoryItem(Input& input) {
 }
 
 void GameWorld::rewardEnemyKill(const Enemy& enemy) {
+    ++mapKills_;
     score_ += 100;
-    player_.gainExp(Config::ExpPerKill);
+    if (enemy.isElite()) {
+        score_ += 400;
+    }
 
-    const int dropChance = std::min(100,
-        static_cast<int>(Config::ItemDropChancePercent * mapModifier_.itemQuantityMultiplier));
+    const int exp = enemy.isElite() ? Config::ExpPerKill * 5 : Config::ExpPerKill;
+    player_.gainExp(exp);
+    mapExperienceGained_ += exp;
+
+    const float eliteDropMultiplier = enemy.isElite() ? 2.5f : 1.0f;
+    const int dropChance = std::min(100, static_cast<int>(
+        Config::ItemDropChancePercent * mapModifier_.itemQuantityMultiplier * eliteDropMultiplier));
     if ((std::rand() % 100) < dropChance) {
         droppedItems_.push_back(DroppedItem(enemy.position(), lootGenerator_.generate(mapLevel_)));
+        ++mapItemsDropped_;
     }
 }
 
@@ -380,6 +407,11 @@ int GameWorld::enemyHpForMap() const {
 
 int GameWorld::enemyDamageForMap() const {
     return Config::EnemyContactDamage + (mapLevel_ - 1) / 3 + mapModifier_.monsterDamageBonus;
+}
+
+bool GameWorld::shouldSpawnElite() const {
+    return currentWave_ == Config::MapWaveCount - 1
+        && enemiesSpawnedInWave_ == enemiesPerWave() - 1;
 }
 
 void GameWorld::generateMapModifier() {
@@ -426,6 +458,10 @@ int GameWorld::enemiesRemainingInWave() const {
     return std::max(0, enemiesPerWave() - enemiesSpawnedInWave_ + static_cast<int>(enemies_.size()));
 }
 const MapModifier& GameWorld::mapModifier() const { return mapModifier_; }
+int GameWorld::mapKills() const { return mapKills_; }
+int GameWorld::mapExperienceGained() const { return mapExperienceGained_; }
+int GameWorld::mapItemsDropped() const { return mapItemsDropped_; }
+int GameWorld::mapItemsPickedUp() const { return mapItemsPickedUp_; }
 
 float GameWorld::currentSpawnInterval() const {
     constexpr float startInterval = Config::EnemySpawnInterval;

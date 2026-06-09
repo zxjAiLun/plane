@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "EquipmentSlot.hpp"
 #include "Stats.hpp"
@@ -17,6 +18,7 @@ struct Item {
     Rarity rarity = Rarity::Normal;
     Stats stats;
     int itemLevel = 1;
+    std::vector<std::string> affixes;
 };
 
 inline const char* rarityName(Rarity rarity) {

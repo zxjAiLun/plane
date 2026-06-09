@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <string>
+#include <utility>
 
 #include "Item.hpp"
 
@@ -11,12 +12,16 @@ public:
         Item item;
         item.itemLevel = monsterLevel;
         item.slot = randomSlot();
-        item.rarity = randomRarity();
+        item.rarity = randomRarity(monsterLevel);
         item.name = makeName(item.slot, item.rarity);
 
         const int affixCount = affixCountFor(item.rarity);
         for (int i = 0; i < affixCount; ++i) {
-            applyRandomAffix(item.stats, monsterLevel);
+            item.affixes.push_back(applyRandomAffix(item.stats, monsterLevel));
+        }
+
+        if (!item.affixes.empty()) {
+            item.name += " " + item.affixes.front();
         }
 
         return item;
@@ -32,12 +37,14 @@ private:
         }
     }
 
-    static Rarity randomRarity() {
+    static Rarity randomRarity(int monsterLevel) {
         const int roll = std::rand() % 100;
-        if (roll < 10) {
+        const int rareChance = 10 + monsterLevel / 3;
+        const int magicChance = 35 + monsterLevel / 4;
+        if (roll < rareChance) {
             return Rarity::Rare;
         }
-        if (roll < 45) {
+        if (roll < rareChance + magicChance) {
             return Rarity::Magic;
         }
         return Rarity::Normal;
@@ -62,24 +69,25 @@ private:
         return prefix + slotName(slot);
     }
 
-    static void applyRandomAffix(Stats& stats, int monsterLevel) {
+    static std::string applyRandomAffix(Stats& stats, int monsterLevel) {
         const int levelBonus = monsterLevel / 3;
         switch (std::rand() % 5) {
             case 0:
                 stats.maxHp += 5 + levelBonus;
-                break;
+                return "of Vitality";
             case 1:
-                stats.damageMultiplier += 0.10f;
-                break;
+                stats.damageMultiplier += 0.10f + monsterLevel * 0.01f;
+                return "of Force";
             case 2:
-                stats.attackSpeedMultiplier += 0.08f;
-                break;
+                stats.attackSpeedMultiplier += 0.08f + monsterLevel * 0.005f;
+                return "of Swiftness";
             case 3:
-                stats.moveSpeedMultiplier += 0.06f;
-                break;
+                stats.moveSpeedMultiplier += 0.06f + monsterLevel * 0.004f;
+                return "of Haste";
             case 4:
-                stats.pickupRangeMultiplier += 0.12f;
-                break;
+                stats.pickupRangeMultiplier += 0.12f + monsterLevel * 0.006f;
+                return "of Reach";
         }
+        return "of Power";
     }
 };

@@ -41,6 +41,61 @@ std::string statsSummary(const Stats& stats) {
 std::string itemSummary(const Item& item) {
     return item.name + " " + statsSummary(item.stats);
 }
+
+Stats statsDelta(const Stats& next, const Stats& current) {
+    return {
+        next.maxHp - current.maxHp,
+        next.moveSpeedMultiplier / current.moveSpeedMultiplier,
+        next.damageMultiplier / current.damageMultiplier,
+        next.attackSpeedMultiplier / current.attackSpeedMultiplier,
+        next.pickupRangeMultiplier / current.pickupRangeMultiplier,
+    };
+}
+
+std::string statsDeltaSummary(const Stats& delta) {
+    std::string summary;
+    if (delta.maxHp != 0) {
+        summary += (delta.maxHp > 0 ? "+" : "") + std::to_string(delta.maxHp) + " HP ";
+    }
+    if (delta.damageMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.damageMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% DMG ";
+    }
+    if (delta.attackSpeedMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.attackSpeedMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% AS ";
+    }
+    if (delta.moveSpeedMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.moveSpeedMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% MS ";
+    }
+    if (delta.pickupRangeMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.pickupRangeMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% PICKUP ";
+    }
+    return summary.empty() ? "No stat change" : summary;
+}
+
+sf::Color deltaColor(const Stats& delta) {
+    const bool positive = delta.maxHp > 0
+        || delta.damageMultiplier > 1.0f
+        || delta.attackSpeedMultiplier > 1.0f
+        || delta.moveSpeedMultiplier > 1.0f
+        || delta.pickupRangeMultiplier > 1.0f;
+    const bool negative = delta.maxHp < 0
+        || delta.damageMultiplier < 1.0f
+        || delta.attackSpeedMultiplier < 1.0f
+        || delta.moveSpeedMultiplier < 1.0f
+        || delta.pickupRangeMultiplier < 1.0f;
+
+    if (positive && !negative) {
+        return sf::Color(120, 230, 140);
+    }
+    if (negative && !positive) {
+        return sf::Color(240, 120, 120);
+    }
+    return sf::Color(230, 220, 150);
+}
 }
 
 Renderer::Renderer(sf::RenderWindow& window)
@@ -197,7 +252,11 @@ void Renderer::drawProjectiles(const GameWorld& world) {
 void Renderer::drawEnemies(const GameWorld& world) {
     for (const auto& enemy : world.enemies()) {
         sf::RectangleShape shape({enemy.radius() * 2, enemy.radius() * 2});
-        shape.setFillColor(sf::Color::Red);
+        shape.setFillColor(enemy.isElite() ? sf::Color(180, 60, 255) : sf::Color::Red);
+        if (enemy.isElite()) {
+            shape.setOutlineColor(sf::Color(255, 220, 120));
+            shape.setOutlineThickness(3.0f);
+        }
         shape.setOrigin({enemy.radius(), enemy.radius()});
         shape.setPosition({enemy.position().x, enemy.position().y});
         window_.draw(shape);
@@ -276,7 +335,8 @@ void Renderer::drawInventory(const GameWorld& world) {
 
         const auto& current = equipment.itemInSlot(item.slot);
         if (current) {
-            drawText("   Current: " + itemSummary(*current), {x, y}, 11, sf::Color(170, 170, 170));
+            const Stats delta = statsDelta(item.stats, current->stats);
+            drawText("   Delta: " + statsDeltaSummary(delta), {x, y}, 11, deltaColor(delta));
             y += 14.0f;
         }
     }
@@ -308,6 +368,12 @@ void Renderer::drawMapComplete(const GameWorld& world) {
 
     drawBox({center.x, center.y - 50.0f}, {300.0f, 100.0f}, sf::Color::Green);
     drawCenteredText("MAP COMPLETE", {center.x, center.y - 58.0f}, 28, sf::Color::White);
+    drawCenteredText("Kills " + std::to_string(world.mapKills())
+        + "  XP " + std::to_string(world.mapExperienceGained()),
+        {center.x, center.y - 10.0f}, 16, sf::Color::White);
+    drawCenteredText("Drops " + std::to_string(world.mapItemsDropped())
+        + "  Picked " + std::to_string(world.mapItemsPickedUp()),
+        {center.x, center.y + 14.0f}, 16, sf::Color::White);
     drawBox({center.x, center.y + 50.0f}, {280.0f, 40.0f}, sf::Color::White);
     drawCenteredText("E Map " + std::to_string(world.mapLevel() + 1) + " / R Restart",
         {center.x, center.y + 43.0f}, 18, sf::Color::Black);

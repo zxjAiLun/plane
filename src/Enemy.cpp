@@ -1,11 +1,12 @@
 #include "Enemy.hpp"
 #include "Config.hpp"
 
-Enemy::Enemy(const Vector2& position, int hp, int contactDamage)
+Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type)
     : position_(position)
-    , radius_(Config::EnemyRadius)
+    , radius_(type == EnemyType::Elite ? Config::EnemyRadius * 1.45f : Config::EnemyRadius)
     , hp_(hp)
-    , contactDamage_(contactDamage) {
+    , contactDamage_(contactDamage)
+    , type_(type) {
 }
 
 void Enemy::update(float dt, const Vector2& targetPosition) {
@@ -32,3 +33,5 @@ bool Enemy::isDead() const {
 const Vector2& Enemy::position() const { return position_; }
 float Enemy::radius() const { return radius_; }
 int Enemy::contactDamage() const { return contactDamage_; }
+EnemyType Enemy::type() const { return type_; }
+bool Enemy::isElite() const { return type_ == EnemyType::Elite; }

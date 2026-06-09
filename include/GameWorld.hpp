@@ -45,6 +45,10 @@ public:
     int currentWave() const;
     int enemiesRemainingInWave() const;
     const MapModifier& mapModifier() const;
+    int mapKills() const;
+    int mapExperienceGained() const;
+    int mapItemsDropped() const;
+    int mapItemsPickedUp() const;
 
 private:
     void startNextMap();
@@ -66,6 +70,7 @@ private:
     int enemiesPerWave() const;
     int enemyHpForMap() const;
     int enemyDamageForMap() const;
+    bool shouldSpawnElite() const;
     void generateMapModifier();
 
     float currentSpawnInterval() const;
@@ -94,4 +99,8 @@ private:
     int currentWave_;
     int enemiesSpawnedInWave_;
     MapModifier mapModifier_;
+    int mapKills_;
+    int mapExperienceGained_;
+    int mapItemsDropped_;
+    int mapItemsPickedUp_;
 };

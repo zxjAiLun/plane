@@ -2,9 +2,14 @@
 
 #include "Vector2.hpp"
 
+enum class EnemyType {
+    Normal,
+    Elite
+};
+
 class Enemy {
 public:
-    Enemy(const Vector2& position, int hp, int contactDamage);
+    Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type = EnemyType::Normal);
 
     void update(float dt, const Vector2& targetPosition);
 
@@ -15,10 +20,13 @@ public:
     const Vector2& position() const;
     float radius() const;
     int contactDamage() const;
+    EnemyType type() const;
+    bool isElite() const;
 
 private:
     Vector2 position_;
     float radius_;
     int hp_;
     int contactDamage_;
+    EnemyType type_;
 };
