@@ -2,6 +2,7 @@
 #include "Config.hpp"
 
 #include <algorithm>
+#include <utility>
 
 Player::Player()
     : position_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
@@ -97,9 +98,23 @@ void Player::applyUpgrade(UpgradeType type) {
     hp_ += std::max(0, maxHp_ - maxHpBefore);
 }
 
-void Player::equipItem(const Item& item) {
+bool Player::canSpendTalentPoint() const {
+    return talentPoints_ > 0;
+}
+
+bool Player::spendTalentPoint(UpgradeType type) {
+    if (!canSpendTalentPoint()) {
+        return false;
+    }
+
+    --talentPoints_;
+    applyUpgrade(type);
+    return true;
+}
+
+std::optional<Item> Player::equipItem(Item item) {
     const int maxHpBefore = maxHp_;
-    equipment_.setSlotStats(item.slot, item.stats);
+    std::optional<Item> replaced = equipment_.equip(std::move(item));
     recalculateStats();
 
     const int maxHpDelta = maxHp_ - maxHpBefore;
@@ -108,6 +123,8 @@ void Player::equipItem(const Item& item) {
     } else if (hp_ > maxHp_) {
         hp_ = maxHp_;
     }
+
+    return replaced;
 }
 
 void Player::recalculateStats() {

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <utility>
 
 GameWorld::GameWorld()
     : dashCooldown_(0.0f)
@@ -69,6 +70,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     tryNova(input);
     trySecondarySkill(input);
     tryPickupDroppedItem(input);
+    trySpendTalentPoint(input);
     tryEquipInventoryItem(input);
 
     weapon_.update(dt);
@@ -305,6 +307,25 @@ void GameWorld::tryPickupDroppedItem(Input& input) {
     }
 }
 
+void GameWorld::trySpendTalentPoint(Input& input) {
+    bool spent = false;
+    if (input.talentDamage()) {
+        spent = player_.spendTalentPoint(UpgradeType::Damage);
+    } else if (input.talentAttackSpeed()) {
+        spent = player_.spendTalentPoint(UpgradeType::FireRate);
+    } else if (input.talentMoveSpeed()) {
+        spent = player_.spendTalentPoint(UpgradeType::MoveSpeed);
+    } else if (input.talentMaxHp()) {
+        spent = player_.spendTalentPoint(UpgradeType::MaxHp);
+    } else if (input.talentPickupRange()) {
+        spent = player_.spendTalentPoint(UpgradeType::PickupRange);
+    }
+
+    if (spent) {
+        weapon_.applyStats(player_.stats());
+    }
+}
+
 void GameWorld::tryEquipInventoryItem(Input& input) {
     if (input.inventoryChoice() <= 0) {
         return;
@@ -312,7 +333,9 @@ void GameWorld::tryEquipInventoryItem(Input& input) {
 
     const auto index = static_cast<std::size_t>(input.inventoryChoice() - 1);
     if (auto item = inventory_.take(index)) {
-        player_.equipItem(*item);
+        if (auto replaced = player_.equipItem(std::move(*item))) {
+            inventory_.add(std::move(*replaced));
+        }
         weapon_.applyStats(player_.stats());
     }
 }
@@ -396,7 +419,11 @@ int GameWorld::currentWave() const {
     return std::min(currentWave_ + 1, Config::MapWaveCount);
 }
 int GameWorld::enemiesRemainingInWave() const {
-    return enemiesPerWave() - enemiesSpawnedInWave_ + static_cast<int>(enemies_.size());
+    if (isMapCleared()) {
+        return 0;
+    }
+
+    return std::max(0, enemiesPerWave() - enemiesSpawnedInWave_ + static_cast<int>(enemies_.size()));
 }
 const MapModifier& GameWorld::mapModifier() const { return mapModifier_; }
 

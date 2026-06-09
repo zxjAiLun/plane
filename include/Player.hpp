@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "Vector2.hpp"
 #include "PlayerStats.hpp"
 #include "Upgrade.hpp"
@@ -23,7 +25,9 @@ public:
 
     void gainExp(int amount);
     void applyUpgrade(UpgradeType type);
-    void equipItem(const Item& item);
+    bool canSpendTalentPoint() const;
+    bool spendTalentPoint(UpgradeType type);
+    std::optional<Item> equipItem(Item item);
 
     const Vector2& position() const;
     float radius() const;

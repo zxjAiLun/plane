@@ -37,6 +37,10 @@ std::string statsSummary(const Stats& stats) {
     }
     return summary;
 }
+
+std::string itemSummary(const Item& item) {
+    return item.name + " " + statsSummary(item.stats);
+}
 }
 
 Renderer::Renderer(sf::RenderWindow& window)
@@ -84,11 +88,14 @@ void Renderer::render(const GameWorld& world) {
         {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));
     drawText(world.mapModifier().description,
         {16.0f, 130.0f}, 14, sf::Color(255, 220, 150));
+    drawText("TP: Z DMG / X AS / C MS / V HP / B PICKUP",
+        {16.0f, 152.0f}, 14, sf::Color(210, 255, 210));
     const auto& stats = world.player().stats();
     drawText("DMG +" + std::to_string(multiplierPercent(stats.damageMultiplier))
         + "%  AS +" + std::to_string(multiplierPercent(stats.attackSpeedMultiplier))
         + "%  MS +" + std::to_string(multiplierPercent(stats.moveSpeedMultiplier)) + "%",
         {16.0f, 84.0f}, 16, sf::Color(210, 220, 255));
+    drawEquipment(world);
     drawInventory(world);
 
     switch (world.state()) {
@@ -226,10 +233,35 @@ void Renderer::drawDroppedItems(const GameWorld& world) {
     }
 }
 
-void Renderer::drawInventory(const GameWorld& world) {
-    const auto& items = world.inventory().items();
+void Renderer::drawEquipment(const GameWorld& world) {
+    const auto& equipment = world.player().equipment();
     const float x = static_cast<float>(Config::WindowWidth) - 260.0f;
     float y = 12.0f;
+
+    drawText("Equipped", {x, y}, 16, sf::Color::White);
+    y += 22.0f;
+
+    const EquipmentSlot slots[] = {
+        EquipmentSlot::Weapon,
+        EquipmentSlot::Armor,
+        EquipmentSlot::Ring,
+        EquipmentSlot::Amulet
+    };
+
+    for (const auto slot : slots) {
+        const auto& item = equipment.itemInSlot(slot);
+        const std::string line = std::string(slotName(slot)) + ": "
+            + (item ? itemSummary(*item) : "Empty");
+        drawText(line, {x, y}, 12, item ? rarityColor(item->rarity) : sf::Color(150, 150, 150));
+        y += 17.0f;
+    }
+}
+
+void Renderer::drawInventory(const GameWorld& world) {
+    const auto& items = world.inventory().items();
+    const auto& equipment = world.player().equipment();
+    const float x = static_cast<float>(Config::WindowWidth) - 260.0f;
+    float y = 118.0f;
 
     drawText("Inventory", {x, y}, 16, sf::Color::White);
     y += 22.0f;
@@ -240,7 +272,13 @@ void Renderer::drawInventory(const GameWorld& world) {
         const std::string line = std::to_string(i + 1) + ". "
             + item.name + " [" + slotName(item.slot) + "] " + statsSummary(item.stats);
         drawText(line, {x, y}, 13, rarityColor(item.rarity));
-        y += 18.0f;
+        y += 16.0f;
+
+        const auto& current = equipment.itemInSlot(item.slot);
+        if (current) {
+            drawText("   Current: " + itemSummary(*current), {x, y}, 11, sf::Color(170, 170, 170));
+            y += 14.0f;
+        }
     }
 }
 
@@ -259,7 +297,7 @@ void Renderer::drawGameOver(const GameWorld& /*world*/) {
     drawCenteredText("Press R", {center.x, center.y + 43.0f}, 20, sf::Color::Black);
 }
 
-void Renderer::drawMapComplete(const GameWorld& /*world*/) {
+void Renderer::drawMapComplete(const GameWorld& world) {
     const float width = static_cast<float>(Config::WindowWidth);
     const float height = static_cast<float>(Config::WindowHeight);
     const sf::Vector2f center{width / 2.0f, height / 2.0f};
@@ -271,7 +309,8 @@ void Renderer::drawMapComplete(const GameWorld& /*world*/) {
     drawBox({center.x, center.y - 50.0f}, {300.0f, 100.0f}, sf::Color::Green);
     drawCenteredText("MAP COMPLETE", {center.x, center.y - 58.0f}, 28, sf::Color::White);
     drawBox({center.x, center.y + 50.0f}, {280.0f, 40.0f}, sf::Color::White);
-    drawCenteredText("E Next Map / R Restart", {center.x, center.y + 43.0f}, 18, sf::Color::Black);
+    drawCenteredText("E Map " + std::to_string(world.mapLevel() + 1) + " / R Restart",
+        {center.x, center.y + 43.0f}, 18, sf::Color::Black);
 }
 
 void Renderer::drawBox(const sf::Vector2f& center, const sf::Vector2f& size, const sf::Color& color) {

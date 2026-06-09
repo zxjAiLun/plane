@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "Equipment.hpp"
+#include "EquipmentSlot.hpp"
 #include "Stats.hpp"
 
 enum class Rarity {

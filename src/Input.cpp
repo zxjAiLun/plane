@@ -7,8 +7,12 @@ void Input::update() {
     nova_ = false;
     secondarySkill_ = false;
     pickup_ = false;
+    talentDamage_ = false;
+    talentAttackSpeed_ = false;
+    talentMoveSpeed_ = false;
+    talentMaxHp_ = false;
+    talentPickupRange_ = false;
     nextMap_ = false;
-    upgradeChoice_ = 0;
     inventoryChoice_ = 0;
 }
 
@@ -25,21 +29,26 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::Space: dash_ = true; break;
         case sf::Keyboard::Key::Q:     nova_ = true; break;
         case sf::Keyboard::Key::F:     pickup_ = true; break;
+        case sf::Keyboard::Key::Z:     talentDamage_ = true; break;
+        case sf::Keyboard::Key::X:     talentAttackSpeed_ = true; break;
+        case sf::Keyboard::Key::C:     talentMoveSpeed_ = true; break;
+        case sf::Keyboard::Key::V:     talentMaxHp_ = true; break;
+        case sf::Keyboard::Key::B:     talentPickupRange_ = true; break;
         case sf::Keyboard::Key::E:     nextMap_ = true; break;
         case sf::Keyboard::Key::R:     restart_ = true; break;
         case sf::Keyboard::Key::Escape: quit_ = true; break;
-        case sf::Keyboard::Key::Num1: upgradeChoice_ = 1; inventoryChoice_ = 1; break;
-        case sf::Keyboard::Key::Num2: upgradeChoice_ = 2; inventoryChoice_ = 2; break;
-        case sf::Keyboard::Key::Num3: upgradeChoice_ = 3; inventoryChoice_ = 3; break;
+        case sf::Keyboard::Key::Num1: inventoryChoice_ = 1; break;
+        case sf::Keyboard::Key::Num2: inventoryChoice_ = 2; break;
+        case sf::Keyboard::Key::Num3: inventoryChoice_ = 3; break;
         case sf::Keyboard::Key::Num4: inventoryChoice_ = 4; break;
         case sf::Keyboard::Key::Num5: inventoryChoice_ = 5; break;
         case sf::Keyboard::Key::Num6: inventoryChoice_ = 6; break;
         case sf::Keyboard::Key::Num7: inventoryChoice_ = 7; break;
         case sf::Keyboard::Key::Num8: inventoryChoice_ = 8; break;
         case sf::Keyboard::Key::Num9: inventoryChoice_ = 9; break;
-        case sf::Keyboard::Key::Numpad1: upgradeChoice_ = 1; inventoryChoice_ = 1; break;
-        case sf::Keyboard::Key::Numpad2: upgradeChoice_ = 2; inventoryChoice_ = 2; break;
-        case sf::Keyboard::Key::Numpad3: upgradeChoice_ = 3; inventoryChoice_ = 3; break;
+        case sf::Keyboard::Key::Numpad1: inventoryChoice_ = 1; break;
+        case sf::Keyboard::Key::Numpad2: inventoryChoice_ = 2; break;
+        case sf::Keyboard::Key::Numpad3: inventoryChoice_ = 3; break;
         case sf::Keyboard::Key::Numpad4: inventoryChoice_ = 4; break;
         case sf::Keyboard::Key::Numpad5: inventoryChoice_ = 5; break;
         case sf::Keyboard::Key::Numpad6: inventoryChoice_ = 6; break;
@@ -84,24 +93,6 @@ void Input::handleMousePressed(sf::Mouse::Button button, sf::Vector2i position) 
 
     primaryFire_ = true;
     primaryFireHeld_ = true;
-
-    const float centerX = Config::WindowWidth / 2.0f;
-    const float centerY = Config::WindowHeight / 2.0f;
-    constexpr float cardWidth = 350.0f;
-    constexpr float cardHeight = 60.0f;
-
-    for (int i = 0; i < 3; ++i) {
-        const float cardY = centerY - 100.0f + i * 80.0f;
-        const bool insideX = position.x >= centerX - cardWidth / 2.0f
-            && position.x <= centerX + cardWidth / 2.0f;
-        const bool insideY = position.y >= cardY - cardHeight / 2.0f
-            && position.y <= cardY + cardHeight / 2.0f;
-
-        if (insideX && insideY) {
-            upgradeChoice_ = i + 1;
-            return;
-        }
-    }
 }
 
 void Input::handleMouseReleased(sf::Mouse::Button button, sf::Vector2i position) {
@@ -122,9 +113,13 @@ bool Input::dash() const { return dash_; }
 bool Input::nova() const { return nova_; }
 bool Input::secondarySkill() const { return secondarySkill_; }
 bool Input::pickup() const { return pickup_; }
+bool Input::talentDamage() const { return talentDamage_; }
+bool Input::talentAttackSpeed() const { return talentAttackSpeed_; }
+bool Input::talentMoveSpeed() const { return talentMoveSpeed_; }
+bool Input::talentMaxHp() const { return talentMaxHp_; }
+bool Input::talentPickupRange() const { return talentPickupRange_; }
 bool Input::nextMap() const { return nextMap_; }
 bool Input::restart() const { return restart_; }
 bool Input::quit() const { return quit_; }
-int Input::upgradeChoice() const { return upgradeChoice_; }
 int Input::inventoryChoice() const { return inventoryChoice_; }
 sf::Vector2i Input::mousePosition() const { return mousePosition_; }

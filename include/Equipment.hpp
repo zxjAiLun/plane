@@ -2,39 +2,40 @@
 
 #include <array>
 #include <cstddef>
+#include <optional>
+#include <utility>
 
+#include "EquipmentSlot.hpp"
+#include "Item.hpp"
 #include "Stats.hpp"
-
-enum class EquipmentSlot {
-    Weapon,
-    Armor,
-    Ring,
-    Amulet,
-    Count
-};
-
-constexpr std::size_t EquipmentSlotCount = static_cast<std::size_t>(EquipmentSlot::Count);
 
 class Equipment {
 public:
-    void setSlotStats(EquipmentSlot slot, const Stats& stats) {
-        slotStats_[slotIndex(slot)] = stats;
+    std::optional<Item> equip(Item item) {
+        auto& equipped = equipped_[slotIndex(item.slot)];
+        std::optional<Item> replaced = std::move(equipped);
+        equipped = std::move(item);
+        return replaced;
     }
 
-    const Stats& slotStats(EquipmentSlot slot) const {
-        return slotStats_[slotIndex(slot)];
+    const std::optional<Item>& itemInSlot(EquipmentSlot slot) const {
+        return equipped_[slotIndex(slot)];
     }
 
     Stats combinedStats() const {
         Stats result;
-        for (const auto& stats : slotStats_) {
-            result = combineStats(result, stats);
+        for (const auto& item : equipped_) {
+            if (item) {
+                result = combineStats(result, item->stats);
+            }
         }
         return result;
     }
 
     void reset() {
-        slotStats_.fill(Stats{});
+        for (auto& item : equipped_) {
+            item.reset();
+        }
     }
 
 private:
@@ -43,5 +44,5 @@ private:
     }
 
 private:
-    std::array<Stats, EquipmentSlotCount> slotStats_{};
+    std::array<std::optional<Item>, EquipmentSlotCount> equipped_{};
 };

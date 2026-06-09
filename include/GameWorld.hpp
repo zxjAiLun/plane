@@ -58,6 +58,7 @@ private:
     void trySecondarySkill(Input& input);
     void dealAreaDamage(const Vector2& center, float radius, int damage);
     void tryPickupDroppedItem(Input& input);
+    void trySpendTalentPoint(Input& input);
     void tryEquipInventoryItem(Input& input);
     void rewardEnemyKill(const Enemy& enemy);
     void advanceWaveIfComplete();

@@ -24,10 +24,14 @@ public:
     bool nova() const;
     bool secondarySkill() const;
     bool pickup() const;
+    bool talentDamage() const;
+    bool talentAttackSpeed() const;
+    bool talentMoveSpeed() const;
+    bool talentMaxHp() const;
+    bool talentPickupRange() const;
     bool nextMap() const;
     bool restart() const;
     bool quit() const;
-    int upgradeChoice() const;
     int inventoryChoice() const;
     sf::Vector2i mousePosition() const;
 
@@ -42,10 +46,14 @@ private:
     bool nova_ = false;
     bool secondarySkill_ = false;
     bool pickup_ = false;
+    bool talentDamage_ = false;
+    bool talentAttackSpeed_ = false;
+    bool talentMoveSpeed_ = false;
+    bool talentMaxHp_ = false;
+    bool talentPickupRange_ = false;
     bool nextMap_ = false;
     bool restart_ = false;
     bool quit_ = false;
-    int upgradeChoice_ = 0;
     int inventoryChoice_ = 0;
     sf::Vector2i mousePosition_{0, 0};
 };

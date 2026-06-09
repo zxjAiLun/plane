@@ -33,9 +33,7 @@ namespace Config {
 
     constexpr float EnemySpawnInterval = 1.0f;
 
-    constexpr float ExpOrbRadius = 8.0f;
     constexpr int ExpPerKill = 1;
-    constexpr float PickupRange = 50.0f;
     constexpr int BaseExpToLevel = 5;
 
     constexpr float ItemDropRadius = 7.0f;
