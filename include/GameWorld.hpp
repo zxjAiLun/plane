@@ -5,7 +5,6 @@
 #include "Player.hpp"
 #include "Projectile.hpp"
 #include "Enemy.hpp"
-#include "ExperienceOrb.hpp"
 #include "DroppedItem.hpp"
 #include "EnemySpawner.hpp"
 #include "Inventory.hpp"
@@ -18,7 +17,6 @@
 
 enum class GameState {
     Playing,
-    LevelUp,
     GameOver,
     MapComplete
 };
@@ -33,12 +31,12 @@ public:
     const Player& player() const;
     const std::vector<Projectile>& projectiles() const;
     const std::vector<Enemy>& enemies() const;
-    const std::vector<ExperienceOrb>& orbs() const;
     const std::vector<DroppedItem>& droppedItems() const;
     const Inventory& inventory() const;
-    const std::array<Upgrade, 3>& currentUpgrades() const;
     const Vector2& aimPosition() const;
     float novaEffectProgress() const;
+    const Vector2& secondarySkillEffectPosition() const;
+    float secondarySkillEffectProgress() const;
 
     GameState state() const;
     int score() const;
@@ -55,10 +53,11 @@ private:
     void spawnEnemies(float dt);
     void handleCollisions();
     void removeDeadObjects();
-    void generateUpgrades();
     void tryDash(Input& input);
     void tryNova(Input& input);
     void trySecondarySkill(Input& input);
+    void dealAreaDamage(const Vector2& center, float radius, int damage);
+    void tryPickupDroppedItem(Input& input);
     void tryEquipInventoryItem(Input& input);
     void rewardEnemyKill(const Enemy& enemy);
     void advanceWaveIfComplete();
@@ -74,7 +73,6 @@ private:
     Player player_;
     std::vector<Projectile> projectiles_;
     std::vector<Enemy> enemies_;
-    std::vector<ExperienceOrb> orbs_;
     std::vector<DroppedItem> droppedItems_;
     Inventory inventory_;
     LootGenerator lootGenerator_;
@@ -89,10 +87,10 @@ private:
     float survivalTime_;
     Vector2 aimPosition_;
     float novaEffectTimer_;
+    Vector2 secondarySkillEffectPosition_;
+    float secondarySkillEffectTimer_;
     int mapLevel_;
     int currentWave_;
     int enemiesSpawnedInWave_;
     MapModifier mapModifier_;
-
-    std::array<Upgrade, 3> currentUpgrades_;
 };

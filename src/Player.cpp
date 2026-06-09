@@ -12,7 +12,7 @@ Player::Player()
     , level_(1)
     , exp_(0)
     , expToNextLevel_(Config::BaseExpToLevel)
-    , pendingLevelUps_(0)
+    , talentPoints_(0)
     , upgradeStats_()
     , stats_() {
     recalculateStats();
@@ -68,12 +68,8 @@ void Player::gainExp(int amount) {
         exp_ -= expToNextLevel_;
         level_++;
         expToNextLevel_ = Config::BaseExpToLevel + (level_ - 1) * 2;
-        ++pendingLevelUps_;
+        ++talentPoints_;
     }
-}
-
-bool Player::isLevelUp() const {
-    return pendingLevelUps_ > 0;
 }
 
 void Player::applyUpgrade(UpgradeType type) {
@@ -99,10 +95,6 @@ void Player::applyUpgrade(UpgradeType type) {
 
     recalculateStats();
     hp_ += std::max(0, maxHp_ - maxHpBefore);
-
-    if (pendingLevelUps_ > 0) {
-        --pendingLevelUps_;
-    }
 }
 
 void Player::equipItem(const Item& item) {
@@ -133,5 +125,6 @@ int Player::maxHp() const { return maxHp_; }
 int Player::level() const { return level_; }
 int Player::exp() const { return exp_; }
 int Player::expToNextLevel() const { return expToNextLevel_; }
+int Player::talentPoints() const { return talentPoints_; }
 const PlayerStats& Player::stats() const { return stats_; }
 const Equipment& Player::equipment() const { return equipment_; }

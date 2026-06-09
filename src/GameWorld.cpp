@@ -15,12 +15,12 @@ GameWorld::GameWorld()
     , survivalTime_(0.0f)
     , aimPosition_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
     , novaEffectTimer_(0.0f)
+    , secondarySkillEffectPosition_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
+    , secondarySkillEffectTimer_(0.0f)
     , mapLevel_(1)
     , currentWave_(0)
     , enemiesSpawnedInWave_(0)
-    , mapModifier_()
-    , currentUpgrades_{} {
-    generateUpgrades();
+    , mapModifier_() {
     generateMapModifier();
 }
 
@@ -33,15 +33,6 @@ void GameWorld::update(float dt, Input& input) {
     switch (state_) {
         case GameState::Playing:
             updatePlaying(dt, input);
-            break;
-
-        case GameState::LevelUp:
-            if (input.upgradeChoice() >= 1 && input.upgradeChoice() <= 3) {
-                int idx = input.upgradeChoice() - 1;
-                player_.applyUpgrade(currentUpgrades_[idx].type);
-                weapon_.applyStats(player_.stats());
-                state_ = GameState::Playing;
-            }
             break;
 
         case GameState::GameOver:
@@ -73,9 +64,11 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     novaCooldown_.update(dt);
     secondarySkillCooldown_.update(dt);
     novaEffectTimer_ = std::max(0.0f, novaEffectTimer_ - dt);
+    secondarySkillEffectTimer_ = std::max(0.0f, secondarySkillEffectTimer_ - dt);
     tryDash(input);
     tryNova(input);
     trySecondarySkill(input);
+    tryPickupDroppedItem(input);
     tryEquipInventoryItem(input);
 
     weapon_.update(dt);
@@ -98,9 +91,6 @@ void GameWorld::updatePlaying(float dt, Input& input) {
         state_ = GameState::GameOver;
     } else if (isMapCleared()) {
         state_ = GameState::MapComplete;
-    } else if (player_.isLevelUp()) {
-        generateUpgrades();
-        state_ = GameState::LevelUp;
     }
 }
 
@@ -108,7 +98,6 @@ void GameWorld::reset() {
     player_ = Player();
     projectiles_.clear();
     enemies_.clear();
-    orbs_.clear();
     droppedItems_.clear();
     inventory_.clear();
     spawner_.reset();
@@ -123,10 +112,11 @@ void GameWorld::reset() {
     score_ = 0;
     survivalTime_ = 0.0f;
     novaEffectTimer_ = 0.0f;
+    secondarySkillEffectPosition_ = Vector2(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f);
+    secondarySkillEffectTimer_ = 0.0f;
     mapLevel_ = 1;
     currentWave_ = 0;
     enemiesSpawnedInWave_ = 0;
-    generateUpgrades();
     generateMapModifier();
 }
 
@@ -136,10 +126,10 @@ void GameWorld::startNextMap() {
     enemiesSpawnedInWave_ = 0;
     survivalTime_ = 0.0f;
     novaEffectTimer_ = 0.0f;
+    secondarySkillEffectTimer_ = 0.0f;
 
     projectiles_.clear();
     enemies_.clear();
-    orbs_.clear();
     droppedItems_.clear();
     spawner_.reset();
     dashCooldown_.setDuration(0.0f);
@@ -208,30 +198,6 @@ void GameWorld::handleCollisions() {
         }
     }
 
-    float pickupRange = (Config::PickupRange + player_.radius()) * player_.stats().pickupRangeMultiplier;
-    for (auto& orb : orbs_) {
-        if (orb.isCollected()) {
-            continue;
-        }
-
-        Vector2 diff = player_.position() - orb.position();
-        if (diff.lengthSquared() <= pickupRange * pickupRange) {
-            orb.collect();
-            player_.gainExp(orb.value());
-        }
-    }
-
-    const float itemPickupRange = Config::ItemPickupRange + player_.radius();
-    for (auto& droppedItem : droppedItems_) {
-        if (droppedItem.isCollected()) {
-            continue;
-        }
-
-        Vector2 diff = player_.position() - droppedItem.position();
-        if (diff.lengthSquared() <= itemPickupRange * itemPickupRange) {
-            inventory_.add(droppedItem.collect());
-        }
-    }
 }
 
 void GameWorld::removeDeadObjects() {
@@ -247,36 +213,10 @@ void GameWorld::removeDeadObjects() {
         enemies_.erase(enemyIt, enemies_.end());
     }
 
-    auto orbIt = std::remove_if(orbs_.begin(), orbs_.end(),
-        [](const ExperienceOrb& o) { return o.isCollected(); });
-    if (orbIt != orbs_.end()) {
-        orbs_.erase(orbIt, orbs_.end());
-    }
-
     auto itemIt = std::remove_if(droppedItems_.begin(), droppedItems_.end(),
         [](const DroppedItem& item) { return item.isCollected(); });
     if (itemIt != droppedItems_.end()) {
         droppedItems_.erase(itemIt, droppedItems_.end());
-    }
-}
-
-void GameWorld::generateUpgrades() {
-    static const std::array<Upgrade, 5> allUpgrades = {{
-        {UpgradeType::Damage,    "+20% Damage",    "Increase weapon damage"},
-        {UpgradeType::FireRate,  "+20% Fire Rate", "Shoot faster"},
-        {UpgradeType::MoveSpeed, "+10% Move Speed", "Move faster"},
-        {UpgradeType::PickupRange, "+25% Pickup Range", "Collect exp from further"},
-        {UpgradeType::MaxHp,     "+1 Max HP",      "Increase max health"},
-    }};
-
-    std::array<bool, 5> used{};
-    for (int i = 0; i < 3; ++i) {
-        int idx;
-        do {
-            idx = std::rand() % allUpgrades.size();
-        } while (used[idx]);
-        used[idx] = true;
-        currentUpgrades_[i] = allUpgrades[idx];
     }
 }
 
@@ -300,24 +240,11 @@ void GameWorld::tryNova(Input& input) {
         return;
     }
 
-    const int damage = static_cast<int>(Config::NovaDamage * player_.stats().damageMultiplier);
-    for (auto& enemy : enemies_) {
-        if (enemy.isDead()) {
-            continue;
-        }
-
-        if (Collision::circleCircle(
-                player_.position(), Config::NovaRadius,
-                enemy.position(), enemy.radius()
-            )) {
-            enemy.takeDamage(damage);
-
-            if (enemy.isDead()) {
-                rewardEnemyKill(enemy);
-            }
-        }
-    }
-
+    dealAreaDamage(
+        player_.position(),
+        Config::NovaRadius,
+        static_cast<int>(Config::NovaDamage * player_.stats().damageMultiplier)
+    );
     novaEffectTimer_ = Config::NovaEffectDuration;
     novaCooldown_.setDuration(Config::NovaCooldown);
     novaCooldown_.reset();
@@ -328,8 +255,54 @@ void GameWorld::trySecondarySkill(Input& input) {
         return;
     }
 
+    dealAreaDamage(
+        aimPosition_,
+        Config::SecondarySkillRadius,
+        static_cast<int>(Config::SecondarySkillDamage * player_.stats().damageMultiplier)
+    );
+    secondarySkillEffectPosition_ = aimPosition_;
+    secondarySkillEffectTimer_ = Config::SecondarySkillEffectDuration;
     secondarySkillCooldown_.setDuration(Config::SecondarySkillCooldown);
     secondarySkillCooldown_.reset();
+}
+
+void GameWorld::dealAreaDamage(const Vector2& center, float radius, int damage) {
+    for (auto& enemy : enemies_) {
+        if (enemy.isDead()) {
+            continue;
+        }
+
+        if (Collision::circleCircle(
+                center, radius,
+                enemy.position(), enemy.radius()
+            )) {
+            enemy.takeDamage(damage);
+
+            if (enemy.isDead()) {
+                rewardEnemyKill(enemy);
+            }
+        }
+    }
+}
+
+void GameWorld::tryPickupDroppedItem(Input& input) {
+    if (!input.pickup()) {
+        return;
+    }
+
+    const float itemPickupRange = (Config::ItemPickupRange + player_.radius())
+        * player_.stats().pickupRangeMultiplier;
+    for (auto& droppedItem : droppedItems_) {
+        if (droppedItem.isCollected()) {
+            continue;
+        }
+
+        Vector2 diff = player_.position() - droppedItem.position();
+        if (diff.lengthSquared() <= itemPickupRange * itemPickupRange) {
+            inventory_.add(droppedItem.collect());
+            return;
+        }
+    }
 }
 
 void GameWorld::tryEquipInventoryItem(Input& input) {
@@ -346,7 +319,7 @@ void GameWorld::tryEquipInventoryItem(Input& input) {
 
 void GameWorld::rewardEnemyKill(const Enemy& enemy) {
     score_ += 100;
-    orbs_.push_back(ExperienceOrb(enemy.position(), Config::ExpPerKill));
+    player_.gainExp(Config::ExpPerKill);
 
     const int dropChance = std::min(100,
         static_cast<int>(Config::ItemDropChancePercent * mapModifier_.itemQuantityMultiplier));
@@ -403,13 +376,17 @@ void GameWorld::generateMapModifier() {
 const Player& GameWorld::player() const { return player_; }
 const std::vector<Projectile>& GameWorld::projectiles() const { return projectiles_; }
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
-const std::vector<ExperienceOrb>& GameWorld::orbs() const { return orbs_; }
 const std::vector<DroppedItem>& GameWorld::droppedItems() const { return droppedItems_; }
 const Inventory& GameWorld::inventory() const { return inventory_; }
-const std::array<Upgrade, 3>& GameWorld::currentUpgrades() const { return currentUpgrades_; }
 const Vector2& GameWorld::aimPosition() const { return aimPosition_; }
 float GameWorld::novaEffectProgress() const {
     return novaEffectTimer_ / Config::NovaEffectDuration;
+}
+const Vector2& GameWorld::secondarySkillEffectPosition() const {
+    return secondarySkillEffectPosition_;
+}
+float GameWorld::secondarySkillEffectProgress() const {
+    return secondarySkillEffectTimer_ / Config::SecondarySkillEffectDuration;
 }
 GameState GameWorld::state() const { return state_; }
 int GameWorld::score() const { return score_; }

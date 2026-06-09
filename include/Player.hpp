@@ -22,7 +22,6 @@ public:
     bool isDead() const;
 
     void gainExp(int amount);
-    bool isLevelUp() const;
     void applyUpgrade(UpgradeType type);
     void equipItem(const Item& item);
 
@@ -33,6 +32,7 @@ public:
     int level() const;
     int exp() const;
     int expToNextLevel() const;
+    int talentPoints() const;
     const PlayerStats& stats() const;
     const Equipment& equipment() const;
 
@@ -49,7 +49,7 @@ private:
     int level_;
     int exp_;
     int expToNextLevel_;
-    int pendingLevelUps_;
+    int talentPoints_;
 
     PlayerStats upgradeStats_;
     PlayerStats stats_;

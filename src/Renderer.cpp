@@ -62,17 +62,18 @@ void Renderer::render(const GameWorld& world) {
     window_.clear(sf::Color::Black);
 
     drawNovaEffect(world);
+    drawSecondarySkillEffect(world);
     drawPlayer(world);
     drawAimIndicator(world);
     drawProjectiles(world);
     drawEnemies(world);
-    drawOrbs(world);
     drawDroppedItems(world);
 
     drawText("HP " + std::to_string(world.player().hp()) + "/" + std::to_string(world.player().maxHp()),
         {16.0f, 12.0f}, 18, sf::Color::White);
     drawText("LV " + std::to_string(world.player().level())
-        + "  EXP " + std::to_string(world.player().exp()) + "/" + std::to_string(world.player().expToNextLevel()),
+        + "  EXP " + std::to_string(world.player().exp()) + "/" + std::to_string(world.player().expToNextLevel())
+        + "  TP " + std::to_string(world.player().talentPoints()),
         {16.0f, 36.0f}, 18, sf::Color::White);
     drawText("TIME " + std::to_string(static_cast<int>(world.survivalTime()))
         + "  SCORE " + std::to_string(world.score()),
@@ -93,9 +94,6 @@ void Renderer::render(const GameWorld& world) {
     switch (world.state()) {
         case GameState::GameOver:
             drawGameOver(world);
-            break;
-        case GameState::LevelUp:
-            drawLevelUp(world);
             break;
         case GameState::MapComplete:
             drawMapComplete(world);
@@ -132,6 +130,25 @@ void Renderer::drawNovaEffect(const GameWorld& world) {
     shape.setOutlineThickness(3.0f);
     shape.setOrigin({radius, radius});
     shape.setPosition({player.position().x, player.position().y});
+    window_.draw(shape);
+}
+
+void Renderer::drawSecondarySkillEffect(const GameWorld& world) {
+    const float progress = world.secondarySkillEffectProgress();
+    if (progress <= 0.0f) {
+        return;
+    }
+
+    const auto& center = world.secondarySkillEffectPosition();
+    const float radius = Config::SecondarySkillRadius * (1.0f - progress * 0.20f);
+    const auto alpha = static_cast<std::uint8_t>(170.0f * progress);
+
+    sf::CircleShape shape(radius);
+    shape.setFillColor(sf::Color(255, 180, 80, alpha / 5));
+    shape.setOutlineColor(sf::Color(255, 210, 120, alpha));
+    shape.setOutlineThickness(3.0f);
+    shape.setOrigin({radius, radius});
+    shape.setPosition({center.x, center.y});
     window_.draw(shape);
 }
 
@@ -180,24 +197,32 @@ void Renderer::drawEnemies(const GameWorld& world) {
     }
 }
 
-void Renderer::drawOrbs(const GameWorld& world) {
-    for (const auto& orb : world.orbs()) {
-        sf::CircleShape shape(orb.radius());
-        shape.setFillColor(sf::Color::Cyan);
-        shape.setOrigin({orb.radius(), orb.radius()});
-        shape.setPosition({orb.position().x, orb.position().y});
-        window_.draw(shape);
-    }
-}
-
 void Renderer::drawDroppedItems(const GameWorld& world) {
+    const auto& player = world.player();
+    const float pickupRange = (Config::ItemPickupRange + player.radius())
+        * player.stats().pickupRangeMultiplier;
+
     for (const auto& droppedItem : world.droppedItems()) {
         const auto& item = droppedItem.item();
+        const Vector2 diff = player.position() - droppedItem.position();
+        const bool canPickup = diff.lengthSquared() <= pickupRange * pickupRange;
+
         sf::RectangleShape shape({droppedItem.radius() * 2.0f, droppedItem.radius() * 2.0f});
         shape.setFillColor(rarityColor(item.rarity));
+        if (canPickup) {
+            shape.setOutlineColor(sf::Color::White);
+            shape.setOutlineThickness(2.0f);
+        }
         shape.setOrigin({droppedItem.radius(), droppedItem.radius()});
         shape.setPosition({droppedItem.position().x, droppedItem.position().y});
         window_.draw(shape);
+
+        const std::string label = std::string(canPickup ? "F " : "")
+            + item.name + " [" + slotName(item.slot) + "]";
+        drawCenteredText(label,
+            {droppedItem.position().x, droppedItem.position().y - 20.0f},
+            12,
+            rarityColor(item.rarity));
     }
 }
 
@@ -232,32 +257,6 @@ void Renderer::drawGameOver(const GameWorld& /*world*/) {
     drawCenteredText("GAME OVER", {center.x, center.y - 58.0f}, 28, sf::Color::White);
     drawBox({center.x, center.y + 50.0f}, {200.0f, 40.0f}, sf::Color::White);
     drawCenteredText("Press R", {center.x, center.y + 43.0f}, 20, sf::Color::Black);
-}
-
-void Renderer::drawLevelUp(const GameWorld& world) {
-    const float width = static_cast<float>(Config::WindowWidth);
-    const float height = static_cast<float>(Config::WindowHeight);
-    const sf::Vector2f center{width / 2.0f, height / 2.0f};
-
-    sf::RectangleShape overlay({width, height});
-    overlay.setFillColor(sf::Color(0, 0, 100, 180));
-    window_.draw(overlay);
-
-    const auto& upgrades = world.currentUpgrades();
-    drawCenteredText("LEVEL UP", {center.x, center.y - 175.0f}, 30, sf::Color::White);
-    for (int i = 0; i < 3; ++i) {
-        float y = center.y - 100.0f + i * 80.0f;
-        sf::Color color = sf::Color(50, 50, 150);
-        if (i == 0) color = sf::Color(80, 80, 200);
-        if (i == 1) color = sf::Color(60, 60, 180);
-        if (i == 2) color = sf::Color(40, 40, 160);
-
-        drawBox({center.x, y}, {350.0f, 60.0f}, color);
-        drawText(std::to_string(i + 1) + ". " + upgrades[i].name,
-            {center.x - 155.0f, y - 22.0f}, 18, sf::Color::White);
-        drawText(upgrades[i].description,
-            {center.x - 155.0f, y + 2.0f}, 14, sf::Color(210, 220, 255));
-    }
 }
 
 void Renderer::drawMapComplete(const GameWorld& /*world*/) {

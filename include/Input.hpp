@@ -23,6 +23,7 @@ public:
     bool dash() const;
     bool nova() const;
     bool secondarySkill() const;
+    bool pickup() const;
     bool nextMap() const;
     bool restart() const;
     bool quit() const;
@@ -40,6 +41,7 @@ private:
     bool dash_ = false;
     bool nova_ = false;
     bool secondarySkill_ = false;
+    bool pickup_ = false;
     bool nextMap_ = false;
     bool restart_ = false;
     bool quit_ = false;

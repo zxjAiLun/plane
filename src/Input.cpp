@@ -6,6 +6,7 @@ void Input::update() {
     dash_ = false;
     nova_ = false;
     secondarySkill_ = false;
+    pickup_ = false;
     nextMap_ = false;
     upgradeChoice_ = 0;
     inventoryChoice_ = 0;
@@ -13,12 +14,17 @@ void Input::update() {
 
 void Input::handleKeyPressed(sf::Keyboard::Key key) {
     switch (key) {
+        case sf::Keyboard::Key::A:
         case sf::Keyboard::Key::Left:  moveLeft_ = true; break;
+        case sf::Keyboard::Key::D:
         case sf::Keyboard::Key::Right: moveRight_ = true; break;
+        case sf::Keyboard::Key::W:
         case sf::Keyboard::Key::Up:    moveUp_ = true; break;
+        case sf::Keyboard::Key::S:
         case sf::Keyboard::Key::Down:  moveDown_ = true; break;
         case sf::Keyboard::Key::Space: dash_ = true; break;
         case sf::Keyboard::Key::Q:     nova_ = true; break;
+        case sf::Keyboard::Key::F:     pickup_ = true; break;
         case sf::Keyboard::Key::E:     nextMap_ = true; break;
         case sf::Keyboard::Key::R:     restart_ = true; break;
         case sf::Keyboard::Key::Escape: quit_ = true; break;
@@ -46,9 +52,13 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
 
 void Input::handleKeyReleased(sf::Keyboard::Key key) {
     switch (key) {
+        case sf::Keyboard::Key::A:
         case sf::Keyboard::Key::Left:  moveLeft_ = false; break;
+        case sf::Keyboard::Key::D:
         case sf::Keyboard::Key::Right: moveRight_ = false; break;
+        case sf::Keyboard::Key::W:
         case sf::Keyboard::Key::Up:    moveUp_ = false; break;
+        case sf::Keyboard::Key::S:
         case sf::Keyboard::Key::Down:  moveDown_ = false; break;
         case sf::Keyboard::Key::R:     restart_ = false; break;
         case sf::Keyboard::Key::Escape: quit_ = false; break;
@@ -111,6 +121,7 @@ bool Input::primaryFireHeld() const { return primaryFireHeld_; }
 bool Input::dash() const { return dash_; }
 bool Input::nova() const { return nova_; }
 bool Input::secondarySkill() const { return secondarySkill_; }
+bool Input::pickup() const { return pickup_; }
 bool Input::nextMap() const { return nextMap_; }
 bool Input::restart() const { return restart_; }
 bool Input::quit() const { return quit_; }

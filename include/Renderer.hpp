@@ -13,14 +13,13 @@ public:
 private:
     void drawPlayer(const GameWorld& world);
     void drawNovaEffect(const GameWorld& world);
+    void drawSecondarySkillEffect(const GameWorld& world);
     void drawAimIndicator(const GameWorld& world);
     void drawProjectiles(const GameWorld& world);
     void drawEnemies(const GameWorld& world);
-    void drawOrbs(const GameWorld& world);
     void drawDroppedItems(const GameWorld& world);
     void drawInventory(const GameWorld& world);
     void drawGameOver(const GameWorld& world);
-    void drawLevelUp(const GameWorld& world);
     void drawMapComplete(const GameWorld& world);
 
     void drawBox(const sf::Vector2f& center, const sf::Vector2f& size, const sf::Color& color);
