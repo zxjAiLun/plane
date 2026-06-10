@@ -12,7 +12,7 @@ namespace Config {
     constexpr float ProjectileRadius = 5.0f;
     constexpr int ProjectileDamage = 1;
 
-    constexpr float WeaponCooldown = 0.3f;
+    constexpr float PrimarySkillCooldown = 0.3f;
 
     constexpr float DashDistance = 120.0f;
     constexpr float DashCooldown = 0.8f;

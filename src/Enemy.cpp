@@ -3,7 +3,9 @@
 
 Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type)
     : position_(position)
-    , radius_(type == EnemyType::Elite ? Config::EnemyRadius * 1.45f : Config::EnemyRadius)
+    , radius_(type == EnemyType::Boss ? Config::EnemyRadius * 2.2f
+        : type == EnemyType::Elite ? Config::EnemyRadius * 1.45f
+        : Config::EnemyRadius)
     , hp_(hp)
     , contactDamage_(contactDamage)
     , type_(type) {
@@ -34,4 +36,5 @@ const Vector2& Enemy::position() const { return position_; }
 float Enemy::radius() const { return radius_; }
 int Enemy::contactDamage() const { return contactDamage_; }
 EnemyType Enemy::type() const { return type_; }
-bool Enemy::isElite() const { return type_ == EnemyType::Elite; }
+bool Enemy::isElite() const { return type_ == EnemyType::Elite || type_ == EnemyType::Boss; }
+bool Enemy::isBoss() const { return type_ == EnemyType::Boss; }

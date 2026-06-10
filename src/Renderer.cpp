@@ -150,6 +150,7 @@ void Renderer::render(const GameWorld& world) {
         + "%  AS +" + std::to_string(multiplierPercent(stats.attackSpeedMultiplier))
         + "%  MS +" + std::to_string(multiplierPercent(stats.moveSpeedMultiplier)) + "%",
         {16.0f, 84.0f}, 16, sf::Color(210, 220, 255));
+    drawSkillBar(world);
     drawEquipment(world);
     drawInventory(world);
 
@@ -252,10 +253,12 @@ void Renderer::drawProjectiles(const GameWorld& world) {
 void Renderer::drawEnemies(const GameWorld& world) {
     for (const auto& enemy : world.enemies()) {
         sf::RectangleShape shape({enemy.radius() * 2, enemy.radius() * 2});
-        shape.setFillColor(enemy.isElite() ? sf::Color(180, 60, 255) : sf::Color::Red);
-        if (enemy.isElite()) {
+        shape.setFillColor(enemy.isBoss() ? sf::Color(255, 80, 40)
+            : enemy.isElite() ? sf::Color(180, 60, 255)
+            : sf::Color::Red);
+        if (enemy.isBoss() || enemy.isElite()) {
             shape.setOutlineColor(sf::Color(255, 220, 120));
-            shape.setOutlineThickness(3.0f);
+            shape.setOutlineThickness(enemy.isBoss() ? 5.0f : 3.0f);
         }
         shape.setOrigin({enemy.radius(), enemy.radius()});
         shape.setPosition({enemy.position().x, enemy.position().y});
@@ -289,6 +292,29 @@ void Renderer::drawDroppedItems(const GameWorld& world) {
             {droppedItem.position().x, droppedItem.position().y - 20.0f},
             12,
             rarityColor(item.rarity));
+    }
+}
+
+void Renderer::drawSkillBar(const GameWorld& world) {
+    const SkillSlot slots[] = {
+        SkillSlot::Primary,
+        SkillSlot::Secondary,
+        SkillSlot::Utility,
+        SkillSlot::Movement
+    };
+    const char* keys[] = {"LMB", "RMB", "Q", "Space"};
+
+    float x = 16.0f;
+    const float y = static_cast<float>(Config::WindowHeight) - 34.0f;
+    for (std::size_t i = 0; i < 4; ++i) {
+        const auto slot = slots[i];
+        const auto& skill = world.skillBar().definition(slot);
+        const float progress = world.skillBar().cooldownProgress(slot);
+        const sf::Color color = progress >= 1.0f ? sf::Color(130, 230, 150) : sf::Color(230, 180, 80);
+        drawText(std::string(keys[i]) + " " + skill.name + " "
+            + std::to_string(static_cast<int>(progress * 100.0f)) + "%",
+            {x, y}, 13, color);
+        x += 150.0f;
     }
 }
 
@@ -366,17 +392,28 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     overlay.setFillColor(sf::Color(0, 100, 0, 180));
     window_.draw(overlay);
 
-    drawBox({center.x, center.y - 50.0f}, {300.0f, 100.0f}, sf::Color::Green);
-    drawCenteredText("MAP COMPLETE", {center.x, center.y - 58.0f}, 28, sf::Color::White);
+    drawBox({center.x, center.y - 84.0f}, {360.0f, 90.0f}, sf::Color::Green);
+    drawCenteredText("MAP COMPLETE", {center.x, center.y - 110.0f}, 28, sf::Color::White);
     drawCenteredText("Kills " + std::to_string(world.mapKills())
         + "  XP " + std::to_string(world.mapExperienceGained()),
-        {center.x, center.y - 10.0f}, 16, sf::Color::White);
+        {center.x, center.y - 76.0f}, 16, sf::Color::White);
     drawCenteredText("Drops " + std::to_string(world.mapItemsDropped())
         + "  Picked " + std::to_string(world.mapItemsPickedUp()),
-        {center.x, center.y + 14.0f}, 16, sf::Color::White);
-    drawBox({center.x, center.y + 50.0f}, {280.0f, 40.0f}, sf::Color::White);
-    drawCenteredText("E Map " + std::to_string(world.mapLevel() + 1) + " / R Restart",
-        {center.x, center.y + 43.0f}, 18, sf::Color::Black);
+        {center.x, center.y - 52.0f}, 16, sf::Color::White);
+
+    drawCenteredText("Choose Reward", {center.x, center.y - 12.0f}, 18, sf::Color::White);
+    drawText("1. +20% Damage", {center.x - 150.0f, center.y + 14.0f}, 15, sf::Color(220, 240, 255));
+    drawText("2. +1 Max HP", {center.x - 150.0f, center.y + 36.0f}, 15, sf::Color(220, 240, 255));
+    drawText("3. +25% Future Drops", {center.x - 150.0f, center.y + 58.0f}, 15, sf::Color(220, 240, 255));
+
+    drawBox({center.x, center.y + 104.0f}, {320.0f, 40.0f}, sf::Color::White);
+    if (world.mapRewardChosen()) {
+        drawCenteredText("E Enter Map " + std::to_string(world.mapLevel() + 1) + " / R Restart",
+            {center.x, center.y + 97.0f}, 17, sf::Color::Black);
+    } else {
+        drawCenteredText("Pick 1 / 2 / 3 reward first",
+            {center.x, center.y + 97.0f}, 17, sf::Color::Black);
+    }
 }
 
 void Renderer::drawBox(const sf::Vector2f& center, const sf::Vector2f& size, const sf::Color& color) {

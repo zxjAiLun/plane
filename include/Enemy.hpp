@@ -4,7 +4,8 @@
 
 enum class EnemyType {
     Normal,
-    Elite
+    Elite,
+    Boss
 };
 
 class Enemy {
@@ -22,6 +23,7 @@ public:
     int contactDamage() const;
     EnemyType type() const;
     bool isElite() const;
+    bool isBoss() const;
 
 private:
     Vector2 position_;

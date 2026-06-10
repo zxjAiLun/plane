@@ -1,0 +1,29 @@
+#pragma once
+
+#include <string>
+
+enum class SkillSlot {
+    Primary,
+    Secondary,
+    Utility,
+    Movement,
+    Count
+};
+
+enum class SkillCastType {
+    Projectile,
+    SelfCenteredArea,
+    MouseTargetedArea,
+    Dash
+};
+
+struct SkillDefinition {
+    SkillSlot slot = SkillSlot::Primary;
+    SkillCastType castType = SkillCastType::Projectile;
+    std::string name;
+    float cooldown = 0.0f;
+    float radius = 0.0f;
+    int baseDamage = 0;
+    float effectDuration = 0.0f;
+};
+

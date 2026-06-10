@@ -13,6 +13,7 @@ void Input::update() {
     talentMaxHp_ = false;
     talentPickupRange_ = false;
     nextMap_ = false;
+    rewardChoice_ = 0;
     inventoryChoice_ = 0;
 }
 
@@ -37,18 +38,18 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::E:     nextMap_ = true; break;
         case sf::Keyboard::Key::R:     restart_ = true; break;
         case sf::Keyboard::Key::Escape: quit_ = true; break;
-        case sf::Keyboard::Key::Num1: inventoryChoice_ = 1; break;
-        case sf::Keyboard::Key::Num2: inventoryChoice_ = 2; break;
-        case sf::Keyboard::Key::Num3: inventoryChoice_ = 3; break;
+        case sf::Keyboard::Key::Num1: rewardChoice_ = 1; inventoryChoice_ = 1; break;
+        case sf::Keyboard::Key::Num2: rewardChoice_ = 2; inventoryChoice_ = 2; break;
+        case sf::Keyboard::Key::Num3: rewardChoice_ = 3; inventoryChoice_ = 3; break;
         case sf::Keyboard::Key::Num4: inventoryChoice_ = 4; break;
         case sf::Keyboard::Key::Num5: inventoryChoice_ = 5; break;
         case sf::Keyboard::Key::Num6: inventoryChoice_ = 6; break;
         case sf::Keyboard::Key::Num7: inventoryChoice_ = 7; break;
         case sf::Keyboard::Key::Num8: inventoryChoice_ = 8; break;
         case sf::Keyboard::Key::Num9: inventoryChoice_ = 9; break;
-        case sf::Keyboard::Key::Numpad1: inventoryChoice_ = 1; break;
-        case sf::Keyboard::Key::Numpad2: inventoryChoice_ = 2; break;
-        case sf::Keyboard::Key::Numpad3: inventoryChoice_ = 3; break;
+        case sf::Keyboard::Key::Numpad1: rewardChoice_ = 1; inventoryChoice_ = 1; break;
+        case sf::Keyboard::Key::Numpad2: rewardChoice_ = 2; inventoryChoice_ = 2; break;
+        case sf::Keyboard::Key::Numpad3: rewardChoice_ = 3; inventoryChoice_ = 3; break;
         case sf::Keyboard::Key::Numpad4: inventoryChoice_ = 4; break;
         case sf::Keyboard::Key::Numpad5: inventoryChoice_ = 5; break;
         case sf::Keyboard::Key::Numpad6: inventoryChoice_ = 6; break;
@@ -121,5 +122,6 @@ bool Input::talentPickupRange() const { return talentPickupRange_; }
 bool Input::nextMap() const { return nextMap_; }
 bool Input::restart() const { return restart_; }
 bool Input::quit() const { return quit_; }
+int Input::rewardChoice() const { return rewardChoice_; }
 int Input::inventoryChoice() const { return inventoryChoice_; }
 sf::Vector2i Input::mousePosition() const { return mousePosition_; }

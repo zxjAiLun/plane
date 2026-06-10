@@ -8,10 +8,7 @@
 #include <utility>
 
 GameWorld::GameWorld()
-    : dashCooldown_(0.0f)
-    , novaCooldown_(0.0f)
-    , secondarySkillCooldown_(0.0f)
-    , state_(GameState::Playing)
+    : state_(GameState::Playing)
     , score_(0)
     , survivalTime_(0.0f)
     , aimPosition_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
@@ -25,8 +22,11 @@ GameWorld::GameWorld()
     , mapKills_(0)
     , mapExperienceGained_(0)
     , mapItemsDropped_(0)
-    , mapItemsPickedUp_(0) {
+    , mapItemsPickedUp_(0)
+    , mapRewardChosen_(false)
+    , mapRewardItemQuantityBonus_(1.0f) {
     generateMapModifier();
+    skillBar_.applyStats(player_.stats());
 }
 
 void GameWorld::update(float dt, Input& input) {
@@ -47,7 +47,8 @@ void GameWorld::update(float dt, Input& input) {
             break;
 
         case GameState::MapComplete:
-            if (input.nextMap()) {
+            tryChooseMapReward(input);
+            if (mapRewardChosen_ && input.nextMap()) {
                 startNextMap();
             } else if (input.restart()) {
                 reset();
@@ -65,24 +66,16 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     if (input.moveDown()) player_.moveDown(dt);
 
     player_.update(dt);
-    dashCooldown_.update(dt);
-    novaCooldown_.update(dt);
-    secondarySkillCooldown_.update(dt);
+    skillBar_.update(dt);
     novaEffectTimer_ = std::max(0.0f, novaEffectTimer_ - dt);
     secondarySkillEffectTimer_ = std::max(0.0f, secondarySkillEffectTimer_ - dt);
-    tryDash(input);
-    tryNova(input);
-    trySecondarySkill(input);
+    tryCastMovementSkill(input);
+    tryCastUtilitySkill(input);
+    tryCastSecondarySkill(input);
     tryPickupDroppedItem(input);
     trySpendTalentPoint(input);
     tryEquipInventoryItem(input);
-
-    weapon_.update(dt);
-    if (input.primaryFireHeld()) {
-        if (auto projectile = weapon_.tryShoot(player_.position(), aimPosition_)) {
-            projectiles_.push_back(*projectile);
-        }
-    }
+    tryCastPrimarySkill(input);
 
     spawnEnemies(dt);
     updateObjects(dt);
@@ -107,13 +100,8 @@ void GameWorld::reset() {
     droppedItems_.clear();
     inventory_.clear();
     spawner_.reset();
-    weapon_.reset();
-    dashCooldown_.setDuration(0.0f);
-    dashCooldown_.reset();
-    novaCooldown_.setDuration(0.0f);
-    novaCooldown_.reset();
-    secondarySkillCooldown_.setDuration(0.0f);
-    secondarySkillCooldown_.reset();
+    skillBar_.reset();
+    skillBar_.applyStats(player_.stats());
     state_ = GameState::Playing;
     score_ = 0;
     survivalTime_ = 0.0f;
@@ -127,6 +115,8 @@ void GameWorld::reset() {
     mapExperienceGained_ = 0;
     mapItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
+    mapRewardChosen_ = false;
+    mapRewardItemQuantityBonus_ = 1.0f;
     generateMapModifier();
 }
 
@@ -142,17 +132,14 @@ void GameWorld::startNextMap() {
     enemies_.clear();
     droppedItems_.clear();
     spawner_.reset();
-    dashCooldown_.setDuration(0.0f);
-    dashCooldown_.reset();
-    novaCooldown_.setDuration(0.0f);
-    novaCooldown_.reset();
-    secondarySkillCooldown_.setDuration(0.0f);
-    secondarySkillCooldown_.reset();
+    skillBar_.reset();
+    skillBar_.applyStats(player_.stats());
     state_ = GameState::Playing;
     mapKills_ = 0;
     mapExperienceGained_ = 0;
     mapItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
+    mapRewardChosen_ = false;
     generateMapModifier();
 }
 
@@ -171,10 +158,10 @@ void GameWorld::spawnEnemies(float dt) {
     }
 
     spawner_.update(dt);
-    const bool spawnElite = shouldSpawnElite();
-    const int hp = spawnElite ? enemyHpForMap() * 5 : enemyHpForMap();
-    const int damage = spawnElite ? enemyDamageForMap() + 1 : enemyDamageForMap();
-    const EnemyType type = spawnElite ? EnemyType::Elite : EnemyType::Normal;
+    const bool spawnBoss = shouldSpawnBoss();
+    const int hp = spawnBoss ? enemyHpForMap() * 10 : enemyHpForMap();
+    const int damage = spawnBoss ? enemyDamageForMap() + 2 : enemyDamageForMap();
+    const EnemyType type = spawnBoss ? EnemyType::Boss : EnemyType::Normal;
 
     if (auto enemy = spawner_.trySpawn(hp, damage, type)) {
         enemies_.push_back(*enemy);
@@ -239,8 +226,8 @@ void GameWorld::removeDeadObjects() {
     }
 }
 
-void GameWorld::tryDash(Input& input) {
-    if (!input.dash() || !dashCooldown_.isReady()) {
+void GameWorld::tryCastMovementSkill(Input& input) {
+    if (!input.dash() || !skillBar_.tryCast(SkillSlot::Movement)) {
         return;
     }
 
@@ -250,39 +237,54 @@ void GameWorld::tryDash(Input& input) {
     }
 
     player_.setPosition(player_.position() + direction * Config::DashDistance);
-    dashCooldown_.setDuration(Config::DashCooldown);
-    dashCooldown_.reset();
 }
 
-void GameWorld::tryNova(Input& input) {
-    if (!input.nova() || !novaCooldown_.isReady()) {
+void GameWorld::tryCastUtilitySkill(Input& input) {
+    if (!input.nova() || !skillBar_.tryCast(SkillSlot::Utility)) {
         return;
     }
 
+    const auto& skill = skillBar_.definition(SkillSlot::Utility);
     dealAreaDamage(
         player_.position(),
-        Config::NovaRadius,
-        static_cast<int>(Config::NovaDamage * player_.stats().damageMultiplier)
+        skill.radius,
+        static_cast<int>(skill.baseDamage * player_.stats().damageMultiplier)
     );
-    novaEffectTimer_ = Config::NovaEffectDuration;
-    novaCooldown_.setDuration(Config::NovaCooldown);
-    novaCooldown_.reset();
+    novaEffectTimer_ = skill.effectDuration;
 }
 
-void GameWorld::trySecondarySkill(Input& input) {
-    if (!input.secondarySkill() || !secondarySkillCooldown_.isReady()) {
+void GameWorld::tryCastSecondarySkill(Input& input) {
+    if (!input.secondarySkill() || !skillBar_.tryCast(SkillSlot::Secondary)) {
         return;
     }
 
+    const auto& skill = skillBar_.definition(SkillSlot::Secondary);
     dealAreaDamage(
         aimPosition_,
-        Config::SecondarySkillRadius,
-        static_cast<int>(Config::SecondarySkillDamage * player_.stats().damageMultiplier)
+        skill.radius,
+        static_cast<int>(skill.baseDamage * player_.stats().damageMultiplier)
     );
     secondarySkillEffectPosition_ = aimPosition_;
-    secondarySkillEffectTimer_ = Config::SecondarySkillEffectDuration;
-    secondarySkillCooldown_.setDuration(Config::SecondarySkillCooldown);
-    secondarySkillCooldown_.reset();
+    secondarySkillEffectTimer_ = skill.effectDuration;
+}
+
+void GameWorld::tryCastPrimarySkill(Input& input) {
+    if (!input.primaryFireHeld()) {
+        return;
+    }
+
+    Vector2 direction = (aimPosition_ - player_.position()).normalized();
+    if (direction.lengthSquared() <= 0.0f) {
+        return;
+    }
+
+    if (!skillBar_.tryCast(SkillSlot::Primary)) {
+        return;
+    }
+
+    const auto& skill = skillBar_.definition(SkillSlot::Primary);
+    const int damage = static_cast<int>(skill.baseDamage * player_.stats().damageMultiplier);
+    projectiles_.push_back(Projectile(player_.position(), direction * Config::ProjectileSpeed, damage));
 }
 
 void GameWorld::dealAreaDamage(const Vector2& center, float radius, int damage) {
@@ -340,7 +342,7 @@ void GameWorld::trySpendTalentPoint(Input& input) {
     }
 
     if (spent) {
-        weapon_.applyStats(player_.stats());
+        skillBar_.applyStats(player_.stats());
     }
 }
 
@@ -354,24 +356,59 @@ void GameWorld::tryEquipInventoryItem(Input& input) {
         if (auto replaced = player_.equipItem(std::move(*item))) {
             inventory_.add(std::move(*replaced));
         }
-        weapon_.applyStats(player_.stats());
+        skillBar_.applyStats(player_.stats());
+    }
+}
+
+void GameWorld::tryChooseMapReward(Input& input) {
+    if (mapRewardChosen_ || input.rewardChoice() <= 0) {
+        return;
+    }
+
+    applyMapReward(input.rewardChoice());
+}
+
+void GameWorld::applyMapReward(int rewardChoice) {
+    switch (rewardChoice) {
+        case 1:
+            player_.applyUpgrade(UpgradeType::Damage);
+            skillBar_.applyStats(player_.stats());
+            mapRewardChosen_ = true;
+            break;
+        case 2:
+            player_.applyUpgrade(UpgradeType::MaxHp);
+            mapRewardChosen_ = true;
+            break;
+        case 3:
+            mapRewardItemQuantityBonus_ *= 1.25f;
+            mapRewardChosen_ = true;
+            break;
+        default:
+            break;
     }
 }
 
 void GameWorld::rewardEnemyKill(const Enemy& enemy) {
     ++mapKills_;
     score_ += 100;
-    if (enemy.isElite()) {
+    if (enemy.isBoss()) {
+        score_ += 900;
+    } else if (enemy.isElite()) {
         score_ += 400;
     }
 
-    const int exp = enemy.isElite() ? Config::ExpPerKill * 5 : Config::ExpPerKill;
+    const int exp = enemy.isBoss() ? Config::ExpPerKill * 10
+        : enemy.isElite() ? Config::ExpPerKill * 5
+        : Config::ExpPerKill;
     player_.gainExp(exp);
     mapExperienceGained_ += exp;
 
-    const float eliteDropMultiplier = enemy.isElite() ? 2.5f : 1.0f;
+    const float eliteDropMultiplier = enemy.isBoss() ? 4.0f
+        : enemy.isElite() ? 2.5f
+        : 1.0f;
     const int dropChance = std::min(100, static_cast<int>(
-        Config::ItemDropChancePercent * mapModifier_.itemQuantityMultiplier * eliteDropMultiplier));
+        Config::ItemDropChancePercent * mapModifier_.itemQuantityMultiplier
+        * mapRewardItemQuantityBonus_ * eliteDropMultiplier));
     if ((std::rand() % 100) < dropChance) {
         droppedItems_.push_back(DroppedItem(enemy.position(), lootGenerator_.generate(mapLevel_)));
         ++mapItemsDropped_;
@@ -409,7 +446,7 @@ int GameWorld::enemyDamageForMap() const {
     return Config::EnemyContactDamage + (mapLevel_ - 1) / 3 + mapModifier_.monsterDamageBonus;
 }
 
-bool GameWorld::shouldSpawnElite() const {
+bool GameWorld::shouldSpawnBoss() const {
     return currentWave_ == Config::MapWaveCount - 1
         && enemiesSpawnedInWave_ == enemiesPerWave() - 1;
 }
@@ -443,6 +480,7 @@ const Vector2& GameWorld::secondarySkillEffectPosition() const {
 float GameWorld::secondarySkillEffectProgress() const {
     return secondarySkillEffectTimer_ / Config::SecondarySkillEffectDuration;
 }
+const SkillBar& GameWorld::skillBar() const { return skillBar_; }
 GameState GameWorld::state() const { return state_; }
 int GameWorld::score() const { return score_; }
 float GameWorld::survivalTime() const { return survivalTime_; }
@@ -462,6 +500,8 @@ int GameWorld::mapKills() const { return mapKills_; }
 int GameWorld::mapExperienceGained() const { return mapExperienceGained_; }
 int GameWorld::mapItemsDropped() const { return mapItemsDropped_; }
 int GameWorld::mapItemsPickedUp() const { return mapItemsPickedUp_; }
+bool GameWorld::mapRewardChosen() const { return mapRewardChosen_; }
+float GameWorld::mapRewardItemQuantityBonus() const { return mapRewardItemQuantityBonus_; }
 
 float GameWorld::currentSpawnInterval() const {
     constexpr float startInterval = Config::EnemySpawnInterval;

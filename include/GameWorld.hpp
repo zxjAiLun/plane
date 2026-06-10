@@ -10,10 +10,9 @@
 #include "Inventory.hpp"
 #include "LootGenerator.hpp"
 #include "MapModifier.hpp"
-#include "Weapon.hpp"
+#include "SkillBar.hpp"
 #include "Upgrade.hpp"
 #include "Input.hpp"
-#include "Timer.hpp"
 
 enum class GameState {
     Playing,
@@ -37,6 +36,7 @@ public:
     float novaEffectProgress() const;
     const Vector2& secondarySkillEffectPosition() const;
     float secondarySkillEffectProgress() const;
+    const SkillBar& skillBar() const;
 
     GameState state() const;
     int score() const;
@@ -49,6 +49,8 @@ public:
     int mapExperienceGained() const;
     int mapItemsDropped() const;
     int mapItemsPickedUp() const;
+    bool mapRewardChosen() const;
+    float mapRewardItemQuantityBonus() const;
 
 private:
     void startNextMap();
@@ -57,20 +59,23 @@ private:
     void spawnEnemies(float dt);
     void handleCollisions();
     void removeDeadObjects();
-    void tryDash(Input& input);
-    void tryNova(Input& input);
-    void trySecondarySkill(Input& input);
+    void tryCastMovementSkill(Input& input);
+    void tryCastUtilitySkill(Input& input);
+    void tryCastSecondarySkill(Input& input);
+    void tryCastPrimarySkill(Input& input);
     void dealAreaDamage(const Vector2& center, float radius, int damage);
     void tryPickupDroppedItem(Input& input);
     void trySpendTalentPoint(Input& input);
     void tryEquipInventoryItem(Input& input);
+    void tryChooseMapReward(Input& input);
+    void applyMapReward(int rewardChoice);
     void rewardEnemyKill(const Enemy& enemy);
     void advanceWaveIfComplete();
     bool isMapCleared() const;
     int enemiesPerWave() const;
     int enemyHpForMap() const;
     int enemyDamageForMap() const;
-    bool shouldSpawnElite() const;
+    bool shouldSpawnBoss() const;
     void generateMapModifier();
 
     float currentSpawnInterval() const;
@@ -83,10 +88,7 @@ private:
     Inventory inventory_;
     LootGenerator lootGenerator_;
     EnemySpawner spawner_;
-    Weapon weapon_;
-    Timer dashCooldown_;
-    Timer novaCooldown_;
-    Timer secondarySkillCooldown_;
+    SkillBar skillBar_;
 
     GameState state_;
     int score_;
@@ -103,4 +105,6 @@ private:
     int mapExperienceGained_;
     int mapItemsDropped_;
     int mapItemsPickedUp_;
+    bool mapRewardChosen_;
+    float mapRewardItemQuantityBonus_;
 };
