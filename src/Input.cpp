@@ -7,12 +7,9 @@ void Input::update() {
     nova_ = false;
     secondarySkill_ = false;
     pickup_ = false;
-    talentDamage_ = false;
-    talentAttackSpeed_ = false;
-    talentMoveSpeed_ = false;
-    talentMaxHp_ = false;
-    talentPickupRange_ = false;
+    passiveTreeToggle_ = false;
     nextMap_ = false;
+    passiveChoice_ = 0;
     rewardChoice_ = 0;
     inventoryChoice_ = 0;
 }
@@ -30,28 +27,24 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::Space: dash_ = true; break;
         case sf::Keyboard::Key::Q:     nova_ = true; break;
         case sf::Keyboard::Key::F:     pickup_ = true; break;
-        case sf::Keyboard::Key::Z:     talentDamage_ = true; break;
-        case sf::Keyboard::Key::X:     talentAttackSpeed_ = true; break;
-        case sf::Keyboard::Key::C:     talentMoveSpeed_ = true; break;
-        case sf::Keyboard::Key::V:     talentMaxHp_ = true; break;
-        case sf::Keyboard::Key::B:     talentPickupRange_ = true; break;
+        case sf::Keyboard::Key::P:     passiveTreeToggle_ = true; break;
         case sf::Keyboard::Key::E:     nextMap_ = true; break;
         case sf::Keyboard::Key::R:     restart_ = true; break;
         case sf::Keyboard::Key::Escape: quit_ = true; break;
-        case sf::Keyboard::Key::Num1: rewardChoice_ = 1; inventoryChoice_ = 1; break;
-        case sf::Keyboard::Key::Num2: rewardChoice_ = 2; inventoryChoice_ = 2; break;
-        case sf::Keyboard::Key::Num3: rewardChoice_ = 3; inventoryChoice_ = 3; break;
-        case sf::Keyboard::Key::Num4: inventoryChoice_ = 4; break;
-        case sf::Keyboard::Key::Num5: inventoryChoice_ = 5; break;
+        case sf::Keyboard::Key::Num1: passiveChoice_ = 1; rewardChoice_ = 1; inventoryChoice_ = 1; break;
+        case sf::Keyboard::Key::Num2: passiveChoice_ = 2; rewardChoice_ = 2; inventoryChoice_ = 2; break;
+        case sf::Keyboard::Key::Num3: passiveChoice_ = 3; rewardChoice_ = 3; inventoryChoice_ = 3; break;
+        case sf::Keyboard::Key::Num4: passiveChoice_ = 4; inventoryChoice_ = 4; break;
+        case sf::Keyboard::Key::Num5: passiveChoice_ = 5; inventoryChoice_ = 5; break;
         case sf::Keyboard::Key::Num6: inventoryChoice_ = 6; break;
         case sf::Keyboard::Key::Num7: inventoryChoice_ = 7; break;
         case sf::Keyboard::Key::Num8: inventoryChoice_ = 8; break;
         case sf::Keyboard::Key::Num9: inventoryChoice_ = 9; break;
-        case sf::Keyboard::Key::Numpad1: rewardChoice_ = 1; inventoryChoice_ = 1; break;
-        case sf::Keyboard::Key::Numpad2: rewardChoice_ = 2; inventoryChoice_ = 2; break;
-        case sf::Keyboard::Key::Numpad3: rewardChoice_ = 3; inventoryChoice_ = 3; break;
-        case sf::Keyboard::Key::Numpad4: inventoryChoice_ = 4; break;
-        case sf::Keyboard::Key::Numpad5: inventoryChoice_ = 5; break;
+        case sf::Keyboard::Key::Numpad1: passiveChoice_ = 1; rewardChoice_ = 1; inventoryChoice_ = 1; break;
+        case sf::Keyboard::Key::Numpad2: passiveChoice_ = 2; rewardChoice_ = 2; inventoryChoice_ = 2; break;
+        case sf::Keyboard::Key::Numpad3: passiveChoice_ = 3; rewardChoice_ = 3; inventoryChoice_ = 3; break;
+        case sf::Keyboard::Key::Numpad4: passiveChoice_ = 4; inventoryChoice_ = 4; break;
+        case sf::Keyboard::Key::Numpad5: passiveChoice_ = 5; inventoryChoice_ = 5; break;
         case sf::Keyboard::Key::Numpad6: inventoryChoice_ = 6; break;
         case sf::Keyboard::Key::Numpad7: inventoryChoice_ = 7; break;
         case sf::Keyboard::Key::Numpad8: inventoryChoice_ = 8; break;
@@ -114,14 +107,11 @@ bool Input::dash() const { return dash_; }
 bool Input::nova() const { return nova_; }
 bool Input::secondarySkill() const { return secondarySkill_; }
 bool Input::pickup() const { return pickup_; }
-bool Input::talentDamage() const { return talentDamage_; }
-bool Input::talentAttackSpeed() const { return talentAttackSpeed_; }
-bool Input::talentMoveSpeed() const { return talentMoveSpeed_; }
-bool Input::talentMaxHp() const { return talentMaxHp_; }
-bool Input::talentPickupRange() const { return talentPickupRange_; }
+bool Input::passiveTreeToggle() const { return passiveTreeToggle_; }
 bool Input::nextMap() const { return nextMap_; }
 bool Input::restart() const { return restart_; }
 bool Input::quit() const { return quit_; }
+int Input::passiveChoice() const { return passiveChoice_; }
 int Input::rewardChoice() const { return rewardChoice_; }
 int Input::inventoryChoice() const { return inventoryChoice_; }
 sf::Vector2i Input::mousePosition() const { return mousePosition_; }

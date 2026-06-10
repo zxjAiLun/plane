@@ -24,7 +24,8 @@ GameWorld::GameWorld()
     , mapItemsDropped_(0)
     , mapItemsPickedUp_(0)
     , mapRewardChosen_(false)
-    , mapRewardItemQuantityBonus_(1.0f) {
+    , mapRewardItemQuantityBonus_(1.0f)
+    , passiveTreeOpen_(false) {
     generateMapModifier();
     skillBar_.applyStats(player_.stats());
 }
@@ -60,6 +61,10 @@ void GameWorld::update(float dt, Input& input) {
 }
 
 void GameWorld::updatePlaying(float dt, Input& input) {
+    if (input.passiveTreeToggle()) {
+        passiveTreeOpen_ = !passiveTreeOpen_;
+    }
+
     if (input.moveLeft()) player_.moveLeft(dt);
     if (input.moveRight()) player_.moveRight(dt);
     if (input.moveUp()) player_.moveUp(dt);
@@ -73,8 +78,10 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     tryCastUtilitySkill(input);
     tryCastSecondarySkill(input);
     tryPickupDroppedItem(input);
-    trySpendTalentPoint(input);
-    tryEquipInventoryItem(input);
+    trySpendPassivePoint(input);
+    if (!passiveTreeOpen_) {
+        tryEquipInventoryItem(input);
+    }
     tryCastPrimarySkill(input);
 
     spawnEnemies(dt);
@@ -117,6 +124,7 @@ void GameWorld::reset() {
     mapItemsPickedUp_ = 0;
     mapRewardChosen_ = false;
     mapRewardItemQuantityBonus_ = 1.0f;
+    passiveTreeOpen_ = false;
     generateMapModifier();
 }
 
@@ -140,6 +148,7 @@ void GameWorld::startNextMap() {
     mapItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
     mapRewardChosen_ = false;
+    passiveTreeOpen_ = false;
     generateMapModifier();
 }
 
@@ -327,21 +336,13 @@ void GameWorld::tryPickupDroppedItem(Input& input) {
     }
 }
 
-void GameWorld::trySpendTalentPoint(Input& input) {
-    bool spent = false;
-    if (input.talentDamage()) {
-        spent = player_.spendTalentPoint(UpgradeType::Damage);
-    } else if (input.talentAttackSpeed()) {
-        spent = player_.spendTalentPoint(UpgradeType::FireRate);
-    } else if (input.talentMoveSpeed()) {
-        spent = player_.spendTalentPoint(UpgradeType::MoveSpeed);
-    } else if (input.talentMaxHp()) {
-        spent = player_.spendTalentPoint(UpgradeType::MaxHp);
-    } else if (input.talentPickupRange()) {
-        spent = player_.spendTalentPoint(UpgradeType::PickupRange);
+void GameWorld::trySpendPassivePoint(Input& input) {
+    if (!passiveTreeOpen_ || input.passiveChoice() <= 0) {
+        return;
     }
 
-    if (spent) {
+    const auto nodeIndex = static_cast<std::size_t>(input.passiveChoice() - 1);
+    if (player_.spendPassivePoint(nodeIndex)) {
         skillBar_.applyStats(player_.stats());
     }
 }
@@ -481,6 +482,7 @@ float GameWorld::secondarySkillEffectProgress() const {
     return secondarySkillEffectTimer_ / Config::SecondarySkillEffectDuration;
 }
 const SkillBar& GameWorld::skillBar() const { return skillBar_; }
+bool GameWorld::passiveTreeOpen() const { return passiveTreeOpen_; }
 GameState GameWorld::state() const { return state_; }
 int GameWorld::score() const { return score_; }
 float GameWorld::survivalTime() const { return survivalTime_; }

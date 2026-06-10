@@ -132,7 +132,7 @@ void Renderer::render(const GameWorld& world) {
         {16.0f, 12.0f}, 18, sf::Color::White);
     drawText("LV " + std::to_string(world.player().level())
         + "  EXP " + std::to_string(world.player().exp()) + "/" + std::to_string(world.player().expToNextLevel())
-        + "  TP " + std::to_string(world.player().talentPoints()),
+        + "  SP " + std::to_string(world.player().talentPoints()),
         {16.0f, 36.0f}, 18, sf::Color::White);
     drawText("TIME " + std::to_string(static_cast<int>(world.survivalTime()))
         + "  SCORE " + std::to_string(world.score()),
@@ -143,7 +143,7 @@ void Renderer::render(const GameWorld& world) {
         {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));
     drawText(world.mapModifier().description,
         {16.0f, 130.0f}, 14, sf::Color(255, 220, 150));
-    drawText("TP: Z DMG / X AS / C MS / V HP / B PICKUP",
+    drawText("P Passive Tree  |  Spend SP on nodes",
         {16.0f, 152.0f}, 14, sf::Color(210, 255, 210));
     const auto& stats = world.player().stats();
     drawText("DMG +" + std::to_string(multiplierPercent(stats.damageMultiplier))
@@ -153,6 +153,7 @@ void Renderer::render(const GameWorld& world) {
     drawSkillBar(world);
     drawEquipment(world);
     drawInventory(world);
+    drawPassiveTree(world);
 
     switch (world.state()) {
         case GameState::GameOver:
@@ -365,6 +366,53 @@ void Renderer::drawInventory(const GameWorld& world) {
             drawText("   Delta: " + statsDeltaSummary(delta), {x, y}, 11, deltaColor(delta));
             y += 14.0f;
         }
+    }
+}
+
+void Renderer::drawPassiveTree(const GameWorld& world) {
+    if (!world.passiveTreeOpen()) {
+        return;
+    }
+
+    const float width = static_cast<float>(Config::WindowWidth);
+    const float height = static_cast<float>(Config::WindowHeight);
+    const sf::Vector2f center{width / 2.0f, height / 2.0f};
+
+    sf::RectangleShape overlay({width, height});
+    overlay.setFillColor(sf::Color(0, 0, 0, 145));
+    window_.draw(overlay);
+
+    drawBox({center.x, center.y}, {520.0f, 300.0f}, sf::Color(30, 38, 48));
+    drawCenteredText("Passive Tree", {center.x, center.y - 126.0f}, 24, sf::Color::White);
+    drawCenteredText("SP " + std::to_string(world.player().talentPoints()) + "  |  1-5 allocate  |  P close",
+        {center.x, center.y - 98.0f}, 14, sf::Color(210, 230, 255));
+
+    const auto& nodes = world.player().passiveTree().nodes();
+    float y = center.y - 64.0f;
+    for (std::size_t i = 0; i < nodes.size(); ++i) {
+        const auto& node = nodes[i];
+        const bool prerequisiteMet = node.prerequisite < 0
+            || nodes[static_cast<std::size_t>(node.prerequisite)].allocated;
+        const bool available = !node.allocated && prerequisiteMet && world.player().talentPoints() > 0;
+
+        sf::Color color = sf::Color(150, 150, 150);
+        std::string status = "Locked";
+        if (node.allocated) {
+            color = sf::Color(120, 230, 140);
+            status = "Allocated";
+        } else if (available) {
+            color = sf::Color(220, 240, 255);
+            status = "Available";
+        } else if (prerequisiteMet) {
+            color = sf::Color(190, 190, 190);
+            status = "No SP";
+        }
+
+        drawText(std::to_string(i + 1) + ". " + node.name + " - " + node.description,
+            {center.x - 220.0f, y}, 15, color);
+        drawText("[" + status + "]",
+            {center.x + 150.0f, y}, 15, color);
+        y += 34.0f;
     }
 }
 

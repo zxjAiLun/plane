@@ -37,6 +37,7 @@ public:
     const Vector2& secondarySkillEffectPosition() const;
     float secondarySkillEffectProgress() const;
     const SkillBar& skillBar() const;
+    bool passiveTreeOpen() const;
 
     GameState state() const;
     int score() const;
@@ -65,7 +66,7 @@ private:
     void tryCastPrimarySkill(Input& input);
     void dealAreaDamage(const Vector2& center, float radius, int damage);
     void tryPickupDroppedItem(Input& input);
-    void trySpendTalentPoint(Input& input);
+    void trySpendPassivePoint(Input& input);
     void tryEquipInventoryItem(Input& input);
     void tryChooseMapReward(Input& input);
     void applyMapReward(int rewardChoice);
@@ -107,4 +108,5 @@ private:
     int mapItemsPickedUp_;
     bool mapRewardChosen_;
     float mapRewardItemQuantityBonus_;
+    bool passiveTreeOpen_;
 };

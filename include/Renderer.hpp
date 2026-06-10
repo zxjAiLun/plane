@@ -21,6 +21,7 @@ private:
     void drawSkillBar(const GameWorld& world);
     void drawEquipment(const GameWorld& world);
     void drawInventory(const GameWorld& world);
+    void drawPassiveTree(const GameWorld& world);
     void drawGameOver(const GameWorld& world);
     void drawMapComplete(const GameWorld& world);
 

@@ -102,13 +102,19 @@ bool Player::canSpendTalentPoint() const {
     return talentPoints_ > 0;
 }
 
-bool Player::spendTalentPoint(UpgradeType type) {
+bool Player::spendPassivePoint(std::size_t nodeIndex) {
     if (!canSpendTalentPoint()) {
         return false;
     }
 
+    const int maxHpBefore = maxHp_;
+    if (!passiveTree_.allocate(nodeIndex)) {
+        return false;
+    }
+
     --talentPoints_;
-    applyUpgrade(type);
+    recalculateStats();
+    hp_ += std::max(0, maxHp_ - maxHpBefore);
     return true;
 }
 
@@ -128,7 +134,8 @@ std::optional<Item> Player::equipItem(Item item) {
 }
 
 void Player::recalculateStats() {
-    stats_ = combineStats(upgradeStats_, equipment_.combinedStats());
+    stats_ = combineStats(upgradeStats_, passiveTree_.combinedStats());
+    stats_ = combineStats(stats_, equipment_.combinedStats());
     maxHp_ = Config::PlayerHp + stats_.maxHp;
     if (hp_ > maxHp_) {
         hp_ = maxHp_;
@@ -145,3 +152,4 @@ int Player::expToNextLevel() const { return expToNextLevel_; }
 int Player::talentPoints() const { return talentPoints_; }
 const PlayerStats& Player::stats() const { return stats_; }
 const Equipment& Player::equipment() const { return equipment_; }
+const PassiveTree& Player::passiveTree() const { return passiveTree_; }

@@ -7,6 +7,7 @@
 #include "Upgrade.hpp"
 #include "Equipment.hpp"
 #include "Item.hpp"
+#include "PassiveTree.hpp"
 
 class Player {
 public:
@@ -26,7 +27,7 @@ public:
     void gainExp(int amount);
     void applyUpgrade(UpgradeType type);
     bool canSpendTalentPoint() const;
-    bool spendTalentPoint(UpgradeType type);
+    bool spendPassivePoint(std::size_t nodeIndex);
     std::optional<Item> equipItem(Item item);
 
     const Vector2& position() const;
@@ -39,6 +40,7 @@ public:
     int talentPoints() const;
     const PlayerStats& stats() const;
     const Equipment& equipment() const;
+    const PassiveTree& passiveTree() const;
 
 private:
     void recalculateStats();
@@ -58,4 +60,5 @@ private:
     PlayerStats upgradeStats_;
     PlayerStats stats_;
     Equipment equipment_;
+    PassiveTree passiveTree_;
 };
