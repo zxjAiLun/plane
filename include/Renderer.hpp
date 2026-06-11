@@ -11,6 +11,7 @@ public:
     void render(const GameWorld& world);
 
 private:
+    void drawMap(const GameWorld& world);
     void drawPlayer(const GameWorld& world);
     void drawNovaEffect(const GameWorld& world);
     void drawSecondarySkillEffect(const GameWorld& world);
@@ -28,6 +29,7 @@ private:
     void drawBox(const sf::Vector2f& center, const sf::Vector2f& size, const sf::Color& color);
     void drawText(const std::string& text, const sf::Vector2f& position, unsigned int size, const sf::Color& color);
     void drawCenteredText(const std::string& text, const sf::Vector2f& center, unsigned int size, const sf::Color& color);
+    sf::Vector2f worldToScreen(const GameWorld& world, const Vector2& position) const;
 
 private:
     sf::RenderWindow& window_;

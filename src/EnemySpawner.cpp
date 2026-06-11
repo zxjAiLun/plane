@@ -1,5 +1,7 @@
 #include "EnemySpawner.hpp"
 #include "Config.hpp"
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 EnemySpawner::EnemySpawner()
@@ -47,6 +49,32 @@ std::optional<Enemy> EnemySpawner::trySpawn(int hp, int contactDamage, EnemyType
         return Enemy(position, hp, contactDamage, type);
     }
     return std::nullopt;
+}
+
+std::optional<Enemy> EnemySpawner::trySpawnNear(
+    const Vector2& playerPosition,
+    const Vector2& worldSize,
+    int hp,
+    int contactDamage,
+    EnemyType type
+) {
+    if (!spawnTimer_.isReady()) {
+        return std::nullopt;
+    }
+
+    spawnTimer_.reset();
+
+    constexpr float twoPi = 6.28318530718f;
+    const float angle = (static_cast<float>(std::rand() % 6283) / 6283.0f) * twoPi;
+    const float distance = Config::EnemySpawnMinDistance
+        + static_cast<float>(std::rand() % static_cast<int>(Config::EnemySpawnMaxDistance - Config::EnemySpawnMinDistance));
+    const Vector2 offset(std::cos(angle) * distance, std::sin(angle) * distance);
+    Vector2 position = playerPosition + offset;
+
+    position.x = std::clamp(position.x, Config::EnemyRadius, worldSize.x - Config::EnemyRadius);
+    position.y = std::clamp(position.y, Config::EnemyRadius, worldSize.y - Config::EnemyRadius);
+
+    return Enemy(position, hp, contactDamage, type);
 }
 
 void EnemySpawner::reset() {

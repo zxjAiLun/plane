@@ -20,6 +20,7 @@ public:
     void moveUp(float dt);
     void moveDown(float dt);
     void setPosition(const Vector2& position);
+    void setBounds(const Vector2& bounds);
 
     void takeDamage(int damage);
     bool isDead() const;
@@ -47,6 +48,7 @@ private:
 
 private:
     Vector2 position_;
+    Vector2 bounds_;
     float baseSpeed_;
     float radius_;
     int hp_;

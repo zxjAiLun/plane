@@ -6,6 +6,7 @@
 
 Player::Player()
     : position_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
+    , bounds_(Config::MapWidth, Config::MapHeight)
     , baseSpeed_(Config::PlayerSpeed)
     , radius_(Config::PlayerRadius)
     , hp_(Config::PlayerHp)
@@ -31,8 +32,8 @@ void Player::moveLeft(float dt) {
 
 void Player::moveRight(float dt) {
     position_.x += baseSpeed_ * stats_.moveSpeedMultiplier * dt;
-    if (position_.x + radius_ > Config::WindowWidth) {
-        position_.x = Config::WindowWidth - radius_;
+    if (position_.x + radius_ > bounds_.x) {
+        position_.x = bounds_.x - radius_;
     }
 }
 
@@ -45,14 +46,19 @@ void Player::moveUp(float dt) {
 
 void Player::moveDown(float dt) {
     position_.y += baseSpeed_ * stats_.moveSpeedMultiplier * dt;
-    if (position_.y + radius_ > Config::WindowHeight) {
-        position_.y = Config::WindowHeight - radius_;
+    if (position_.y + radius_ > bounds_.y) {
+        position_.y = bounds_.y - radius_;
     }
 }
 
 void Player::setPosition(const Vector2& position) {
-    position_.x = std::clamp(position.x, radius_, Config::WindowWidth - radius_);
-    position_.y = std::clamp(position.y, radius_, Config::WindowHeight - radius_);
+    position_.x = std::clamp(position.x, radius_, bounds_.x - radius_);
+    position_.y = std::clamp(position.y, radius_, bounds_.y - radius_);
+}
+
+void Player::setBounds(const Vector2& bounds) {
+    bounds_ = bounds;
+    setPosition(position_);
 }
 
 void Player::takeDamage(int damage) {

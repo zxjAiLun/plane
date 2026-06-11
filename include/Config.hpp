@@ -3,10 +3,16 @@
 namespace Config {
     constexpr int WindowWidth = 800;
     constexpr int WindowHeight = 600;
+    constexpr float MapWidth = 2400.0f;
+    constexpr float MapHeight = 1800.0f;
+    constexpr float StartSafeRadius = 220.0f;
+    constexpr float BossGateRadius = 380.0f;
+    constexpr float BossArenaRadius = 260.0f;
 
     constexpr float PlayerSpeed = 300.0f;
     constexpr float PlayerRadius = 20.0f;
     constexpr int PlayerHp = 3;
+    constexpr float PlayerHitCooldown = 0.6f;
 
     constexpr float ProjectileSpeed = 500.0f;
     constexpr float ProjectileRadius = 5.0f;
@@ -32,6 +38,9 @@ namespace Config {
     constexpr int EnemyContactDamage = 1;
 
     constexpr float EnemySpawnInterval = 1.0f;
+    constexpr int MaxActiveEnemies = 28;
+    constexpr float EnemySpawnMinDistance = 520.0f;
+    constexpr float EnemySpawnMaxDistance = 760.0f;
 
     constexpr int ExpPerKill = 1;
     constexpr int BaseExpToLevel = 5;

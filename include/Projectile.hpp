@@ -6,7 +6,7 @@ class Projectile {
 public:
     Projectile(const Vector2& position, const Vector2& velocity, int damage);
 
-    void update(float dt);
+    void update(float dt, const Vector2& worldSize);
 
     const Vector2& position() const;
     float radius() const;

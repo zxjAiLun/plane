@@ -25,11 +25,7 @@ void Enemy::kill() {
 }
 
 bool Enemy::isDead() const {
-    return hp_ <= 0
-        || position_.y - radius_ > Config::WindowHeight
-        || position_.y + radius_ < 0
-        || position_.x - radius_ > Config::WindowWidth
-        || position_.x + radius_ < 0;
+    return hp_ <= 0;
 }
 
 const Vector2& Enemy::position() const { return position_; }

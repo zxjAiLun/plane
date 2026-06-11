@@ -15,10 +15,12 @@ GameWorld::GameWorld()
     , novaEffectTimer_(0.0f)
     , secondarySkillEffectPosition_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
     , secondarySkillEffectTimer_(0.0f)
+    , playerHitCooldown_(0.0f)
     , mapLevel_(1)
     , currentWave_(0)
     , enemiesSpawnedInWave_(0)
     , mapModifier_()
+    , map_()
     , mapKills_(0)
     , mapExperienceGained_(0)
     , mapItemsDropped_(0)
@@ -27,13 +29,16 @@ GameWorld::GameWorld()
     , mapRewardItemQuantityBonus_(1.0f)
     , passiveTreeOpen_(false) {
     generateMapModifier();
+    player_.setBounds(map_.size());
+    player_.setPosition(map_.playerStart());
     skillBar_.applyStats(player_.stats());
 }
 
 void GameWorld::update(float dt, Input& input) {
+    const Vector2 camera = cameraTopLeft();
     aimPosition_ = Vector2(
-        static_cast<float>(input.mousePosition().x),
-        static_cast<float>(input.mousePosition().y)
+        camera.x + static_cast<float>(input.mousePosition().x),
+        camera.y + static_cast<float>(input.mousePosition().y)
     );
 
     switch (state_) {
@@ -48,6 +53,8 @@ void GameWorld::update(float dt, Input& input) {
             break;
 
         case GameState::MapComplete:
+            tryPickupDroppedItem(input);
+            removeDeadObjects();
             tryChooseMapReward(input);
             if (mapRewardChosen_ && input.nextMap()) {
                 startNextMap();
@@ -74,6 +81,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     skillBar_.update(dt);
     novaEffectTimer_ = std::max(0.0f, novaEffectTimer_ - dt);
     secondarySkillEffectTimer_ = std::max(0.0f, secondarySkillEffectTimer_ - dt);
+    playerHitCooldown_ = std::max(0.0f, playerHitCooldown_ - dt);
     tryCastMovementSkill(input);
     tryCastUtilitySkill(input);
     tryCastSecondarySkill(input);
@@ -102,6 +110,9 @@ void GameWorld::updatePlaying(float dt, Input& input) {
 
 void GameWorld::reset() {
     player_ = Player();
+    map_ = MapInstance();
+    player_.setBounds(map_.size());
+    player_.setPosition(map_.playerStart());
     projectiles_.clear();
     enemies_.clear();
     droppedItems_.clear();
@@ -115,6 +126,7 @@ void GameWorld::reset() {
     novaEffectTimer_ = 0.0f;
     secondarySkillEffectPosition_ = Vector2(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f);
     secondarySkillEffectTimer_ = 0.0f;
+    playerHitCooldown_ = 0.0f;
     mapLevel_ = 1;
     currentWave_ = 0;
     enemiesSpawnedInWave_ = 0;
@@ -130,11 +142,15 @@ void GameWorld::reset() {
 
 void GameWorld::startNextMap() {
     ++mapLevel_;
+    map_ = MapInstance();
+    player_.setBounds(map_.size());
+    player_.setPosition(map_.playerStart());
     currentWave_ = 0;
     enemiesSpawnedInWave_ = 0;
     survivalTime_ = 0.0f;
     novaEffectTimer_ = 0.0f;
     secondarySkillEffectTimer_ = 0.0f;
+    playerHitCooldown_ = 0.0f;
 
     projectiles_.clear();
     enemies_.clear();
@@ -154,7 +170,7 @@ void GameWorld::startNextMap() {
 
 void GameWorld::updateObjects(float dt) {
     for (auto& projectile : projectiles_) {
-        projectile.update(dt);
+        projectile.update(dt, map_.size());
     }
     for (auto& enemy : enemies_) {
         enemy.update(dt, player_.position());
@@ -162,17 +178,28 @@ void GameWorld::updateObjects(float dt) {
 }
 
 void GameWorld::spawnEnemies(float dt) {
-    if (currentWave_ >= Config::MapWaveCount || enemiesSpawnedInWave_ >= enemiesPerWave()) {
+    triggerBossIfNeeded();
+
+    if (map_.bossDefeated() || map_.bossTriggered()) {
+        return;
+    }
+
+    const MapArea area = map_.areaForPlayer(player_.position());
+    if (area == MapArea::Start || area == MapArea::BossGate || area == MapArea::BossArena) {
+        return;
+    }
+
+    if (static_cast<int>(enemies_.size()) >= Config::MaxActiveEnemies) {
         return;
     }
 
     spawner_.update(dt);
-    const bool spawnBoss = shouldSpawnBoss();
-    const int hp = spawnBoss ? enemyHpForMap() * 10 : enemyHpForMap();
-    const int damage = spawnBoss ? enemyDamageForMap() + 2 : enemyDamageForMap();
-    const EnemyType type = spawnBoss ? EnemyType::Boss : EnemyType::Normal;
+    const bool spawnElite = (std::rand() % 100) < std::min(20, 6 + mapLevel_ * 2);
+    const int hp = spawnElite ? enemyHpForMap() * 3 : enemyHpForMap();
+    const int damage = spawnElite ? enemyDamageForMap() + 1 : enemyDamageForMap();
+    const EnemyType type = spawnElite ? EnemyType::Elite : EnemyType::Normal;
 
-    if (auto enemy = spawner_.trySpawn(hp, damage, type)) {
+    if (auto enemy = spawner_.trySpawnNear(player_.position(), map_.size(), hp, damage, type)) {
         enemies_.push_back(*enemy);
         ++enemiesSpawnedInWave_;
     }
@@ -208,8 +235,13 @@ void GameWorld::handleCollisions() {
                 player_.position(), player_.radius(),
                 enemy.position(), enemy.radius()
             )) {
-            player_.takeDamage(enemy.contactDamage());
-            enemy.kill();
+            if (playerHitCooldown_ <= 0.0f) {
+                player_.takeDamage(enemy.contactDamage());
+                playerHitCooldown_ = Config::PlayerHitCooldown;
+            }
+            if (!enemy.isBoss()) {
+                enemy.kill();
+            }
         }
     }
 
@@ -390,6 +422,10 @@ void GameWorld::applyMapReward(int rewardChoice) {
 }
 
 void GameWorld::rewardEnemyKill(const Enemy& enemy) {
+    if (enemy.isBoss()) {
+        map_.markBossDefeated();
+    }
+
     ++mapKills_;
     score_ += 100;
     if (enemy.isBoss()) {
@@ -417,19 +453,10 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
 }
 
 void GameWorld::advanceWaveIfComplete() {
-    if (currentWave_ >= Config::MapWaveCount) {
-        return;
-    }
-
-    if (enemiesSpawnedInWave_ >= enemiesPerWave() && enemies_.empty()) {
-        ++currentWave_;
-        enemiesSpawnedInWave_ = 0;
-        spawner_.reset();
-    }
 }
 
 bool GameWorld::isMapCleared() const {
-    return currentWave_ >= Config::MapWaveCount;
+    return map_.bossDefeated();
 }
 
 int GameWorld::enemiesPerWave() const {
@@ -448,8 +475,22 @@ int GameWorld::enemyDamageForMap() const {
 }
 
 bool GameWorld::shouldSpawnBoss() const {
-    return currentWave_ == Config::MapWaveCount - 1
-        && enemiesSpawnedInWave_ == enemiesPerWave() - 1;
+    return !map_.bossTriggered()
+        && map_.areaForPlayer(player_.position()) == MapArea::BossArena;
+}
+
+void GameWorld::triggerBossIfNeeded() {
+    if (!shouldSpawnBoss()) {
+        return;
+    }
+
+    map_.triggerBoss();
+    enemies_.clear();
+    projectiles_.clear();
+
+    const int hp = enemyHpForMap() * 16;
+    const int damage = enemyDamageForMap() + 2;
+    enemies_.push_back(Enemy(map_.bossCenter(), hp, damage, EnemyType::Boss));
 }
 
 void GameWorld::generateMapModifier() {
@@ -482,20 +523,27 @@ float GameWorld::secondarySkillEffectProgress() const {
     return secondarySkillEffectTimer_ / Config::SecondarySkillEffectDuration;
 }
 const SkillBar& GameWorld::skillBar() const { return skillBar_; }
+const MapInstance& GameWorld::map() const { return map_; }
+MapArea GameWorld::currentMapArea() const { return map_.areaForPlayer(player_.position()); }
+float GameWorld::distanceToBoss() const { return map_.distanceToBoss(player_.position()); }
+Vector2 GameWorld::cameraTopLeft() const {
+    const float viewportWidth = static_cast<float>(Config::WindowWidth);
+    const float viewportHeight = static_cast<float>(Config::WindowHeight);
+    return {
+        std::clamp(player_.position().x - viewportWidth / 2.0f, 0.0f, map_.size().x - viewportWidth),
+        std::clamp(player_.position().y - viewportHeight / 2.0f, 0.0f, map_.size().y - viewportHeight)
+    };
+}
 bool GameWorld::passiveTreeOpen() const { return passiveTreeOpen_; }
 GameState GameWorld::state() const { return state_; }
 int GameWorld::score() const { return score_; }
 float GameWorld::survivalTime() const { return survivalTime_; }
 int GameWorld::mapLevel() const { return mapLevel_; }
 int GameWorld::currentWave() const {
-    return std::min(currentWave_ + 1, Config::MapWaveCount);
+    return 0;
 }
 int GameWorld::enemiesRemainingInWave() const {
-    if (isMapCleared()) {
-        return 0;
-    }
-
-    return std::max(0, enemiesPerWave() - enemiesSpawnedInWave_ + static_cast<int>(enemies_.size()));
+    return static_cast<int>(enemies_.size());
 }
 const MapModifier& GameWorld::mapModifier() const { return mapModifier_; }
 int GameWorld::mapKills() const { return mapKills_; }

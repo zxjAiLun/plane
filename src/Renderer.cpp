@@ -120,6 +120,7 @@ Renderer::Renderer(sf::RenderWindow& window)
 void Renderer::render(const GameWorld& world) {
     window_.clear(sf::Color::Black);
 
+    drawMap(world);
     drawNovaEffect(world);
     drawSecondarySkillEffect(world);
     drawPlayer(world);
@@ -138,11 +139,16 @@ void Renderer::render(const GameWorld& world) {
         + "  SCORE " + std::to_string(world.score()),
         {16.0f, 60.0f}, 18, sf::Color::White);
     drawText("MAP " + std::to_string(world.mapLevel())
-        + "  WAVE " + std::to_string(world.currentWave()) + "/" + std::to_string(Config::MapWaveCount)
-        + "  LEFT " + std::to_string(world.enemiesRemainingInWave()),
+        + "  AREA " + mapAreaName(world.currentMapArea())
+        + "  ENEMIES " + std::to_string(world.enemiesRemainingInWave()),
         {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));
     drawText(world.mapModifier().description,
         {16.0f, 130.0f}, 14, sf::Color(255, 220, 150));
+    const std::string bossLine = world.map().bossDefeated() ? "Boss defeated"
+        : world.map().bossTriggered() ? "Boss active"
+        : "Boss distance " + std::to_string(static_cast<int>(world.distanceToBoss()));
+    drawText(bossLine,
+        {16.0f, 174.0f}, 14, sf::Color(255, 190, 150));
     drawText("P Passive Tree  |  Spend SP on nodes",
         {16.0f, 152.0f}, 14, sf::Color(210, 255, 210));
     const auto& stats = world.player().stats();
@@ -169,12 +175,50 @@ void Renderer::render(const GameWorld& world) {
     window_.display();
 }
 
+void Renderer::drawMap(const GameWorld& world) {
+    const Vector2 camera = world.cameraTopLeft();
+    const auto& map = world.map();
+
+    sf::RectangleShape floor({map.size().x, map.size().y});
+    floor.setFillColor(sf::Color(24, 28, 30));
+    floor.setOutlineColor(sf::Color(80, 90, 96));
+    floor.setOutlineThickness(6.0f);
+    floor.setPosition({-camera.x, -camera.y});
+    window_.draw(floor);
+
+    const sf::Vector2f bossCenter = worldToScreen(world, map.bossCenter());
+    sf::CircleShape gate(Config::BossGateRadius);
+    gate.setFillColor(sf::Color(120, 70, 40, 35));
+    gate.setOutlineColor(sf::Color(210, 150, 90, 130));
+    gate.setOutlineThickness(3.0f);
+    gate.setOrigin({Config::BossGateRadius, Config::BossGateRadius});
+    gate.setPosition(bossCenter);
+    window_.draw(gate);
+
+    sf::CircleShape arena(Config::BossArenaRadius);
+    arena.setFillColor(sf::Color(120, 35, 35, 45));
+    arena.setOutlineColor(sf::Color(240, 90, 80, 160));
+    arena.setOutlineThickness(4.0f);
+    arena.setOrigin({Config::BossArenaRadius, Config::BossArenaRadius});
+    arena.setPosition(bossCenter);
+    window_.draw(arena);
+
+    const sf::Vector2f startCenter = worldToScreen(world, map.playerStart());
+    sf::CircleShape start(Config::StartSafeRadius);
+    start.setFillColor(sf::Color(40, 110, 70, 45));
+    start.setOutlineColor(sf::Color(90, 210, 130, 120));
+    start.setOutlineThickness(3.0f);
+    start.setOrigin({Config::StartSafeRadius, Config::StartSafeRadius});
+    start.setPosition(startCenter);
+    window_.draw(start);
+}
+
 void Renderer::drawPlayer(const GameWorld& world) {
     const auto& player = world.player();
     sf::CircleShape shape(player.radius());
     shape.setFillColor(sf::Color::Green);
     shape.setOrigin({player.radius(), player.radius()});
-    shape.setPosition({player.position().x, player.position().y});
+    shape.setPosition(worldToScreen(world, player.position()));
     window_.draw(shape);
 }
 
@@ -193,7 +237,7 @@ void Renderer::drawNovaEffect(const GameWorld& world) {
     shape.setOutlineColor(sf::Color(120, 220, 255, alpha));
     shape.setOutlineThickness(3.0f);
     shape.setOrigin({radius, radius});
-    shape.setPosition({player.position().x, player.position().y});
+    shape.setPosition(worldToScreen(world, player.position()));
     window_.draw(shape);
 }
 
@@ -212,7 +256,7 @@ void Renderer::drawSecondarySkillEffect(const GameWorld& world) {
     shape.setOutlineColor(sf::Color(255, 210, 120, alpha));
     shape.setOutlineThickness(3.0f);
     shape.setOrigin({radius, radius});
-    shape.setPosition({center.x, center.y});
+    shape.setPosition(worldToScreen(world, center));
     window_.draw(shape);
 }
 
@@ -221,18 +265,19 @@ void Renderer::drawAimIndicator(const GameWorld& world) {
     const auto& aim = world.aimPosition();
 
     sf::VertexArray line(sf::PrimitiveType::Lines, 2);
-    line[0].position = {player.position().x, player.position().y};
+    line[0].position = worldToScreen(world, player.position());
     line[0].color = sf::Color(120, 220, 255, 160);
-    line[1].position = {aim.x, aim.y};
+    line[1].position = worldToScreen(world, aim);
     line[1].color = sf::Color(120, 220, 255, 80);
     window_.draw(line);
 
     constexpr float reticleSize = 8.0f;
+    const sf::Vector2f aimScreen = worldToScreen(world, aim);
     sf::VertexArray reticle(sf::PrimitiveType::Lines, 4);
-    reticle[0].position = {aim.x - reticleSize, aim.y};
-    reticle[1].position = {aim.x + reticleSize, aim.y};
-    reticle[2].position = {aim.x, aim.y - reticleSize};
-    reticle[3].position = {aim.x, aim.y + reticleSize};
+    reticle[0].position = {aimScreen.x - reticleSize, aimScreen.y};
+    reticle[1].position = {aimScreen.x + reticleSize, aimScreen.y};
+    reticle[2].position = {aimScreen.x, aimScreen.y - reticleSize};
+    reticle[3].position = {aimScreen.x, aimScreen.y + reticleSize};
 
     for (std::size_t i = 0; i < reticle.getVertexCount(); ++i) {
         reticle[i].color = sf::Color(120, 220, 255);
@@ -246,7 +291,7 @@ void Renderer::drawProjectiles(const GameWorld& world) {
         sf::CircleShape shape(projectile.radius());
         shape.setFillColor(sf::Color::Yellow);
         shape.setOrigin({projectile.radius(), projectile.radius()});
-        shape.setPosition({projectile.position().x, projectile.position().y});
+        shape.setPosition(worldToScreen(world, projectile.position()));
         window_.draw(shape);
     }
 }
@@ -262,7 +307,7 @@ void Renderer::drawEnemies(const GameWorld& world) {
             shape.setOutlineThickness(enemy.isBoss() ? 5.0f : 3.0f);
         }
         shape.setOrigin({enemy.radius(), enemy.radius()});
-        shape.setPosition({enemy.position().x, enemy.position().y});
+        shape.setPosition(worldToScreen(world, enemy.position()));
         window_.draw(shape);
     }
 }
@@ -284,13 +329,13 @@ void Renderer::drawDroppedItems(const GameWorld& world) {
             shape.setOutlineThickness(2.0f);
         }
         shape.setOrigin({droppedItem.radius(), droppedItem.radius()});
-        shape.setPosition({droppedItem.position().x, droppedItem.position().y});
+        shape.setPosition(worldToScreen(world, droppedItem.position()));
         window_.draw(shape);
 
         const std::string label = std::string(canPickup ? "F " : "")
             + item.name + " [" + slotName(item.slot) + "]";
         drawCenteredText(label,
-            {droppedItem.position().x, droppedItem.position().y - 20.0f},
+            worldToScreen(world, Vector2(droppedItem.position().x, droppedItem.position().y - 20.0f)),
             12,
             rarityColor(item.rarity));
     }
@@ -441,7 +486,7 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     window_.draw(overlay);
 
     drawBox({center.x, center.y - 84.0f}, {360.0f, 90.0f}, sf::Color::Green);
-    drawCenteredText("MAP COMPLETE", {center.x, center.y - 110.0f}, 28, sf::Color::White);
+    drawCenteredText("BOSS DEFEATED", {center.x, center.y - 110.0f}, 28, sf::Color::White);
     drawCenteredText("Kills " + std::to_string(world.mapKills())
         + "  XP " + std::to_string(world.mapExperienceGained()),
         {center.x, center.y - 76.0f}, 16, sf::Color::White);
@@ -494,4 +539,9 @@ void Renderer::drawCenteredText(const std::string& text, const sf::Vector2f& cen
     drawable.setOrigin({bounds.position.x + bounds.size.x / 2.0f, bounds.position.y + bounds.size.y / 2.0f});
     drawable.setPosition(center);
     window_.draw(drawable);
+}
+
+sf::Vector2f Renderer::worldToScreen(const GameWorld& world, const Vector2& position) const {
+    const Vector2 camera = world.cameraTopLeft();
+    return {position.x - camera.x, position.y - camera.y};
 }

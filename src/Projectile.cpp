@@ -9,13 +9,13 @@ Projectile::Projectile(const Vector2& position, const Vector2& velocity, int dam
     , alive_(true) {
 }
 
-void Projectile::update(float dt) {
+void Projectile::update(float dt, const Vector2& worldSize) {
     position_ += velocity_ * dt;
 
     if (position_.y + radius_ < 0.0f
-        || position_.y - radius_ > Config::WindowHeight
+        || position_.y - radius_ > worldSize.y
         || position_.x + radius_ < 0.0f
-        || position_.x - radius_ > Config::WindowWidth) {
+        || position_.x - radius_ > worldSize.x) {
         alive_ = false;
     }
 }

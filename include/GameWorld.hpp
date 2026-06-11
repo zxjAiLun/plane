@@ -9,6 +9,7 @@
 #include "EnemySpawner.hpp"
 #include "Inventory.hpp"
 #include "LootGenerator.hpp"
+#include "MapInstance.hpp"
 #include "MapModifier.hpp"
 #include "SkillBar.hpp"
 #include "Upgrade.hpp"
@@ -37,6 +38,10 @@ public:
     const Vector2& secondarySkillEffectPosition() const;
     float secondarySkillEffectProgress() const;
     const SkillBar& skillBar() const;
+    const MapInstance& map() const;
+    MapArea currentMapArea() const;
+    float distanceToBoss() const;
+    Vector2 cameraTopLeft() const;
     bool passiveTreeOpen() const;
 
     GameState state() const;
@@ -77,6 +82,7 @@ private:
     int enemyHpForMap() const;
     int enemyDamageForMap() const;
     bool shouldSpawnBoss() const;
+    void triggerBossIfNeeded();
     void generateMapModifier();
 
     float currentSpawnInterval() const;
@@ -90,6 +96,7 @@ private:
     LootGenerator lootGenerator_;
     EnemySpawner spawner_;
     SkillBar skillBar_;
+    MapInstance map_;
 
     GameState state_;
     int score_;
@@ -98,6 +105,7 @@ private:
     float novaEffectTimer_;
     Vector2 secondarySkillEffectPosition_;
     float secondarySkillEffectTimer_;
+    float playerHitCooldown_;
     int mapLevel_;
     int currentWave_;
     int enemiesSpawnedInWave_;
