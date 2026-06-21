@@ -1,5 +1,6 @@
 #include "Renderer.hpp"
 #include "Config.hpp"
+#include "EnemyDefinition.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -12,6 +13,10 @@ sf::Color rarityColor(Rarity rarity) {
         case Rarity::Rare: return sf::Color(255, 210, 80);
     }
     return sf::Color::White;
+}
+
+sf::Color enemyColor(const EnemyColor& color) {
+    return sf::Color(color.r, color.g, color.b);
 }
 
 int multiplierPercent(float multiplier) {
@@ -346,17 +351,23 @@ void Renderer::drawBossProjectiles(const GameWorld& world) {
 
 void Renderer::drawEnemies(const GameWorld& world) {
     for (const auto& enemy : world.enemies()) {
+        const auto& definition = EnemyLibrary::forType(enemy.type());
         sf::RectangleShape shape({enemy.radius() * 2, enemy.radius() * 2});
-        shape.setFillColor(enemy.isBoss() ? sf::Color(255, 80, 40)
-            : enemy.isElite() ? sf::Color(180, 60, 255)
-            : sf::Color::Red);
-        if (enemy.isBoss() || enemy.isElite()) {
-            shape.setOutlineColor(sf::Color(255, 220, 120));
-            shape.setOutlineThickness(enemy.isBoss() ? 5.0f : 3.0f);
+        shape.setFillColor(enemyColor(definition.fillColor));
+        if (definition.outlineThickness > 0.0f) {
+            shape.setOutlineColor(enemyColor(definition.outlineColor));
+            shape.setOutlineThickness(definition.outlineThickness);
         }
         shape.setOrigin({enemy.radius(), enemy.radius()});
-        shape.setPosition(worldToScreen(world, enemy.position()));
+        const sf::Vector2f screenPosition = worldToScreen(world, enemy.position());
+        shape.setPosition(screenPosition);
         window_.draw(shape);
+
+        if (definition.outlineThickness > 0.0f) {
+            const std::string label = enemy.isBoss() ? world.bossDefinition().name : definition.name;
+            drawCenteredText(label, {screenPosition.x, screenPosition.y - enemy.radius() - 18.0f},
+                11, enemyColor(definition.outlineColor));
+        }
     }
 }
 

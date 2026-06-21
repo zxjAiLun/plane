@@ -1,12 +1,7 @@
 #pragma once
 
+#include "EnemyType.hpp"
 #include "Vector2.hpp"
-
-enum class EnemyType {
-    Normal,
-    Elite,
-    Boss
-};
 
 class Enemy {
 public:

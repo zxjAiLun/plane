@@ -1,6 +1,7 @@
 #include "GameWorld.hpp"
 #include "Collision.hpp"
 #include "Config.hpp"
+#include "EnemyDefinition.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -314,9 +315,10 @@ void GameWorld::spawnEnemies(float dt) {
 
     spawner_.update(dt);
     const bool spawnElite = (std::rand() % 100) < std::min(20, 6 + mapLevel_ * 2);
-    const int hp = spawnElite ? enemyHpForMap() * 3 : enemyHpForMap();
-    const int damage = spawnElite ? enemyDamageForMap() + 1 : enemyDamageForMap();
     const EnemyType type = spawnElite ? EnemyType::Elite : EnemyType::Normal;
+    const auto& definition = EnemyLibrary::forType(type);
+    const int hp = std::max(1, static_cast<int>(std::ceil(enemyHpForMap() * definition.hpMultiplier)));
+    const int damage = enemyDamageForMap() + definition.damageBonus;
 
     if (auto enemy = spawner_.trySpawnNear(player_.position(), map_.size(), hp, damage, type)) {
         enemies_.push_back(*enemy);
@@ -583,6 +585,8 @@ void GameWorld::applyMapReward(int rewardChoice) {
 }
 
 void GameWorld::rewardEnemyKill(const Enemy& enemy) {
+    const auto& definition = EnemyLibrary::forType(enemy.type());
+
     if (enemy.isBoss()) {
         map_.markBossDefeated();
         bossProjectiles_.clear();
@@ -592,22 +596,14 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
     }
 
     ++mapKills_;
-    score_ += 100;
-    if (enemy.isBoss()) {
-        score_ += 900;
-    } else if (enemy.isElite()) {
-        score_ += 400;
-    }
+    score_ += definition.scoreReward;
 
-    const int exp = enemy.isBoss() ? Config::ExpPerKill * 10
-        : enemy.isElite() ? Config::ExpPerKill * 5
-        : Config::ExpPerKill;
+    const int exp = Config::ExpPerKill * definition.expMultiplier;
     player_.gainExp(exp);
     mapExperienceGained_ += exp;
 
     const float eliteDropMultiplier = enemy.isBoss() ? bossDefinition_->dropMultiplier
-        : enemy.isElite() ? 2.5f
-        : 1.0f;
+        : definition.dropMultiplier;
     const int dropChance = std::min(100, static_cast<int>(
         Config::ItemDropChancePercent * mapModifier_.itemQuantityMultiplier
         * mapRewardItemQuantityBonus_ * eliteDropMultiplier));

@@ -1,11 +1,10 @@
 #include "Enemy.hpp"
 #include "Config.hpp"
+#include "EnemyDefinition.hpp"
 
 Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type)
     : position_(position)
-    , radius_(type == EnemyType::Boss ? Config::EnemyRadius * 2.2f
-        : type == EnemyType::Elite ? Config::EnemyRadius * 1.45f
-        : Config::EnemyRadius)
+    , radius_(Config::EnemyRadius * EnemyLibrary::forType(type).radiusMultiplier)
     , hp_(hp)
     , contactDamage_(contactDamage)
     , type_(type) {
