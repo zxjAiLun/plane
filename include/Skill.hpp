@@ -25,5 +25,7 @@ struct SkillDefinition {
     float radius = 0.0f;
     int baseDamage = 0;
     float effectDuration = 0.0f;
+    int projectileCount = 1;
+    float spreadAngle = 0.0f;
 };
 

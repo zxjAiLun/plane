@@ -325,7 +325,30 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
 
     const auto& skill = skillBar_.definition(SkillSlot::Primary);
     const int damage = static_cast<int>(skill.baseDamage * player_.stats().damageMultiplier);
-    projectiles_.push_back(Projectile(player_.position(), direction * Config::ProjectileSpeed, damage));
+
+    if (skill.projectileCount <= 1 || skill.spreadAngle <= 0.0f) {
+        projectiles_.push_back(Projectile(player_.position(), direction * Config::ProjectileSpeed, damage));
+        return;
+    }
+
+    const float degToRad = 3.14159265f / 180.0f;
+    const float halfSpread = skill.spreadAngle * 0.5f;
+    const float step = skill.spreadAngle / static_cast<float>(skill.projectileCount - 1);
+    for (int i = 0; i < skill.projectileCount; ++i) {
+        const float angleDeg = -halfSpread + step * static_cast<float>(i);
+        const float angleRad = angleDeg * degToRad;
+        const float cosA = std::cos(angleRad);
+        const float sinA = std::sin(angleRad);
+        const Vector2 rotated(
+            direction.x * cosA - direction.y * sinA,
+            direction.x * sinA + direction.y * cosA
+        );
+        projectiles_.push_back(Projectile(
+            player_.position(),
+            rotated * Config::ProjectileSpeed,
+            damage
+        ));
+    }
 }
 
 void GameWorld::dealAreaDamage(const Vector2& center, float radius, int damage) {
@@ -514,13 +537,21 @@ const std::vector<DroppedItem>& GameWorld::droppedItems() const { return dropped
 const Inventory& GameWorld::inventory() const { return inventory_; }
 const Vector2& GameWorld::aimPosition() const { return aimPosition_; }
 float GameWorld::novaEffectProgress() const {
-    return novaEffectTimer_ / Config::NovaEffectDuration;
+    const float duration = skillBar_.definition(SkillSlot::Utility).effectDuration;
+    return duration > 0.0f ? novaEffectTimer_ / duration : 0.0f;
+}
+float GameWorld::novaEffectRadius() const {
+    return skillBar_.definition(SkillSlot::Utility).radius;
 }
 const Vector2& GameWorld::secondarySkillEffectPosition() const {
     return secondarySkillEffectPosition_;
 }
 float GameWorld::secondarySkillEffectProgress() const {
-    return secondarySkillEffectTimer_ / Config::SecondarySkillEffectDuration;
+    const float duration = skillBar_.definition(SkillSlot::Secondary).effectDuration;
+    return duration > 0.0f ? secondarySkillEffectTimer_ / duration : 0.0f;
+}
+float GameWorld::secondarySkillEffectRadius() const {
+    return skillBar_.definition(SkillSlot::Secondary).radius;
 }
 const SkillBar& GameWorld::skillBar() const { return skillBar_; }
 const MapInstance& GameWorld::map() const { return map_; }

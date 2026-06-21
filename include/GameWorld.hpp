@@ -35,8 +35,10 @@ public:
     const Inventory& inventory() const;
     const Vector2& aimPosition() const;
     float novaEffectProgress() const;
+    float novaEffectRadius() const;
     const Vector2& secondarySkillEffectPosition() const;
     float secondarySkillEffectProgress() const;
+    float secondarySkillEffectRadius() const;
     const SkillBar& skillBar() const;
     const MapInstance& map() const;
     MapArea currentMapArea() const;

@@ -18,7 +18,9 @@ namespace Config {
     constexpr float ProjectileRadius = 5.0f;
     constexpr int ProjectileDamage = 1;
 
-    constexpr float PrimarySkillCooldown = 0.3f;
+    constexpr float PrimarySkillCooldown = 0.35f;
+    constexpr int SpreadShotProjectileCount = 3;
+    constexpr float SpreadShotSpreadAngle = 30.0f;
 
     constexpr float DashDistance = 120.0f;
     constexpr float DashCooldown = 0.8f;
@@ -27,10 +29,21 @@ namespace Config {
     constexpr int NovaDamage = 2;
     constexpr float NovaCooldown = 1.5f;
     constexpr float NovaEffectDuration = 0.25f;
+
+    constexpr float PulseRadius = 160.0f;
+    constexpr int PulseDamage = 3;
+    constexpr float PulseCooldown = 2.0f;
+    constexpr float PulseEffectDuration = 0.30f;
+
     constexpr float SecondarySkillRadius = 85.0f;
     constexpr int SecondarySkillDamage = 1;
     constexpr float SecondarySkillCooldown = 1.0f;
     constexpr float SecondarySkillEffectDuration = 0.20f;
+
+    constexpr float MeteorRadius = 110.0f;
+    constexpr int MeteorDamage = 4;
+    constexpr float MeteorCooldown = 1.4f;
+    constexpr float MeteorEffectDuration = 0.30f;
 
     constexpr float EnemySpeed = 120.0f;
     constexpr float EnemyRadius = 20.0f;

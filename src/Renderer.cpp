@@ -229,7 +229,8 @@ void Renderer::drawNovaEffect(const GameWorld& world) {
     }
 
     const auto& player = world.player();
-    const float radius = Config::NovaRadius * (1.0f - progress * 0.25f);
+    const float baseRadius = world.novaEffectRadius();
+    const float radius = baseRadius * (1.0f - progress * 0.25f);
     const auto alpha = static_cast<std::uint8_t>(180.0f * progress);
 
     sf::CircleShape shape(radius);
@@ -248,7 +249,8 @@ void Renderer::drawSecondarySkillEffect(const GameWorld& world) {
     }
 
     const auto& center = world.secondarySkillEffectPosition();
-    const float radius = Config::SecondarySkillRadius * (1.0f - progress * 0.20f);
+    const float baseRadius = world.secondarySkillEffectRadius();
+    const float radius = baseRadius * (1.0f - progress * 0.20f);
     const auto alpha = static_cast<std::uint8_t>(170.0f * progress);
 
     sf::CircleShape shape(radius);
@@ -427,13 +429,13 @@ void Renderer::drawPassiveTree(const GameWorld& world) {
     overlay.setFillColor(sf::Color(0, 0, 0, 145));
     window_.draw(overlay);
 
-    drawBox({center.x, center.y}, {520.0f, 300.0f}, sf::Color(30, 38, 48));
-    drawCenteredText("Passive Tree", {center.x, center.y - 126.0f}, 24, sf::Color::White);
-    drawCenteredText("SP " + std::to_string(world.player().talentPoints()) + "  |  1-5 allocate  |  P close",
-        {center.x, center.y - 98.0f}, 14, sf::Color(210, 230, 255));
+    drawBox({center.x, center.y}, {560.0f, 440.0f}, sf::Color(30, 38, 48));
+    drawCenteredText("Passive Tree", {center.x, center.y - 196.0f}, 24, sf::Color::White);
+    drawCenteredText("SP " + std::to_string(world.player().talentPoints()) + "  |  1-0/F1-F10 allocate  |  P close",
+        {center.x, center.y - 168.0f}, 14, sf::Color(210, 230, 255));
 
     const auto& nodes = world.player().passiveTree().nodes();
-    float y = center.y - 64.0f;
+    float y = center.y - 134.0f;
     for (std::size_t i = 0; i < nodes.size(); ++i) {
         const auto& node = nodes[i];
         const bool prerequisiteMet = node.prerequisite < 0
@@ -454,10 +456,10 @@ void Renderer::drawPassiveTree(const GameWorld& world) {
         }
 
         drawText(std::to_string(i + 1) + ". " + node.name + " - " + node.description,
-            {center.x - 220.0f, y}, 15, color);
+            {center.x - 250.0f, y}, 13, color);
         drawText("[" + status + "]",
-            {center.x + 150.0f, y}, 15, color);
-        y += 34.0f;
+            {center.x + 190.0f, y}, 13, color);
+        y += 22.0f;
     }
 }
 

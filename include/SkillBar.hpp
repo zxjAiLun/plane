@@ -5,6 +5,7 @@
 #include "Config.hpp"
 #include "PlayerStats.hpp"
 #include "Skill.hpp"
+#include "SkillLibrary.hpp"
 
 class SkillBar {
 public:
@@ -20,7 +21,7 @@ public:
 
     bool tryCast(SkillSlot slot) {
         const auto idx = slotIndex(slot);
-        if (elapsed_[idx] < definitions_[idx].cooldown) {
+        if (elapsed_[idx] < actualCooldowns_[idx]) {
             return false;
         }
 
@@ -29,12 +30,30 @@ public:
     }
 
     void applyStats(const PlayerStats& stats) {
-        definitions_[slotIndex(SkillSlot::Primary)].cooldown =
-            Config::PrimarySkillCooldown / stats.attackSpeedMultiplier;
+        for (std::size_t i = 0; i < definitions_.size(); ++i) {
+            const auto slot = static_cast<SkillSlot>(i);
+            if (slot == SkillSlot::Primary) {
+                actualCooldowns_[i] = definitions_[i].cooldown / stats.attackSpeedMultiplier;
+            } else {
+                actualCooldowns_[i] = definitions_[i].cooldown;
+            }
+        }
     }
 
     void reset() {
         setDefaults();
+    }
+
+    bool assignSkill(SkillSlot slot, const std::string& name) {
+        const auto* skill = SkillLibrary::find(name);
+        if (!skill || skill->slot != slot) {
+            return false;
+        }
+
+        const auto idx = slotIndex(slot);
+        definitions_[idx] = *skill;
+        actualCooldowns_[idx] = skill->cooldown;
+        return true;
     }
 
     const SkillDefinition& definition(SkillSlot slot) const {
@@ -43,11 +62,11 @@ public:
 
     float cooldownProgress(SkillSlot slot) const {
         const auto idx = slotIndex(slot);
-        if (definitions_[idx].cooldown <= 0.0f) {
+        if (actualCooldowns_[idx] <= 0.0f) {
             return 1.0f;
         }
 
-        const float progress = elapsed_[idx] / definitions_[idx].cooldown;
+        const float progress = elapsed_[idx] / actualCooldowns_[idx];
         return progress > 1.0f ? 1.0f : progress;
     }
 
@@ -57,46 +76,18 @@ private:
     }
 
     void setDefaults() {
-        definitions_[slotIndex(SkillSlot::Primary)] = {
-            SkillSlot::Primary,
-            SkillCastType::Projectile,
-            "Bolt",
-            Config::PrimarySkillCooldown,
-            0.0f,
-            Config::ProjectileDamage,
-            0.0f
-        };
-        definitions_[slotIndex(SkillSlot::Secondary)] = {
-            SkillSlot::Secondary,
-            SkillCastType::MouseTargetedArea,
-            "Flare",
-            Config::SecondarySkillCooldown,
-            Config::SecondarySkillRadius,
-            Config::SecondarySkillDamage,
-            Config::SecondarySkillEffectDuration
-        };
-        definitions_[slotIndex(SkillSlot::Utility)] = {
-            SkillSlot::Utility,
-            SkillCastType::SelfCenteredArea,
-            "Nova",
-            Config::NovaCooldown,
-            Config::NovaRadius,
-            Config::NovaDamage,
-            Config::NovaEffectDuration
-        };
-        definitions_[slotIndex(SkillSlot::Movement)] = {
-            SkillSlot::Movement,
-            SkillCastType::Dash,
-            "Dash",
-            Config::DashCooldown,
-            0.0f,
-            0,
-            0.0f
-        };
+        definitions_[slotIndex(SkillSlot::Primary)] = SkillLibrary::spreadShot();
+        definitions_[slotIndex(SkillSlot::Secondary)] = SkillLibrary::meteor();
+        definitions_[slotIndex(SkillSlot::Utility)] = SkillLibrary::pulse();
+        definitions_[slotIndex(SkillSlot::Movement)] = SkillLibrary::dash();
+        for (std::size_t i = 0; i < definitions_.size(); ++i) {
+            actualCooldowns_[i] = definitions_[i].cooldown;
+        }
         elapsed_.fill(999.0f);
     }
 
 private:
     std::array<SkillDefinition, static_cast<std::size_t>(SkillSlot::Count)> definitions_{};
+    std::array<float, static_cast<std::size_t>(SkillSlot::Count)> actualCooldowns_{};
     std::array<float, static_cast<std::size_t>(SkillSlot::Count)> elapsed_{};
 };
