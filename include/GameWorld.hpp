@@ -21,6 +21,14 @@ enum class GameState {
     MapComplete
 };
 
+struct BossProjectile {
+    Vector2 position;
+    Vector2 velocity;
+    float radius = 0.0f;
+    int damage = 0;
+    bool alive = true;
+};
+
 class GameWorld {
 public:
     GameWorld();
@@ -30,6 +38,7 @@ public:
 
     const Player& player() const;
     const std::vector<Projectile>& projectiles() const;
+    const std::vector<BossProjectile>& bossProjectiles() const;
     const std::vector<Enemy>& enemies() const;
     const std::vector<DroppedItem>& droppedItems() const;
     const Inventory& inventory() const;
@@ -39,6 +48,10 @@ public:
     const Vector2& secondarySkillEffectPosition() const;
     float secondarySkillEffectProgress() const;
     float secondarySkillEffectRadius() const;
+    const Vector2& bossAoeCenter() const;
+    float bossAoeRadius() const;
+    float bossAoeTelegraphProgress() const;
+    float bossAoeEffectProgress() const;
     const SkillBar& skillBar() const;
     const MapInstance& map() const;
     MapArea currentMapArea() const;
@@ -64,8 +77,11 @@ private:
     void startNextMap();
     void updatePlaying(float dt, Input& input);
     void updateObjects(float dt);
+    void updateBossSkills(float dt);
+    void updateBossProjectiles(float dt);
     void spawnEnemies(float dt);
     void handleCollisions();
+    void handleBossProjectileCollisions();
     void removeDeadObjects();
     void tryCastMovementSkill(Input& input);
     void tryCastUtilitySkill(Input& input);
@@ -78,6 +94,8 @@ private:
     void tryChooseMapReward(Input& input);
     void applyMapReward(int rewardChoice);
     void rewardEnemyKill(const Enemy& enemy);
+    void damagePlayer(int damage);
+    const Enemy* activeBoss() const;
     void advanceWaveIfComplete();
     bool isMapCleared() const;
     int enemiesPerWave() const;
@@ -92,6 +110,7 @@ private:
 private:
     Player player_;
     std::vector<Projectile> projectiles_;
+    std::vector<BossProjectile> bossProjectiles_;
     std::vector<Enemy> enemies_;
     std::vector<DroppedItem> droppedItems_;
     Inventory inventory_;
@@ -107,6 +126,11 @@ private:
     float novaEffectTimer_;
     Vector2 secondarySkillEffectPosition_;
     float secondarySkillEffectTimer_;
+    Vector2 bossAoeCenter_;
+    float bossAoeTelegraphTimer_;
+    float bossAoeEffectTimer_;
+    float bossSkillTimer_;
+    int bossSkillIndex_;
     float playerHitCooldown_;
     int mapLevel_;
     int currentWave_;

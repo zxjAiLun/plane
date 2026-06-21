@@ -49,6 +49,14 @@ namespace Config {
     constexpr float EnemyRadius = 20.0f;
     constexpr int EnemyHp = 1;
     constexpr int EnemyContactDamage = 1;
+    constexpr float BossSkillInterval = 2.2f;
+    constexpr float BossAoeRadius = 135.0f;
+    constexpr int BossAoeDamage = 2;
+    constexpr float BossAoeTelegraphDuration = 0.65f;
+    constexpr float BossAoeEffectDuration = 0.30f;
+    constexpr float BossProjectileSpeed = 360.0f;
+    constexpr float BossProjectileRadius = 8.0f;
+    constexpr int BossProjectileDamage = 1;
 
     constexpr float EnemySpawnInterval = 1.0f;
     constexpr int MaxActiveEnemies = 28;

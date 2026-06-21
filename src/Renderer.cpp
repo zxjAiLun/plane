@@ -123,9 +123,11 @@ void Renderer::render(const GameWorld& world) {
     drawMap(world);
     drawNovaEffect(world);
     drawSecondarySkillEffect(world);
+    drawBossAoeEffect(world);
     drawPlayer(world);
     drawAimIndicator(world);
     drawProjectiles(world);
+    drawBossProjectiles(world);
     drawEnemies(world);
     drawDroppedItems(world);
 
@@ -262,6 +264,36 @@ void Renderer::drawSecondarySkillEffect(const GameWorld& world) {
     window_.draw(shape);
 }
 
+void Renderer::drawBossAoeEffect(const GameWorld& world) {
+    const float telegraphProgress = world.bossAoeTelegraphProgress();
+    if (telegraphProgress > 0.0f) {
+        const float radius = world.bossAoeRadius();
+        const auto alpha = static_cast<std::uint8_t>(70.0f + 120.0f * (1.0f - telegraphProgress));
+        sf::CircleShape shape(radius);
+        shape.setFillColor(sf::Color(180, 30, 20, alpha / 4));
+        shape.setOutlineColor(sf::Color(255, 90, 60, alpha));
+        shape.setOutlineThickness(4.0f);
+        shape.setOrigin({radius, radius});
+        shape.setPosition(worldToScreen(world, world.bossAoeCenter()));
+        window_.draw(shape);
+    }
+
+    const float effectProgress = world.bossAoeEffectProgress();
+    if (effectProgress <= 0.0f) {
+        return;
+    }
+
+    const float radius = world.bossAoeRadius() * (1.0f - effectProgress * 0.15f);
+    const auto alpha = static_cast<std::uint8_t>(190.0f * effectProgress);
+    sf::CircleShape shape(radius);
+    shape.setFillColor(sf::Color(255, 70, 35, alpha / 5));
+    shape.setOutlineColor(sf::Color(255, 160, 70, alpha));
+    shape.setOutlineThickness(5.0f);
+    shape.setOrigin({radius, radius});
+    shape.setPosition(worldToScreen(world, world.bossAoeCenter()));
+    window_.draw(shape);
+}
+
 void Renderer::drawAimIndicator(const GameWorld& world) {
     const auto& player = world.player();
     const auto& aim = world.aimPosition();
@@ -294,6 +326,18 @@ void Renderer::drawProjectiles(const GameWorld& world) {
         shape.setFillColor(sf::Color::Yellow);
         shape.setOrigin({projectile.radius(), projectile.radius()});
         shape.setPosition(worldToScreen(world, projectile.position()));
+        window_.draw(shape);
+    }
+}
+
+void Renderer::drawBossProjectiles(const GameWorld& world) {
+    for (const auto& projectile : world.bossProjectiles()) {
+        sf::CircleShape shape(projectile.radius);
+        shape.setFillColor(sf::Color(255, 90, 45));
+        shape.setOutlineColor(sf::Color(255, 210, 120));
+        shape.setOutlineThickness(2.0f);
+        shape.setOrigin({projectile.radius, projectile.radius});
+        shape.setPosition(worldToScreen(world, projectile.position));
         window_.draw(shape);
     }
 }

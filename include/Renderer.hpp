@@ -15,8 +15,10 @@ private:
     void drawPlayer(const GameWorld& world);
     void drawNovaEffect(const GameWorld& world);
     void drawSecondarySkillEffect(const GameWorld& world);
+    void drawBossAoeEffect(const GameWorld& world);
     void drawAimIndicator(const GameWorld& world);
     void drawProjectiles(const GameWorld& world);
+    void drawBossProjectiles(const GameWorld& world);
     void drawEnemies(const GameWorld& world);
     void drawDroppedItems(const GameWorld& world);
     void drawSkillBar(const GameWorld& world);
