@@ -146,9 +146,11 @@ void Renderer::render(const GameWorld& world) {
         {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));
     drawText(world.mapModifier().description,
         {16.0f, 130.0f}, 14, sf::Color(255, 220, 150));
-    const std::string bossLine = world.map().bossDefeated() ? "Boss defeated"
-        : world.map().bossTriggered() ? "Boss active"
-        : "Boss distance " + std::to_string(static_cast<int>(world.distanceToBoss()));
+    const std::string bossLine = world.map().bossDefeated()
+        ? "Boss defeated: " + world.bossDefinition().name
+        : world.map().bossTriggered()
+            ? "Boss active: " + world.bossDefinition().name
+            : world.bossDefinition().name + " distance " + std::to_string(static_cast<int>(world.distanceToBoss()));
     drawText(bossLine,
         {16.0f, 174.0f}, 14, sf::Color(255, 190, 150));
     drawText("P Passive Tree  |  Spend SP on nodes",

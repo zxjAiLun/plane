@@ -18,8 +18,10 @@ GameWorld::GameWorld()
     , bossAoeCenter_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
     , bossAoeTelegraphTimer_(0.0f)
     , bossAoeEffectTimer_(0.0f)
+    , bossAoeSkill_()
     , bossSkillTimer_(Config::BossSkillInterval)
     , bossSkillIndex_(0)
+    , bossDefinition_(&BossLibrary::forMapLevel(1))
     , playerHitCooldown_(0.0f)
     , mapLevel_(1)
     , currentWave_(0)
@@ -120,6 +122,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
 void GameWorld::reset() {
     player_ = Player();
     map_ = MapInstance();
+    bossDefinition_ = &BossLibrary::forMapLevel(1);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
     projectiles_.clear();
@@ -139,7 +142,8 @@ void GameWorld::reset() {
     bossAoeCenter_ = map_.bossCenter();
     bossAoeTelegraphTimer_ = 0.0f;
     bossAoeEffectTimer_ = 0.0f;
-    bossSkillTimer_ = Config::BossSkillInterval;
+    bossAoeSkill_ = BossSkillDefinition();
+    bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
     playerHitCooldown_ = 0.0f;
     mapLevel_ = 1;
@@ -158,6 +162,7 @@ void GameWorld::reset() {
 void GameWorld::startNextMap() {
     ++mapLevel_;
     map_ = MapInstance();
+    bossDefinition_ = &BossLibrary::forMapLevel(mapLevel_);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
     currentWave_ = 0;
@@ -168,7 +173,8 @@ void GameWorld::startNextMap() {
     bossAoeCenter_ = map_.bossCenter();
     bossAoeTelegraphTimer_ = 0.0f;
     bossAoeEffectTimer_ = 0.0f;
-    bossSkillTimer_ = Config::BossSkillInterval;
+    bossAoeSkill_ = BossSkillDefinition();
+    bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
     playerHitCooldown_ = 0.0f;
 
@@ -202,7 +208,7 @@ void GameWorld::updateBossSkills(float dt) {
     const Enemy* boss = activeBoss();
     if (!boss) {
         bossAoeTelegraphTimer_ = 0.0f;
-        bossSkillTimer_ = Config::BossSkillInterval;
+        bossSkillTimer_ = bossDefinition_->skillInterval;
         return;
     }
 
@@ -211,11 +217,11 @@ void GameWorld::updateBossSkills(float dt) {
     if (telegraphBefore > 0.0f && bossAoeTelegraphTimer_ <= 0.0f) {
         if (Collision::circleCircle(
                 player_.position(), player_.radius(),
-                bossAoeCenter_, Config::BossAoeRadius
+                bossAoeCenter_, bossAoeSkill_.radius
             )) {
-            damagePlayer(Config::BossAoeDamage);
+            damagePlayer(bossAoeSkill_.damage);
         }
-        bossAoeEffectTimer_ = Config::BossAoeEffectDuration;
+        bossAoeEffectTimer_ = bossAoeSkill_.effectDuration;
     }
 
     if (bossAoeTelegraphTimer_ > 0.0f) {
@@ -227,24 +233,51 @@ void GameWorld::updateBossSkills(float dt) {
         return;
     }
 
-    if ((bossSkillIndex_ % 2) == 0) {
+    if (bossDefinition_->skills.empty()) {
+        bossSkillTimer_ = bossDefinition_->skillInterval;
+        return;
+    }
+
+    const BossSkillDefinition& skill =
+        bossDefinition_->skills[static_cast<std::size_t>(bossSkillIndex_) % bossDefinition_->skills.size()];
+
+    if (skill.type == BossSkillType::CircularAoe) {
         bossAoeCenter_ = player_.position();
-        bossAoeTelegraphTimer_ = Config::BossAoeTelegraphDuration;
+        bossAoeSkill_ = skill;
+        bossAoeTelegraphTimer_ = skill.telegraphDuration;
     } else {
         const Vector2 direction = (player_.position() - boss->position()).normalized();
         if (direction.lengthSquared() > 0.0f) {
-            bossProjectiles_.push_back({
-                boss->position(),
-                direction * Config::BossProjectileSpeed,
-                Config::BossProjectileRadius,
-                Config::BossProjectileDamage,
-                true
-            });
+            const int projectileCount = std::max(1, skill.projectileCount);
+            const float halfSpread = skill.spreadAngle * 0.5f;
+            const float step = projectileCount > 1
+                ? skill.spreadAngle / static_cast<float>(projectileCount - 1)
+                : 0.0f;
+            constexpr float degToRad = 3.14159265f / 180.0f;
+            for (int i = 0; i < projectileCount; ++i) {
+                const float angleDeg = projectileCount > 1
+                    ? -halfSpread + step * static_cast<float>(i)
+                    : 0.0f;
+                const float angleRad = angleDeg * degToRad;
+                const float cosA = std::cos(angleRad);
+                const float sinA = std::sin(angleRad);
+                const Vector2 rotated(
+                    direction.x * cosA - direction.y * sinA,
+                    direction.x * sinA + direction.y * cosA
+                );
+                bossProjectiles_.push_back({
+                    boss->position(),
+                    rotated * skill.projectileSpeed,
+                    skill.radius,
+                    skill.damage,
+                    true
+                });
+            }
         }
     }
 
     ++bossSkillIndex_;
-    bossSkillTimer_ = Config::BossSkillInterval;
+    bossSkillTimer_ = bossDefinition_->skillInterval;
 }
 
 void GameWorld::updateBossProjectiles(float dt) {
@@ -555,6 +588,7 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         bossProjectiles_.clear();
         bossAoeTelegraphTimer_ = 0.0f;
         bossAoeEffectTimer_ = 0.0f;
+        bossAoeSkill_ = BossSkillDefinition();
     }
 
     ++mapKills_;
@@ -571,7 +605,7 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
     player_.gainExp(exp);
     mapExperienceGained_ += exp;
 
-    const float eliteDropMultiplier = enemy.isBoss() ? 4.0f
+    const float eliteDropMultiplier = enemy.isBoss() ? bossDefinition_->dropMultiplier
         : enemy.isElite() ? 2.5f
         : 1.0f;
     const int dropChance = std::min(100, static_cast<int>(
@@ -641,11 +675,12 @@ void GameWorld::triggerBossIfNeeded() {
     bossAoeCenter_ = map_.bossCenter();
     bossAoeTelegraphTimer_ = 0.0f;
     bossAoeEffectTimer_ = 0.0f;
-    bossSkillTimer_ = Config::BossSkillInterval * 0.5f;
+    bossAoeSkill_ = BossSkillDefinition();
+    bossSkillTimer_ = bossDefinition_->skillInterval * 0.5f;
     bossSkillIndex_ = 0;
 
-    const int hp = enemyHpForMap() * 16;
-    const int damage = enemyDamageForMap() + 2;
+    const int hp = std::max(1, static_cast<int>(std::ceil(enemyHpForMap() * bossDefinition_->hpMultiplier)));
+    const int damage = enemyDamageForMap() + bossDefinition_->damageBonus;
     enemies_.push_back(Enemy(map_.bossCenter(), hp, damage, EnemyType::Boss));
 }
 
@@ -688,13 +723,18 @@ float GameWorld::secondarySkillEffectRadius() const {
     return skillBar_.definition(SkillSlot::Secondary).radius;
 }
 const Vector2& GameWorld::bossAoeCenter() const { return bossAoeCenter_; }
-float GameWorld::bossAoeRadius() const { return Config::BossAoeRadius; }
+float GameWorld::bossAoeRadius() const { return bossAoeSkill_.radius; }
 float GameWorld::bossAoeTelegraphProgress() const {
-    return bossAoeTelegraphTimer_ / Config::BossAoeTelegraphDuration;
+    return bossAoeSkill_.telegraphDuration > 0.0f
+        ? bossAoeTelegraphTimer_ / bossAoeSkill_.telegraphDuration
+        : 0.0f;
 }
 float GameWorld::bossAoeEffectProgress() const {
-    return bossAoeEffectTimer_ / Config::BossAoeEffectDuration;
+    return bossAoeSkill_.effectDuration > 0.0f
+        ? bossAoeEffectTimer_ / bossAoeSkill_.effectDuration
+        : 0.0f;
 }
+const BossDefinition& GameWorld::bossDefinition() const { return *bossDefinition_; }
 const SkillBar& GameWorld::skillBar() const { return skillBar_; }
 const MapInstance& GameWorld::map() const { return map_; }
 MapArea GameWorld::currentMapArea() const { return map_.areaForPlayer(player_.position()); }

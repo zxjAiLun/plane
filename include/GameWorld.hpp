@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <array>
+#include "BossDefinition.hpp"
 #include "Player.hpp"
 #include "Projectile.hpp"
 #include "Enemy.hpp"
@@ -52,6 +53,7 @@ public:
     float bossAoeRadius() const;
     float bossAoeTelegraphProgress() const;
     float bossAoeEffectProgress() const;
+    const BossDefinition& bossDefinition() const;
     const SkillBar& skillBar() const;
     const MapInstance& map() const;
     MapArea currentMapArea() const;
@@ -129,8 +131,10 @@ private:
     Vector2 bossAoeCenter_;
     float bossAoeTelegraphTimer_;
     float bossAoeEffectTimer_;
+    BossSkillDefinition bossAoeSkill_;
     float bossSkillTimer_;
     int bossSkillIndex_;
+    const BossDefinition* bossDefinition_;
     float playerHitCooldown_;
     int mapLevel_;
     int currentWave_;
