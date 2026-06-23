@@ -6,6 +6,9 @@ struct Stats {
     float damageMultiplier = 1.0f;
     float attackSpeedMultiplier = 1.0f;
     float pickupRangeMultiplier = 1.0f;
+    float projectileDamageMultiplier = 1.0f;
+    float areaDamageMultiplier = 1.0f;
+    float areaRadiusMultiplier = 1.0f;
 };
 
 inline Stats combineStats(const Stats& base, const Stats& bonus) {
@@ -15,5 +18,8 @@ inline Stats combineStats(const Stats& base, const Stats& bonus) {
         base.damageMultiplier * bonus.damageMultiplier,
         base.attackSpeedMultiplier * bonus.attackSpeedMultiplier,
         base.pickupRangeMultiplier * bonus.pickupRangeMultiplier,
+        base.projectileDamageMultiplier * bonus.projectileDamageMultiplier,
+        base.areaDamageMultiplier * bonus.areaDamageMultiplier,
+        base.areaRadiusMultiplier * bonus.areaRadiusMultiplier,
     };
 }

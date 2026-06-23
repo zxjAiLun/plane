@@ -40,6 +40,15 @@ std::string statsSummary(const Stats& stats) {
     if (stats.pickupRangeMultiplier > 1.0f) {
         summary += "+" + std::to_string(multiplierPercent(stats.pickupRangeMultiplier)) + "% PICKUP ";
     }
+    if (stats.projectileDamageMultiplier > 1.0f) {
+        summary += "+" + std::to_string(multiplierPercent(stats.projectileDamageMultiplier)) + "% PDMG ";
+    }
+    if (stats.areaDamageMultiplier > 1.0f) {
+        summary += "+" + std::to_string(multiplierPercent(stats.areaDamageMultiplier)) + "% ADMG ";
+    }
+    if (stats.areaRadiusMultiplier > 1.0f) {
+        summary += "+" + std::to_string(multiplierPercent(stats.areaRadiusMultiplier)) + "% AREA ";
+    }
     return summary;
 }
 
@@ -54,6 +63,9 @@ Stats statsDelta(const Stats& next, const Stats& current) {
         next.damageMultiplier / current.damageMultiplier,
         next.attackSpeedMultiplier / current.attackSpeedMultiplier,
         next.pickupRangeMultiplier / current.pickupRangeMultiplier,
+        next.projectileDamageMultiplier / current.projectileDamageMultiplier,
+        next.areaDamageMultiplier / current.areaDamageMultiplier,
+        next.areaRadiusMultiplier / current.areaRadiusMultiplier,
     };
 }
 
@@ -78,6 +90,18 @@ std::string statsDeltaSummary(const Stats& delta) {
         const int value = multiplierPercent(delta.pickupRangeMultiplier);
         summary += (value > 0 ? "+" : "") + std::to_string(value) + "% PICKUP ";
     }
+    if (delta.projectileDamageMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.projectileDamageMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% PDMG ";
+    }
+    if (delta.areaDamageMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.areaDamageMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% ADMG ";
+    }
+    if (delta.areaRadiusMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.areaRadiusMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% AREA ";
+    }
     return summary.empty() ? "No stat change" : summary;
 }
 
@@ -86,12 +110,18 @@ sf::Color deltaColor(const Stats& delta) {
         || delta.damageMultiplier > 1.0f
         || delta.attackSpeedMultiplier > 1.0f
         || delta.moveSpeedMultiplier > 1.0f
-        || delta.pickupRangeMultiplier > 1.0f;
+        || delta.pickupRangeMultiplier > 1.0f
+        || delta.projectileDamageMultiplier > 1.0f
+        || delta.areaDamageMultiplier > 1.0f
+        || delta.areaRadiusMultiplier > 1.0f;
     const bool negative = delta.maxHp < 0
         || delta.damageMultiplier < 1.0f
         || delta.attackSpeedMultiplier < 1.0f
         || delta.moveSpeedMultiplier < 1.0f
-        || delta.pickupRangeMultiplier < 1.0f;
+        || delta.pickupRangeMultiplier < 1.0f
+        || delta.projectileDamageMultiplier < 1.0f
+        || delta.areaDamageMultiplier < 1.0f
+        || delta.areaRadiusMultiplier < 1.0f;
 
     if (positive && !negative) {
         return sf::Color(120, 230, 140);
@@ -225,8 +255,11 @@ void Renderer::render(const GameWorld& world) {
     const auto& stats = world.player().stats();
     drawText("DMG +" + std::to_string(multiplierPercent(stats.damageMultiplier))
         + "%  AS +" + std::to_string(multiplierPercent(stats.attackSpeedMultiplier))
-        + "%  MS +" + std::to_string(multiplierPercent(stats.moveSpeedMultiplier)) + "%",
-        {16.0f, 84.0f}, 16, sf::Color(210, 220, 255));
+        + "%  MS +" + std::to_string(multiplierPercent(stats.moveSpeedMultiplier))
+        + "%  PDMG +" + std::to_string(multiplierPercent(stats.projectileDamageMultiplier))
+        + "%  ADMG +" + std::to_string(multiplierPercent(stats.areaDamageMultiplier))
+        + "%  AREA +" + std::to_string(multiplierPercent(stats.areaRadiusMultiplier)) + "%",
+        {16.0f, 84.0f}, 14, sf::Color(210, 220, 255));
     drawSkillBar(world);
     drawEquipment(world);
     drawInventory(world);

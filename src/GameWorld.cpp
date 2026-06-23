@@ -472,12 +472,10 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
     }
 
     const auto& skill = skillBar_.definition(SkillSlot::Utility);
-    const int damage = modifiedPlayerSkillDamage(
-        static_cast<int>(skill.baseDamage * player_.stats().damageMultiplier));
     dealAreaDamage(
         player_.position(),
-        skill.radius,
-        damage
+        radiusForPlayerSkill(skill),
+        damageForPlayerSkill(skill)
     );
     novaEffectTimer_ = skill.effectDuration;
 }
@@ -488,12 +486,10 @@ void GameWorld::tryCastSecondarySkill(Input& input) {
     }
 
     const auto& skill = skillBar_.definition(SkillSlot::Secondary);
-    const int damage = modifiedPlayerSkillDamage(
-        static_cast<int>(skill.baseDamage * player_.stats().damageMultiplier));
     dealAreaDamage(
         aimPosition_,
-        skill.radius,
-        damage
+        radiusForPlayerSkill(skill),
+        damageForPlayerSkill(skill)
     );
     secondarySkillEffectPosition_ = aimPosition_;
     secondarySkillEffectTimer_ = skill.effectDuration;
@@ -514,8 +510,7 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
     }
 
     const auto& skill = skillBar_.definition(SkillSlot::Primary);
-    const int damage = modifiedPlayerSkillDamage(
-        static_cast<int>(skill.baseDamage * player_.stats().damageMultiplier));
+    const int damage = damageForPlayerSkill(skill);
 
     if (skill.projectileCount <= 1 || skill.spreadAngle <= 0.0f) {
         projectiles_.push_back(Projectile(player_.position(), direction * Config::ProjectileSpeed, damage));
@@ -663,9 +658,35 @@ void GameWorld::dropItemsAround(const Vector2& center, int count) {
     }
 }
 
-int GameWorld::modifiedPlayerSkillDamage(int baseDamage) const {
+int GameWorld::damageForPlayerSkill(const SkillDefinition& skill) const {
+    float damage = static_cast<float>(skill.baseDamage) * player_.stats().damageMultiplier;
+    switch (skill.castType) {
+        case SkillCastType::Projectile:
+            damage *= player_.stats().projectileDamageMultiplier;
+            break;
+        case SkillCastType::SelfCenteredArea:
+        case SkillCastType::MouseTargetedArea:
+            damage *= player_.stats().areaDamageMultiplier;
+            break;
+        case SkillCastType::Dash:
+            break;
+    }
+
     const float multiplier = shrineBuffTimer_ > 0.0f ? ShrineDamageMultiplier : 1.0f;
-    return std::max(1, static_cast<int>(std::ceil(static_cast<float>(baseDamage) * multiplier)));
+    return std::max(1, static_cast<int>(std::ceil(damage * multiplier)));
+}
+
+float GameWorld::radiusForPlayerSkill(const SkillDefinition& skill) const {
+    switch (skill.castType) {
+        case SkillCastType::SelfCenteredArea:
+        case SkillCastType::MouseTargetedArea:
+            return skill.radius * player_.stats().areaRadiusMultiplier;
+        case SkillCastType::Projectile:
+        case SkillCastType::Dash:
+            return skill.radius;
+    }
+
+    return skill.radius;
 }
 
 void GameWorld::noteElitePackEnemyDefeated(const Enemy& enemy) {
@@ -904,7 +925,7 @@ float GameWorld::novaEffectProgress() const {
     return duration > 0.0f ? novaEffectTimer_ / duration : 0.0f;
 }
 float GameWorld::novaEffectRadius() const {
-    return skillBar_.definition(SkillSlot::Utility).radius;
+    return radiusForPlayerSkill(skillBar_.definition(SkillSlot::Utility));
 }
 const Vector2& GameWorld::secondarySkillEffectPosition() const {
     return secondarySkillEffectPosition_;
@@ -914,7 +935,7 @@ float GameWorld::secondarySkillEffectProgress() const {
     return duration > 0.0f ? secondarySkillEffectTimer_ / duration : 0.0f;
 }
 float GameWorld::secondarySkillEffectRadius() const {
-    return skillBar_.definition(SkillSlot::Secondary).radius;
+    return radiusForPlayerSkill(skillBar_.definition(SkillSlot::Secondary));
 }
 const Vector2& GameWorld::bossAoeCenter() const { return bossAoeCenter_; }
 float GameWorld::bossAoeRadius() const { return bossAoeSkill_.radius; }

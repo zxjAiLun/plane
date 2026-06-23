@@ -34,18 +34,18 @@ class PassiveTree {
 public:
     PassiveTree() {
         // Projectile branch (0-4)
-        nodes_[0] = {"Sharpened Bolt", "+8% damage", Stats{0, 1.0f, 1.08f, 1.0f, 1.0f}, -1, false, {70.0f, -42.0f}, PassiveBranch::Projectile, PassiveNodeSize::Small};
+        nodes_[0] = {"Sharpened Bolt", "+8% projectile damage", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.08f}, -1, false, {70.0f, -42.0f}, PassiveBranch::Projectile, PassiveNodeSize::Small};
         nodes_[1] = {"Rapid Fire", "+6% attack speed", Stats{0, 1.0f, 1.0f, 1.06f, 1.0f}, 0, false, {135.0f, -78.0f}, PassiveBranch::Projectile, PassiveNodeSize::Small};
-        nodes_[2] = {"Lethal Force", "+10% damage", Stats{0, 1.0f, 1.10f, 1.0f, 1.0f}, 1, false, {200.0f, -115.0f}, PassiveBranch::Projectile, PassiveNodeSize::Small};
+        nodes_[2] = {"Lethal Force", "+10% projectile damage", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.10f}, 1, false, {200.0f, -115.0f}, PassiveBranch::Projectile, PassiveNodeSize::Small};
         nodes_[3] = {"Quick Reload", "+8% attack speed", Stats{0, 1.0f, 1.0f, 1.08f, 1.0f}, 2, false, {260.0f, -150.0f}, PassiveBranch::Projectile, PassiveNodeSize::Small};
-        nodes_[4] = {"Annihilation", "+12% damage", Stats{0, 1.0f, 1.12f, 1.0f, 1.0f}, 3, false, {318.0f, -184.0f}, PassiveBranch::Projectile, PassiveNodeSize::Notable};
+        nodes_[4] = {"Annihilation", "+14% projectile damage", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.14f}, 3, false, {318.0f, -184.0f}, PassiveBranch::Projectile, PassiveNodeSize::Notable};
 
         // Area branch (5-9)
-        nodes_[5] = {"Inner Blaze", "+8% damage", Stats{0, 1.0f, 1.08f, 1.0f, 1.0f}, -1, false, {-70.0f, -42.0f}, PassiveBranch::Area, PassiveNodeSize::Small};
-        nodes_[6] = {"Thick Skin", "+4 max HP", Stats{4, 1.0f, 1.0f, 1.0f, 1.0f}, 5, false, {-135.0f, -78.0f}, PassiveBranch::Area, PassiveNodeSize::Small};
-        nodes_[7] = {"Blast Radius", "+10% damage", Stats{0, 1.0f, 1.10f, 1.0f, 1.0f}, 6, false, {-200.0f, -115.0f}, PassiveBranch::Area, PassiveNodeSize::Small};
-        nodes_[8] = {"Sturdy Frame", "+5 max HP", Stats{5, 1.0f, 1.0f, 1.0f, 1.0f}, 7, false, {-260.0f, -150.0f}, PassiveBranch::Area, PassiveNodeSize::Small};
-        nodes_[9] = {"Cataclysm", "+12% damage", Stats{0, 1.0f, 1.12f, 1.0f, 1.0f}, 8, false, {-318.0f, -184.0f}, PassiveBranch::Area, PassiveNodeSize::Notable};
+        nodes_[5] = {"Inner Blaze", "+8% area damage", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.08f}, -1, false, {-70.0f, -42.0f}, PassiveBranch::Area, PassiveNodeSize::Small};
+        nodes_[6] = {"Widening Circle", "+8% area radius", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.08f}, 5, false, {-135.0f, -78.0f}, PassiveBranch::Area, PassiveNodeSize::Small};
+        nodes_[7] = {"Blast Force", "+10% area damage", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.10f}, 6, false, {-200.0f, -115.0f}, PassiveBranch::Area, PassiveNodeSize::Small};
+        nodes_[8] = {"Expanded Impact", "+10% area radius", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.10f}, 7, false, {-260.0f, -150.0f}, PassiveBranch::Area, PassiveNodeSize::Small};
+        nodes_[9] = {"Cataclysm", "+14% area damage", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.14f}, 8, false, {-318.0f, -184.0f}, PassiveBranch::Area, PassiveNodeSize::Notable};
 
         // Survival branch (10-14)
         nodes_[10] = {"Vigour", "+5 max HP", Stats{5, 1.0f, 1.0f, 1.0f, 1.0f}, -1, false, {-70.0f, 42.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};

@@ -105,7 +105,8 @@ private:
     void openLootCacheEvent(MapEventInstance& event);
     void activateShrineEvent(MapEventInstance& event);
     void dropItemsAround(const Vector2& center, int count);
-    int modifiedPlayerSkillDamage(int baseDamage) const;
+    int damageForPlayerSkill(const SkillDefinition& skill) const;
+    float radiusForPlayerSkill(const SkillDefinition& skill) const;
     void noteElitePackEnemyDefeated(const Enemy& enemy);
     void tryPickupDroppedItem(Input& input);
     void trySpendPassivePoint(Input& input);
