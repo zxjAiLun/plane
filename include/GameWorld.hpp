@@ -74,6 +74,10 @@ public:
     int mapExperienceGained() const;
     int mapItemsDropped() const;
     int mapItemsPickedUp() const;
+    std::string nearbyEventPrompt() const;
+    float shrineBuffTimeRemaining() const;
+    int mapEventsCompleted() const;
+    int mapEventsTotal() const;
     bool nextMapOptionChosen() const;
     const MapOption& currentMapOption() const;
     const std::array<MapOption, 3>& nextMapOptions() const;
@@ -94,6 +98,13 @@ private:
     void tryCastSecondarySkill(Input& input);
     void tryCastPrimarySkill(Input& input);
     void dealAreaDamage(const Vector2& center, float radius, int damage);
+    void updateMapEvents(float dt, Input& input);
+    void triggerElitePackEvent(std::size_t eventIndex);
+    void openLootCacheEvent(MapEventInstance& event);
+    void activateShrineEvent(MapEventInstance& event);
+    void dropItemsAround(const Vector2& center, int count);
+    int modifiedPlayerSkillDamage(int baseDamage) const;
+    void noteElitePackEnemyDefeated(const Enemy& enemy);
     void tryPickupDroppedItem(Input& input);
     void trySpendPassivePoint(Input& input);
     void tryEquipInventoryItem(Input& input);
@@ -152,4 +163,9 @@ private:
     int mapItemsPickedUp_;
     bool nextMapOptionChosen_;
     bool passiveTreeOpen_;
+    std::string nearbyEventPrompt_;
+    float shrineBuffTimer_;
+    bool mapEventInteractionConsumed_;
+    int activeEliteEventIndex_;
+    int eliteEventEnemiesRemaining_;
 };

@@ -8,6 +8,11 @@
 #include <cstdlib>
 #include <utility>
 
+namespace {
+constexpr float ShrineBuffDuration = 20.0f;
+constexpr float ShrineDamageMultiplier = 1.35f;
+}
+
 GameWorld::GameWorld()
     : state_(GameState::Playing)
     , score_(0)
@@ -37,7 +42,12 @@ GameWorld::GameWorld()
     , mapItemsDropped_(0)
     , mapItemsPickedUp_(0)
     , nextMapOptionChosen_(false)
-    , passiveTreeOpen_(false) {
+    , passiveTreeOpen_(false)
+    , nearbyEventPrompt_()
+    , shrineBuffTimer_(0.0f)
+    , mapEventInteractionConsumed_(false)
+    , activeEliteEventIndex_(-1)
+    , eliteEventEnemiesRemaining_(0) {
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
     skillBar_.applyStats(player_.stats());
@@ -92,10 +102,16 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     secondarySkillEffectTimer_ = std::max(0.0f, secondarySkillEffectTimer_ - dt);
     bossAoeEffectTimer_ = std::max(0.0f, bossAoeEffectTimer_ - dt);
     playerHitCooldown_ = std::max(0.0f, playerHitCooldown_ - dt);
+    shrineBuffTimer_ = std::max(0.0f, shrineBuffTimer_ - dt);
+    nearbyEventPrompt_.clear();
+    mapEventInteractionConsumed_ = false;
     tryCastMovementSkill(input);
     tryCastUtilitySkill(input);
     tryCastSecondarySkill(input);
-    tryPickupDroppedItem(input);
+    updateMapEvents(dt, input);
+    if (!mapEventInteractionConsumed_) {
+        tryPickupDroppedItem(input);
+    }
     trySpendPassivePoint(input);
     if (!passiveTreeOpen_) {
         tryEquipInventoryItem(input);
@@ -161,6 +177,11 @@ void GameWorld::reset() {
     selectedNextMapOption_ = -1;
     mapModifier_ = currentMapOption_.modifier;
     passiveTreeOpen_ = false;
+    nearbyEventPrompt_.clear();
+    shrineBuffTimer_ = 0.0f;
+    mapEventInteractionConsumed_ = false;
+    activeEliteEventIndex_ = -1;
+    eliteEventEnemiesRemaining_ = 0;
 }
 
 void GameWorld::startNextMap() {
@@ -202,6 +223,11 @@ void GameWorld::startNextMap() {
     selectedNextMapOption_ = -1;
     mapModifier_ = currentMapOption_.modifier;
     passiveTreeOpen_ = false;
+    nearbyEventPrompt_.clear();
+    shrineBuffTimer_ = 0.0f;
+    mapEventInteractionConsumed_ = false;
+    activeEliteEventIndex_ = -1;
+    eliteEventEnemiesRemaining_ = 0;
 }
 
 void GameWorld::updateObjects(float dt) {
@@ -366,6 +392,7 @@ void GameWorld::handleCollisions() {
             )) {
             damagePlayer(enemy.contactDamage());
             if (!enemy.isBoss()) {
+                noteElitePackEnemyDefeated(enemy);
                 enemy.kill();
             }
         }
@@ -434,10 +461,12 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
     }
 
     const auto& skill = skillBar_.definition(SkillSlot::Utility);
+    const int damage = modifiedPlayerSkillDamage(
+        static_cast<int>(skill.baseDamage * player_.stats().damageMultiplier));
     dealAreaDamage(
         player_.position(),
         skill.radius,
-        static_cast<int>(skill.baseDamage * player_.stats().damageMultiplier)
+        damage
     );
     novaEffectTimer_ = skill.effectDuration;
 }
@@ -448,10 +477,12 @@ void GameWorld::tryCastSecondarySkill(Input& input) {
     }
 
     const auto& skill = skillBar_.definition(SkillSlot::Secondary);
+    const int damage = modifiedPlayerSkillDamage(
+        static_cast<int>(skill.baseDamage * player_.stats().damageMultiplier));
     dealAreaDamage(
         aimPosition_,
         skill.radius,
-        static_cast<int>(skill.baseDamage * player_.stats().damageMultiplier)
+        damage
     );
     secondarySkillEffectPosition_ = aimPosition_;
     secondarySkillEffectTimer_ = skill.effectDuration;
@@ -472,7 +503,8 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
     }
 
     const auto& skill = skillBar_.definition(SkillSlot::Primary);
-    const int damage = static_cast<int>(skill.baseDamage * player_.stats().damageMultiplier);
+    const int damage = modifiedPlayerSkillDamage(
+        static_cast<int>(skill.baseDamage * player_.stats().damageMultiplier));
 
     if (skill.projectileCount <= 1 || skill.spreadAngle <= 0.0f) {
         projectiles_.push_back(Projectile(player_.position(), direction * Config::ProjectileSpeed, damage));
@@ -515,6 +547,137 @@ void GameWorld::dealAreaDamage(const Vector2& center, float radius, int damage) 
                 rewardEnemyKill(enemy);
             }
         }
+    }
+}
+
+void GameWorld::updateMapEvents(float /*dt*/, Input& input) {
+    if (map_.bossTriggered() || map_.bossDefeated()) {
+        return;
+    }
+
+    auto& events = map_.eventsForMutation();
+    for (std::size_t i = 0; i < events.size(); ++i) {
+        auto& event = events[i];
+        if (event.completed) {
+            continue;
+        }
+
+        const Vector2 diff = player_.position() - event.position;
+        if (diff.lengthSquared() > event.radius * event.radius) {
+            continue;
+        }
+
+        switch (event.type) {
+            case MapEventType::LootCache:
+                nearbyEventPrompt_ = "F Open Cache";
+                if (input.pickup()) {
+                    openLootCacheEvent(event);
+                    mapEventInteractionConsumed_ = true;
+                }
+                return;
+
+            case MapEventType::Shrine:
+                nearbyEventPrompt_ = "F Activate Shrine";
+                if (input.pickup()) {
+                    activateShrineEvent(event);
+                    mapEventInteractionConsumed_ = true;
+                }
+                return;
+
+            case MapEventType::ElitePack:
+                nearbyEventPrompt_ = event.triggered ? "Elite Pack active" : "Elite Pack ambush";
+                if (!event.triggered) {
+                    triggerElitePackEvent(i);
+                }
+                return;
+        }
+    }
+}
+
+void GameWorld::triggerElitePackEvent(std::size_t eventIndex) {
+    auto& events = map_.eventsForMutation();
+    if (eventIndex >= events.size()) {
+        return;
+    }
+
+    auto& event = events[eventIndex];
+    if (event.triggered || event.completed) {
+        return;
+    }
+
+    event.triggered = true;
+    activeEliteEventIndex_ = static_cast<int>(eventIndex);
+    eliteEventEnemiesRemaining_ = 5;
+
+    const Vector2 offsets[] = {
+        {0.0f, 0.0f},
+        {-64.0f, -42.0f},
+        {62.0f, -34.0f},
+        {-48.0f, 58.0f},
+        {54.0f, 52.0f}
+    };
+
+    const auto spawnEventEnemy = [&](EnemyType type, const Vector2& position) {
+        const auto& definition = EnemyLibrary::forType(type);
+        const int hp = std::max(1, static_cast<int>(std::ceil(enemyHpForMap() * definition.hpMultiplier)));
+        const int damage = enemyDamageForMap() + definition.damageBonus;
+        enemies_.push_back(Enemy(position, hp, damage, type));
+    };
+
+    spawnEventEnemy(EnemyType::Elite, event.position + offsets[0]);
+    for (std::size_t i = 1; i < 5; ++i) {
+        spawnEventEnemy(EnemyType::Normal, event.position + offsets[i]);
+    }
+}
+
+void GameWorld::openLootCacheEvent(MapEventInstance& event) {
+    event.triggered = true;
+    event.completed = true;
+    dropItemsAround(event.position, 2);
+}
+
+void GameWorld::activateShrineEvent(MapEventInstance& event) {
+    event.triggered = true;
+    event.completed = true;
+    shrineBuffTimer_ = ShrineBuffDuration;
+}
+
+void GameWorld::dropItemsAround(const Vector2& center, int count) {
+    for (int i = 0; i < count; ++i) {
+        const float angle = static_cast<float>(i) * 2.39996323f;
+        const float radius = i == 0 ? 0.0f : 24.0f + static_cast<float>(i) * 5.0f;
+        const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
+        droppedItems_.push_back(DroppedItem(center + offset, lootGenerator_.generate(mapLevel_)));
+        ++mapItemsDropped_;
+    }
+}
+
+int GameWorld::modifiedPlayerSkillDamage(int baseDamage) const {
+    const float multiplier = shrineBuffTimer_ > 0.0f ? ShrineDamageMultiplier : 1.0f;
+    return std::max(1, static_cast<int>(std::ceil(static_cast<float>(baseDamage) * multiplier)));
+}
+
+void GameWorld::noteElitePackEnemyDefeated(const Enemy& enemy) {
+    if (enemy.isBoss() || activeEliteEventIndex_ < 0 || eliteEventEnemiesRemaining_ <= 0) {
+        return;
+    }
+
+    auto& events = map_.eventsForMutation();
+    const auto eventIndex = static_cast<std::size_t>(activeEliteEventIndex_);
+    if (eventIndex >= events.size()) {
+        return;
+    }
+
+    auto& event = events[eventIndex];
+    const float completionRadius = event.radius + 240.0f;
+    if ((enemy.position() - event.position).lengthSquared() > completionRadius * completionRadius) {
+        return;
+    }
+
+    --eliteEventEnemiesRemaining_;
+    if (eliteEventEnemiesRemaining_ <= 0) {
+        event.completed = true;
+        activeEliteEventIndex_ = -1;
     }
 }
 
@@ -628,6 +791,8 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         droppedItems_.push_back(DroppedItem(enemy.position() + offset, lootGenerator_.generate(mapLevel_)));
         ++mapItemsDropped_;
     }
+
+    noteElitePackEnemyDefeated(enemy);
 }
 
 void GameWorld::damagePlayer(int damage) {
@@ -685,6 +850,10 @@ void GameWorld::triggerBossIfNeeded() {
     enemies_.clear();
     projectiles_.clear();
     bossProjectiles_.clear();
+    activeEliteEventIndex_ = -1;
+    eliteEventEnemiesRemaining_ = 0;
+    nearbyEventPrompt_.clear();
+    mapEventInteractionConsumed_ = false;
     bossAoeCenter_ = map_.bossCenter();
     bossAoeTelegraphTimer_ = 0.0f;
     bossAoeEffectTimer_ = 0.0f;
@@ -786,6 +955,13 @@ int GameWorld::mapKills() const { return mapKills_; }
 int GameWorld::mapExperienceGained() const { return mapExperienceGained_; }
 int GameWorld::mapItemsDropped() const { return mapItemsDropped_; }
 int GameWorld::mapItemsPickedUp() const { return mapItemsPickedUp_; }
+std::string GameWorld::nearbyEventPrompt() const { return nearbyEventPrompt_; }
+float GameWorld::shrineBuffTimeRemaining() const { return shrineBuffTimer_; }
+int GameWorld::mapEventsCompleted() const {
+    return static_cast<int>(std::count_if(map_.events().begin(), map_.events().end(),
+        [](const MapEventInstance& event) { return event.completed; }));
+}
+int GameWorld::mapEventsTotal() const { return static_cast<int>(map_.events().size()); }
 bool GameWorld::nextMapOptionChosen() const { return nextMapOptionChosen_; }
 const MapOption& GameWorld::currentMapOption() const { return currentMapOption_; }
 const std::array<MapOption, 3>& GameWorld::nextMapOptions() const { return nextMapOptions_; }

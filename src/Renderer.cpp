@@ -109,6 +109,20 @@ std::string mapOptionSummary(const MapOption& option) {
         + "  IQ +" + std::to_string(multiplierPercent(modifier.itemQuantityMultiplier))
         + "%  Boss +" + std::to_string(modifier.bossDropBonus);
 }
+
+sf::Color mapEventColor(MapEventType type, bool completed) {
+    if (completed) {
+        return sf::Color(130, 130, 130);
+    }
+
+    switch (type) {
+        case MapEventType::LootCache: return sf::Color(255, 215, 70);
+        case MapEventType::ElitePack: return sf::Color(190, 90, 255);
+        case MapEventType::Shrine: return sf::Color(80, 230, 230);
+    }
+
+    return sf::Color::White;
+}
 }
 
 Renderer::Renderer(sf::RenderWindow& window)
@@ -168,6 +182,14 @@ void Renderer::render(const GameWorld& world) {
         {16.0f, 174.0f}, 14, sf::Color(255, 190, 150));
     drawText("Objective: " + world.mapObjective(),
         {16.0f, 196.0f}, 14, sf::Color(210, 255, 210));
+    if (!world.nearbyEventPrompt().empty()) {
+        drawText(world.nearbyEventPrompt(), {16.0f, 218.0f}, 14, sf::Color(255, 235, 150));
+    }
+    if (world.shrineBuffTimeRemaining() > 0.0f) {
+        drawText("Shrine +35% damage  "
+            + std::to_string(static_cast<int>(world.shrineBuffTimeRemaining() + 0.99f)) + "s",
+            {16.0f, 236.0f}, 14, sf::Color(100, 240, 240));
+    }
     drawText("P Passive Tree  |  Spend SP on nodes",
         {16.0f, 152.0f}, 14, sf::Color(210, 255, 210));
     const auto& stats = world.player().stats();
@@ -575,6 +597,14 @@ void Renderer::drawMinimap(const GameWorld& world) {
     drawMapCircle(map.bossCenter(), Config::BossGateRadius, sf::Color(255, 190, 90));
     drawMapCircle(map.bossCenter(), Config::BossArenaRadius, sf::Color(255, 80, 60), 1.5f);
 
+    for (const auto& event : map.events()) {
+        sf::CircleShape eventDot(3.0f);
+        eventDot.setOrigin({3.0f, 3.0f});
+        eventDot.setPosition(toMinimap(event.position));
+        eventDot.setFillColor(mapEventColor(event.type, event.completed));
+        window_.draw(eventDot);
+    }
+
     sf::CircleShape bossDot(3.5f);
     bossDot.setOrigin({3.5f, 3.5f});
     bossDot.setPosition(toMinimap(map.bossCenter()));
@@ -605,7 +635,7 @@ void Renderer::drawBossHealth(const GameWorld& world) {
         return;
     }
 
-    const sf::Vector2f position{16.0f, 218.0f};
+    const sf::Vector2f position{16.0f, 258.0f};
     const sf::Vector2f size{260.0f, 12.0f};
     const float ratio = std::clamp(
         static_cast<float>(std::max(0, boss->hp())) / static_cast<float>(boss->maxHp()),
@@ -663,10 +693,13 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     drawCenteredText("Drops " + std::to_string(world.mapItemsDropped())
         + "  Picked " + std::to_string(world.mapItemsPickedUp()),
         {center.x, center.y - 52.0f}, 16, sf::Color::White);
+    drawCenteredText("Events " + std::to_string(world.mapEventsCompleted())
+        + "/" + std::to_string(world.mapEventsTotal()),
+        {center.x, center.y - 30.0f}, 16, sf::Color::White);
 
-    drawCenteredText("Choose Next Map", {center.x, center.y - 12.0f}, 18, sf::Color::White);
+    drawCenteredText("Choose Next Map", {center.x, center.y - 2.0f}, 18, sf::Color::White);
     const auto& options = world.nextMapOptions();
-    float optionY = center.y + 12.0f;
+    float optionY = center.y + 22.0f;
     for (std::size_t i = 0; i < options.size(); ++i) {
         const bool selected = world.selectedNextMapOption() == static_cast<int>(i);
         const auto& option = options[i];
