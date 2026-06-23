@@ -102,6 +102,36 @@ sf::Color deltaColor(const Stats& delta) {
     return sf::Color(230, 220, 150);
 }
 
+sf::Color passiveBranchColor(PassiveBranch branch) {
+    switch (branch) {
+        case PassiveBranch::Projectile: return sf::Color(110, 185, 255);
+        case PassiveBranch::Area: return sf::Color(255, 150, 85);
+        case PassiveBranch::Survival: return sf::Color(120, 235, 145);
+        case PassiveBranch::Loot: return sf::Color(245, 215, 90);
+    }
+    return sf::Color::White;
+}
+
+std::string passiveBranchName(PassiveBranch branch) {
+    switch (branch) {
+        case PassiveBranch::Projectile: return "Projectile";
+        case PassiveBranch::Area: return "Area";
+        case PassiveBranch::Survival: return "Survival";
+        case PassiveBranch::Loot: return "Loot";
+    }
+    return "Unknown";
+}
+
+std::string passiveKeyLabel(std::size_t index) {
+    if (index < 9) {
+        return std::to_string(index + 1);
+    }
+    if (index == 9) {
+        return "0";
+    }
+    return "F" + std::to_string(index - 9);
+}
+
 std::string mapOptionSummary(const MapOption& option) {
     const auto& modifier = option.modifier;
     return "HP +" + std::to_string(multiplierPercent(modifier.monsterHpMultiplier))
@@ -190,7 +220,7 @@ void Renderer::render(const GameWorld& world) {
             + std::to_string(static_cast<int>(world.shrineBuffTimeRemaining() + 0.99f)) + "s",
             {16.0f, 236.0f}, 14, sf::Color(100, 240, 240));
     }
-    drawText("P Passive Tree  |  Spend SP on nodes",
+    drawText("Build: " + world.passiveBuildSummary() + "  |  P Passive Tree",
         {16.0f, 152.0f}, 14, sf::Color(210, 255, 210));
     const auto& stats = world.player().stats();
     drawText("DMG +" + std::to_string(multiplierPercent(stats.damageMultiplier))
@@ -520,40 +550,104 @@ void Renderer::drawPassiveTree(const GameWorld& world) {
     overlay.setFillColor(sf::Color(0, 0, 0, 145));
     window_.draw(overlay);
 
-    drawBox({center.x, center.y}, {560.0f, 440.0f}, sf::Color(30, 38, 48));
-    drawCenteredText("Passive Tree", {center.x, center.y - 196.0f}, 24, sf::Color::White);
-    drawCenteredText("SP " + std::to_string(world.player().talentPoints()) + "  |  1-0/F1-F10 allocate  |  P close",
-        {center.x, center.y - 168.0f}, 14, sf::Color(210, 230, 255));
+    drawBox({center.x, center.y}, {760.0f, 520.0f}, sf::Color(22, 28, 36));
+    drawCenteredText("Passive Tree", {center.x, center.y - 238.0f}, 24, sf::Color::White);
+    drawCenteredText("SP " + std::to_string(world.player().talentPoints())
+        + "  |  Left click node  |  1-0/F1-F10 allocate  |  P close",
+        {center.x, center.y - 210.0f}, 14, sf::Color(210, 230, 255));
 
     const auto& nodes = world.player().passiveTree().nodes();
-    float y = center.y - 134.0f;
+
+    const auto nodeScreenPosition = [&](const PassiveNode& node) {
+        return sf::Vector2f{
+            center.x + node.treePosition.x,
+            center.y + node.treePosition.y
+        };
+    };
+
+    for (std::size_t i = 0; i < nodes.size(); ++i) {
+        const auto& node = nodes[i];
+        const sf::Vector2f from = node.prerequisite >= 0
+            ? nodeScreenPosition(nodes[static_cast<std::size_t>(node.prerequisite)])
+            : center;
+        const sf::Vector2f to = nodeScreenPosition(node);
+        sf::VertexArray line(sf::PrimitiveType::Lines, 2);
+        const sf::Color branchColor = passiveBranchColor(node.branch);
+        line[0].position = from;
+        line[1].position = to;
+        line[0].color = node.allocated ? branchColor : sf::Color(90, 100, 112);
+        line[1].color = node.allocated ? branchColor : sf::Color(90, 100, 112);
+        window_.draw(line);
+    }
+
+    sf::CircleShape origin(9.0f);
+    origin.setOrigin({9.0f, 9.0f});
+    origin.setPosition(center);
+    origin.setFillColor(sf::Color(190, 200, 215));
+    window_.draw(origin);
+
     for (std::size_t i = 0; i < nodes.size(); ++i) {
         const auto& node = nodes[i];
         const bool prerequisiteMet = node.prerequisite < 0
             || nodes[static_cast<std::size_t>(node.prerequisite)].allocated;
         const bool available = !node.allocated && prerequisiteMet && world.player().talentPoints() > 0;
+        const bool hovered = world.hoveredPassiveNode() == static_cast<int>(i);
 
-        sf::Color color = sf::Color(150, 150, 150);
-        std::string status = "Locked";
+        const sf::Color branchColor = passiveBranchColor(node.branch);
+        sf::Color fill = sf::Color(54, 60, 70);
+        sf::Color outline = sf::Color(120, 130, 145);
         if (node.allocated) {
-            color = sf::Color(120, 230, 140);
-            status = "Allocated";
+            fill = branchColor;
+            outline = sf::Color::White;
         } else if (available) {
-            color = sf::Color(220, 240, 255);
-            status = "Available";
+            fill = sf::Color(branchColor.r / 3, branchColor.g / 3, branchColor.b / 3);
+            outline = branchColor;
         } else if (prerequisiteMet) {
-            color = sf::Color(190, 190, 190);
-            status = "No SP";
+            outline = sf::Color(180, 180, 180);
         }
 
-        const std::string keyLabel = i < 9 ? std::to_string(i + 1)
-            : i == 9 ? "0"
-            : "F" + std::to_string(i - 9);
-        drawText(keyLabel + ". " + node.name + " - " + node.description,
-            {center.x - 250.0f, y}, 13, color);
-        drawText("[" + status + "]",
-            {center.x + 190.0f, y}, 13, color);
-        y += 22.0f;
+        if (hovered) {
+            outline = sf::Color::White;
+        }
+
+        const float radius = node.size == PassiveNodeSize::Notable ? 16.0f : 12.0f;
+        const sf::Vector2f position = nodeScreenPosition(node);
+        sf::CircleShape shape(radius);
+        shape.setOrigin({radius, radius});
+        shape.setPosition(position);
+        shape.setFillColor(fill);
+        shape.setOutlineColor(outline);
+        shape.setOutlineThickness(hovered ? 3.0f : 2.0f);
+        window_.draw(shape);
+
+        drawCenteredText(passiveKeyLabel(i), {position.x, position.y - 6.0f}, 10, sf::Color::White);
+    }
+
+    const int hoveredIndex = world.hoveredPassiveNode();
+    if (hoveredIndex >= 0 && hoveredIndex < static_cast<int>(nodes.size())) {
+        const auto& node = nodes[static_cast<std::size_t>(hoveredIndex)];
+        const bool prerequisiteMet = node.prerequisite < 0
+            || nodes[static_cast<std::size_t>(node.prerequisite)].allocated;
+        std::string status = "Locked";
+        sf::Color statusColor = sf::Color(170, 170, 170);
+        if (node.allocated) {
+            status = "Allocated";
+            statusColor = sf::Color(130, 240, 150);
+        } else if (prerequisiteMet && world.player().talentPoints() > 0) {
+            status = "Available";
+            statusColor = sf::Color(220, 240, 255);
+        } else if (prerequisiteMet) {
+            status = "Need SP";
+            statusColor = sf::Color(230, 215, 150);
+        }
+
+        drawText(passiveBranchName(node.branch) + " / " + status,
+            {center.x - 350.0f, center.y + 218.0f}, 13, statusColor);
+        drawText(node.name + " - " + node.description,
+            {center.x - 350.0f, center.y + 238.0f}, 14, passiveBranchColor(node.branch));
+    } else {
+        drawText("Hover a node to inspect it",
+            {center.x - 350.0f, center.y + 232.0f}, 14, sf::Color(190, 200, 215));
     }
 }
 

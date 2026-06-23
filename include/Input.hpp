@@ -19,6 +19,7 @@ public:
     bool moveUp() const;
     bool moveDown() const;
     bool primaryFire() const;
+    bool leftMousePressed() const;
     bool primaryFireHeld() const;
     bool dash() const;
     bool nova() const;

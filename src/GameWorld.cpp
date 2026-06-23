@@ -43,6 +43,7 @@ GameWorld::GameWorld()
     , mapItemsPickedUp_(0)
     , nextMapOptionChosen_(false)
     , passiveTreeOpen_(false)
+    , hoveredPassiveNode_(-1)
     , nearbyEventPrompt_()
     , shrineBuffTimer_(0.0f)
     , mapEventInteractionConsumed_(false)
@@ -105,18 +106,26 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     shrineBuffTimer_ = std::max(0.0f, shrineBuffTimer_ - dt);
     nearbyEventPrompt_.clear();
     mapEventInteractionConsumed_ = false;
-    tryCastMovementSkill(input);
-    tryCastUtilitySkill(input);
-    tryCastSecondarySkill(input);
+
+    if (passiveTreeOpen_) {
+        updatePassiveTreeHover(input);
+        trySpendPassivePoint(input);
+    } else {
+        hoveredPassiveNode_ = -1;
+        tryCastMovementSkill(input);
+        tryCastUtilitySkill(input);
+        tryCastSecondarySkill(input);
+    }
+
     updateMapEvents(dt, input);
     if (!mapEventInteractionConsumed_) {
         tryPickupDroppedItem(input);
     }
-    trySpendPassivePoint(input);
+
     if (!passiveTreeOpen_) {
         tryEquipInventoryItem(input);
+        tryCastPrimarySkill(input);
     }
-    tryCastPrimarySkill(input);
 
     spawnEnemies(dt);
     updateObjects(dt);
@@ -177,6 +186,7 @@ void GameWorld::reset() {
     selectedNextMapOption_ = -1;
     mapModifier_ = currentMapOption_.modifier;
     passiveTreeOpen_ = false;
+    hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
     mapEventInteractionConsumed_ = false;
@@ -223,6 +233,7 @@ void GameWorld::startNextMap() {
     selectedNextMapOption_ = -1;
     mapModifier_ = currentMapOption_.modifier;
     passiveTreeOpen_ = false;
+    hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
     mapEventInteractionConsumed_ = false;
@@ -707,6 +718,13 @@ void GameWorld::trySpendPassivePoint(Input& input) {
         return;
     }
 
+    if (input.leftMousePressed() && hoveredPassiveNode_ >= 0) {
+        if (player_.spendPassivePoint(static_cast<std::size_t>(hoveredPassiveNode_))) {
+            skillBar_.applyStats(player_.stats());
+        }
+        return;
+    }
+
     const int choice = input.functionChoice() > 0
         ? input.functionChoice() + 10
         : input.numberChoice();
@@ -718,6 +736,14 @@ void GameWorld::trySpendPassivePoint(Input& input) {
     if (player_.spendPassivePoint(nodeIndex)) {
         skillBar_.applyStats(player_.stats());
     }
+}
+
+void GameWorld::updatePassiveTreeHover(const Input& input) {
+    const Vector2 treePosition(
+        static_cast<float>(input.mousePosition().x) - static_cast<float>(Config::WindowWidth) / 2.0f,
+        static_cast<float>(input.mousePosition().y) - static_cast<float>(Config::WindowHeight) / 2.0f
+    );
+    hoveredPassiveNode_ = player_.passiveTree().nodeAtPosition(treePosition, 19.0f);
 }
 
 void GameWorld::tryEquipInventoryItem(Input& input) {
@@ -940,6 +966,14 @@ Vector2 GameWorld::cameraTopLeft() const {
     };
 }
 bool GameWorld::passiveTreeOpen() const { return passiveTreeOpen_; }
+int GameWorld::hoveredPassiveNode() const { return hoveredPassiveNode_; }
+std::string GameWorld::passiveBuildSummary() const {
+    const auto& tree = player_.passiveTree();
+    return "Projectile " + std::to_string(tree.allocatedCount(PassiveBranch::Projectile))
+        + " / Area " + std::to_string(tree.allocatedCount(PassiveBranch::Area))
+        + " / Survival " + std::to_string(tree.allocatedCount(PassiveBranch::Survival))
+        + " / Loot " + std::to_string(tree.allocatedCount(PassiveBranch::Loot));
+}
 GameState GameWorld::state() const { return state_; }
 int GameWorld::score() const { return score_; }
 float GameWorld::survivalTime() const { return survivalTime_; }

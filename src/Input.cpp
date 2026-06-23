@@ -113,6 +113,7 @@ bool Input::moveRight() const { return moveRight_; }
 bool Input::moveUp() const { return moveUp_; }
 bool Input::moveDown() const { return moveDown_; }
 bool Input::primaryFire() const { return primaryFire_; }
+bool Input::leftMousePressed() const { return primaryFire_; }
 bool Input::primaryFireHeld() const { return primaryFireHeld_; }
 bool Input::dash() const { return dash_; }
 bool Input::nova() const { return nova_; }
