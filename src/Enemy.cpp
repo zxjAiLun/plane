@@ -6,6 +6,7 @@ Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type)
     : position_(position)
     , radius_(Config::EnemyRadius * EnemyLibrary::forType(type).radiusMultiplier)
     , hp_(hp)
+    , maxHp_(hp)
     , contactDamage_(contactDamage)
     , type_(type) {
 }
@@ -29,6 +30,8 @@ bool Enemy::isDead() const {
 
 const Vector2& Enemy::position() const { return position_; }
 float Enemy::radius() const { return radius_; }
+int Enemy::hp() const { return hp_; }
+int Enemy::maxHp() const { return maxHp_; }
 int Enemy::contactDamage() const { return contactDamage_; }
 EnemyType Enemy::type() const { return type_; }
 bool Enemy::isElite() const { return type_ == EnemyType::Elite || type_ == EnemyType::Boss; }

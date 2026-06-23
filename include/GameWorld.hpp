@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <array>
+#include <string>
 #include "BossDefinition.hpp"
 #include "Player.hpp"
 #include "Projectile.hpp"
@@ -58,6 +59,7 @@ public:
     const MapInstance& map() const;
     MapArea currentMapArea() const;
     float distanceToBoss() const;
+    std::string mapObjective() const;
     Vector2 cameraTopLeft() const;
     bool passiveTreeOpen() const;
 

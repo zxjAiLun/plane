@@ -158,6 +158,8 @@ void Renderer::render(const GameWorld& world) {
             : world.bossDefinition().name + " distance " + std::to_string(static_cast<int>(world.distanceToBoss()));
     drawText(bossLine,
         {16.0f, 174.0f}, 14, sf::Color(255, 190, 150));
+    drawText("Objective: " + world.mapObjective(),
+        {16.0f, 196.0f}, 14, sf::Color(210, 255, 210));
     drawText("P Passive Tree  |  Spend SP on nodes",
         {16.0f, 152.0f}, 14, sf::Color(210, 255, 210));
     const auto& stats = world.player().stats();
@@ -168,6 +170,8 @@ void Renderer::render(const GameWorld& world) {
     drawSkillBar(world);
     drawEquipment(world);
     drawInventory(world);
+    drawMinimap(world);
+    drawBossHealth(world);
     drawPassiveTree(world);
 
     switch (world.state()) {
@@ -512,12 +516,110 @@ void Renderer::drawPassiveTree(const GameWorld& world) {
             status = "No SP";
         }
 
-        drawText(std::to_string(i + 1) + ". " + node.name + " - " + node.description,
+        const std::string keyLabel = i < 9 ? std::to_string(i + 1)
+            : i == 9 ? "0"
+            : "F" + std::to_string(i - 9);
+        drawText(keyLabel + ". " + node.name + " - " + node.description,
             {center.x - 250.0f, y}, 13, color);
         drawText("[" + status + "]",
             {center.x + 190.0f, y}, 13, color);
         y += 22.0f;
     }
+}
+
+void Renderer::drawMinimap(const GameWorld& world) {
+    const sf::Vector2f size{150.0f, 112.0f};
+    const sf::Vector2f origin{
+        static_cast<float>(Config::WindowWidth) - size.x - 18.0f,
+        18.0f
+    };
+    const auto& map = world.map();
+    const Vector2 mapSize = map.size();
+    const float scaleX = size.x / mapSize.x;
+    const float scaleY = size.y / mapSize.y;
+
+    const auto toMinimap = [&](const Vector2& position) {
+        return sf::Vector2f{
+            origin.x + position.x * scaleX,
+            origin.y + position.y * scaleY
+        };
+    };
+
+    sf::RectangleShape background(size);
+    background.setPosition(origin);
+    background.setFillColor(sf::Color(10, 14, 18, 205));
+    background.setOutlineColor(sf::Color(180, 190, 200));
+    background.setOutlineThickness(1.0f);
+    window_.draw(background);
+
+    auto drawMapCircle = [&](const Vector2& center, float worldRadius, sf::Color color, float outline = 1.0f) {
+        const float radius = std::max(2.0f, worldRadius * std::min(scaleX, scaleY));
+        sf::CircleShape shape(radius);
+        shape.setOrigin({radius, radius});
+        shape.setPosition(toMinimap(center));
+        shape.setFillColor(sf::Color(color.r, color.g, color.b, 45));
+        shape.setOutlineColor(color);
+        shape.setOutlineThickness(outline);
+        window_.draw(shape);
+    };
+
+    drawMapCircle(map.playerStart(), Config::StartSafeRadius, sf::Color(80, 210, 120));
+    drawMapCircle(map.bossCenter(), Config::BossGateRadius, sf::Color(255, 190, 90));
+    drawMapCircle(map.bossCenter(), Config::BossArenaRadius, sf::Color(255, 80, 60), 1.5f);
+
+    sf::CircleShape bossDot(3.5f);
+    bossDot.setOrigin({3.5f, 3.5f});
+    bossDot.setPosition(toMinimap(map.bossCenter()));
+    bossDot.setFillColor(map.bossDefeated() ? sf::Color(120, 120, 120) : sf::Color(255, 80, 60));
+    window_.draw(bossDot);
+
+    sf::CircleShape playerDot(3.0f);
+    playerDot.setOrigin({3.0f, 3.0f});
+    playerDot.setPosition(toMinimap(world.player().position()));
+    playerDot.setFillColor(sf::Color(90, 180, 255));
+    window_.draw(playerDot);
+
+    drawText("Map " + std::to_string(world.mapLevel())
+        + "  " + std::to_string(static_cast<int>(map.progressToBoss(world.player().position()) * 100.0f)) + "%",
+        {origin.x, origin.y + size.y + 5.0f}, 11, sf::Color(210, 220, 230));
+}
+
+void Renderer::drawBossHealth(const GameWorld& world) {
+    const Enemy* boss = nullptr;
+    for (const auto& enemy : world.enemies()) {
+        if (enemy.isBoss() && !enemy.isDead()) {
+            boss = &enemy;
+            break;
+        }
+    }
+
+    if (!boss || boss->maxHp() <= 0) {
+        return;
+    }
+
+    const sf::Vector2f position{16.0f, 218.0f};
+    const sf::Vector2f size{260.0f, 12.0f};
+    const float ratio = std::clamp(
+        static_cast<float>(std::max(0, boss->hp())) / static_cast<float>(boss->maxHp()),
+        0.0f,
+        1.0f
+    );
+
+    drawText(world.bossDefinition().name + "  "
+        + std::to_string(std::max(0, boss->hp())) + "/" + std::to_string(boss->maxHp()),
+        {position.x, position.y - 18.0f}, 13, sf::Color(255, 210, 160));
+
+    sf::RectangleShape background(size);
+    background.setPosition(position);
+    background.setFillColor(sf::Color(60, 30, 28, 210));
+    background.setOutlineColor(sf::Color(255, 210, 160));
+    background.setOutlineThickness(1.0f);
+    window_.draw(background);
+
+    sf::RectangleShape fill({size.x * ratio, size.y});
+    fill.setPosition(position);
+    fill.setFillColor(sf::Color(220, 55, 45));
+    window_.draw(fill);
 }
 
 void Renderer::drawGameOver(const GameWorld& /*world*/) {

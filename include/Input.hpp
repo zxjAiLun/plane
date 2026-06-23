@@ -28,9 +28,8 @@ public:
     bool nextMap() const;
     bool restart() const;
     bool quit() const;
-    int passiveChoice() const;
-    int rewardChoice() const;
-    int inventoryChoice() const;
+    int numberChoice() const;
+    int functionChoice() const;
     sf::Vector2i mousePosition() const;
 
 private:
@@ -48,8 +47,7 @@ private:
     bool nextMap_ = false;
     bool restart_ = false;
     bool quit_ = false;
-    int passiveChoice_ = 0;
-    int rewardChoice_ = 0;
-    int inventoryChoice_ = 0;
+    int numberChoice_ = 0;
+    int functionChoice_ = 0;
     sf::Vector2i mousePosition_{0, 0};
 };

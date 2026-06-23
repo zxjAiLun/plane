@@ -15,6 +15,8 @@ public:
 
     const Vector2& position() const;
     float radius() const;
+    int hp() const;
+    int maxHp() const;
     int contactDamage() const;
     EnemyType type() const;
     bool isElite() const;
@@ -24,6 +26,7 @@ private:
     Vector2 position_;
     float radius_;
     int hp_;
+    int maxHp_;
     int contactDamage_;
     EnemyType type_;
 };

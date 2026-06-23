@@ -532,22 +532,29 @@ void GameWorld::tryPickupDroppedItem(Input& input) {
 }
 
 void GameWorld::trySpendPassivePoint(Input& input) {
-    if (!passiveTreeOpen_ || input.passiveChoice() <= 0) {
+    if (!passiveTreeOpen_) {
         return;
     }
 
-    const auto nodeIndex = static_cast<std::size_t>(input.passiveChoice() - 1);
+    const int choice = input.functionChoice() > 0
+        ? input.functionChoice() + 10
+        : input.numberChoice();
+    if (choice <= 0) {
+        return;
+    }
+
+    const auto nodeIndex = static_cast<std::size_t>(choice - 1);
     if (player_.spendPassivePoint(nodeIndex)) {
         skillBar_.applyStats(player_.stats());
     }
 }
 
 void GameWorld::tryEquipInventoryItem(Input& input) {
-    if (input.inventoryChoice() <= 0) {
+    if (input.numberChoice() <= 0) {
         return;
     }
 
-    const auto index = static_cast<std::size_t>(input.inventoryChoice() - 1);
+    const auto index = static_cast<std::size_t>(input.numberChoice() - 1);
     if (auto item = inventory_.take(index)) {
         if (auto replaced = player_.equipItem(std::move(*item))) {
             inventory_.add(std::move(*replaced));
@@ -557,11 +564,11 @@ void GameWorld::tryEquipInventoryItem(Input& input) {
 }
 
 void GameWorld::tryChooseMapReward(Input& input) {
-    if (mapRewardChosen_ || input.rewardChoice() <= 0) {
+    if (mapRewardChosen_ || input.numberChoice() <= 0) {
         return;
     }
 
-    applyMapReward(input.rewardChoice());
+    applyMapReward(input.numberChoice());
 }
 
 void GameWorld::applyMapReward(int rewardChoice) {
@@ -607,8 +614,17 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
     const int dropChance = std::min(100, static_cast<int>(
         Config::ItemDropChancePercent * mapModifier_.itemQuantityMultiplier
         * mapRewardItemQuantityBonus_ * eliteDropMultiplier));
-    if ((std::rand() % 100) < dropChance) {
-        droppedItems_.push_back(DroppedItem(enemy.position(), lootGenerator_.generate(mapLevel_)));
+
+    int dropsToCreate = (std::rand() % 100) < dropChance ? 1 : 0;
+    if (enemy.isBoss()) {
+        dropsToCreate = std::max(dropsToCreate, bossDefinition_->guaranteedDrops);
+    }
+
+    for (int i = 0; i < dropsToCreate; ++i) {
+        const float angle = static_cast<float>(i) * 2.39996323f;
+        const float radius = i == 0 ? 0.0f : 18.0f + static_cast<float>(i) * 4.0f;
+        const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
+        droppedItems_.push_back(DroppedItem(enemy.position() + offset, lootGenerator_.generate(mapLevel_)));
         ++mapItemsDropped_;
     }
 }
@@ -735,6 +751,30 @@ const SkillBar& GameWorld::skillBar() const { return skillBar_; }
 const MapInstance& GameWorld::map() const { return map_; }
 MapArea GameWorld::currentMapArea() const { return map_.areaForPlayer(player_.position()); }
 float GameWorld::distanceToBoss() const { return map_.distanceToBoss(player_.position()); }
+std::string GameWorld::mapObjective() const {
+    if (state_ == GameState::MapComplete || map_.bossDefeated()) {
+        return "Choose Reward";
+    }
+
+    if (map_.bossTriggered()) {
+        return "Defeat Boss";
+    }
+
+    switch (currentMapArea()) {
+        case MapArea::Start:
+            return "Explore the field";
+        case MapArea::BossGate:
+            return "Enter Boss Arena";
+        case MapArea::Field:
+            return "Reach Boss Gate";
+        case MapArea::BossArena:
+            return "Defeat Boss";
+        case MapArea::BossDefeated:
+            return "Choose Reward";
+    }
+
+    return "Explore the field";
+}
 Vector2 GameWorld::cameraTopLeft() const {
     const float viewportWidth = static_cast<float>(Config::WindowWidth);
     const float viewportHeight = static_cast<float>(Config::WindowHeight);

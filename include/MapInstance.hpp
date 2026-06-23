@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <string>
 
 #include "Config.hpp"
@@ -57,6 +58,15 @@ public:
 
     float distanceToBoss(const Vector2& playerPosition) const {
         return (bossCenter_ - playerPosition).length();
+    }
+
+    float progressToBoss(const Vector2& playerPosition) const {
+        const float totalDistance = (bossCenter_ - playerStart_).length();
+        if (totalDistance <= 0.0f) {
+            return 1.0f;
+        }
+
+        return std::clamp(1.0f - distanceToBoss(playerPosition) / totalDistance, 0.0f, 1.0f);
     }
 
 private:
