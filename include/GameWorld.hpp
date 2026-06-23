@@ -74,8 +74,10 @@ public:
     int mapExperienceGained() const;
     int mapItemsDropped() const;
     int mapItemsPickedUp() const;
-    bool mapRewardChosen() const;
-    float mapRewardItemQuantityBonus() const;
+    bool nextMapOptionChosen() const;
+    const MapOption& currentMapOption() const;
+    const std::array<MapOption, 3>& nextMapOptions() const;
+    int selectedNextMapOption() const;
 
 private:
     void startNextMap();
@@ -95,8 +97,8 @@ private:
     void tryPickupDroppedItem(Input& input);
     void trySpendPassivePoint(Input& input);
     void tryEquipInventoryItem(Input& input);
-    void tryChooseMapReward(Input& input);
-    void applyMapReward(int rewardChoice);
+    void tryChooseNextMapOption(Input& input);
+    void generateNextMapOptions();
     void rewardEnemyKill(const Enemy& enemy);
     void damagePlayer(int damage);
     const Enemy* activeBoss() const;
@@ -107,7 +109,6 @@ private:
     int enemyDamageForMap() const;
     bool shouldSpawnBoss() const;
     void triggerBossIfNeeded();
-    void generateMapModifier();
 
     float currentSpawnInterval() const;
 
@@ -141,12 +142,14 @@ private:
     int mapLevel_;
     int currentWave_;
     int enemiesSpawnedInWave_;
+    MapOption currentMapOption_;
+    std::array<MapOption, 3> nextMapOptions_;
+    int selectedNextMapOption_;
     MapModifier mapModifier_;
     int mapKills_;
     int mapExperienceGained_;
     int mapItemsDropped_;
     int mapItemsPickedUp_;
-    bool mapRewardChosen_;
-    float mapRewardItemQuantityBonus_;
+    bool nextMapOptionChosen_;
     bool passiveTreeOpen_;
 };

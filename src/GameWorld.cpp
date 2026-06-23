@@ -27,16 +27,17 @@ GameWorld::GameWorld()
     , mapLevel_(1)
     , currentWave_(0)
     , enemiesSpawnedInWave_(0)
-    , mapModifier_()
+    , currentMapOption_(MapOptionLibrary::defaultOption())
+    , nextMapOptions_(MapOptionLibrary::generateOptions(2))
+    , selectedNextMapOption_(-1)
+    , mapModifier_(currentMapOption_.modifier)
     , map_()
     , mapKills_(0)
     , mapExperienceGained_(0)
     , mapItemsDropped_(0)
     , mapItemsPickedUp_(0)
-    , mapRewardChosen_(false)
-    , mapRewardItemQuantityBonus_(1.0f)
+    , nextMapOptionChosen_(false)
     , passiveTreeOpen_(false) {
-    generateMapModifier();
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
     skillBar_.applyStats(player_.stats());
@@ -63,8 +64,8 @@ void GameWorld::update(float dt, Input& input) {
         case GameState::MapComplete:
             tryPickupDroppedItem(input);
             removeDeadObjects();
-            tryChooseMapReward(input);
-            if (mapRewardChosen_ && input.nextMap()) {
+            tryChooseNextMapOption(input);
+            if (nextMapOptionChosen_ && input.nextMap()) {
                 startNextMap();
             } else if (input.restart()) {
                 reset();
@@ -154,13 +155,19 @@ void GameWorld::reset() {
     mapExperienceGained_ = 0;
     mapItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
-    mapRewardChosen_ = false;
-    mapRewardItemQuantityBonus_ = 1.0f;
+    nextMapOptionChosen_ = false;
+    currentMapOption_ = MapOptionLibrary::defaultOption();
+    nextMapOptions_ = MapOptionLibrary::generateOptions(2);
+    selectedNextMapOption_ = -1;
+    mapModifier_ = currentMapOption_.modifier;
     passiveTreeOpen_ = false;
-    generateMapModifier();
 }
 
 void GameWorld::startNextMap() {
+    if (selectedNextMapOption_ >= 0 && selectedNextMapOption_ < static_cast<int>(nextMapOptions_.size())) {
+        currentMapOption_ = nextMapOptions_[static_cast<std::size_t>(selectedNextMapOption_)];
+    }
+
     ++mapLevel_;
     map_ = MapInstance();
     bossDefinition_ = &BossLibrary::forMapLevel(mapLevel_);
@@ -191,9 +198,10 @@ void GameWorld::startNextMap() {
     mapExperienceGained_ = 0;
     mapItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
-    mapRewardChosen_ = false;
+    nextMapOptionChosen_ = false;
+    selectedNextMapOption_ = -1;
+    mapModifier_ = currentMapOption_.modifier;
     passiveTreeOpen_ = false;
-    generateMapModifier();
 }
 
 void GameWorld::updateObjects(float dt) {
@@ -563,32 +571,24 @@ void GameWorld::tryEquipInventoryItem(Input& input) {
     }
 }
 
-void GameWorld::tryChooseMapReward(Input& input) {
-    if (mapRewardChosen_ || input.numberChoice() <= 0) {
+void GameWorld::tryChooseNextMapOption(Input& input) {
+    if (nextMapOptionChosen_ || input.numberChoice() <= 0) {
         return;
     }
 
-    applyMapReward(input.numberChoice());
+    const int optionIndex = input.numberChoice() - 1;
+    if (optionIndex < 0 || optionIndex >= static_cast<int>(nextMapOptions_.size())) {
+        return;
+    }
+
+    selectedNextMapOption_ = optionIndex;
+    nextMapOptionChosen_ = true;
 }
 
-void GameWorld::applyMapReward(int rewardChoice) {
-    switch (rewardChoice) {
-        case 1:
-            player_.applyUpgrade(UpgradeType::Damage);
-            skillBar_.applyStats(player_.stats());
-            mapRewardChosen_ = true;
-            break;
-        case 2:
-            player_.applyUpgrade(UpgradeType::MaxHp);
-            mapRewardChosen_ = true;
-            break;
-        case 3:
-            mapRewardItemQuantityBonus_ *= 1.25f;
-            mapRewardChosen_ = true;
-            break;
-        default:
-            break;
-    }
+void GameWorld::generateNextMapOptions() {
+    nextMapOptions_ = MapOptionLibrary::generateOptions(mapLevel_ + 1);
+    selectedNextMapOption_ = -1;
+    nextMapOptionChosen_ = false;
 }
 
 void GameWorld::rewardEnemyKill(const Enemy& enemy) {
@@ -600,6 +600,7 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         bossAoeTelegraphTimer_ = 0.0f;
         bossAoeEffectTimer_ = 0.0f;
         bossAoeSkill_ = BossSkillDefinition();
+        generateNextMapOptions();
     }
 
     ++mapKills_;
@@ -613,11 +614,11 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         : definition.dropMultiplier;
     const int dropChance = std::min(100, static_cast<int>(
         Config::ItemDropChancePercent * mapModifier_.itemQuantityMultiplier
-        * mapRewardItemQuantityBonus_ * eliteDropMultiplier));
+        * eliteDropMultiplier));
 
     int dropsToCreate = (std::rand() % 100) < dropChance ? 1 : 0;
     if (enemy.isBoss()) {
-        dropsToCreate = std::max(dropsToCreate, bossDefinition_->guaranteedDrops);
+        dropsToCreate = std::max(dropsToCreate, bossDefinition_->guaranteedDrops + mapModifier_.bossDropBonus);
     }
 
     for (int i = 0; i < dropsToCreate; ++i) {
@@ -696,20 +697,6 @@ void GameWorld::triggerBossIfNeeded() {
     enemies_.push_back(Enemy(map_.bossCenter(), hp, damage, EnemyType::Boss));
 }
 
-void GameWorld::generateMapModifier() {
-    switch (std::rand() % 3) {
-        case 0:
-            mapModifier_ = {"Monsters have +50% life", 1.5f, 0, 1.0f};
-            break;
-        case 1:
-            mapModifier_ = {"Monsters deal +1 damage", 1.0f, 1, 1.0f};
-            break;
-        case 2:
-            mapModifier_ = {"Items drop 50% more often", 1.0f, 0, 1.5f};
-            break;
-    }
-}
-
 const Player& GameWorld::player() const { return player_; }
 const std::vector<Projectile>& GameWorld::projectiles() const { return projectiles_; }
 const std::vector<BossProjectile>& GameWorld::bossProjectiles() const { return bossProjectiles_; }
@@ -753,7 +740,7 @@ MapArea GameWorld::currentMapArea() const { return map_.areaForPlayer(player_.po
 float GameWorld::distanceToBoss() const { return map_.distanceToBoss(player_.position()); }
 std::string GameWorld::mapObjective() const {
     if (state_ == GameState::MapComplete || map_.bossDefeated()) {
-        return "Choose Reward";
+        return "Choose Next Map";
     }
 
     if (map_.bossTriggered()) {
@@ -770,7 +757,7 @@ std::string GameWorld::mapObjective() const {
         case MapArea::BossArena:
             return "Defeat Boss";
         case MapArea::BossDefeated:
-            return "Choose Reward";
+            return "Choose Next Map";
     }
 
     return "Explore the field";
@@ -799,8 +786,10 @@ int GameWorld::mapKills() const { return mapKills_; }
 int GameWorld::mapExperienceGained() const { return mapExperienceGained_; }
 int GameWorld::mapItemsDropped() const { return mapItemsDropped_; }
 int GameWorld::mapItemsPickedUp() const { return mapItemsPickedUp_; }
-bool GameWorld::mapRewardChosen() const { return mapRewardChosen_; }
-float GameWorld::mapRewardItemQuantityBonus() const { return mapRewardItemQuantityBonus_; }
+bool GameWorld::nextMapOptionChosen() const { return nextMapOptionChosen_; }
+const MapOption& GameWorld::currentMapOption() const { return currentMapOption_; }
+const std::array<MapOption, 3>& GameWorld::nextMapOptions() const { return nextMapOptions_; }
+int GameWorld::selectedNextMapOption() const { return selectedNextMapOption_; }
 
 float GameWorld::currentSpawnInterval() const {
     constexpr float startInterval = Config::EnemySpawnInterval;

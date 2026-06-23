@@ -101,6 +101,14 @@ sf::Color deltaColor(const Stats& delta) {
     }
     return sf::Color(230, 220, 150);
 }
+
+std::string mapOptionSummary(const MapOption& option) {
+    const auto& modifier = option.modifier;
+    return "HP +" + std::to_string(multiplierPercent(modifier.monsterHpMultiplier))
+        + "%  DMG +" + std::to_string(modifier.monsterDamageBonus)
+        + "  IQ +" + std::to_string(multiplierPercent(modifier.itemQuantityMultiplier))
+        + "%  Boss +" + std::to_string(modifier.bossDropBonus);
+}
 }
 
 Renderer::Renderer(sf::RenderWindow& window)
@@ -145,11 +153,11 @@ void Renderer::render(const GameWorld& world) {
     drawText("TIME " + std::to_string(static_cast<int>(world.survivalTime()))
         + "  SCORE " + std::to_string(world.score()),
         {16.0f, 60.0f}, 18, sf::Color::White);
-    drawText("MAP " + std::to_string(world.mapLevel())
+    drawText("MAP " + std::to_string(world.mapLevel()) + "  " + world.currentMapOption().modifier.name
         + "  AREA " + mapAreaName(world.currentMapArea())
         + "  ENEMIES " + std::to_string(world.enemiesRemainingInWave()),
         {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));
-    drawText(world.mapModifier().description,
+    drawText(world.mapModifier().description + "  |  " + mapOptionSummary(world.currentMapOption()),
         {16.0f, 130.0f}, 14, sf::Color(255, 220, 150));
     const std::string bossLine = world.map().bossDefeated()
         ? "Boss defeated: " + world.bossDefinition().name
@@ -647,7 +655,8 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     window_.draw(overlay);
 
     drawBox({center.x, center.y - 84.0f}, {360.0f, 90.0f}, sf::Color::Green);
-    drawCenteredText("BOSS DEFEATED", {center.x, center.y - 110.0f}, 28, sf::Color::White);
+    drawCenteredText("BOSS DEFEATED: " + world.bossDefinition().name,
+        {center.x, center.y - 110.0f}, 22, sf::Color::White);
     drawCenteredText("Kills " + std::to_string(world.mapKills())
         + "  XP " + std::to_string(world.mapExperienceGained()),
         {center.x, center.y - 76.0f}, 16, sf::Color::White);
@@ -655,18 +664,31 @@ void Renderer::drawMapComplete(const GameWorld& world) {
         + "  Picked " + std::to_string(world.mapItemsPickedUp()),
         {center.x, center.y - 52.0f}, 16, sf::Color::White);
 
-    drawCenteredText("Choose Reward", {center.x, center.y - 12.0f}, 18, sf::Color::White);
-    drawText("1. +20% Damage", {center.x - 150.0f, center.y + 14.0f}, 15, sf::Color(220, 240, 255));
-    drawText("2. +1 Max HP", {center.x - 150.0f, center.y + 36.0f}, 15, sf::Color(220, 240, 255));
-    drawText("3. +25% Future Drops", {center.x - 150.0f, center.y + 58.0f}, 15, sf::Color(220, 240, 255));
+    drawCenteredText("Choose Next Map", {center.x, center.y - 12.0f}, 18, sf::Color::White);
+    const auto& options = world.nextMapOptions();
+    float optionY = center.y + 12.0f;
+    for (std::size_t i = 0; i < options.size(); ++i) {
+        const bool selected = world.selectedNextMapOption() == static_cast<int>(i);
+        const auto& option = options[i];
+        const sf::Color color = selected ? sf::Color(140, 255, 160) : sf::Color(220, 240, 255);
+        const std::string marker = selected ? "> " : "  ";
+        drawText(marker + std::to_string(i + 1) + ". " + option.modifier.name + " - " + option.recommendedLevel,
+            {center.x - 235.0f, optionY}, 14, color);
+        drawText("     " + option.modifier.description,
+            {center.x - 235.0f, optionY + 17.0f}, 12, sf::Color(230, 220, 170));
+        drawText("     " + mapOptionSummary(option) + "  |  " + option.rewardDescription,
+            {center.x - 235.0f, optionY + 32.0f}, 12, sf::Color(200, 220, 245));
+        optionY += 54.0f;
+    }
 
-    drawBox({center.x, center.y + 104.0f}, {320.0f, 40.0f}, sf::Color::White);
-    if (world.mapRewardChosen()) {
-        drawCenteredText("E Enter Map " + std::to_string(world.mapLevel() + 1) + " / R Restart",
-            {center.x, center.y + 97.0f}, 17, sf::Color::Black);
+    drawBox({center.x, center.y + 198.0f}, {360.0f, 40.0f}, sf::Color::White);
+    if (world.nextMapOptionChosen()) {
+        const auto& selected = options[static_cast<std::size_t>(world.selectedNextMapOption())];
+        drawCenteredText("E Enter " + selected.modifier.name + " / R Restart",
+            {center.x, center.y + 191.0f}, 16, sf::Color::Black);
     } else {
-        drawCenteredText("Pick 1 / 2 / 3 reward first",
-            {center.x, center.y + 97.0f}, 17, sf::Color::Black);
+        drawCenteredText("Pick 1 / 2 / 3 next map first",
+            {center.x, center.y + 191.0f}, 16, sf::Color::Black);
     }
 }
 
