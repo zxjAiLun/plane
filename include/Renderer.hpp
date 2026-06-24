@@ -25,6 +25,7 @@ private:
     void drawEquipment(const GameWorld& world);
     void drawInventory(const GameWorld& world);
     void drawPassiveTree(const GameWorld& world);
+    void drawSkillPanel(const GameWorld& world);
     void drawMinimap(const GameWorld& world);
     void drawBossHealth(const GameWorld& world);
     void drawGameOver(const GameWorld& world);

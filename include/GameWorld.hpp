@@ -62,6 +62,7 @@ public:
     std::string mapObjective() const;
     Vector2 cameraTopLeft() const;
     bool passiveTreeOpen() const;
+    bool skillPanelOpen() const;
     int hoveredPassiveNode() const;
     std::string passiveBuildSummary() const;
 
@@ -111,6 +112,7 @@ private:
     void tryPickupDroppedItem(Input& input);
     void trySpendPassivePoint(Input& input);
     void updatePassiveTreeHover(const Input& input);
+    void tryAssignSkill(Input& input);
     void tryEquipInventoryItem(Input& input);
     void tryChooseNextMapOption(Input& input);
     void generateNextMapOptions();
@@ -167,6 +169,7 @@ private:
     int mapItemsPickedUp_;
     bool nextMapOptionChosen_;
     bool passiveTreeOpen_;
+    bool skillPanelOpen_;
     int hoveredPassiveNode_;
     std::string nearbyEventPrompt_;
     float shrineBuffTimer_;

@@ -8,6 +8,7 @@ void Input::update() {
     secondarySkill_ = false;
     pickup_ = false;
     passiveTreeToggle_ = false;
+    skillPanelToggle_ = false;
     nextMap_ = false;
     numberChoice_ = 0;
     functionChoice_ = 0;
@@ -27,6 +28,7 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::Q:     nova_ = true; break;
         case sf::Keyboard::Key::F:     pickup_ = true; break;
         case sf::Keyboard::Key::P:     passiveTreeToggle_ = true; break;
+        case sf::Keyboard::Key::K:     skillPanelToggle_ = true; break;
         case sf::Keyboard::Key::E:     nextMap_ = true; break;
         case sf::Keyboard::Key::R:     restart_ = true; break;
         case sf::Keyboard::Key::Escape: quit_ = true; break;
@@ -120,6 +122,7 @@ bool Input::nova() const { return nova_; }
 bool Input::secondarySkill() const { return secondarySkill_; }
 bool Input::pickup() const { return pickup_; }
 bool Input::passiveTreeToggle() const { return passiveTreeToggle_; }
+bool Input::skillPanelToggle() const { return skillPanelToggle_; }
 bool Input::nextMap() const { return nextMap_; }
 bool Input::restart() const { return restart_; }
 bool Input::quit() const { return quit_; }

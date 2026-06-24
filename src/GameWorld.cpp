@@ -43,6 +43,7 @@ GameWorld::GameWorld()
     , mapItemsPickedUp_(0)
     , nextMapOptionChosen_(false)
     , passiveTreeOpen_(false)
+    , skillPanelOpen_(false)
     , hoveredPassiveNode_(-1)
     , nearbyEventPrompt_()
     , shrineBuffTimer_(0.0f)
@@ -90,6 +91,17 @@ void GameWorld::update(float dt, Input& input) {
 void GameWorld::updatePlaying(float dt, Input& input) {
     if (input.passiveTreeToggle()) {
         passiveTreeOpen_ = !passiveTreeOpen_;
+        if (passiveTreeOpen_) {
+            skillPanelOpen_ = false;
+        }
+    }
+
+    if (input.skillPanelToggle()) {
+        skillPanelOpen_ = !skillPanelOpen_;
+        if (skillPanelOpen_) {
+            passiveTreeOpen_ = false;
+            hoveredPassiveNode_ = -1;
+        }
     }
 
     if (input.moveLeft()) player_.moveLeft(dt);
@@ -110,6 +122,9 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     if (passiveTreeOpen_) {
         updatePassiveTreeHover(input);
         trySpendPassivePoint(input);
+    } else if (skillPanelOpen_) {
+        hoveredPassiveNode_ = -1;
+        tryAssignSkill(input);
     } else {
         hoveredPassiveNode_ = -1;
         tryCastMovementSkill(input);
@@ -122,7 +137,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
         tryPickupDroppedItem(input);
     }
 
-    if (!passiveTreeOpen_) {
+    if (!passiveTreeOpen_ && !skillPanelOpen_) {
         tryEquipInventoryItem(input);
         tryCastPrimarySkill(input);
     }
@@ -186,6 +201,7 @@ void GameWorld::reset() {
     selectedNextMapOption_ = -1;
     mapModifier_ = currentMapOption_.modifier;
     passiveTreeOpen_ = false;
+    skillPanelOpen_ = false;
     hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
@@ -233,6 +249,7 @@ void GameWorld::startNextMap() {
     selectedNextMapOption_ = -1;
     mapModifier_ = currentMapOption_.modifier;
     passiveTreeOpen_ = false;
+    skillPanelOpen_ = false;
     hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
@@ -767,6 +784,23 @@ void GameWorld::updatePassiveTreeHover(const Input& input) {
     hoveredPassiveNode_ = player_.passiveTree().nodeAtPosition(treePosition, 19.0f);
 }
 
+void GameWorld::tryAssignSkill(Input& input) {
+    if (!skillPanelOpen_ || input.numberChoice() <= 0) {
+        return;
+    }
+
+    const auto& skills = SkillLibrary::all();
+    const auto index = static_cast<std::size_t>(input.numberChoice() - 1);
+    if (index >= skills.size()) {
+        return;
+    }
+
+    const auto& skill = skills[index];
+    if (skillBar_.assignSkill(skill.slot, skill.name)) {
+        skillBar_.applyStats(player_.stats());
+    }
+}
+
 void GameWorld::tryEquipInventoryItem(Input& input) {
     if (input.numberChoice() <= 0) {
         return;
@@ -987,6 +1021,7 @@ Vector2 GameWorld::cameraTopLeft() const {
     };
 }
 bool GameWorld::passiveTreeOpen() const { return passiveTreeOpen_; }
+bool GameWorld::skillPanelOpen() const { return skillPanelOpen_; }
 int GameWorld::hoveredPassiveNode() const { return hoveredPassiveNode_; }
 std::string GameWorld::passiveBuildSummary() const {
     const auto& tree = player_.passiveTree();

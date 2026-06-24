@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <iomanip>
+#include <sstream>
 
 namespace {
 sf::Color rarityColor(Rarity rarity) {
@@ -162,6 +164,40 @@ std::string passiveKeyLabel(std::size_t index) {
     return "F" + std::to_string(index - 9);
 }
 
+std::string skillSlotName(SkillSlot slot) {
+    switch (slot) {
+        case SkillSlot::Primary: return "Primary";
+        case SkillSlot::Secondary: return "Secondary";
+        case SkillSlot::Utility: return "Utility";
+        case SkillSlot::Movement: return "Movement";
+        case SkillSlot::Count: break;
+    }
+    return "Unknown";
+}
+
+std::string skillCastTypeName(SkillCastType type) {
+    switch (type) {
+        case SkillCastType::Projectile: return "Projectile";
+        case SkillCastType::SelfCenteredArea: return "Self Area";
+        case SkillCastType::MouseTargetedArea: return "Mouse Area";
+        case SkillCastType::Dash: return "Dash";
+    }
+    return "Unknown";
+}
+
+std::string formatFloat(float value, int precision = 1) {
+    std::ostringstream stream;
+    stream << std::fixed << std::setprecision(precision) << value;
+    return stream.str();
+}
+
+std::string skillSummary(const SkillDefinition& skill) {
+    return skillSlotName(skill.slot) + " / " + skillCastTypeName(skill.castType)
+        + "  DMG " + std::to_string(skill.baseDamage)
+        + "  R " + std::to_string(static_cast<int>(skill.radius))
+        + "  CD " + formatFloat(skill.cooldown, 2);
+}
+
 std::string mapOptionSummary(const MapOption& option) {
     const auto& modifier = option.modifier;
     return "HP +" + std::to_string(multiplierPercent(modifier.monsterHpMultiplier))
@@ -250,7 +286,7 @@ void Renderer::render(const GameWorld& world) {
             + std::to_string(static_cast<int>(world.shrineBuffTimeRemaining() + 0.99f)) + "s",
             {16.0f, 236.0f}, 14, sf::Color(100, 240, 240));
     }
-    drawText("Build: " + world.passiveBuildSummary() + "  |  P Passive Tree",
+    drawText("Build: " + world.passiveBuildSummary() + "  |  P Passive Tree  |  K Skills",
         {16.0f, 152.0f}, 14, sf::Color(210, 255, 210));
     const auto& stats = world.player().stats();
     drawText("DMG +" + std::to_string(multiplierPercent(stats.damageMultiplier))
@@ -266,6 +302,7 @@ void Renderer::render(const GameWorld& world) {
     drawMinimap(world);
     drawBossHealth(world);
     drawPassiveTree(world);
+    drawSkillPanel(world);
 
     switch (world.state()) {
         case GameState::GameOver:
@@ -681,6 +718,59 @@ void Renderer::drawPassiveTree(const GameWorld& world) {
     } else {
         drawText("Hover a node to inspect it",
             {center.x - 350.0f, center.y + 232.0f}, 14, sf::Color(190, 200, 215));
+    }
+}
+
+void Renderer::drawSkillPanel(const GameWorld& world) {
+    if (!world.skillPanelOpen()) {
+        return;
+    }
+
+    const float width = static_cast<float>(Config::WindowWidth);
+    const float height = static_cast<float>(Config::WindowHeight);
+    const sf::Vector2f center{width / 2.0f, height / 2.0f};
+
+    sf::RectangleShape overlay({width, height});
+    overlay.setFillColor(sf::Color(0, 0, 0, 145));
+    window_.draw(overlay);
+
+    drawBox({center.x, center.y}, {620.0f, 440.0f}, sf::Color(24, 30, 40));
+    drawCenteredText("Skill Panel", {center.x, center.y - 196.0f}, 24, sf::Color::White);
+    drawCenteredText("1-8 assign skill  |  K close",
+        {center.x, center.y - 168.0f}, 14, sf::Color(210, 230, 255));
+
+    const SkillSlot slots[] = {
+        SkillSlot::Primary,
+        SkillSlot::Secondary,
+        SkillSlot::Utility,
+        SkillSlot::Movement
+    };
+
+    float y = center.y - 132.0f;
+    drawText("Equipped", {center.x - 280.0f, y}, 16, sf::Color::White);
+    y += 24.0f;
+    for (const auto slot : slots) {
+        const auto& skill = world.skillBar().definition(slot);
+        drawText(skillSlotName(slot) + ": " + skill.name,
+            {center.x - 280.0f, y}, 13, sf::Color(180, 230, 255));
+        y += 20.0f;
+    }
+
+    y += 16.0f;
+    drawText("Available Skills", {center.x - 280.0f, y}, 16, sf::Color::White);
+    y += 24.0f;
+
+    const auto& skills = SkillLibrary::all();
+    for (std::size_t i = 0; i < skills.size(); ++i) {
+        const auto& skill = skills[i];
+        const bool equipped = world.skillBar().definition(skill.slot).name == skill.name;
+        const sf::Color color = equipped ? sf::Color(135, 245, 155) : sf::Color(220, 230, 240);
+        const std::string marker = equipped ? "> " : "  ";
+        drawText(marker + std::to_string(i + 1) + ". " + skill.name,
+            {center.x - 280.0f, y}, 14, color);
+        drawText("     " + skillSummary(skill),
+            {center.x - 280.0f, y + 17.0f}, 12, sf::Color(190, 205, 220));
+        y += 38.0f;
     }
 }
 
