@@ -736,7 +736,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
 
     drawBox({center.x, center.y}, {620.0f, 440.0f}, sf::Color(24, 30, 40));
     drawCenteredText("Skill Panel", {center.x, center.y - 196.0f}, 24, sf::Color::White);
-    drawCenteredText("1-8 assign skill  |  K close",
+    drawCenteredText("1-8 assign unlocked skill  |  K close",
         {center.x, center.y - 168.0f}, 14, sf::Color(210, 230, 255));
 
     const SkillSlot slots[] = {
@@ -764,12 +764,17 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
     for (std::size_t i = 0; i < skills.size(); ++i) {
         const auto& skill = skills[i];
         const bool equipped = world.skillBar().definition(skill.slot).name == skill.name;
-        const sf::Color color = equipped ? sf::Color(135, 245, 155) : sf::Color(220, 230, 240);
+        const bool unlocked = world.isSkillUnlocked(skill.name);
+        const sf::Color color = !unlocked ? sf::Color(130, 135, 145)
+            : equipped ? sf::Color(135, 245, 155)
+            : sf::Color(220, 230, 240);
+        const std::string state = equipped ? "Equipped" : unlocked ? "Available" : "Locked";
         const std::string marker = equipped ? "> " : "  ";
-        drawText(marker + std::to_string(i + 1) + ". " + skill.name,
+        drawText(marker + std::to_string(i + 1) + ". " + skill.name + " [" + state + "]",
             {center.x - 280.0f, y}, 14, color);
         drawText("     " + skillSummary(skill),
-            {center.x - 280.0f, y + 17.0f}, 12, sf::Color(190, 205, 220));
+            {center.x - 280.0f, y + 17.0f}, 12,
+            unlocked ? sf::Color(190, 205, 220) : sf::Color(105, 112, 122));
         y += 38.0f;
     }
 }
@@ -914,26 +919,47 @@ void Renderer::drawMapComplete(const GameWorld& world) {
         + "/" + std::to_string(world.mapEventsTotal()),
         {center.x, center.y - 30.0f}, 16, sf::Color::White);
 
-    drawCenteredText("Choose Next Map", {center.x, center.y - 2.0f}, 18, sf::Color::White);
-    const auto& options = world.nextMapOptions();
-    float optionY = center.y + 22.0f;
-    for (std::size_t i = 0; i < options.size(); ++i) {
-        const bool selected = world.selectedNextMapOption() == static_cast<int>(i);
-        const auto& option = options[i];
-        const sf::Color color = selected ? sf::Color(140, 255, 160) : sf::Color(220, 240, 255);
-        const std::string marker = selected ? "> " : "  ";
-        drawText(marker + std::to_string(i + 1) + ". " + option.modifier.name + " - " + option.recommendedLevel,
-            {center.x - 235.0f, optionY}, 14, color);
-        drawText("     " + option.modifier.description,
-            {center.x - 235.0f, optionY + 17.0f}, 12, sf::Color(230, 220, 170));
-        drawText("     " + mapOptionSummary(option) + "  |  " + option.rewardDescription,
-            {center.x - 235.0f, optionY + 32.0f}, 12, sf::Color(200, 220, 245));
-        optionY += 54.0f;
+    const auto& mapOptions = world.nextMapOptions();
+    if (!world.mapRewardChosen()) {
+        drawCenteredText("Choose Reward", {center.x, center.y - 2.0f}, 18, sf::Color::White);
+        const auto& rewards = world.mapRewardOptions();
+        float optionY = center.y + 26.0f;
+        for (std::size_t i = 0; i < rewards.size(); ++i) {
+            const auto& reward = rewards[i];
+            drawText(std::to_string(i + 1) + ". " + reward.title,
+                {center.x - 235.0f, optionY}, 15, sf::Color(220, 245, 255));
+            drawText("     " + reward.description,
+                {center.x - 235.0f, optionY + 19.0f}, 12, sf::Color(230, 220, 170));
+            optionY += 50.0f;
+        }
+    } else {
+        const auto selectedReward = static_cast<std::size_t>(world.selectedMapRewardOption());
+        const auto& reward = world.mapRewardOptions()[selectedReward];
+        drawCenteredText("Reward: " + reward.title,
+            {center.x, center.y - 4.0f}, 16, sf::Color(150, 255, 175));
+        drawCenteredText("Choose Next Map", {center.x, center.y + 22.0f}, 18, sf::Color::White);
+        float optionY = center.y + 48.0f;
+        for (std::size_t i = 0; i < mapOptions.size(); ++i) {
+            const bool selected = world.selectedNextMapOption() == static_cast<int>(i);
+            const auto& option = mapOptions[i];
+            const sf::Color color = selected ? sf::Color(140, 255, 160) : sf::Color(220, 240, 255);
+            const std::string marker = selected ? "> " : "  ";
+            drawText(marker + std::to_string(i + 1) + ". " + option.modifier.name + " - " + option.recommendedLevel,
+                {center.x - 235.0f, optionY}, 14, color);
+            drawText("     " + option.modifier.description,
+                {center.x - 235.0f, optionY + 17.0f}, 12, sf::Color(230, 220, 170));
+            drawText("     " + mapOptionSummary(option) + "  |  " + option.rewardDescription,
+                {center.x - 235.0f, optionY + 32.0f}, 12, sf::Color(200, 220, 245));
+            optionY += 50.0f;
+        }
     }
 
     drawBox({center.x, center.y + 198.0f}, {360.0f, 40.0f}, sf::Color::White);
-    if (world.nextMapOptionChosen()) {
-        const auto& selected = options[static_cast<std::size_t>(world.selectedNextMapOption())];
+    if (!world.mapRewardChosen()) {
+        drawCenteredText("Pick 1 / 2 / 3 reward first",
+            {center.x, center.y + 191.0f}, 16, sf::Color::Black);
+    } else if (world.nextMapOptionChosen()) {
+        const auto& selected = mapOptions[static_cast<std::size_t>(world.selectedNextMapOption())];
         drawCenteredText("E Enter " + selected.modifier.name + " / R Restart",
             {center.x, center.y + 191.0f}, 16, sf::Color::Black);
     } else {

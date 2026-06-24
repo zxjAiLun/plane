@@ -7,14 +7,40 @@
 #include <cmath>
 #include <cstdlib>
 #include <utility>
+#include <vector>
 
 namespace {
 constexpr float ShrineBuffDuration = 20.0f;
 constexpr float ShrineDamageMultiplier = 1.35f;
+
+std::string skillSlotLabel(SkillSlot slot) {
+    switch (slot) {
+        case SkillSlot::Primary: return "Primary";
+        case SkillSlot::Secondary: return "Secondary";
+        case SkillSlot::Utility: return "Utility";
+        case SkillSlot::Movement: return "Movement";
+        case SkillSlot::Count: break;
+    }
+
+    return "Unknown";
+}
+
+std::string skillTypeLabel(SkillCastType type) {
+    switch (type) {
+        case SkillCastType::Projectile: return "Projectile";
+        case SkillCastType::SelfCenteredArea: return "Self-centered area";
+        case SkillCastType::MouseTargetedArea: return "Mouse-targeted area";
+        case SkillCastType::Dash: return "Movement";
+    }
+
+    return "Unknown";
+}
 }
 
 GameWorld::GameWorld()
-    : state_(GameState::Playing)
+    : map_()
+    , unlockedSkills_()
+    , state_(GameState::Playing)
     , score_(0)
     , survivalTime_(0.0f)
     , aimPosition_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
@@ -35,12 +61,15 @@ GameWorld::GameWorld()
     , currentMapOption_(MapOptionLibrary::defaultOption())
     , nextMapOptions_(MapOptionLibrary::generateOptions(2))
     , selectedNextMapOption_(-1)
+    , mapRewardOptions_()
+    , selectedMapRewardOption_(-1)
     , mapModifier_(currentMapOption_.modifier)
-    , map_()
+    , itemQuantityRewardMultiplier_(1.0f)
     , mapKills_(0)
     , mapExperienceGained_(0)
     , mapItemsDropped_(0)
     , mapItemsPickedUp_(0)
+    , mapRewardChosen_(false)
     , nextMapOptionChosen_(false)
     , passiveTreeOpen_(false)
     , skillPanelOpen_(false)
@@ -50,6 +79,7 @@ GameWorld::GameWorld()
     , mapEventInteractionConsumed_(false)
     , activeEliteEventIndex_(-1)
     , eliteEventEnemiesRemaining_(0) {
+    initializeUnlockedSkills();
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
     skillBar_.applyStats(player_.stats());
@@ -76,8 +106,12 @@ void GameWorld::update(float dt, Input& input) {
         case GameState::MapComplete:
             tryPickupDroppedItem(input);
             removeDeadObjects();
-            tryChooseNextMapOption(input);
-            if (nextMapOptionChosen_ && input.nextMap()) {
+            if (!mapRewardChosen_) {
+                tryChooseMapReward(input);
+            } else {
+                tryChooseNextMapOption(input);
+            }
+            if (mapRewardChosen_ && nextMapOptionChosen_ && input.nextMap()) {
                 startNextMap();
             } else if (input.restart()) {
                 reset();
@@ -174,6 +208,7 @@ void GameWorld::reset() {
     inventory_.clear();
     spawner_.reset();
     skillBar_.reset();
+    initializeUnlockedSkills();
     skillBar_.applyStats(player_.stats());
     state_ = GameState::Playing;
     score_ = 0;
@@ -196,10 +231,14 @@ void GameWorld::reset() {
     mapItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
     nextMapOptionChosen_ = false;
+    mapRewardChosen_ = false;
     currentMapOption_ = MapOptionLibrary::defaultOption();
     nextMapOptions_ = MapOptionLibrary::generateOptions(2);
     selectedNextMapOption_ = -1;
+    mapRewardOptions_ = {};
+    selectedMapRewardOption_ = -1;
     mapModifier_ = currentMapOption_.modifier;
+    itemQuantityRewardMultiplier_ = 1.0f;
     passiveTreeOpen_ = false;
     skillPanelOpen_ = false;
     hoveredPassiveNode_ = -1;
@@ -238,16 +277,19 @@ void GameWorld::startNextMap() {
     enemies_.clear();
     droppedItems_.clear();
     spawner_.reset();
-    skillBar_.reset();
     skillBar_.applyStats(player_.stats());
     state_ = GameState::Playing;
     mapKills_ = 0;
     mapExperienceGained_ = 0;
     mapItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
+    mapRewardChosen_ = false;
     nextMapOptionChosen_ = false;
     selectedNextMapOption_ = -1;
+    mapRewardOptions_ = {};
+    selectedMapRewardOption_ = -1;
     mapModifier_ = currentMapOption_.modifier;
+    mapModifier_.itemQuantityMultiplier *= itemQuantityRewardMultiplier_;
     passiveTreeOpen_ = false;
     skillPanelOpen_ = false;
     hoveredPassiveNode_ = -1;
@@ -796,6 +838,10 @@ void GameWorld::tryAssignSkill(Input& input) {
     }
 
     const auto& skill = skills[index];
+    if (!isSkillUnlocked(skill.name)) {
+        return;
+    }
+
     if (skillBar_.assignSkill(skill.slot, skill.name)) {
         skillBar_.applyStats(player_.stats());
     }
@@ -829,10 +875,117 @@ void GameWorld::tryChooseNextMapOption(Input& input) {
     nextMapOptionChosen_ = true;
 }
 
+void GameWorld::tryChooseMapReward(Input& input) {
+    if (mapRewardChosen_ || input.numberChoice() <= 0) {
+        return;
+    }
+
+    const int optionIndex = input.numberChoice() - 1;
+    if (optionIndex < 0 || optionIndex >= static_cast<int>(mapRewardOptions_.size())) {
+        return;
+    }
+
+    selectedMapRewardOption_ = optionIndex;
+    applyMapReward(mapRewardOptions_[static_cast<std::size_t>(optionIndex)]);
+    mapRewardChosen_ = true;
+}
+
+void GameWorld::applyMapReward(const MapRewardOption& reward) {
+    switch (reward.type) {
+        case MapRewardType::UnlockSkill:
+            if (!reward.skillName.empty()) {
+                unlockedSkills_.insert(reward.skillName);
+            }
+            break;
+        case MapRewardType::Damage:
+            player_.applyUpgrade(UpgradeType::Damage);
+            break;
+        case MapRewardType::MaxHp:
+            player_.applyUpgrade(UpgradeType::MaxHp);
+            break;
+        case MapRewardType::ItemQuantity:
+            itemQuantityRewardMultiplier_ *= reward.itemQuantityMultiplierBonus;
+            mapModifier_.itemQuantityMultiplier *= reward.itemQuantityMultiplierBonus;
+            break;
+    }
+
+    skillBar_.applyStats(player_.stats());
+}
+
+void GameWorld::generateMapRewardOptions() {
+    std::vector<const SkillDefinition*> lockedSkills;
+    for (const auto& skill : SkillLibrary::all()) {
+        if (!isSkillUnlocked(skill.name)) {
+            lockedSkills.push_back(&skill);
+        }
+    }
+
+    std::array<MapRewardOption, 3> rewards{};
+    std::size_t rewardIndex = 0;
+    while (rewardIndex < rewards.size() && !lockedSkills.empty()) {
+        const auto randomIndex = static_cast<std::size_t>(std::rand()) % lockedSkills.size();
+        const SkillDefinition& skill = *lockedSkills[randomIndex];
+        rewards[rewardIndex] = {
+            MapRewardType::UnlockSkill,
+            "Unlock " + skill.name,
+            skillSlotLabel(skill.slot) + " / " + skillTypeLabel(skill.castType)
+                + "  DMG " + std::to_string(skill.baseDamage)
+                + "  CD " + std::to_string(static_cast<int>(skill.cooldown * 1000.0f)) + "ms",
+            skill.name,
+            1.0f
+        };
+        lockedSkills.erase(lockedSkills.begin() + randomIndex);
+        ++rewardIndex;
+    }
+
+    const MapRewardOption fallbackRewards[] = {
+        {
+            MapRewardType::Damage,
+            "+20% Global Damage",
+            "Permanent character damage bonus",
+            "",
+            1.0f
+        },
+        {
+            MapRewardType::MaxHp,
+            "+1 Max HP",
+            "Permanent maximum health bonus",
+            "",
+            1.0f
+        },
+        {
+            MapRewardType::ItemQuantity,
+            "+15% Future Item Quantity",
+            "Permanent item quantity bonus for future drops",
+            "",
+            1.15f
+        }
+    };
+
+    std::size_t fallbackIndex = 0;
+    while (rewardIndex < rewards.size()) {
+        rewards[rewardIndex] = fallbackRewards[fallbackIndex % 3];
+        ++rewardIndex;
+        ++fallbackIndex;
+    }
+
+    mapRewardOptions_ = rewards;
+    selectedMapRewardOption_ = -1;
+    mapRewardChosen_ = false;
+}
+
 void GameWorld::generateNextMapOptions() {
     nextMapOptions_ = MapOptionLibrary::generateOptions(mapLevel_ + 1);
     selectedNextMapOption_ = -1;
     nextMapOptionChosen_ = false;
+}
+
+void GameWorld::initializeUnlockedSkills() {
+    unlockedSkills_.clear();
+    unlockedSkills_.insert(SkillLibrary::spreadShot().name);
+    unlockedSkills_.insert(SkillLibrary::meteor().name);
+    unlockedSkills_.insert(SkillLibrary::pulse().name);
+    unlockedSkills_.insert(SkillLibrary::dash().name);
 }
 
 void GameWorld::rewardEnemyKill(const Enemy& enemy) {
@@ -844,6 +997,7 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         bossAoeTelegraphTimer_ = 0.0f;
         bossAoeEffectTimer_ = 0.0f;
         bossAoeSkill_ = BossSkillDefinition();
+        generateMapRewardOptions();
         generateNextMapOptions();
     }
 
@@ -990,7 +1144,7 @@ MapArea GameWorld::currentMapArea() const { return map_.areaForPlayer(player_.po
 float GameWorld::distanceToBoss() const { return map_.distanceToBoss(player_.position()); }
 std::string GameWorld::mapObjective() const {
     if (state_ == GameState::MapComplete || map_.bossDefeated()) {
-        return "Choose Next Map";
+        return mapRewardChosen_ ? "Choose Next Map" : "Choose Reward";
     }
 
     if (map_.bossTriggered()) {
@@ -1030,6 +1184,9 @@ std::string GameWorld::passiveBuildSummary() const {
         + " / Survival " + std::to_string(tree.allocatedCount(PassiveBranch::Survival))
         + " / Loot " + std::to_string(tree.allocatedCount(PassiveBranch::Loot));
 }
+bool GameWorld::isSkillUnlocked(const std::string& name) const {
+    return unlockedSkills_.find(name) != unlockedSkills_.end();
+}
 GameState GameWorld::state() const { return state_; }
 int GameWorld::score() const { return score_; }
 float GameWorld::survivalTime() const { return survivalTime_; }
@@ -1053,9 +1210,12 @@ int GameWorld::mapEventsCompleted() const {
 }
 int GameWorld::mapEventsTotal() const { return static_cast<int>(map_.events().size()); }
 bool GameWorld::nextMapOptionChosen() const { return nextMapOptionChosen_; }
+bool GameWorld::mapRewardChosen() const { return mapRewardChosen_; }
 const MapOption& GameWorld::currentMapOption() const { return currentMapOption_; }
 const std::array<MapOption, 3>& GameWorld::nextMapOptions() const { return nextMapOptions_; }
 int GameWorld::selectedNextMapOption() const { return selectedNextMapOption_; }
+const std::array<MapRewardOption, 3>& GameWorld::mapRewardOptions() const { return mapRewardOptions_; }
+int GameWorld::selectedMapRewardOption() const { return selectedMapRewardOption_; }
 
 float GameWorld::currentSpawnInterval() const {
     constexpr float startInterval = Config::EnemySpawnInterval;

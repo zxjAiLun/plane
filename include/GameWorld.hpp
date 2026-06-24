@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <array>
+#include <set>
 #include <string>
 #include "BossDefinition.hpp"
 #include "Player.hpp"
@@ -29,6 +30,21 @@ struct BossProjectile {
     float radius = 0.0f;
     int damage = 0;
     bool alive = true;
+};
+
+enum class MapRewardType {
+    UnlockSkill,
+    Damage,
+    MaxHp,
+    ItemQuantity
+};
+
+struct MapRewardOption {
+    MapRewardType type = MapRewardType::Damage;
+    std::string title;
+    std::string description;
+    std::string skillName;
+    float itemQuantityMultiplierBonus = 1.0f;
 };
 
 class GameWorld {
@@ -65,6 +81,7 @@ public:
     bool skillPanelOpen() const;
     int hoveredPassiveNode() const;
     std::string passiveBuildSummary() const;
+    bool isSkillUnlocked(const std::string& name) const;
 
     GameState state() const;
     int score() const;
@@ -82,9 +99,12 @@ public:
     int mapEventsCompleted() const;
     int mapEventsTotal() const;
     bool nextMapOptionChosen() const;
+    bool mapRewardChosen() const;
     const MapOption& currentMapOption() const;
     const std::array<MapOption, 3>& nextMapOptions() const;
     int selectedNextMapOption() const;
+    const std::array<MapRewardOption, 3>& mapRewardOptions() const;
+    int selectedMapRewardOption() const;
 
 private:
     void startNextMap();
@@ -114,8 +134,12 @@ private:
     void updatePassiveTreeHover(const Input& input);
     void tryAssignSkill(Input& input);
     void tryEquipInventoryItem(Input& input);
+    void tryChooseMapReward(Input& input);
+    void applyMapReward(const MapRewardOption& reward);
+    void generateMapRewardOptions();
     void tryChooseNextMapOption(Input& input);
     void generateNextMapOptions();
+    void initializeUnlockedSkills();
     void rewardEnemyKill(const Enemy& enemy);
     void damagePlayer(int damage);
     const Enemy* activeBoss() const;
@@ -140,6 +164,7 @@ private:
     EnemySpawner spawner_;
     SkillBar skillBar_;
     MapInstance map_;
+    std::set<std::string> unlockedSkills_;
 
     GameState state_;
     int score_;
@@ -162,11 +187,15 @@ private:
     MapOption currentMapOption_;
     std::array<MapOption, 3> nextMapOptions_;
     int selectedNextMapOption_;
+    std::array<MapRewardOption, 3> mapRewardOptions_;
+    int selectedMapRewardOption_;
     MapModifier mapModifier_;
+    float itemQuantityRewardMultiplier_;
     int mapKills_;
     int mapExperienceGained_;
     int mapItemsDropped_;
     int mapItemsPickedUp_;
+    bool mapRewardChosen_;
     bool nextMapOptionChosen_;
     bool passiveTreeOpen_;
     bool skillPanelOpen_;
