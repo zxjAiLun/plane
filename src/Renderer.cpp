@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cmath>
 #include <iomanip>
 #include <sstream>
 
@@ -191,11 +192,83 @@ std::string formatFloat(float value, int precision = 1) {
     return stream.str();
 }
 
-std::string skillSummary(const SkillDefinition& skill) {
-    return skillSlotName(skill.slot) + " / " + skillCastTypeName(skill.castType)
-        + "  DMG " + std::to_string(skill.baseDamage)
-        + "  R " + std::to_string(static_cast<int>(skill.radius))
-        + "  CD " + formatFloat(skill.cooldown, 2);
+int effectiveSkillDamage(const SkillDefinition& skill, const Stats& stats) {
+    if (skill.baseDamage <= 0) {
+        return 0;
+    }
+
+    float damage = static_cast<float>(skill.baseDamage) * stats.damageMultiplier;
+    switch (skill.castType) {
+        case SkillCastType::Projectile:
+            damage *= stats.projectileDamageMultiplier;
+            break;
+        case SkillCastType::SelfCenteredArea:
+        case SkillCastType::MouseTargetedArea:
+            damage *= stats.areaDamageMultiplier;
+            break;
+        case SkillCastType::Dash:
+            break;
+    }
+
+    return std::max(1, static_cast<int>(std::ceil(damage)));
+}
+
+float effectiveSkillRadius(const SkillDefinition& skill, const Stats& stats) {
+    switch (skill.castType) {
+        case SkillCastType::SelfCenteredArea:
+        case SkillCastType::MouseTargetedArea:
+            return skill.radius * stats.areaRadiusMultiplier;
+        case SkillCastType::Projectile:
+        case SkillCastType::Dash:
+            return skill.radius;
+    }
+
+    return skill.radius;
+}
+
+float effectiveSkillCooldown(const SkillDefinition& skill, const Stats& stats) {
+    if (skill.slot == SkillSlot::Primary) {
+        return skill.cooldown / stats.attackSpeedMultiplier;
+    }
+
+    return skill.cooldown;
+}
+
+std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& stats) {
+    return "Base " + std::to_string(skill.baseDamage)
+        + "/" + std::to_string(static_cast<int>(skill.radius))
+        + "/" + formatFloat(skill.cooldown, 2)
+        + "  Actual " + std::to_string(effectiveSkillDamage(skill, stats))
+        + "/" + std::to_string(static_cast<int>(effectiveSkillRadius(skill, stats)))
+        + "/" + formatFloat(effectiveSkillCooldown(skill, stats), 2);
+}
+
+std::string rewardDetailSummary(const MapRewardDefinition& reward, const GameWorld& world) {
+    if (reward.type != MapRewardType::UnlockSkill) {
+        return reward.description;
+    }
+
+    const auto* skill = SkillLibrary::find(reward.skillName);
+    if (!skill) {
+        return reward.description;
+    }
+
+    const auto& current = world.skillBar().definition(skill->slot);
+    return skillSlotName(skill->slot) + " / " + skillCastTypeName(skill->castType)
+        + "  |  Replaces " + current.name;
+}
+
+std::string rewardStatPreview(const MapRewardDefinition& reward, const GameWorld& world) {
+    if (reward.type != MapRewardType::UnlockSkill) {
+        return reward.description;
+    }
+
+    const auto* skill = SkillLibrary::find(reward.skillName);
+    if (!skill) {
+        return reward.description;
+    }
+
+    return skillEffectiveSummary(*skill, world.player().stats());
 }
 
 std::string mapOptionSummary(const MapOption& option) {
@@ -734,10 +807,10 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
     overlay.setFillColor(sf::Color(0, 0, 0, 145));
     window_.draw(overlay);
 
-    drawBox({center.x, center.y}, {620.0f, 440.0f}, sf::Color(24, 30, 40));
-    drawCenteredText("Skill Panel", {center.x, center.y - 196.0f}, 24, sf::Color::White);
+    drawBox({center.x, center.y}, {760.0f, 500.0f}, sf::Color(24, 30, 40));
+    drawCenteredText("Skill Panel", {center.x, center.y - 228.0f}, 24, sf::Color::White);
     drawCenteredText("1-8 assign unlocked skill  |  K close",
-        {center.x, center.y - 168.0f}, 14, sf::Color(210, 230, 255));
+        {center.x, center.y - 200.0f}, 14, sf::Color(210, 230, 255));
 
     const SkillSlot slots[] = {
         SkillSlot::Primary,
@@ -746,18 +819,22 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         SkillSlot::Movement
     };
 
-    float y = center.y - 132.0f;
-    drawText("Equipped", {center.x - 280.0f, y}, 16, sf::Color::White);
-    y += 24.0f;
-    for (const auto slot : slots) {
+    float y = center.y - 164.0f;
+    drawText("Equipped", {center.x - 350.0f, y}, 16, sf::Color::White);
+    y += 22.0f;
+    for (std::size_t i = 0; i < 4; ++i) {
+        const auto slot = slots[i];
         const auto& skill = world.skillBar().definition(slot);
+        const float x = center.x - 350.0f + static_cast<float>(i % 2) * 370.0f;
+        if (i == 2) {
+            y += 20.0f;
+        }
         drawText(skillSlotName(slot) + ": " + skill.name,
-            {center.x - 280.0f, y}, 13, sf::Color(180, 230, 255));
-        y += 20.0f;
+            {x, y}, 13, sf::Color(180, 230, 255));
     }
 
-    y += 16.0f;
-    drawText("Available Skills", {center.x - 280.0f, y}, 16, sf::Color::White);
+    y += 40.0f;
+    drawText("Skills", {center.x - 350.0f, y}, 16, sf::Color::White);
     y += 24.0f;
 
     const auto& skills = SkillLibrary::all();
@@ -770,12 +847,16 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
             : sf::Color(220, 230, 240);
         const std::string state = equipped ? "Equipped" : unlocked ? "Available" : "Locked";
         const std::string marker = equipped ? "> " : "  ";
+        const float columnX = center.x - 350.0f + static_cast<float>(i % 2) * 370.0f;
+        const float rowY = y + static_cast<float>(i / 2) * 54.0f;
         drawText(marker + std::to_string(i + 1) + ". " + skill.name + " [" + state + "]",
-            {center.x - 280.0f, y}, 14, color);
-        drawText("     " + skillSummary(skill),
-            {center.x - 280.0f, y + 17.0f}, 12,
+            {columnX, rowY}, 14, color);
+        drawText("     " + skillSlotName(skill.slot) + " / " + skillCastTypeName(skill.castType),
+            {columnX, rowY + 17.0f}, 11,
             unlocked ? sf::Color(190, 205, 220) : sf::Color(105, 112, 122));
-        y += 38.0f;
+        drawText("     " + skillEffectiveSummary(skill, world.player().stats()),
+            {columnX, rowY + 32.0f}, 10,
+            unlocked ? sf::Color(190, 205, 220) : sf::Color(105, 112, 122));
     }
 }
 
@@ -928,9 +1009,11 @@ void Renderer::drawMapComplete(const GameWorld& world) {
             const auto& reward = rewards[i];
             drawText(std::to_string(i + 1) + ". " + reward.title,
                 {center.x - 235.0f, optionY}, 15, sf::Color(220, 245, 255));
-            drawText("     " + reward.description,
+            drawText("     " + rewardDetailSummary(reward, world),
                 {center.x - 235.0f, optionY + 19.0f}, 12, sf::Color(230, 220, 170));
-            optionY += 50.0f;
+            drawText("     " + rewardStatPreview(reward, world),
+                {center.x - 235.0f, optionY + 34.0f}, 11, sf::Color(200, 220, 245));
+            optionY += 58.0f;
         }
     } else {
         const auto selectedReward = static_cast<std::size_t>(world.selectedMapRewardOption());

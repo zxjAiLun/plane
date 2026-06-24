@@ -14,6 +14,7 @@
 #include "LootGenerator.hpp"
 #include "MapInstance.hpp"
 #include "MapModifier.hpp"
+#include "MapRewardLibrary.hpp"
 #include "SkillBar.hpp"
 #include "Upgrade.hpp"
 #include "Input.hpp"
@@ -32,19 +33,9 @@ struct BossProjectile {
     bool alive = true;
 };
 
-enum class MapRewardType {
-    UnlockSkill,
-    Damage,
-    MaxHp,
-    ItemQuantity
-};
-
-struct MapRewardOption {
-    MapRewardType type = MapRewardType::Damage;
-    std::string title;
-    std::string description;
-    std::string skillName;
-    float itemQuantityMultiplierBonus = 1.0f;
+struct RunProgression {
+    std::set<std::string> unlockedSkills;
+    float itemQuantityRewardMultiplier = 1.0f;
 };
 
 class GameWorld {
@@ -103,7 +94,7 @@ public:
     const MapOption& currentMapOption() const;
     const std::array<MapOption, 3>& nextMapOptions() const;
     int selectedNextMapOption() const;
-    const std::array<MapRewardOption, 3>& mapRewardOptions() const;
+    const std::array<MapRewardDefinition, 3>& mapRewardOptions() const;
     int selectedMapRewardOption() const;
 
 private:
@@ -135,11 +126,11 @@ private:
     void tryAssignSkill(Input& input);
     void tryEquipInventoryItem(Input& input);
     void tryChooseMapReward(Input& input);
-    void applyMapReward(const MapRewardOption& reward);
+    void applyMapReward(const MapRewardDefinition& reward);
     void generateMapRewardOptions();
     void tryChooseNextMapOption(Input& input);
     void generateNextMapOptions();
-    void initializeUnlockedSkills();
+    void initializeRunProgression();
     void rewardEnemyKill(const Enemy& enemy);
     void damagePlayer(int damage);
     const Enemy* activeBoss() const;
@@ -164,7 +155,7 @@ private:
     EnemySpawner spawner_;
     SkillBar skillBar_;
     MapInstance map_;
-    std::set<std::string> unlockedSkills_;
+    RunProgression progression_;
 
     GameState state_;
     int score_;
@@ -187,10 +178,9 @@ private:
     MapOption currentMapOption_;
     std::array<MapOption, 3> nextMapOptions_;
     int selectedNextMapOption_;
-    std::array<MapRewardOption, 3> mapRewardOptions_;
+    std::array<MapRewardDefinition, 3> mapRewardOptions_;
     int selectedMapRewardOption_;
     MapModifier mapModifier_;
-    float itemQuantityRewardMultiplier_;
     int mapKills_;
     int mapExperienceGained_;
     int mapItemsDropped_;
