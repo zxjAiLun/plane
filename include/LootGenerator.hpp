@@ -14,7 +14,10 @@ enum class AffixStat {
     DamageMultiplier,
     AttackSpeedMultiplier,
     MoveSpeedMultiplier,
-    PickupRangeMultiplier
+    PickupRangeMultiplier,
+    ProjectileDamageMultiplier,
+    AreaDamageMultiplier,
+    AreaRadiusMultiplier
 };
 
 struct AffixDefinition {
@@ -71,6 +74,13 @@ private:
             {"of Force", false, EquipmentSlot::Weapon, AffixStat::DamageMultiplier, {0.04f, 0.08f, 0.12f}},
             {"of Swiftness", false, EquipmentSlot::Weapon, AffixStat::AttackSpeedMultiplier, {0.04f, 0.07f, 0.10f}},
             {"of Piercing", false, EquipmentSlot::Weapon, AffixStat::DamageMultiplier, {0.03f, 0.06f, 0.09f}},
+            // Weapon build-specific affixes (Projectile / Area)
+            {"Piercing", true, EquipmentSlot::Weapon, AffixStat::ProjectileDamageMultiplier, {0.05f, 0.09f, 0.13f}},
+            {"of Projectiles", false, EquipmentSlot::Weapon, AffixStat::ProjectileDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"Shattering", true, EquipmentSlot::Weapon, AffixStat::AreaDamageMultiplier, {0.05f, 0.09f, 0.13f}},
+            {"of Blasting", false, EquipmentSlot::Weapon, AffixStat::AreaDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"Wide", true, EquipmentSlot::Weapon, AffixStat::AreaRadiusMultiplier, {0.05f, 0.09f, 0.13f}},
+            {"of Expansion", false, EquipmentSlot::Weapon, AffixStat::AreaRadiusMultiplier, {0.04f, 0.07f, 0.10f}},
 
             // Armor
             {"Sturdy", true, EquipmentSlot::Armor, AffixStat::MaxHp, {4.0f, 8.0f, 12.0f}},
@@ -87,6 +97,13 @@ private:
             {"of Vitality", false, EquipmentSlot::Ring, AffixStat::MaxHp, {2.0f, 4.0f, 6.0f}},
             {"of Swiftness", false, EquipmentSlot::Ring, AffixStat::AttackSpeedMultiplier, {0.03f, 0.06f, 0.09f}},
             {"of Haste", false, EquipmentSlot::Ring, AffixStat::MoveSpeedMultiplier, {0.03f, 0.06f, 0.09f}},
+            // Ring build-specific affixes (Projectile / Area)
+            {"Piercing", true, EquipmentSlot::Ring, AffixStat::ProjectileDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"of Projectiles", false, EquipmentSlot::Ring, AffixStat::ProjectileDamageMultiplier, {0.03f, 0.05f, 0.08f}},
+            {"Shattering", true, EquipmentSlot::Ring, AffixStat::AreaDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"of Blasting", false, EquipmentSlot::Ring, AffixStat::AreaDamageMultiplier, {0.03f, 0.05f, 0.08f}},
+            {"Wide", true, EquipmentSlot::Ring, AffixStat::AreaRadiusMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"of Expansion", false, EquipmentSlot::Ring, AffixStat::AreaRadiusMultiplier, {0.03f, 0.05f, 0.08f}},
 
             // Amulet
             {"Blessed", true, EquipmentSlot::Amulet, AffixStat::MaxHp, {3.0f, 6.0f, 9.0f}},
@@ -95,6 +112,13 @@ private:
             {"of Vitality", false, EquipmentSlot::Amulet, AffixStat::MaxHp, {2.0f, 4.0f, 6.0f}},
             {"of Haste", false, EquipmentSlot::Amulet, AffixStat::MoveSpeedMultiplier, {0.05f, 0.08f, 0.11f}},
             {"of Reach", false, EquipmentSlot::Amulet, AffixStat::PickupRangeMultiplier, {0.08f, 0.12f, 0.16f}},
+            // Amulet build-specific affixes (Projectile / Area)
+            {"Piercing", true, EquipmentSlot::Amulet, AffixStat::ProjectileDamageMultiplier, {0.05f, 0.08f, 0.11f}},
+            {"of Projectiles", false, EquipmentSlot::Amulet, AffixStat::ProjectileDamageMultiplier, {0.03f, 0.06f, 0.09f}},
+            {"Shattering", true, EquipmentSlot::Amulet, AffixStat::AreaDamageMultiplier, {0.05f, 0.08f, 0.11f}},
+            {"of Blasting", false, EquipmentSlot::Amulet, AffixStat::AreaDamageMultiplier, {0.03f, 0.06f, 0.09f}},
+            {"Wide", true, EquipmentSlot::Amulet, AffixStat::AreaRadiusMultiplier, {0.05f, 0.08f, 0.11f}},
+            {"of Expansion", false, EquipmentSlot::Amulet, AffixStat::AreaRadiusMultiplier, {0.03f, 0.06f, 0.09f}},
         };
     }
 
@@ -178,6 +202,15 @@ private:
                 break;
             case AffixStat::PickupRangeMultiplier:
                 stats.pickupRangeMultiplier += value;
+                break;
+            case AffixStat::ProjectileDamageMultiplier:
+                stats.projectileDamageMultiplier += value;
+                break;
+            case AffixStat::AreaDamageMultiplier:
+                stats.areaDamageMultiplier += value;
+                break;
+            case AffixStat::AreaRadiusMultiplier:
+                stats.areaRadiusMultiplier += value;
                 break;
         }
     }

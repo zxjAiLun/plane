@@ -1,8 +1,12 @@
 #include "Renderer.hpp"
 #include "Config.hpp"
 #include "EnemyDefinition.hpp"
+#include "Equipment.hpp"
+#include "Stats.hpp"
+#include "SkillBar.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cmath>
 #include <iomanip>
@@ -241,6 +245,62 @@ std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& sta
         + "  Actual " + std::to_string(effectiveSkillDamage(skill, stats))
         + "/" + std::to_string(static_cast<int>(effectiveSkillRadius(skill, stats)))
         + "/" + formatFloat(effectiveSkillCooldown(skill, stats), 2);
+}
+
+// Combined equipment stats if `candidate` were equipped into its own slot,
+// replacing any currently equipped item in that slot (or filling an empty slot).
+Stats previewEquipmentStats(const Equipment& equipment, const Item& candidate) {
+    const std::array<EquipmentSlot, 4> slots = {
+        EquipmentSlot::Weapon,
+        EquipmentSlot::Armor,
+        EquipmentSlot::Ring,
+        EquipmentSlot::Amulet
+    };
+    Stats result;
+    for (const auto slot : slots) {
+        if (slot == candidate.slot) {
+            result = combineStats(result, candidate.stats);
+        } else {
+            const auto& equipped = equipment.itemInSlot(slot);
+            if (equipped) {
+                result = combineStats(result, equipped->stats);
+            }
+        }
+    }
+    return result;
+}
+
+// Shows how equipping the candidate changes the player's actual skill numbers:
+// Primary -> damage + cooldown, Secondary/Utility -> damage + radius.
+// Returns an empty string when the candidate affects no skill number.
+std::string buildImpactPreview(const Stats& before, const Stats& after, const SkillBar& skillBar) {
+    const auto& primary = skillBar.definition(SkillSlot::Primary);
+    const auto& secondary = skillBar.definition(SkillSlot::Secondary);
+    const auto& utility = skillBar.definition(SkillSlot::Utility);
+
+    const int pDmg = effectiveSkillDamage(primary, after) - effectiveSkillDamage(primary, before);
+    const float pCd = effectiveSkillCooldown(primary, after) - effectiveSkillCooldown(primary, before);
+    const int sDmg = effectiveSkillDamage(secondary, after) - effectiveSkillDamage(secondary, before);
+    const float sRad = effectiveSkillRadius(secondary, after) - effectiveSkillRadius(secondary, before);
+    const int uDmg = effectiveSkillDamage(utility, after) - effectiveSkillDamage(utility, before);
+    const float uRad = effectiveSkillRadius(utility, after) - effectiveSkillRadius(utility, before);
+
+    if (pDmg == 0 && sDmg == 0 && uDmg == 0
+        && std::abs(pCd) < 0.005f && std::abs(sRad) < 0.005f && std::abs(uRad) < 0.005f) {
+        return "";
+    }
+
+    const auto sgn = [](int v) { return (v >= 0 ? "+" : "") + std::to_string(v); };
+    const auto sgnf = [](float v) {
+        if (std::abs(v) < 0.005f) {
+            return std::string("+0.00");
+        }
+        return (v >= 0 ? "+" : "") + formatFloat(v, 2);
+    };
+
+    return "Build P DMG " + sgn(pDmg) + " CD " + sgnf(pCd)
+        + "  S DMG " + sgn(sDmg) + " R " + sgnf(sRad)
+        + "  U DMG " + sgn(uDmg) + " R " + sgnf(uRad);
 }
 
 std::string rewardDetailSummary(const MapRewardDefinition& reward, const GameWorld& world) {
@@ -676,6 +736,17 @@ void Renderer::drawInventory(const GameWorld& world) {
             const Stats delta = statsDelta(item.stats, current->stats);
             drawText("   Delta: " + statsDeltaSummary(delta), {x, y}, 11, deltaColor(delta));
             y += 14.0f;
+        }
+
+        const Stats currentFull = world.player().stats();
+        const Stats previewEquip = previewEquipmentStats(equipment, item);
+        const Stats currentEquip = equipment.combinedStats();
+        const Stats equipDelta = statsDelta(previewEquip, currentEquip);
+        const Stats previewFull = combineStats(currentFull, equipDelta);
+        const std::string buildLine = buildImpactPreview(currentFull, previewFull, world.skillBar());
+        if (!buildLine.empty()) {
+            drawText("   " + buildLine, {x, y}, 10, sf::Color(180, 210, 255));
+            y += 13.0f;
         }
     }
 }
