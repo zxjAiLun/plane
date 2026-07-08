@@ -10,7 +10,9 @@
 #include <cstdint>
 #include <cmath>
 #include <iomanip>
+#include <optional>
 #include <sstream>
+#include <vector>
 
 namespace {
 sf::Color rarityColor(Rarity rarity) {
@@ -270,37 +272,29 @@ Stats previewEquipmentStats(const Equipment& equipment, const Item& candidate) {
     return result;
 }
 
-// Shows how equipping the candidate changes the player's actual skill numbers:
-// Primary -> damage + cooldown, Secondary/Utility -> damage + radius.
-// Returns an empty string when the candidate affects no skill number.
-std::string buildImpactPreview(const Stats& before, const Stats& after, const SkillBar& skillBar) {
-    const auto& primary = skillBar.definition(SkillSlot::Primary);
-    const auto& secondary = skillBar.definition(SkillSlot::Secondary);
-    const auto& utility = skillBar.definition(SkillSlot::Utility);
-
-    const int pDmg = effectiveSkillDamage(primary, after) - effectiveSkillDamage(primary, before);
-    const float pCd = effectiveSkillCooldown(primary, after) - effectiveSkillCooldown(primary, before);
-    const int sDmg = effectiveSkillDamage(secondary, after) - effectiveSkillDamage(secondary, before);
-    const float sRad = effectiveSkillRadius(secondary, after) - effectiveSkillRadius(secondary, before);
-    const int uDmg = effectiveSkillDamage(utility, after) - effectiveSkillDamage(utility, before);
-    const float uRad = effectiveSkillRadius(utility, after) - effectiveSkillRadius(utility, before);
-
-    if (pDmg == 0 && sDmg == 0 && uDmg == 0
-        && std::abs(pCd) < 0.005f && std::abs(sRad) < 0.005f && std::abs(uRad) < 0.005f) {
-        return "";
-    }
-
-    const auto sgn = [](int v) { return (v >= 0 ? "+" : "") + std::to_string(v); };
-    const auto sgnf = [](float v) {
-        if (std::abs(v) < 0.005f) {
-            return std::string("+0.00");
+// Before -> after skill impact lines for the three skill slots.
+// Primary shows damage + cooldown; Secondary/Utility show damage + radius.
+std::vector<std::string> skillImpactDetailLines(const Stats& before, const Stats& after, const SkillBar& skillBar) {
+    std::vector<std::string> lines;
+    const auto detail = [&](const char* label, const SkillDefinition& skill, bool showRadius) {
+        std::string line = std::string(label) + ": DMG "
+            + std::to_string(effectiveSkillDamage(skill, before)) + " -> "
+            + std::to_string(effectiveSkillDamage(skill, after));
+        if (showRadius) {
+            line += "  R "
+                + std::to_string(static_cast<int>(effectiveSkillRadius(skill, before))) + " -> "
+                + std::to_string(static_cast<int>(effectiveSkillRadius(skill, after)));
+        } else {
+            line += "  CD "
+                + formatFloat(effectiveSkillCooldown(skill, before), 2) + " -> "
+                + formatFloat(effectiveSkillCooldown(skill, after), 2);
         }
-        return (v >= 0 ? "+" : "") + formatFloat(v, 2);
+        return line;
     };
-
-    return "Build P DMG " + sgn(pDmg) + " CD " + sgnf(pCd)
-        + "  S DMG " + sgn(sDmg) + " R " + sgnf(sRad)
-        + "  U DMG " + sgn(uDmg) + " R " + sgnf(uRad);
+    lines.push_back(detail("Primary", skillBar.definition(SkillSlot::Primary), false));
+    lines.push_back(detail("Secondary", skillBar.definition(SkillSlot::Secondary), true));
+    lines.push_back(detail("Utility", skillBar.definition(SkillSlot::Utility), true));
+    return lines;
 }
 
 std::string rewardDetailSummary(const MapRewardDefinition& reward, const GameWorld& world) {
@@ -718,8 +712,28 @@ void Renderer::drawInventory(const GameWorld& world) {
     const auto& items = world.inventory().items();
     const auto& equipment = world.player().equipment();
     const float x = static_cast<float>(Config::WindowWidth) - 260.0f;
-    float y = 118.0f;
+    const float listRight = static_cast<float>(Config::WindowWidth) - 4.0f;
 
+    // Identify the inventory row currently under the mouse (screen space) so we
+    // can show a hover detail panel without bloating the compact list.
+    const sf::Vector2f mouse = worldToScreen(world, world.aimPosition());
+    std::size_t hovered = items.size();
+    {
+        float bandY = 140.0f; // first item name line, just below the "Inventory" title
+        const std::size_t visibleCount = std::min<std::size_t>(items.size(), 9);
+        for (std::size_t i = 0; i < visibleCount; ++i) {
+            const bool hasCurrent = static_cast<bool>(equipment.itemInSlot(items[i].slot));
+            const float rowH = 16.0f + (hasCurrent ? 14.0f : 0.0f);
+            if (mouse.x >= x - 8.0f && mouse.x <= listRight
+                && mouse.y >= bandY - 2.0f && mouse.y <= bandY + rowH) {
+                hovered = i;
+                break;
+            }
+            bandY += rowH;
+        }
+    }
+
+    float y = 118.0f;
     drawText("Inventory", {x, y}, 16, sf::Color::White);
     y += 22.0f;
 
@@ -728,7 +742,7 @@ void Renderer::drawInventory(const GameWorld& world) {
         const auto& item = items[i];
         const std::string line = std::to_string(i + 1) + ". "
             + item.name + " [" + slotName(item.slot) + "] " + statsSummary(item.stats);
-        drawText(line, {x, y}, 13, rarityColor(item.rarity));
+        drawText(line, {x, y}, 13, (i == hovered) ? sf::Color::White : rarityColor(item.rarity));
         y += 16.0f;
 
         const auto& current = equipment.itemInSlot(item.slot);
@@ -737,17 +751,62 @@ void Renderer::drawInventory(const GameWorld& world) {
             drawText("   Delta: " + statsDeltaSummary(delta), {x, y}, 11, deltaColor(delta));
             y += 14.0f;
         }
+    }
 
-        const Stats currentFull = world.player().stats();
-        const Stats previewEquip = previewEquipmentStats(equipment, item);
-        const Stats currentEquip = equipment.combinedStats();
-        const Stats equipDelta = statsDelta(previewEquip, currentEquip);
-        const Stats previewFull = combineStats(currentFull, equipDelta);
-        const std::string buildLine = buildImpactPreview(currentFull, previewFull, world.skillBar());
-        if (!buildLine.empty()) {
-            drawText("   " + buildLine, {x, y}, 10, sf::Color(180, 210, 255));
-            y += 13.0f;
-        }
+    if (hovered < items.size()) {
+        drawInventoryItemDetail(world, items[hovered], equipment.itemInSlot(items[hovered].slot));
+    }
+}
+
+void Renderer::drawInventoryItemDetail(const GameWorld& world, const Item& item, const std::optional<Item>& current) {
+    const sf::Vector2f panelSize{500.0f, 220.0f};
+    const sf::Vector2f panelPos{16.0f, 300.0f};
+    drawBox({panelPos.x + panelSize.x / 2.0f, panelPos.y + panelSize.y / 2.0f}, panelSize, sf::Color(18, 22, 30));
+
+    const float x = panelPos.x + 14.0f;
+    float y = panelPos.y + 12.0f;
+
+    drawText(item.name + "  [" + rarityName(item.rarity) + "]", {x, y}, 16, rarityColor(item.rarity));
+    y += 20.0f;
+
+    drawText("Slot: " + std::string(slotName(item.slot)) + "   iLvl: " + std::to_string(item.itemLevel),
+        {x, y}, 12, sf::Color(200, 210, 225));
+    y += 18.0f;
+
+    for (const auto& affix : item.affixes) {
+        drawText("- " + affix, {x, y}, 11, sf::Color(160, 200, 255));
+        y += 15.0f;
+    }
+
+    drawText("Stats: " + statsSummary(item.stats), {x, y}, 11, sf::Color(210, 220, 235));
+    y += 16.0f;
+
+    if (current) {
+        drawText("Current: " + current->name + "  " + statsSummary(current->stats), {x, y}, 11, sf::Color(200, 200, 200));
+    } else {
+        drawText("Current: Empty", {x, y}, 11, sf::Color(150, 150, 150));
+    }
+    y += 16.0f;
+
+    if (current) {
+        const Stats delta = statsDelta(item.stats, current->stats);
+        drawText("Delta: " + statsDeltaSummary(delta), {x, y}, 11, deltaColor(delta));
+    } else {
+        const std::string delta = statsSummary(item.stats);
+        drawText("Delta: " + (delta.empty() ? "No stat change" : delta),
+            {x, y}, 11, deltaColor(item.stats));
+    }
+    y += 17.0f;
+
+    drawText("Skill impact if equipped:", {x, y}, 11, sf::Color(190, 200, 215));
+    y += 16.0f;
+
+    const Stats before = world.player().stats();
+    const Stats after = combineStats(before,
+        statsDelta(previewEquipmentStats(world.player().equipment(), item), world.player().equipment().combinedStats()));
+    for (const auto& line : skillImpactDetailLines(before, after, world.skillBar())) {
+        drawText(line, {x, y}, 11, sf::Color(180, 210, 255));
+        y += 15.0f;
     }
 }
 

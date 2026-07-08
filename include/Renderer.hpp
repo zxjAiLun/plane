@@ -1,8 +1,10 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
+#include <optional>
 #include <string>
 #include "GameWorld.hpp"
+#include "Item.hpp"
 
 class Renderer {
 public:
@@ -24,6 +26,7 @@ private:
     void drawSkillBar(const GameWorld& world);
     void drawEquipment(const GameWorld& world);
     void drawInventory(const GameWorld& world);
+    void drawInventoryItemDetail(const GameWorld& world, const Item& item, const std::optional<Item>& current);
     void drawPassiveTree(const GameWorld& world);
     void drawSkillPanel(const GameWorld& world);
     void drawMinimap(const GameWorld& world);
