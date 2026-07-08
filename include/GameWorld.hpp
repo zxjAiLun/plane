@@ -88,6 +88,8 @@ public:
     int mapItemsDropped() const;
     int mapItemsPickedUp() const;
     std::string nearbyEventPrompt() const;
+    int focusedDroppedItemIndex() const;
+    std::string pickupPrompt() const;
     float shrineBuffTimeRemaining() const;
     int mapEventsCompleted() const;
     int mapEventsTotal() const;

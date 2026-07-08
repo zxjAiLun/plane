@@ -755,30 +755,50 @@ void GameWorld::noteElitePackEnemyDefeated(const Enemy& enemy) {
     }
 }
 
+int GameWorld::focusedDroppedItemIndex() const {
+    const float itemPickupRange = (Config::ItemPickupRange + player_.radius())
+        * player_.stats().pickupRangeMultiplier;
+    const float rangeSq = itemPickupRange * itemPickupRange;
+
+    int bestIndex = -1;
+    // Strictly above any in-range distance so that, on ties, the earlier
+    // item (already recorded with a smaller index) is kept -> stable behavior.
+    float bestDistSq = rangeSq + 1.0f;
+    for (std::size_t i = 0; i < droppedItems_.size(); ++i) {
+        const auto& droppedItem = droppedItems_[i];
+        if (droppedItem.isCollected()) {
+            continue;
+        }
+
+        const Vector2 diff = player_.position() - droppedItem.position();
+        const float distSq = diff.lengthSquared();
+        if (distSq <= rangeSq && distSq < bestDistSq) {
+            bestDistSq = distSq;
+            bestIndex = static_cast<int>(i);
+        }
+    }
+    return bestIndex;
+}
+
 void GameWorld::tryPickupDroppedItem(Input& input) {
     if (!input.pickup()) {
         return;
     }
 
-    const float itemPickupRange = (Config::ItemPickupRange + player_.radius())
-        * player_.stats().pickupRangeMultiplier;
-    for (auto& droppedItem : droppedItems_) {
-        if (droppedItem.isCollected()) {
-            continue;
-        }
-
-        Vector2 diff = player_.position() - droppedItem.position();
-        if (diff.lengthSquared() <= itemPickupRange * itemPickupRange) {
-            if (inventory_.isFull()) {
-                // Inventory is full: leave the item on the ground and notify the player.
-                inventoryFullTimer_ = 1.5f;
-                return;
-            }
-            inventory_.add(droppedItem.collect());
-            ++mapItemsPickedUp_;
-            return;
-        }
+    const int index = focusedDroppedItemIndex();
+    if (index < 0) {
+        return;
     }
+
+    if (inventory_.isFull()) {
+        // Inventory is full: keep the focused item on the ground and notify the player.
+        inventoryFullTimer_ = 1.5f;
+        return;
+    }
+
+    inventory_.add(droppedItems_[static_cast<std::size_t>(index)].collect());
+    droppedItems_.erase(droppedItems_.begin() + static_cast<std::ptrdiff_t>(index));
+    ++mapItemsPickedUp_;
 }
 
 void GameWorld::trySpendPassivePoint(Input& input) {
@@ -1191,6 +1211,19 @@ int GameWorld::mapItemsPickedUp() const { return mapItemsPickedUp_; }
 std::string GameWorld::nearbyEventPrompt() const { return nearbyEventPrompt_; }
 float GameWorld::shrineBuffTimeRemaining() const { return shrineBuffTimer_; }
 float GameWorld::inventoryFullPromptTimeRemaining() const { return inventoryFullTimer_; }
+
+std::string GameWorld::pickupPrompt() const {
+    const int index = focusedDroppedItemIndex();
+    if (index < 0) {
+        return "";
+    }
+
+    const std::string& name = droppedItems_[static_cast<std::size_t>(index)].item().name;
+    if (inventory_.isFull()) {
+        return "Inventory full - " + name + " remains on ground";
+    }
+    return "F Pick up " + name;
+}
 
 int GameWorld::selectedInventoryIndex() const { return selectedInventoryIndex_; }
 int GameWorld::mapEventsCompleted() const {

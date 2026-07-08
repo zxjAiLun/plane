@@ -405,16 +405,26 @@ void Renderer::render(const GameWorld& world) {
         {16.0f, 174.0f}, 14, sf::Color(255, 190, 150));
     drawText("Objective: " + world.mapObjective(),
         {16.0f, 196.0f}, 14, sf::Color(210, 255, 210));
+    float hudY = 218.0f;
     if (!world.nearbyEventPrompt().empty()) {
-        drawText(world.nearbyEventPrompt(), {16.0f, 218.0f}, 14, sf::Color(255, 235, 150));
+        drawText(world.nearbyEventPrompt(), {16.0f, hudY}, 14, sf::Color(255, 235, 150));
+        hudY += 18.0f;
+    }
+    const std::string pickupPrompt = world.pickupPrompt();
+    if (!pickupPrompt.empty()) {
+        const bool full = pickupPrompt.rfind("Inventory full", 0) == 0;
+        drawText(pickupPrompt, {16.0f, hudY}, 14,
+            full ? sf::Color(255, 90, 90) : sf::Color(180, 220, 255));
+        hudY += 18.0f;
+    } else if (world.inventoryFullPromptTimeRemaining() > 0.0f) {
+        drawText("Inventory full", {16.0f, hudY}, 14, sf::Color(255, 90, 90));
+        hudY += 18.0f;
     }
     if (world.shrineBuffTimeRemaining() > 0.0f) {
         drawText("Shrine +35% damage  "
             + std::to_string(static_cast<int>(world.shrineBuffTimeRemaining() + 0.99f)) + "s",
-            {16.0f, 236.0f}, 14, sf::Color(100, 240, 240));
-    }
-    if (world.inventoryFullPromptTimeRemaining() > 0.0f) {
-        drawText("Inventory full", {16.0f, 256.0f}, 14, sf::Color(255, 90, 90));
+            {16.0f, hudY}, 14, sf::Color(100, 240, 240));
+        hudY += 18.0f;
     }
     drawText("Build: " + world.passiveBuildSummary() + "  |  P Passive Tree  |  K Skills",
         {16.0f, 152.0f}, 14, sf::Color(210, 255, 210));
@@ -637,17 +647,16 @@ void Renderer::drawEnemies(const GameWorld& world) {
 
 void Renderer::drawDroppedItems(const GameWorld& world) {
     const auto& player = world.player();
-    const float pickupRange = (Config::ItemPickupRange + player.radius())
-        * player.stats().pickupRangeMultiplier;
+    const int focusedIndex = world.focusedDroppedItemIndex();
 
-    for (const auto& droppedItem : world.droppedItems()) {
+    for (std::size_t i = 0; i < world.droppedItems().size(); ++i) {
+        const auto& droppedItem = world.droppedItems()[i];
         const auto& item = droppedItem.item();
-        const Vector2 diff = player.position() - droppedItem.position();
-        const bool canPickup = diff.lengthSquared() <= pickupRange * pickupRange;
+        const bool isFocused = static_cast<int>(i) == focusedIndex;
 
         sf::RectangleShape shape({droppedItem.radius() * 2.0f, droppedItem.radius() * 2.0f});
         shape.setFillColor(rarityColor(item.rarity));
-        if (canPickup) {
+        if (isFocused) {
             shape.setOutlineColor(sf::Color::White);
             shape.setOutlineThickness(2.0f);
         }
@@ -655,11 +664,11 @@ void Renderer::drawDroppedItems(const GameWorld& world) {
         shape.setPosition(worldToScreen(world, droppedItem.position()));
         window_.draw(shape);
 
-        std::string pickupPrompt;
-        if (canPickup) {
-            pickupPrompt = world.inventory().isFull() ? "FULL " : "F ";
+        std::string prefix;
+        if (isFocused) {
+            prefix = world.inventory().isFull() ? "FULL " : "F ";
         }
-        const std::string label = pickupPrompt + item.name + " [" + slotName(item.slot) + "]";
+        const std::string label = prefix + item.name + " [" + slotName(item.slot) + "]";
         drawCenteredText(label,
             worldToScreen(world, Vector2(droppedItem.position().x, droppedItem.position().y - 20.0f)),
             12,
