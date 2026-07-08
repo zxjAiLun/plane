@@ -10,6 +10,8 @@ void Input::update() {
     passiveTreeToggle_ = false;
     skillPanelToggle_ = false;
     nextMap_ = false;
+    inventorySelectNext_ = false;
+    inventoryDropSelected_ = false;
     numberChoice_ = 0;
     functionChoice_ = 0;
 }
@@ -32,6 +34,8 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::E:     nextMap_ = true; break;
         case sf::Keyboard::Key::R:     restart_ = true; break;
         case sf::Keyboard::Key::Escape: quit_ = true; break;
+        case sf::Keyboard::Key::Tab: inventorySelectNext_ = true; break;
+        case sf::Keyboard::Key::Delete: inventoryDropSelected_ = true; break;
         case sf::Keyboard::Key::Num1: numberChoice_ = 1; break;
         case sf::Keyboard::Key::Num2: numberChoice_ = 2; break;
         case sf::Keyboard::Key::Num3: numberChoice_ = 3; break;
@@ -128,4 +132,6 @@ bool Input::restart() const { return restart_; }
 bool Input::quit() const { return quit_; }
 int Input::numberChoice() const { return numberChoice_; }
 int Input::functionChoice() const { return functionChoice_; }
+bool Input::inventorySelectNext() const { return inventorySelectNext_; }
+bool Input::inventoryDropSelected() const { return inventoryDropSelected_; }
 sf::Vector2i Input::mousePosition() const { return mousePosition_; }

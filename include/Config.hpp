@@ -69,6 +69,7 @@ namespace Config {
     constexpr float ItemDropRadius = 7.0f;
     constexpr float ItemPickupRange = 32.0f;
     constexpr int ItemDropChancePercent = 35;
+    constexpr int InventoryCapacity = 9;
 
     constexpr int MapWaveCount = 3;
     constexpr int BaseEnemiesPerWave = 6;

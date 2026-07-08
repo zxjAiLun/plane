@@ -51,6 +51,8 @@ GameWorld::GameWorld()
     , hoveredPassiveNode_(-1)
     , nearbyEventPrompt_()
     , shrineBuffTimer_(0.0f)
+    , inventoryFullTimer_(0.0f)
+    , selectedInventoryIndex_(-1)
     , mapEventInteractionConsumed_(false)
     , activeEliteEventIndex_(-1)
     , eliteEventEnemiesRemaining_(0) {
@@ -66,6 +68,7 @@ void GameWorld::update(float dt, Input& input) {
         camera.x + static_cast<float>(input.mousePosition().x),
         camera.y + static_cast<float>(input.mousePosition().y)
     );
+    inventoryFullTimer_ = std::max(0.0f, inventoryFullTimer_ - dt);
 
     switch (state_) {
         case GameState::Playing:
@@ -147,6 +150,8 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     }
 
     if (!passiveTreeOpen_ && !skillPanelOpen_) {
+        trySelectInventoryItem(input);
+        tryDropSelectedInventoryItem(input);
         tryEquipInventoryItem(input);
         tryCastPrimarySkill(input);
     }
@@ -218,6 +223,8 @@ void GameWorld::reset() {
     hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
+    inventoryFullTimer_ = 0.0f;
+    selectedInventoryIndex_ = -1;
     mapEventInteractionConsumed_ = false;
     activeEliteEventIndex_ = -1;
     eliteEventEnemiesRemaining_ = 0;
@@ -269,6 +276,8 @@ void GameWorld::startNextMap() {
     hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
+    inventoryFullTimer_ = 0.0f;
+    selectedInventoryIndex_ = -1;
     mapEventInteractionConsumed_ = false;
     activeEliteEventIndex_ = -1;
     eliteEventEnemiesRemaining_ = 0;
@@ -760,6 +769,11 @@ void GameWorld::tryPickupDroppedItem(Input& input) {
 
         Vector2 diff = player_.position() - droppedItem.position();
         if (diff.lengthSquared() <= itemPickupRange * itemPickupRange) {
+            if (inventory_.isFull()) {
+                // Inventory is full: leave the item on the ground and notify the player.
+                inventoryFullTimer_ = 1.5f;
+                return;
+            }
             inventory_.add(droppedItem.collect());
             ++mapItemsPickedUp_;
             return;
@@ -829,9 +843,63 @@ void GameWorld::tryEquipInventoryItem(Input& input) {
     const auto index = static_cast<std::size_t>(input.numberChoice() - 1);
     if (auto item = inventory_.take(index)) {
         if (auto replaced = player_.equipItem(std::move(*item))) {
-            inventory_.add(std::move(*replaced));
+            // The candidate was removed first, so there is normally room for the
+            // replaced item. In the extreme case it does not fit, drop it at the
+            // player's feet rather than losing it.
+            Item oldItem = std::move(*replaced);
+            if (!inventory_.isFull()) {
+                inventory_.add(std::move(oldItem));
+            } else {
+                droppedItems_.push_back(DroppedItem(player_.position(), std::move(oldItem)));
+            }
         }
         skillBar_.applyStats(player_.stats());
+    }
+    updateSelectedInventoryIndex();
+}
+
+void GameWorld::trySelectInventoryItem(Input& input) {
+    if (!input.inventorySelectNext()) {
+        return;
+    }
+
+    const std::size_t size = inventory_.size();
+    if (size == 0) {
+        selectedInventoryIndex_ = -1;
+        return;
+    }
+    selectedInventoryIndex_ = (selectedInventoryIndex_ + 1) % static_cast<int>(size);
+}
+
+void GameWorld::tryDropSelectedInventoryItem(Input& input) {
+    if (!input.inventoryDropSelected()) {
+        return;
+    }
+
+    if (selectedInventoryIndex_ < 0
+        || static_cast<std::size_t>(selectedInventoryIndex_) >= inventory_.size()) {
+        return;
+    }
+
+    const std::size_t index = static_cast<std::size_t>(selectedInventoryIndex_);
+    if (auto item = inventory_.take(index)) {
+        // Drop near the player with a small offset so it does not overlap.
+        Vector2 dropPos = player_.position() + Vector2(28.0f, -10.0f);
+        dropPos.x = std::clamp(dropPos.x, Config::ItemDropRadius, map_.size().x - Config::ItemDropRadius);
+        dropPos.y = std::clamp(dropPos.y, Config::ItemDropRadius, map_.size().y - Config::ItemDropRadius);
+        droppedItems_.push_back(DroppedItem(dropPos, std::move(*item)));
+    }
+    updateSelectedInventoryIndex();
+}
+
+void GameWorld::updateSelectedInventoryIndex() {
+    const std::size_t size = inventory_.size();
+    if (size == 0) {
+        selectedInventoryIndex_ = -1;
+        return;
+    }
+    if (selectedInventoryIndex_ >= static_cast<int>(size)) {
+        selectedInventoryIndex_ = static_cast<int>(size) - 1;
     }
 }
 
@@ -1122,6 +1190,9 @@ int GameWorld::mapItemsDropped() const { return mapItemsDropped_; }
 int GameWorld::mapItemsPickedUp() const { return mapItemsPickedUp_; }
 std::string GameWorld::nearbyEventPrompt() const { return nearbyEventPrompt_; }
 float GameWorld::shrineBuffTimeRemaining() const { return shrineBuffTimer_; }
+float GameWorld::inventoryFullPromptTimeRemaining() const { return inventoryFullTimer_; }
+
+int GameWorld::selectedInventoryIndex() const { return selectedInventoryIndex_; }
 int GameWorld::mapEventsCompleted() const {
     return static_cast<int>(std::count_if(map_.events().begin(), map_.events().end(),
         [](const MapEventInstance& event) { return event.completed; }));

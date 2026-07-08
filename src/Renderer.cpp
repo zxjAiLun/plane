@@ -413,6 +413,9 @@ void Renderer::render(const GameWorld& world) {
             + std::to_string(static_cast<int>(world.shrineBuffTimeRemaining() + 0.99f)) + "s",
             {16.0f, 236.0f}, 14, sf::Color(100, 240, 240));
     }
+    if (world.inventoryFullPromptTimeRemaining() > 0.0f) {
+        drawText("Inventory full", {16.0f, 256.0f}, 14, sf::Color(255, 90, 90));
+    }
     drawText("Build: " + world.passiveBuildSummary() + "  |  P Passive Tree  |  K Skills",
         {16.0f, 152.0f}, 14, sf::Color(210, 255, 210));
     const auto& stats = world.player().stats();
@@ -652,8 +655,11 @@ void Renderer::drawDroppedItems(const GameWorld& world) {
         shape.setPosition(worldToScreen(world, droppedItem.position()));
         window_.draw(shape);
 
-        const std::string label = std::string(canPickup ? "F " : "")
-            + item.name + " [" + slotName(item.slot) + "]";
+        std::string pickupPrompt;
+        if (canPickup) {
+            pickupPrompt = world.inventory().isFull() ? "FULL " : "F ";
+        }
+        const std::string label = pickupPrompt + item.name + " [" + slotName(item.slot) + "]";
         drawCenteredText(label,
             worldToScreen(world, Vector2(droppedItem.position().x, droppedItem.position().y - 20.0f)),
             12,
@@ -719,7 +725,7 @@ void Renderer::drawInventory(const GameWorld& world) {
     const sf::Vector2f mouse = worldToScreen(world, world.aimPosition());
     std::size_t hovered = items.size();
     {
-        float bandY = 140.0f; // first item name line, just below the "Inventory" title
+        float bandY = 156.0f;
         const std::size_t visibleCount = std::min<std::size_t>(items.size(), 9);
         for (std::size_t i = 0; i < visibleCount; ++i) {
             const bool hasCurrent = static_cast<bool>(equipment.itemInSlot(items[i].slot));
@@ -733,16 +739,36 @@ void Renderer::drawInventory(const GameWorld& world) {
         }
     }
 
+    const bool inventoryFull = world.inventory().isFull();
+    const std::string inventoryTitle = "Inventory "
+        + std::to_string(world.inventory().size()) + "/"
+        + std::to_string(world.inventory().capacity());
     float y = 118.0f;
-    drawText("Inventory", {x, y}, 16, sf::Color::White);
+    drawText(inventoryTitle, {x, y}, 16, inventoryFull ? sf::Color(255, 90, 90) : sf::Color::White);
     y += 22.0f;
+    if (inventoryFull) {
+        drawText("Inventory full - equip or drop an item", {x, y}, 12, sf::Color(255, 90, 90));
+        y += 16.0f;
+    } else {
+        drawText("Tab Select  Del Drop", {x, y}, 12, sf::Color(150, 160, 175));
+        y += 16.0f;
+    }
 
+    const int selectedIndex = world.selectedInventoryIndex();
     const std::size_t visibleCount = std::min<std::size_t>(items.size(), 9);
     for (std::size_t i = 0; i < visibleCount; ++i) {
         const auto& item = items[i];
-        const std::string line = std::to_string(i + 1) + ". "
+        const bool isSelected = (static_cast<int>(i) == selectedIndex);
+        const bool isHovered = (i == hovered);
+        const std::string line = (isSelected ? "> " : "") + std::to_string(i + 1) + ". "
             + item.name + " [" + slotName(item.slot) + "] " + statsSummary(item.stats);
-        drawText(line, {x, y}, 13, (i == hovered) ? sf::Color::White : rarityColor(item.rarity));
+        sf::Color rowColor = rarityColor(item.rarity);
+        if (isSelected) {
+            rowColor = sf::Color(255, 215, 90);
+        } else if (isHovered) {
+            rowColor = sf::Color::White;
+        }
+        drawText(line, {x, y}, 13, rowColor);
         y += 16.0f;
 
         const auto& current = equipment.itemInSlot(item.slot);
@@ -754,11 +780,13 @@ void Renderer::drawInventory(const GameWorld& world) {
     }
 
     if (hovered < items.size()) {
-        drawInventoryItemDetail(world, items[hovered], equipment.itemInSlot(items[hovered].slot));
+        drawInventoryItemDetail(world, items[hovered], equipment.itemInSlot(items[hovered].slot), "Hovered");
+    } else if (selectedIndex >= 0 && static_cast<std::size_t>(selectedIndex) < items.size()) {
+        drawInventoryItemDetail(world, items[selectedIndex], equipment.itemInSlot(items[selectedIndex].slot), "Selected");
     }
 }
 
-void Renderer::drawInventoryItemDetail(const GameWorld& world, const Item& item, const std::optional<Item>& current) {
+void Renderer::drawInventoryItemDetail(const GameWorld& world, const Item& item, const std::optional<Item>& current, const std::string& statusLabel) {
     const sf::Vector2f panelSize{500.0f, 220.0f};
     const sf::Vector2f panelPos{16.0f, 300.0f};
     drawBox({panelPos.x + panelSize.x / 2.0f, panelPos.y + panelSize.y / 2.0f}, panelSize, sf::Color(18, 22, 30));
@@ -766,7 +794,7 @@ void Renderer::drawInventoryItemDetail(const GameWorld& world, const Item& item,
     const float x = panelPos.x + 14.0f;
     float y = panelPos.y + 12.0f;
 
-    drawText(item.name + "  [" + rarityName(item.rarity) + "]", {x, y}, 16, rarityColor(item.rarity));
+    drawText(item.name + "  [" + rarityName(item.rarity) + "]  " + statusLabel, {x, y}, 16, rarityColor(item.rarity));
     y += 20.0f;
 
     drawText("Slot: " + std::string(slotName(item.slot)) + "   iLvl: " + std::to_string(item.itemLevel),

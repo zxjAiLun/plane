@@ -51,6 +51,8 @@ public:
     const std::vector<Enemy>& enemies() const;
     const std::vector<DroppedItem>& droppedItems() const;
     const Inventory& inventory() const;
+    float inventoryFullPromptTimeRemaining() const;
+    int selectedInventoryIndex() const;
     const Vector2& aimPosition() const;
     float novaEffectProgress() const;
     float novaEffectRadius() const;
@@ -125,6 +127,9 @@ private:
     void updatePassiveTreeHover(const Input& input);
     void tryAssignSkill(Input& input);
     void tryEquipInventoryItem(Input& input);
+    void trySelectInventoryItem(Input& input);
+    void tryDropSelectedInventoryItem(Input& input);
+    void updateSelectedInventoryIndex();
     void tryChooseMapReward(Input& input);
     void applyMapReward(const MapRewardDefinition& reward);
     void generateMapRewardOptions();
@@ -192,6 +197,8 @@ private:
     int hoveredPassiveNode_;
     std::string nearbyEventPrompt_;
     float shrineBuffTimer_;
+    float inventoryFullTimer_ = 0.0f;
+    int selectedInventoryIndex_ = -1;
     bool mapEventInteractionConsumed_;
     int activeEliteEventIndex_;
     int eliteEventEnemiesRemaining_;
