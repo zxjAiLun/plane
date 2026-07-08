@@ -788,14 +788,37 @@ void Renderer::drawInventory(const GameWorld& world) {
         }
     }
 
+    // Detail panel priority:
+    //   1. hovered inventory item (player is inspecting the bag)
+    //   2. focused ground item (what F would pick up, if no bag hover)
+    //   3. selected inventory item (fallback when nothing is under the cursor)
+    // Ground item detail is suppressed while Passive Tree / Skill Panel are open
+    // so it never covers those overlays. MapComplete is allowed (Boss drops stay pickable).
+    const int focusedGroundIndex = world.focusedDroppedItemIndex();
+    const bool showGroundDetail = focusedGroundIndex >= 0
+        && static_cast<std::size_t>(focusedGroundIndex) < world.droppedItems().size()
+        && !world.passiveTreeOpen()
+        && !world.skillPanelOpen();
+
     if (hovered < items.size()) {
-        drawInventoryItemDetail(world, items[hovered], equipment.itemInSlot(items[hovered].slot), "Hovered");
+        const int key = static_cast<int>(hovered) + 1;
+        drawItemDetailPanel(world, items[hovered], equipment.itemInSlot(items[hovered].slot),
+            "Hovered", std::to_string(key) + " Equip  |  Tab Select");
+    } else if (showGroundDetail) {
+        const auto& groundItem = world.droppedItems()[static_cast<std::size_t>(focusedGroundIndex)].item();
+        const std::string groundActionHint = world.inventory().isFull()
+            ? "Inventory full - equip or drop an item"
+            : "F Pick up";
+        drawItemDetailPanel(world, groundItem, equipment.itemInSlot(groundItem.slot),
+            "Pickup Target", groundActionHint);
     } else if (selectedIndex >= 0 && static_cast<std::size_t>(selectedIndex) < items.size()) {
-        drawInventoryItemDetail(world, items[selectedIndex], equipment.itemInSlot(items[selectedIndex].slot), "Selected");
+        const int key = selectedIndex + 1;
+        drawItemDetailPanel(world, items[selectedIndex], equipment.itemInSlot(items[selectedIndex].slot),
+            "Selected", std::to_string(key) + " Equip  |  Del Drop");
     }
 }
 
-void Renderer::drawInventoryItemDetail(const GameWorld& world, const Item& item, const std::optional<Item>& current, const std::string& statusLabel) {
+void Renderer::drawItemDetailPanel(const GameWorld& world, const Item& item, const std::optional<Item>& current, const std::string& statusLabel, const std::string& actionHint) {
     const sf::Vector2f panelSize{500.0f, 220.0f};
     const sf::Vector2f panelPos{16.0f, 300.0f};
     drawBox({panelPos.x + panelSize.x / 2.0f, panelPos.y + panelSize.y / 2.0f}, panelSize, sf::Color(18, 22, 30));
@@ -845,6 +868,14 @@ void Renderer::drawInventoryItemDetail(const GameWorld& world, const Item& item,
         drawText(line, {x, y}, 11, sf::Color(180, 210, 255));
         y += 15.0f;
     }
+
+    y += 6.0f;
+    const bool isPickup = actionHint.rfind("F Pick up", 0) == 0;
+    const bool isFull = actionHint.rfind("Inventory full", 0) == 0;
+    const sf::Color hintColor = isFull ? sf::Color(255, 90, 90)
+        : isPickup ? sf::Color(180, 220, 255)
+        : sf::Color(200, 220, 240);
+    drawText(actionHint, {x, y}, 12, hintColor);
 }
 
 void Renderer::drawPassiveTree(const GameWorld& world) {
