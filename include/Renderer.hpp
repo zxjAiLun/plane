@@ -26,13 +26,14 @@ private:
     void drawSkillBar(const GameWorld& world);
     void drawEquipment(const GameWorld& world);
     void drawInventory(const GameWorld& world);
-    void drawItemDetailPanel(const GameWorld& world, const Item& item, const std::optional<Item>& current, const std::string& statusLabel, const std::string& actionHint);
+    void drawItemDetailPanel(const GameWorld& world, const sf::Vector2f& panelPos, const Item& item, const std::optional<Item>& current, const std::string& statusLabel, const std::string& actionHint);
     void drawPassiveTree(const GameWorld& world);
     void drawSkillPanel(const GameWorld& world);
     void drawMinimap(const GameWorld& world);
     void drawBossHealth(const GameWorld& world);
     void drawGameOver(const GameWorld& world);
     void drawMapComplete(const GameWorld& world);
+    void drawMapCompleteLootDetail(const GameWorld& world);
 
     void drawBox(const sf::Vector2f& center, const sf::Vector2f& size, const sf::Color& color);
     void drawText(const std::string& text, const sf::Vector2f& position, unsigned int size, const sf::Color& color);

@@ -450,6 +450,7 @@ void Renderer::render(const GameWorld& world) {
             break;
         case GameState::MapComplete:
             drawMapComplete(world);
+            drawMapCompleteLootDetail(world);
             break;
         case GameState::Playing:
             break;
@@ -792,35 +793,38 @@ void Renderer::drawInventory(const GameWorld& world) {
     //   1. hovered inventory item (player is inspecting the bag)
     //   2. focused ground item (what F would pick up, if no bag hover)
     //   3. selected inventory item (fallback when nothing is under the cursor)
-    // Ground item detail is suppressed while Passive Tree / Skill Panel are open
-    // so it never covers those overlays. MapComplete is allowed (Boss drops stay pickable).
-    const int focusedGroundIndex = world.focusedDroppedItemIndex();
-    const bool showGroundDetail = focusedGroundIndex >= 0
-        && static_cast<std::size_t>(focusedGroundIndex) < world.droppedItems().size()
-        && !world.passiveTreeOpen()
-        && !world.skillPanelOpen();
+    // Suppressed while Passive Tree / Skill Panel are open (would cover those overlays)
+    // and during MapComplete (the settlement screen owns the stage; the focused Boss
+    // drop is shown by drawMapCompleteLootDetail() AFTER the overlay instead).
+    if (world.state() != GameState::MapComplete) {
+        const int focusedGroundIndex = world.focusedDroppedItemIndex();
+        const bool showGroundDetail = focusedGroundIndex >= 0
+            && static_cast<std::size_t>(focusedGroundIndex) < world.droppedItems().size()
+            && !world.passiveTreeOpen()
+            && !world.skillPanelOpen();
 
-    if (hovered < items.size()) {
-        const int key = static_cast<int>(hovered) + 1;
-        drawItemDetailPanel(world, items[hovered], equipment.itemInSlot(items[hovered].slot),
-            "Hovered", std::to_string(key) + " Equip  |  Tab Select");
-    } else if (showGroundDetail) {
-        const auto& groundItem = world.droppedItems()[static_cast<std::size_t>(focusedGroundIndex)].item();
-        const std::string groundActionHint = world.inventory().isFull()
-            ? "Inventory full - equip or drop an item"
-            : "F Pick up";
-        drawItemDetailPanel(world, groundItem, equipment.itemInSlot(groundItem.slot),
-            "Pickup Target", groundActionHint);
-    } else if (selectedIndex >= 0 && static_cast<std::size_t>(selectedIndex) < items.size()) {
-        const int key = selectedIndex + 1;
-        drawItemDetailPanel(world, items[selectedIndex], equipment.itemInSlot(items[selectedIndex].slot),
-            "Selected", std::to_string(key) + " Equip  |  Del Drop");
+        const sf::Vector2f inventoryDetailPos{16.0f, 300.0f};
+        if (hovered < items.size()) {
+            const int key = static_cast<int>(hovered) + 1;
+            drawItemDetailPanel(world, inventoryDetailPos, items[hovered], equipment.itemInSlot(items[hovered].slot),
+                "Hovered", std::to_string(key) + " Equip  |  Tab Select");
+        } else if (showGroundDetail) {
+            const auto& groundItem = world.droppedItems()[static_cast<std::size_t>(focusedGroundIndex)].item();
+            const std::string groundActionHint = world.inventory().isFull()
+                ? "Inventory full - equip or drop an item"
+                : "F Pick up";
+            drawItemDetailPanel(world, inventoryDetailPos, groundItem, equipment.itemInSlot(groundItem.slot),
+                "Pickup Target", groundActionHint);
+        } else if (selectedIndex >= 0 && static_cast<std::size_t>(selectedIndex) < items.size()) {
+            const int key = selectedIndex + 1;
+            drawItemDetailPanel(world, inventoryDetailPos, items[selectedIndex], equipment.itemInSlot(items[selectedIndex].slot),
+                "Selected", std::to_string(key) + " Equip  |  Del Drop");
+        }
     }
 }
 
-void Renderer::drawItemDetailPanel(const GameWorld& world, const Item& item, const std::optional<Item>& current, const std::string& statusLabel, const std::string& actionHint) {
+void Renderer::drawItemDetailPanel(const GameWorld& world, const sf::Vector2f& panelPos, const Item& item, const std::optional<Item>& current, const std::string& statusLabel, const std::string& actionHint) {
     const sf::Vector2f panelSize{500.0f, 220.0f};
-    const sf::Vector2f panelPos{16.0f, 300.0f};
     drawBox({panelPos.x + panelSize.x / 2.0f, panelPos.y + panelSize.y / 2.0f}, panelSize, sf::Color(18, 22, 30));
 
     const float x = panelPos.x + 14.0f;
@@ -1185,6 +1189,13 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     overlay.setFillColor(sf::Color(0, 100, 0, 180));
     window_.draw(overlay);
 
+    const std::string phaseText = !world.mapRewardChosen()
+        ? "PHASE: CHOOSE REWARD"
+        : !world.nextMapOptionChosen()
+            ? "PHASE: CHOOSE NEXT MAP"
+            : "PHASE: PRESS E TO ENTER MAP " + std::to_string(world.mapLevel() + 1);
+    drawCenteredText(phaseText, {center.x, center.y - 160.0f}, 20, sf::Color(255, 240, 180));
+
     drawBox({center.x, center.y - 84.0f}, {360.0f, 90.0f}, sf::Color::Green);
     drawCenteredText("BOSS DEFEATED: " + world.bossDefinition().name,
         {center.x, center.y - 110.0f}, 22, sf::Color::White);
@@ -1197,6 +1208,22 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     drawCenteredText("Events " + std::to_string(world.mapEventsCompleted())
         + "/" + std::to_string(world.mapEventsTotal()),
         {center.x, center.y - 30.0f}, 16, sf::Color::White);
+
+    // Left-side pickup guidance (always available during MapComplete):
+    // looting runs concurrently with reward / next-map selection, so the player
+    // knows F still works and what it will target.
+    float pickupY = 360.0f;
+    drawText("F Pick up nearby drops", {20.0f, pickupY}, 14, sf::Color(180, 220, 255));
+    pickupY += 20.0f;
+    const int focusedLoot = world.focusedDroppedItemIndex();
+    if (focusedLoot >= 0) {
+        drawText("Focused: " + world.droppedItems()[static_cast<std::size_t>(focusedLoot)].item().name,
+            {20.0f, pickupY}, 14, sf::Color(255, 220, 120));
+        pickupY += 20.0f;
+    }
+    if (world.inventory().isFull()) {
+        drawText("Inventory full - drop or equip an item", {20.0f, pickupY}, 14, sf::Color(255, 90, 90));
+    }
 
     const auto& mapOptions = world.nextMapOptions();
     if (!world.mapRewardChosen()) {
@@ -1247,6 +1274,23 @@ void Renderer::drawMapComplete(const GameWorld& world) {
         drawCenteredText("Pick 1 / 2 / 3 next map first",
             {center.x, center.y + 191.0f}, 16, sf::Color::Black);
     }
+}
+
+void Renderer::drawMapCompleteLootDetail(const GameWorld& world) {
+    const int index = world.focusedDroppedItemIndex();
+    if (index < 0) {
+        return;
+    }
+    const auto& droppedItem = world.droppedItems()[static_cast<std::size_t>(index)];
+    const Item& item = droppedItem.item();
+    const std::string actionHint = world.inventory().isFull()
+        ? "Inventory full - equip or drop an item"
+        : "F Pick up";
+    // Top-left placement keeps the detail visible in the 800x600 window while
+    // leaving the centered reward/map choice area and right-side inventory readable.
+    const sf::Vector2f lootDetailPos{16.0f, 64.0f};
+    drawItemDetailPanel(world, lootDetailPos, item, world.player().equipment().itemInSlot(item.slot),
+        "Boss Drop", actionHint);
 }
 
 void Renderer::drawBox(const sf::Vector2f& center, const sf::Vector2f& size, const sf::Color& color) {
