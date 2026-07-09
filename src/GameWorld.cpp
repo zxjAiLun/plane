@@ -82,7 +82,13 @@ void GameWorld::update(float dt, Input& input) {
             break;
 
         case GameState::MapComplete:
+            // F still loots Boss drops. Number keys still only drive reward / next-map
+            // choice (handled below). Tab/Del let the player free bag space so F can
+            // pick up more drops. tryEquipInventoryItem is intentionally NOT called so
+            // 1-9 stays mapped to reward/map choices and never equips during settlement.
             tryPickupDroppedItem(input);
+            trySelectInventoryItem(input);
+            tryDropSelectedInventoryItem(input);
             removeDeadObjects();
             if (!mapRewardChosen_) {
                 tryChooseMapReward(input);
@@ -903,10 +909,28 @@ void GameWorld::tryDropSelectedInventoryItem(Input& input) {
 
     const std::size_t index = static_cast<std::size_t>(selectedInventoryIndex_);
     if (auto item = inventory_.take(index)) {
-        // Drop near the player with a small offset so it does not overlap.
-        Vector2 dropPos = player_.position() + Vector2(28.0f, -10.0f);
-        dropPos.x = std::clamp(dropPos.x, Config::ItemDropRadius, map_.size().x - Config::ItemDropRadius);
-        dropPos.y = std::clamp(dropPos.y, Config::ItemDropRadius, map_.size().y - Config::ItemDropRadius);
+        const float pickupRange = (Config::ItemPickupRange + player_.radius())
+            * player_.stats().pickupRangeMultiplier;
+        const float dropDistance = pickupRange + Config::ItemDropRadius + 12.0f;
+        const Vector2 offsets[] = {
+            Vector2(dropDistance, -dropDistance * 0.35f),
+            Vector2(-dropDistance, -dropDistance * 0.35f),
+            Vector2(dropDistance, dropDistance * 0.35f),
+            Vector2(-dropDistance, dropDistance * 0.35f),
+        };
+
+        Vector2 dropPos = player_.position() + offsets[0];
+        float bestDistSq = -1.0f;
+        for (const auto& offset : offsets) {
+            Vector2 candidate = player_.position() + offset;
+            candidate.x = std::clamp(candidate.x, Config::ItemDropRadius, map_.size().x - Config::ItemDropRadius);
+            candidate.y = std::clamp(candidate.y, Config::ItemDropRadius, map_.size().y - Config::ItemDropRadius);
+            const float distSq = (candidate - player_.position()).lengthSquared();
+            if (distSq > bestDistSq) {
+                bestDistSq = distSq;
+                dropPos = candidate;
+            }
+        }
         droppedItems_.push_back(DroppedItem(dropPos, std::move(*item)));
     }
     updateSelectedInventoryIndex();

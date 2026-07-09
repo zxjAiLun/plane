@@ -450,6 +450,7 @@ void Renderer::render(const GameWorld& world) {
             break;
         case GameState::MapComplete:
             drawMapComplete(world);
+            drawMapCompleteInventoryPanel(world);
             drawMapCompleteLootDetail(world);
             break;
         case GameState::Playing:
@@ -725,6 +726,11 @@ void Renderer::drawEquipment(const GameWorld& world) {
 }
 
 void Renderer::drawInventory(const GameWorld& world) {
+    // During MapComplete the bag is drawn by drawMapCompleteInventoryPanel() AFTER
+    // the settlement overlay, so it stays bright. Skip the dimmed duplicate here.
+    if (world.state() == GameState::MapComplete) {
+        return;
+    }
     const auto& items = world.inventory().items();
     const auto& equipment = world.player().equipment();
     const float x = static_cast<float>(Config::WindowWidth) - 260.0f;
@@ -1222,7 +1228,7 @@ void Renderer::drawMapComplete(const GameWorld& world) {
         pickupY += 20.0f;
     }
     if (world.inventory().isFull()) {
-        drawText("Inventory full - drop or equip an item", {20.0f, pickupY}, 14, sf::Color(255, 90, 90));
+        drawText("Inventory full - Tab select / Del drop an item", {20.0f, pickupY}, 14, sf::Color(255, 90, 90));
     }
 
     const auto& mapOptions = world.nextMapOptions();
@@ -1276,6 +1282,58 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     }
 }
 
+void Renderer::drawMapCompleteInventoryPanel(const GameWorld& world) {
+    const float width = static_cast<float>(Config::WindowWidth);
+    const auto& items = world.inventory().items();
+    const auto& equipment = world.player().equipment();
+
+    // Right-side panel, same column as the Playing inventory, drawn AFTER the
+    // MapComplete overlay so it stays bright. Tab/Del manage the bag here; 1-9 is
+    // deliberately NOT shown because number keys belong to reward/next-map choice.
+    const float x = width - 260.0f;
+    const float panelW = 270.0f;
+    const float panelTop = 150.0f;
+    const float panelH = 300.0f;
+    drawBox({x - 10.0f + panelW / 2.0f, panelTop + panelH / 2.0f}, {panelW, panelH}, sf::Color(18, 22, 30));
+
+    const bool inventoryFull = world.inventory().isFull();
+    const std::string inventoryTitle = "Inventory "
+        + std::to_string(world.inventory().size()) + "/"
+        + std::to_string(world.inventory().capacity());
+    float y = panelTop + 8.0f;
+    drawText(inventoryTitle, {x, y}, 16, inventoryFull ? sf::Color(255, 90, 90) : sf::Color::White);
+    y += 20.0f;
+    if (inventoryFull) {
+        drawText("Inventory full - drop an item to loot", {x, y}, 12, sf::Color(255, 90, 90));
+        y += 16.0f;
+    } else {
+        drawText("Tab Select  Del Drop", {x, y}, 12, sf::Color(150, 160, 175));
+        y += 16.0f;
+    }
+
+    const int selectedIndex = world.selectedInventoryIndex();
+    const std::size_t visibleCount = std::min<std::size_t>(items.size(), 9);
+    for (std::size_t i = 0; i < visibleCount; ++i) {
+        const auto& item = items[i];
+        const bool isSelected = (static_cast<int>(i) == selectedIndex);
+        const std::string line = (isSelected ? "> " : "") + std::to_string(i + 1) + ". "
+            + item.name + " [" + slotName(item.slot) + "] " + statsSummary(item.stats);
+        sf::Color rowColor = rarityColor(item.rarity);
+        if (isSelected) {
+            rowColor = sf::Color(255, 215, 90);
+        }
+        drawText(line, {x, y}, 13, rowColor);
+        y += 16.0f;
+
+        const auto& current = equipment.itemInSlot(item.slot);
+        if (current) {
+            const Stats delta = statsDelta(item.stats, current->stats);
+            drawText("   Delta: " + statsDeltaSummary(delta), {x, y}, 11, deltaColor(delta));
+            y += 14.0f;
+        }
+    }
+}
+
 void Renderer::drawMapCompleteLootDetail(const GameWorld& world) {
     const int index = world.focusedDroppedItemIndex();
     if (index < 0) {
@@ -1284,7 +1342,7 @@ void Renderer::drawMapCompleteLootDetail(const GameWorld& world) {
     const auto& droppedItem = world.droppedItems()[static_cast<std::size_t>(index)];
     const Item& item = droppedItem.item();
     const std::string actionHint = world.inventory().isFull()
-        ? "Inventory full - equip or drop an item"
+        ? "Inventory full - Tab select / Del drop an item"
         : "F Pick up";
     // Top-left placement keeps the detail visible in the 800x600 window while
     // leaving the centered reward/map choice area and right-side inventory readable.
