@@ -406,8 +406,22 @@ void Renderer::render(const GameWorld& world) {
     drawText("Objective: " + world.mapObjective(),
         {16.0f, 196.0f}, 14, sf::Color(210, 255, 210));
     float hudY = 218.0f;
+    // Persistent event progress (always visible while exploring the map).
+    drawText("Events " + std::to_string(world.mapEventsCompleted())
+        + "/" + std::to_string(world.mapEventsTotal()),
+        {16.0f, hudY}, 14, sf::Color(210, 255, 210));
+    hudY += 18.0f;
     if (!world.nearbyEventPrompt().empty()) {
         drawText(world.nearbyEventPrompt(), {16.0f, hudY}, 14, sf::Color(255, 235, 150));
+        hudY += 18.0f;
+    }
+    if (!world.eventStatusMessage().empty() && world.eventStatusTimeRemaining() > 0.0f) {
+        drawText(world.eventStatusMessage(), {16.0f, hudY}, 14, sf::Color(255, 220, 120));
+        hudY += 18.0f;
+    }
+    if (world.activeEliteEventEnemiesRemaining() > 0) {
+        drawText("Elite pack: " + std::to_string(world.activeEliteEventEnemiesRemaining())
+            + " enemies left", {16.0f, hudY}, 14, sf::Color(200, 140, 255));
         hudY += 18.0f;
     }
     const std::string pickupPrompt = world.pickupPrompt();
@@ -421,7 +435,7 @@ void Renderer::render(const GameWorld& world) {
         hudY += 18.0f;
     }
     if (world.shrineBuffTimeRemaining() > 0.0f) {
-        drawText("Shrine +35% damage  "
+        drawText("Shrine Damage +35%  "
             + std::to_string(static_cast<int>(world.shrineBuffTimeRemaining() + 0.99f)) + "s",
             {16.0f, hudY}, 14, sf::Color(100, 240, 240));
         hudY += 18.0f;

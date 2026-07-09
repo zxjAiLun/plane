@@ -93,6 +93,9 @@ public:
     float shrineBuffTimeRemaining() const;
     int mapEventsCompleted() const;
     int mapEventsTotal() const;
+    std::string eventStatusMessage() const;
+    float eventStatusTimeRemaining() const;
+    int activeEliteEventEnemiesRemaining() const;
     bool nextMapOptionChosen() const;
     bool mapRewardChosen() const;
     const MapOption& currentMapOption() const;
@@ -204,4 +207,6 @@ private:
     bool mapEventInteractionConsumed_;
     int activeEliteEventIndex_;
     int eliteEventEnemiesRemaining_;
+    std::string eventStatusMessage_;
+    float eventStatusTimer_ = 0.0f;
 };

@@ -134,6 +134,12 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     bossAoeEffectTimer_ = std::max(0.0f, bossAoeEffectTimer_ - dt);
     playerHitCooldown_ = std::max(0.0f, playerHitCooldown_ - dt);
     shrineBuffTimer_ = std::max(0.0f, shrineBuffTimer_ - dt);
+    if (eventStatusTimer_ > 0.0f) {
+        eventStatusTimer_ = std::max(0.0f, eventStatusTimer_ - dt);
+        if (eventStatusTimer_ == 0.0f) {
+            eventStatusMessage_.clear();
+        }
+    }
     nearbyEventPrompt_.clear();
     mapEventInteractionConsumed_ = false;
 
@@ -234,6 +240,8 @@ void GameWorld::reset() {
     mapEventInteractionConsumed_ = false;
     activeEliteEventIndex_ = -1;
     eliteEventEnemiesRemaining_ = 0;
+    eventStatusMessage_.clear();
+    eventStatusTimer_ = 0.0f;
 }
 
 void GameWorld::startNextMap() {
@@ -287,6 +295,8 @@ void GameWorld::startNextMap() {
     mapEventInteractionConsumed_ = false;
     activeEliteEventIndex_ = -1;
     eliteEventEnemiesRemaining_ = 0;
+    eventStatusMessage_.clear();
+    eventStatusTimer_ = 0.0f;
 }
 
 void GameWorld::updateObjects(float dt) {
@@ -662,6 +672,8 @@ void GameWorld::triggerElitePackEvent(std::size_t eventIndex) {
     event.triggered = true;
     activeEliteEventIndex_ = static_cast<int>(eventIndex);
     eliteEventEnemiesRemaining_ = 5;
+    eventStatusMessage_ = "Elite pack awakened";
+    eventStatusTimer_ = 2.0f;
 
     const Vector2 offsets[] = {
         {0.0f, 0.0f},
@@ -688,12 +700,16 @@ void GameWorld::openLootCacheEvent(MapEventInstance& event) {
     event.triggered = true;
     event.completed = true;
     dropItemsAround(event.position, 2);
+    eventStatusMessage_ = "Cache opened: 2 items dropped";
+    eventStatusTimer_ = 2.0f;
 }
 
 void GameWorld::activateShrineEvent(MapEventInstance& event) {
     event.triggered = true;
     event.completed = true;
     shrineBuffTimer_ = ShrineBuffDuration;
+    eventStatusMessage_ = "Shrine activated: +35% damage";
+    eventStatusTimer_ = 2.0f;
 }
 
 void GameWorld::dropItemsAround(const Vector2& center, int count) {
@@ -758,6 +774,8 @@ void GameWorld::noteElitePackEnemyDefeated(const Enemy& enemy) {
     if (eliteEventEnemiesRemaining_ <= 0) {
         event.completed = true;
         activeEliteEventIndex_ = -1;
+        eventStatusMessage_ = "Elite pack cleared";
+        eventStatusTimer_ = 2.0f;
     }
 }
 
@@ -1235,6 +1253,9 @@ int GameWorld::mapItemsPickedUp() const { return mapItemsPickedUp_; }
 std::string GameWorld::nearbyEventPrompt() const { return nearbyEventPrompt_; }
 float GameWorld::shrineBuffTimeRemaining() const { return shrineBuffTimer_; }
 float GameWorld::inventoryFullPromptTimeRemaining() const { return inventoryFullTimer_; }
+std::string GameWorld::eventStatusMessage() const { return eventStatusMessage_; }
+float GameWorld::eventStatusTimeRemaining() const { return eventStatusTimer_; }
+int GameWorld::activeEliteEventEnemiesRemaining() const { return eliteEventEnemiesRemaining_; }
 
 std::string GameWorld::pickupPrompt() const {
     const int index = focusedDroppedItemIndex();
