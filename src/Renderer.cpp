@@ -1172,6 +1172,11 @@ void Renderer::drawBossHealth(const GameWorld& world) {
         + std::to_string(std::max(0, boss->hp())) + "/" + std::to_string(boss->maxHp()),
         {position.x, position.y - 18.0f}, 13, sf::Color(255, 210, 160));
 
+    const std::string castWarning = world.bossSkillWarning();
+    if (!castWarning.empty()) {
+        drawText(castWarning, {position.x, position.y + 18.0f}, 13, sf::Color(255, 130, 90));
+    }
+
     sf::RectangleShape background(size);
     background.setPosition(position);
     background.setFillColor(sf::Color(60, 30, 28, 210));
@@ -1223,6 +1228,7 @@ void Renderer::drawMapComplete(const GameWorld& world) {
         + "  XP " + std::to_string(world.mapExperienceGained()),
         {center.x, center.y - 76.0f}, 16, sf::Color::White);
     drawCenteredText("Drops " + std::to_string(world.mapItemsDropped())
+        + "  Boss Drops " + std::to_string(world.mapBossItemsDropped())
         + "  Picked " + std::to_string(world.mapItemsPickedUp()),
         {center.x, center.y - 52.0f}, 16, sf::Color::White);
     drawCenteredText("Events " + std::to_string(world.mapEventsCompleted())

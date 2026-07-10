@@ -43,6 +43,7 @@ GameWorld::GameWorld()
     , mapKills_(0)
     , mapExperienceGained_(0)
     , mapItemsDropped_(0)
+    , mapBossItemsDropped_(0)
     , mapItemsPickedUp_(0)
     , mapRewardChosen_(false)
     , nextMapOptionChosen_(false)
@@ -221,6 +222,7 @@ void GameWorld::reset() {
     mapKills_ = 0;
     mapExperienceGained_ = 0;
     mapItemsDropped_ = 0;
+    mapBossItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
     nextMapOptionChosen_ = false;
     mapRewardChosen_ = false;
@@ -277,6 +279,7 @@ void GameWorld::startNextMap() {
     mapKills_ = 0;
     mapExperienceGained_ = 0;
     mapItemsDropped_ = 0;
+    mapBossItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
     mapRewardChosen_ = false;
     nextMapOptionChosen_ = false;
@@ -1045,6 +1048,8 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         bossAoeTelegraphTimer_ = 0.0f;
         bossAoeEffectTimer_ = 0.0f;
         bossAoeSkill_ = BossSkillDefinition();
+        eventStatusMessage_ = "Boss defeated: " + bossDefinition_->name;
+        eventStatusTimer_ = 2.0f;
         generateMapRewardOptions();
         generateNextMapOptions();
     }
@@ -1073,6 +1078,9 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
         droppedItems_.push_back(DroppedItem(enemy.position() + offset, lootGenerator_.generate(mapLevel_)));
         ++mapItemsDropped_;
+        if (enemy.isBoss()) {
+            ++mapBossItemsDropped_;
+        }
     }
 
     noteElitePackEnemyDefeated(enemy);
@@ -1143,6 +1151,8 @@ void GameWorld::triggerBossIfNeeded() {
     bossAoeSkill_ = BossSkillDefinition();
     bossSkillTimer_ = bossDefinition_->skillInterval * 0.5f;
     bossSkillIndex_ = 0;
+    eventStatusMessage_ = "Boss awakened: " + bossDefinition_->name;
+    eventStatusTimer_ = 2.0f;
 
     const int hp = std::max(1, static_cast<int>(std::ceil(enemyHpForMap() * bossDefinition_->hpMultiplier)));
     const int damage = enemyDamageForMap() + bossDefinition_->damageBonus;
@@ -1249,6 +1259,7 @@ const MapModifier& GameWorld::mapModifier() const { return mapModifier_; }
 int GameWorld::mapKills() const { return mapKills_; }
 int GameWorld::mapExperienceGained() const { return mapExperienceGained_; }
 int GameWorld::mapItemsDropped() const { return mapItemsDropped_; }
+int GameWorld::mapBossItemsDropped() const { return mapBossItemsDropped_; }
 int GameWorld::mapItemsPickedUp() const { return mapItemsPickedUp_; }
 std::string GameWorld::nearbyEventPrompt() const { return nearbyEventPrompt_; }
 float GameWorld::shrineBuffTimeRemaining() const { return shrineBuffTimer_; }
@@ -1256,6 +1267,13 @@ float GameWorld::inventoryFullPromptTimeRemaining() const { return inventoryFull
 std::string GameWorld::eventStatusMessage() const { return eventStatusMessage_; }
 float GameWorld::eventStatusTimeRemaining() const { return eventStatusTimer_; }
 int GameWorld::activeEliteEventEnemiesRemaining() const { return eliteEventEnemiesRemaining_; }
+std::string GameWorld::bossSkillWarning() const {
+    if (bossAoeTelegraphTimer_ <= 0.0f || bossAoeSkill_.name.empty()) {
+        return "";
+    }
+
+    return "Boss casting: " + bossAoeSkill_.name;
+}
 
 std::string GameWorld::pickupPrompt() const {
     const int index = focusedDroppedItemIndex();

@@ -86,6 +86,7 @@ public:
     int mapKills() const;
     int mapExperienceGained() const;
     int mapItemsDropped() const;
+    int mapBossItemsDropped() const;
     int mapItemsPickedUp() const;
     std::string nearbyEventPrompt() const;
     int focusedDroppedItemIndex() const;
@@ -96,6 +97,7 @@ public:
     std::string eventStatusMessage() const;
     float eventStatusTimeRemaining() const;
     int activeEliteEventEnemiesRemaining() const;
+    std::string bossSkillWarning() const;
     bool nextMapOptionChosen() const;
     bool mapRewardChosen() const;
     const MapOption& currentMapOption() const;
@@ -194,6 +196,7 @@ private:
     int mapKills_;
     int mapExperienceGained_;
     int mapItemsDropped_;
+    int mapBossItemsDropped_;
     int mapItemsPickedUp_;
     bool mapRewardChosen_;
     bool nextMapOptionChosen_;
