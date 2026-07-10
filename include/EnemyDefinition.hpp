@@ -22,6 +22,9 @@ struct EnemyDefinition {
     int scoreReward = 100;
     int expMultiplier = 1;
     float dropMultiplier = 1.0f;
+    float attackRange = 0.0f;
+    float attackWindup = 0.0f;
+    float attackCooldown = 0.0f;
     EnemyColor fillColor;
     EnemyColor outlineColor;
     float outlineThickness = 0.0f;
@@ -45,6 +48,9 @@ public:
                 100,
                 1,
                 1.0f,
+                44.0f,
+                0.35f,
+                1.20f,
                 {220, 55, 55},
                 {0, 0, 0},
                 0.0f
@@ -58,6 +64,9 @@ public:
                 500,
                 5,
                 2.5f,
+                60.0f,
+                0.25f,
+                0.90f,
                 {180, 60, 255},
                 {255, 220, 120},
                 3.0f
@@ -71,6 +80,9 @@ public:
                 1000,
                 10,
                 1.0f,
+                0.0f,
+                0.0f,
+                0.0f,
                 {255, 80, 40},
                 {255, 220, 120},
                 5.0f

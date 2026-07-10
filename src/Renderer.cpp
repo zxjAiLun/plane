@@ -651,6 +651,17 @@ void Renderer::drawBossProjectiles(const GameWorld& world) {
 void Renderer::drawEnemies(const GameWorld& world) {
     for (const auto& enemy : world.enemies()) {
         const auto& definition = EnemyLibrary::forType(enemy.type());
+        const sf::Vector2f screenPosition = worldToScreen(world, enemy.position());
+        if (enemy.isAttackWindingUp()) {
+            sf::CircleShape warning(enemy.attackRange());
+            warning.setFillColor(sf::Color(255, 50, 40, 28));
+            warning.setOutlineColor(sf::Color(255, 110, 75, 210));
+            warning.setOutlineThickness(2.0f);
+            warning.setOrigin({enemy.attackRange(), enemy.attackRange()});
+            warning.setPosition(screenPosition);
+            window_.draw(warning);
+        }
+
         sf::RectangleShape shape({enemy.radius() * 2, enemy.radius() * 2});
         shape.setFillColor(enemyColor(definition.fillColor));
         if (definition.outlineThickness > 0.0f) {
@@ -658,7 +669,6 @@ void Renderer::drawEnemies(const GameWorld& world) {
             shape.setOutlineThickness(definition.outlineThickness);
         }
         shape.setOrigin({enemy.radius(), enemy.radius()});
-        const sf::Vector2f screenPosition = worldToScreen(world, enemy.position());
         shape.setPosition(screenPosition);
         window_.draw(shape);
 

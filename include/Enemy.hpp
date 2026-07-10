@@ -18,6 +18,9 @@ public:
     int hp() const;
     int maxHp() const;
     int contactDamage() const;
+    float attackRange() const;
+    bool isAttackWindingUp() const;
+    bool consumeMeleeAttack();
     EnemyType type() const;
     bool isElite() const;
     bool isBoss() const;
@@ -29,4 +32,7 @@ private:
     int maxHp_;
     int contactDamage_;
     EnemyType type_;
+    float attackCooldownTimer_;
+    float attackWindupTimer_;
+    bool meleeAttackReady_;
 };

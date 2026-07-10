@@ -474,18 +474,22 @@ void GameWorld::handleCollisions() {
             continue;
         }
 
-        if (Collision::circleCircle(
-                player_.position(), player_.radius(),
-                enemy.position(), enemy.radius()
-            )) {
-            damagePlayer(enemy.contactDamage());
-            if (!enemy.isBoss()) {
-                noteElitePackEnemyDefeated(enemy);
-                enemy.kill();
+        if (enemy.isBoss()) {
+            if (Collision::circleCircle(
+                    player_.position(), player_.radius(),
+                    enemy.position(), enemy.radius()
+                )) {
+                damagePlayer(enemy.contactDamage());
             }
+            continue;
+        }
+
+        const Vector2 toPlayer = player_.position() - enemy.position();
+        if (enemy.consumeMeleeAttack()
+            && toPlayer.lengthSquared() <= enemy.attackRange() * enemy.attackRange()) {
+            damagePlayer(enemy.contactDamage());
         }
     }
-
 }
 
 void GameWorld::handleBossProjectileCollisions() {
