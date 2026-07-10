@@ -23,6 +23,7 @@ public:
     bool primaryFireHeld() const;
     bool dash() const;
     bool nova() const;
+    bool useLifeFlask() const;
     bool secondarySkill() const;
     bool pickup() const;
     bool passiveTreeToggle() const;
@@ -45,6 +46,7 @@ private:
     bool primaryFireHeld_ = false;
     bool dash_ = false;
     bool nova_ = false;
+    bool useLifeFlask_ = false;
     bool secondarySkill_ = false;
     bool pickup_ = false;
     bool passiveTreeToggle_ = false;

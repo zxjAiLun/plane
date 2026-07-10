@@ -52,6 +52,9 @@ GameWorld::GameWorld()
     , hoveredPassiveNode_(-1)
     , nearbyEventPrompt_()
     , shrineBuffTimer_(0.0f)
+    , lifeFlaskCharges_(Config::LifeFlaskMaxCharges)
+    , lifeFlaskStatusMessage_()
+    , lifeFlaskStatusTimer_(0.0f)
     , inventoryFullTimer_(0.0f)
     , selectedInventoryIndex_(-1)
     , mapEventInteractionConsumed_(false)
@@ -135,6 +138,12 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     bossAoeEffectTimer_ = std::max(0.0f, bossAoeEffectTimer_ - dt);
     playerHitCooldown_ = std::max(0.0f, playerHitCooldown_ - dt);
     shrineBuffTimer_ = std::max(0.0f, shrineBuffTimer_ - dt);
+    if (lifeFlaskStatusTimer_ > 0.0f) {
+        lifeFlaskStatusTimer_ = std::max(0.0f, lifeFlaskStatusTimer_ - dt);
+        if (lifeFlaskStatusTimer_ == 0.0f) {
+            lifeFlaskStatusMessage_.clear();
+        }
+    }
     if (eventStatusTimer_ > 0.0f) {
         eventStatusTimer_ = std::max(0.0f, eventStatusTimer_ - dt);
         if (eventStatusTimer_ == 0.0f) {
@@ -163,6 +172,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     }
 
     if (!passiveTreeOpen_ && !skillPanelOpen_) {
+        tryUseLifeFlask(input);
         trySelectInventoryItem(input);
         tryDropSelectedInventoryItem(input);
         tryEquipInventoryItem(input);
@@ -237,6 +247,9 @@ void GameWorld::reset() {
     hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
+    lifeFlaskCharges_ = Config::LifeFlaskMaxCharges;
+    lifeFlaskStatusMessage_.clear();
+    lifeFlaskStatusTimer_ = 0.0f;
     inventoryFullTimer_ = 0.0f;
     selectedInventoryIndex_ = -1;
     mapEventInteractionConsumed_ = false;
@@ -293,6 +306,9 @@ void GameWorld::startNextMap() {
     hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
+    lifeFlaskCharges_ = Config::LifeFlaskMaxCharges;
+    lifeFlaskStatusMessage_.clear();
+    lifeFlaskStatusTimer_ = 0.0f;
     inventoryFullTimer_ = 0.0f;
     selectedInventoryIndex_ = -1;
     mapEventInteractionConsumed_ = false;
@@ -596,6 +612,27 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
             damage
         ));
     }
+}
+
+void GameWorld::tryUseLifeFlask(Input& input) {
+    if (!input.useLifeFlask()) {
+        return;
+    }
+
+    if (lifeFlaskCharges_ <= 0) {
+        lifeFlaskStatusMessage_ = "Life flask empty";
+        lifeFlaskStatusTimer_ = 1.5f;
+        return;
+    }
+
+    const int healed = player_.heal(Config::LifeFlaskHealAmount);
+    if (healed <= 0) {
+        return;
+    }
+
+    --lifeFlaskCharges_;
+    lifeFlaskStatusMessage_ = "Life flask: +" + std::to_string(healed) + " HP";
+    lifeFlaskStatusTimer_ = 1.5f;
 }
 
 void GameWorld::dealAreaDamage(const Vector2& center, float radius, int damage) {
@@ -1165,6 +1202,10 @@ const std::vector<BossProjectile>& GameWorld::bossProjectiles() const { return b
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
 const std::vector<DroppedItem>& GameWorld::droppedItems() const { return droppedItems_; }
 const Inventory& GameWorld::inventory() const { return inventory_; }
+int GameWorld::lifeFlaskCharges() const { return lifeFlaskCharges_; }
+int GameWorld::lifeFlaskMaxCharges() const { return Config::LifeFlaskMaxCharges; }
+std::string GameWorld::lifeFlaskStatusMessage() const { return lifeFlaskStatusMessage_; }
+float GameWorld::lifeFlaskStatusTimeRemaining() const { return lifeFlaskStatusTimer_; }
 const Vector2& GameWorld::aimPosition() const { return aimPosition_; }
 float GameWorld::novaEffectProgress() const {
     const float duration = skillBar_.definition(SkillSlot::Utility).effectDuration;

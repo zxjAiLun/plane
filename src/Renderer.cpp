@@ -383,6 +383,15 @@ void Renderer::render(const GameWorld& world) {
 
     drawText("HP " + std::to_string(world.player().hp()) + "/" + std::to_string(world.player().maxHp()),
         {16.0f, 12.0f}, 18, sf::Color::White);
+    const bool flaskEmpty = world.lifeFlaskCharges() <= 0;
+    drawText("Flask G " + std::to_string(world.lifeFlaskCharges()) + "/"
+        + std::to_string(world.lifeFlaskMaxCharges()),
+        {180.0f, 12.0f}, 16, flaskEmpty ? sf::Color(255, 100, 100) : sf::Color(170, 235, 190));
+    if (!world.lifeFlaskStatusMessage().empty()
+        && world.lifeFlaskStatusTimeRemaining() > 0.0f) {
+        drawText(world.lifeFlaskStatusMessage(), {310.0f, 12.0f}, 14,
+            flaskEmpty ? sf::Color(255, 120, 120) : sf::Color(180, 245, 200));
+    }
     drawText("LV " + std::to_string(world.player().level())
         + "  EXP " + std::to_string(world.player().exp()) + "/" + std::to_string(world.player().expToNextLevel())
         + "  SP " + std::to_string(world.player().talentPoints()),

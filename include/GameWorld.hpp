@@ -53,6 +53,10 @@ public:
     const Inventory& inventory() const;
     float inventoryFullPromptTimeRemaining() const;
     int selectedInventoryIndex() const;
+    int lifeFlaskCharges() const;
+    int lifeFlaskMaxCharges() const;
+    std::string lifeFlaskStatusMessage() const;
+    float lifeFlaskStatusTimeRemaining() const;
     const Vector2& aimPosition() const;
     float novaEffectProgress() const;
     float novaEffectRadius() const;
@@ -120,6 +124,7 @@ private:
     void tryCastUtilitySkill(Input& input);
     void tryCastSecondarySkill(Input& input);
     void tryCastPrimarySkill(Input& input);
+    void tryUseLifeFlask(Input& input);
     void dealAreaDamage(const Vector2& center, float radius, int damage);
     void updateMapEvents(float dt, Input& input);
     void triggerElitePackEvent(std::size_t eventIndex);
@@ -205,6 +210,9 @@ private:
     int hoveredPassiveNode_;
     std::string nearbyEventPrompt_;
     float shrineBuffTimer_;
+    int lifeFlaskCharges_;
+    std::string lifeFlaskStatusMessage_;
+    float lifeFlaskStatusTimer_;
     float inventoryFullTimer_ = 0.0f;
     int selectedInventoryIndex_ = -1;
     bool mapEventInteractionConsumed_;

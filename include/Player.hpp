@@ -23,6 +23,7 @@ public:
     void setBounds(const Vector2& bounds);
 
     void takeDamage(int damage);
+    int heal(int amount);
     bool isDead() const;
 
     void gainExp(int amount);

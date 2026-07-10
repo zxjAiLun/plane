@@ -65,6 +65,16 @@ void Player::takeDamage(int damage) {
     hp_ -= damage;
 }
 
+int Player::heal(int amount) {
+    if (amount <= 0 || isDead() || hp_ >= maxHp_) {
+        return 0;
+    }
+
+    const int hpBefore = hp_;
+    hp_ = std::min(maxHp_, hp_ + amount);
+    return hp_ - hpBefore;
+}
+
 bool Player::isDead() const {
     return hp_ <= 0;
 }
