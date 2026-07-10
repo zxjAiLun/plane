@@ -378,6 +378,7 @@ void Renderer::render(const GameWorld& world) {
     drawAimIndicator(world);
     drawProjectiles(world);
     drawBossProjectiles(world);
+    drawEnemyProjectiles(world);
     drawEnemies(world);
     drawDroppedItems(world);
 
@@ -648,14 +649,31 @@ void Renderer::drawBossProjectiles(const GameWorld& world) {
     }
 }
 
+void Renderer::drawEnemyProjectiles(const GameWorld& world) {
+    for (const auto& projectile : world.enemyProjectiles()) {
+        sf::CircleShape shape(projectile.radius);
+        shape.setFillColor(sf::Color(80, 235, 145));
+        shape.setOutlineColor(sf::Color(210, 255, 190));
+        shape.setOutlineThickness(1.5f);
+        shape.setOrigin({projectile.radius, projectile.radius});
+        shape.setPosition(worldToScreen(world, projectile.position));
+        window_.draw(shape);
+    }
+}
+
 void Renderer::drawEnemies(const GameWorld& world) {
     for (const auto& enemy : world.enemies()) {
         const auto& definition = EnemyLibrary::forType(enemy.type());
         const sf::Vector2f screenPosition = worldToScreen(world, enemy.position());
         if (enemy.isAttackWindingUp()) {
             sf::CircleShape warning(enemy.attackRange());
-            warning.setFillColor(sf::Color(255, 50, 40, 28));
-            warning.setOutlineColor(sf::Color(255, 110, 75, 210));
+            const sf::Color warningColor = enemy.isRanged()
+                ? sf::Color(255, 220, 75, 210)
+                : sf::Color(255, 110, 75, 210);
+            warning.setFillColor(enemy.isRanged()
+                ? sf::Color(255, 220, 75, 28)
+                : sf::Color(255, 50, 40, 28));
+            warning.setOutlineColor(warningColor);
             warning.setOutlineThickness(2.0f);
             warning.setOrigin({enemy.attackRange(), enemy.attackRange()});
             warning.setPosition(screenPosition);

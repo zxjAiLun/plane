@@ -13,7 +13,7 @@ Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type)
     , type_(type)
     , attackCooldownTimer_(0.0f)
     , attackWindupTimer_(0.0f)
-    , meleeAttackReady_(false) {
+    , attackReady_(false) {
 }
 
 void Enemy::update(float dt, const Vector2& targetPosition) {
@@ -29,7 +29,7 @@ void Enemy::update(float dt, const Vector2& targetPosition) {
     if (attackWindupTimer_ > 0.0f) {
         attackWindupTimer_ = std::max(0.0f, attackWindupTimer_ - dt);
         if (attackWindupTimer_ == 0.0f) {
-            meleeAttackReady_ = true;
+            attackReady_ = true;
         }
         return;
     }
@@ -38,6 +38,10 @@ void Enemy::update(float dt, const Vector2& targetPosition) {
     if (attackCooldownTimer_ <= 0.0f
         && toTarget.lengthSquared() <= definition.attackRange * definition.attackRange) {
         attackWindupTimer_ = definition.attackWindup;
+        return;
+    }
+
+    if (isRanged() && toTarget.lengthSquared() <= definition.attackRange * definition.attackRange) {
         return;
     }
 
@@ -64,15 +68,18 @@ int Enemy::maxHp() const { return maxHp_; }
 int Enemy::contactDamage() const { return contactDamage_; }
 float Enemy::attackRange() const { return EnemyLibrary::forType(type_).attackRange; }
 bool Enemy::isAttackWindingUp() const { return !isBoss() && attackWindupTimer_ > 0.0f; }
-bool Enemy::consumeMeleeAttack() {
-    if (!meleeAttackReady_) {
+bool Enemy::consumeAttack() {
+    if (!attackReady_) {
         return false;
     }
 
-    meleeAttackReady_ = false;
+    attackReady_ = false;
     attackCooldownTimer_ = EnemyLibrary::forType(type_).attackCooldown;
     return true;
 }
 EnemyType Enemy::type() const { return type_; }
+bool Enemy::isRanged() const {
+    return EnemyLibrary::forType(type_).attackStyle == EnemyAttackStyle::Projectile;
+}
 bool Enemy::isElite() const { return type_ == EnemyType::Elite || type_ == EnemyType::Boss; }
 bool Enemy::isBoss() const { return type_ == EnemyType::Boss; }

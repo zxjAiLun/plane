@@ -20,8 +20,9 @@ public:
     int contactDamage() const;
     float attackRange() const;
     bool isAttackWindingUp() const;
-    bool consumeMeleeAttack();
+    bool consumeAttack();
     EnemyType type() const;
+    bool isRanged() const;
     bool isElite() const;
     bool isBoss() const;
 
@@ -34,5 +35,5 @@ private:
     EnemyType type_;
     float attackCooldownTimer_;
     float attackWindupTimer_;
-    bool meleeAttackReady_;
+    bool attackReady_;
 };

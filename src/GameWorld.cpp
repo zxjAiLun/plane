@@ -183,9 +183,11 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     updateObjects(dt);
     updateBossSkills(dt);
     updateBossProjectiles(dt);
+    updateEnemyProjectiles(dt);
     spawner_.setSpawnInterval(currentSpawnInterval());
     handleCollisions();
     handleBossProjectileCollisions();
+    handleEnemyProjectileCollisions();
     removeDeadObjects();
     advanceWaveIfComplete();
 
@@ -206,6 +208,7 @@ void GameWorld::reset() {
     player_.setPosition(map_.playerStart());
     projectiles_.clear();
     bossProjectiles_.clear();
+    enemyProjectiles_.clear();
     enemies_.clear();
     droppedItems_.clear();
     inventory_.clear();
@@ -284,6 +287,7 @@ void GameWorld::startNextMap() {
 
     projectiles_.clear();
     bossProjectiles_.clear();
+    enemyProjectiles_.clear();
     enemies_.clear();
     droppedItems_.clear();
     spawner_.reset();
@@ -419,6 +423,22 @@ void GameWorld::updateBossProjectiles(float dt) {
     }
 }
 
+void GameWorld::updateEnemyProjectiles(float dt) {
+    for (auto& projectile : enemyProjectiles_) {
+        if (!projectile.alive) {
+            continue;
+        }
+
+        projectile.position += projectile.velocity * dt;
+        if (projectile.position.y + projectile.radius < 0.0f
+            || projectile.position.y - projectile.radius > map_.size().y
+            || projectile.position.x + projectile.radius < 0.0f
+            || projectile.position.x - projectile.radius > map_.size().x) {
+            projectile.alive = false;
+        }
+    }
+}
+
 void GameWorld::spawnEnemies(float dt) {
     triggerBossIfNeeded();
 
@@ -437,7 +457,10 @@ void GameWorld::spawnEnemies(float dt) {
 
     spawner_.update(dt);
     const bool spawnElite = (std::rand() % 100) < std::min(20, 6 + mapLevel_ * 2);
-    const EnemyType type = spawnElite ? EnemyType::Elite : EnemyType::Normal;
+    const bool spawnRanged = !spawnElite && (std::rand() % 100) < 25;
+    const EnemyType type = spawnElite ? EnemyType::Elite
+        : spawnRanged ? EnemyType::Ranged
+        : EnemyType::Normal;
     const auto& definition = EnemyLibrary::forType(type);
     const int hp = std::max(1, static_cast<int>(std::ceil(enemyHpForMap() * definition.hpMultiplier)));
     const int damage = enemyDamageForMap() + definition.damageBonus;
@@ -484,9 +507,24 @@ void GameWorld::handleCollisions() {
             continue;
         }
 
+        if (!enemy.consumeAttack()) {
+            continue;
+        }
+
         const Vector2 toPlayer = player_.position() - enemy.position();
-        if (enemy.consumeMeleeAttack()
-            && toPlayer.lengthSquared() <= enemy.attackRange() * enemy.attackRange()) {
+        if (enemy.isRanged()) {
+            const auto& definition = EnemyLibrary::forType(enemy.type());
+            const Vector2 direction = toPlayer.normalized();
+            if (direction.lengthSquared() > 0.0f) {
+                enemyProjectiles_.push_back({
+                    enemy.position(),
+                    direction * definition.projectileSpeed,
+                    definition.projectileRadius,
+                    enemy.contactDamage(),
+                    true
+                });
+            }
+        } else if (toPlayer.lengthSquared() <= enemy.attackRange() * enemy.attackRange()) {
             damagePlayer(enemy.contactDamage());
         }
     }
@@ -494,6 +532,22 @@ void GameWorld::handleCollisions() {
 
 void GameWorld::handleBossProjectileCollisions() {
     for (auto& projectile : bossProjectiles_) {
+        if (!projectile.alive) {
+            continue;
+        }
+
+        if (Collision::circleCircle(
+                player_.position(), player_.radius(),
+                projectile.position, projectile.radius
+            )) {
+            damagePlayer(projectile.damage);
+            projectile.alive = false;
+        }
+    }
+}
+
+void GameWorld::handleEnemyProjectileCollisions() {
+    for (auto& projectile : enemyProjectiles_) {
         if (!projectile.alive) {
             continue;
         }
@@ -525,6 +579,12 @@ void GameWorld::removeDeadObjects() {
         [](const BossProjectile& projectile) { return !projectile.alive; });
     if (bossProjectileIt != bossProjectiles_.end()) {
         bossProjectiles_.erase(bossProjectileIt, bossProjectiles_.end());
+    }
+
+    auto enemyProjectileIt = std::remove_if(enemyProjectiles_.begin(), enemyProjectiles_.end(),
+        [](const EnemyProjectile& projectile) { return !projectile.alive; });
+    if (enemyProjectileIt != enemyProjectiles_.end()) {
+        enemyProjectiles_.erase(enemyProjectileIt, enemyProjectiles_.end());
     }
 
     auto itemIt = std::remove_if(droppedItems_.begin(), droppedItems_.end(),
@@ -1182,6 +1242,7 @@ void GameWorld::triggerBossIfNeeded() {
     enemies_.clear();
     projectiles_.clear();
     bossProjectiles_.clear();
+    enemyProjectiles_.clear();
     activeEliteEventIndex_ = -1;
     eliteEventEnemiesRemaining_ = 0;
     nearbyEventPrompt_.clear();
@@ -1203,6 +1264,7 @@ void GameWorld::triggerBossIfNeeded() {
 const Player& GameWorld::player() const { return player_; }
 const std::vector<Projectile>& GameWorld::projectiles() const { return projectiles_; }
 const std::vector<BossProjectile>& GameWorld::bossProjectiles() const { return bossProjectiles_; }
+const std::vector<EnemyProjectile>& GameWorld::enemyProjectiles() const { return enemyProjectiles_; }
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
 const std::vector<DroppedItem>& GameWorld::droppedItems() const { return droppedItems_; }
 const Inventory& GameWorld::inventory() const { return inventory_; }

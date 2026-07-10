@@ -33,6 +33,14 @@ struct BossProjectile {
     bool alive = true;
 };
 
+struct EnemyProjectile {
+    Vector2 position;
+    Vector2 velocity;
+    float radius = 0.0f;
+    int damage = 0;
+    bool alive = true;
+};
+
 struct RunProgression {
     std::set<std::string> unlockedSkills;
     float itemQuantityRewardMultiplier = 1.0f;
@@ -48,6 +56,7 @@ public:
     const Player& player() const;
     const std::vector<Projectile>& projectiles() const;
     const std::vector<BossProjectile>& bossProjectiles() const;
+    const std::vector<EnemyProjectile>& enemyProjectiles() const;
     const std::vector<Enemy>& enemies() const;
     const std::vector<DroppedItem>& droppedItems() const;
     const Inventory& inventory() const;
@@ -116,9 +125,11 @@ private:
     void updateObjects(float dt);
     void updateBossSkills(float dt);
     void updateBossProjectiles(float dt);
+    void updateEnemyProjectiles(float dt);
     void spawnEnemies(float dt);
     void handleCollisions();
     void handleBossProjectileCollisions();
+    void handleEnemyProjectileCollisions();
     void removeDeadObjects();
     void tryCastMovementSkill(Input& input);
     void tryCastUtilitySkill(Input& input);
@@ -165,6 +176,7 @@ private:
     Player player_;
     std::vector<Projectile> projectiles_;
     std::vector<BossProjectile> bossProjectiles_;
+    std::vector<EnemyProjectile> enemyProjectiles_;
     std::vector<Enemy> enemies_;
     std::vector<DroppedItem> droppedItems_;
     Inventory inventory_;

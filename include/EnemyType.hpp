@@ -2,6 +2,7 @@
 
 enum class EnemyType {
     Normal,
+    Ranged,
     Elite,
     Boss
 };

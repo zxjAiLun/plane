@@ -21,6 +21,7 @@ private:
     void drawAimIndicator(const GameWorld& world);
     void drawProjectiles(const GameWorld& world);
     void drawBossProjectiles(const GameWorld& world);
+    void drawEnemyProjectiles(const GameWorld& world);
     void drawEnemies(const GameWorld& world);
     void drawDroppedItems(const GameWorld& world);
     void drawSkillBar(const GameWorld& world);
