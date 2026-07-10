@@ -1259,9 +1259,12 @@ void Renderer::drawBossHealth(const GameWorld& world) {
         1.0f
     );
 
-    drawText(world.bossDefinition().name + "  "
-        + std::to_string(std::max(0, boss->hp())) + "/" + std::to_string(boss->maxHp()),
-        {position.x, position.y - 18.0f}, 13, sf::Color(255, 210, 160));
+    const std::string bossLabel = world.bossDefinition().name
+        + (world.bossEnraged() ? "  ENRAGED" : "") + "  "
+        + std::to_string(std::max(0, boss->hp())) + "/" + std::to_string(boss->maxHp());
+    drawText(bossLabel,
+        {position.x, position.y - 18.0f}, 13,
+        world.bossEnraged() ? sf::Color(255, 150, 80) : sf::Color(255, 210, 160));
 
     const std::string castWarning = world.bossSkillWarning();
     if (!castWarning.empty()) {
@@ -1277,7 +1280,9 @@ void Renderer::drawBossHealth(const GameWorld& world) {
 
     sf::RectangleShape fill({size.x * ratio, size.y});
     fill.setPosition(position);
-    fill.setFillColor(sf::Color(220, 55, 45));
+    fill.setFillColor(world.bossEnraged()
+        ? sf::Color(255, 125, 35)
+        : sf::Color(220, 55, 45));
     window_.draw(fill);
 }
 

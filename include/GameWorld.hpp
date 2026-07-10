@@ -113,6 +113,7 @@ public:
     float eventStatusTimeRemaining() const;
     int activeEliteEventEnemiesRemaining() const;
     std::string bossSkillWarning() const;
+    bool bossEnraged() const;
     bool nextMapOptionChosen() const;
     bool mapRewardChosen() const;
     const MapOption& currentMapOption() const;
@@ -167,6 +168,8 @@ private:
     void rewardEnemyKill(const Enemy& enemy);
     void damagePlayer(int damage);
     const Enemy* activeBoss() const;
+    float bossSkillInterval() const;
+    int bossSkillDamage(int baseDamage) const;
     void advanceWaveIfComplete();
     bool isMapCleared() const;
     int enemiesPerWave() const;
@@ -204,6 +207,7 @@ private:
     BossSkillDefinition bossAoeSkill_;
     float bossSkillTimer_;
     int bossSkillIndex_;
+    bool bossEnraged_ = false;
     const BossDefinition* bossDefinition_;
     float playerHitCooldown_;
     int mapLevel_;

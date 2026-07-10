@@ -29,6 +29,7 @@ GameWorld::GameWorld()
     , bossAoeSkill_()
     , bossSkillTimer_(Config::BossSkillInterval)
     , bossSkillIndex_(0)
+    , bossEnraged_(false)
     , bossDefinition_(&BossLibrary::forMapLevel(1))
     , playerHitCooldown_(0.0f)
     , mapLevel_(1)
@@ -237,6 +238,7 @@ void GameWorld::reset() {
     bossAoeSkill_ = BossSkillDefinition();
     bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
+    bossEnraged_ = false;
     playerHitCooldown_ = 0.0f;
     mapLevel_ = 1;
     currentWave_ = 0;
@@ -292,6 +294,7 @@ void GameWorld::startNextMap() {
     bossAoeSkill_ = BossSkillDefinition();
     bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
+    bossEnraged_ = false;
     playerHitCooldown_ = 0.0f;
 
     projectiles_.clear();
@@ -354,6 +357,16 @@ void GameWorld::updateBossSkills(float dt) {
         return;
     }
 
+    const float hpRatio = boss->maxHp() > 0
+        ? static_cast<float>(std::max(0, boss->hp())) / static_cast<float>(boss->maxHp())
+        : 0.0f;
+    if (!bossEnraged_ && hpRatio <= bossDefinition_->enrageHealthRatio) {
+        bossEnraged_ = true;
+        eventStatusMessage_ = "Boss enraged: " + bossDefinition_->name;
+        eventStatusTimer_ = 2.0f;
+        bossSkillTimer_ = std::min(bossSkillTimer_, bossSkillInterval());
+    }
+
     const float telegraphBefore = bossAoeTelegraphTimer_;
     bossAoeTelegraphTimer_ = std::max(0.0f, bossAoeTelegraphTimer_ - dt);
     if (telegraphBefore > 0.0f && bossAoeTelegraphTimer_ <= 0.0f) {
@@ -376,7 +389,7 @@ void GameWorld::updateBossSkills(float dt) {
     }
 
     if (bossDefinition_->skills.empty()) {
-        bossSkillTimer_ = bossDefinition_->skillInterval;
+        bossSkillTimer_ = bossSkillInterval();
         return;
     }
 
@@ -386,6 +399,7 @@ void GameWorld::updateBossSkills(float dt) {
     if (skill.type == BossSkillType::CircularAoe) {
         bossAoeCenter_ = player_.position();
         bossAoeSkill_ = skill;
+        bossAoeSkill_.damage = bossSkillDamage(skill.damage);
         bossAoeTelegraphTimer_ = skill.telegraphDuration;
     } else {
         const Vector2 direction = (player_.position() - boss->position()).normalized();
@@ -411,7 +425,7 @@ void GameWorld::updateBossSkills(float dt) {
                     boss->position(),
                     rotated * skill.projectileSpeed,
                     skill.radius,
-                    skill.damage,
+                    bossSkillDamage(skill.damage),
                     true
                 });
             }
@@ -419,7 +433,7 @@ void GameWorld::updateBossSkills(float dt) {
     }
 
     ++bossSkillIndex_;
-    bossSkillTimer_ = bossDefinition_->skillInterval;
+    bossSkillTimer_ = bossSkillInterval();
 }
 
 void GameWorld::updateBossProjectiles(float dt) {
@@ -1230,6 +1244,7 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         bossAoeTelegraphTimer_ = 0.0f;
         bossAoeEffectTimer_ = 0.0f;
         bossAoeSkill_ = BossSkillDefinition();
+        bossEnraged_ = false;
         eventStatusMessage_ = "Boss defeated: " + bossDefinition_->name;
         eventStatusTimer_ = 2.0f;
         generateMapRewardOptions();
@@ -1287,6 +1302,19 @@ const Enemy* GameWorld::activeBoss() const {
     return nullptr;
 }
 
+float GameWorld::bossSkillInterval() const {
+    return bossDefinition_->skillInterval * (bossEnraged_
+        ? bossDefinition_->enragedSkillIntervalMultiplier
+        : 1.0f);
+}
+
+int GameWorld::bossSkillDamage(int baseDamage) const {
+    const float multiplier = bossEnraged_
+        ? bossDefinition_->enragedDamageMultiplier
+        : 1.0f;
+    return std::max(1, static_cast<int>(std::ceil(baseDamage * multiplier)));
+}
+
 void GameWorld::advanceWaveIfComplete() {
 }
 
@@ -1334,6 +1362,7 @@ void GameWorld::triggerBossIfNeeded() {
     bossAoeSkill_ = BossSkillDefinition();
     bossSkillTimer_ = bossDefinition_->skillInterval * 0.5f;
     bossSkillIndex_ = 0;
+    bossEnraged_ = false;
     eventStatusMessage_ = "Boss awakened: " + bossDefinition_->name;
     eventStatusTimer_ = 2.0f;
 
@@ -1465,6 +1494,7 @@ std::string GameWorld::bossSkillWarning() const {
 
     return "Boss casting: " + bossAoeSkill_.name;
 }
+bool GameWorld::bossEnraged() const { return bossEnraged_; }
 
 std::string GameWorld::pickupPrompt() const {
     const int index = focusedDroppedItemIndex();

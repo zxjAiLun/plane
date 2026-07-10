@@ -31,6 +31,9 @@ struct BossDefinition {
     float dropMultiplier = 1.0f;
     float skillInterval = Config::BossSkillInterval;
     int guaranteedDrops = 1;
+    float enrageHealthRatio = 0.5f;
+    float enragedSkillIntervalMultiplier = 0.7f;
+    float enragedDamageMultiplier = 1.15f;
     std::vector<BossSkillDefinition> skills;
 };
 
@@ -58,6 +61,9 @@ private:
                 3.5f,
                 2.2f,
                 2,
+                0.50f,
+                0.70f,
+                1.15f,
                 {
                     {
                         BossSkillType::CircularAoe,
@@ -91,6 +97,9 @@ private:
                 3.0f,
                 1.8f,
                 1,
+                0.45f,
+                0.65f,
+                1.10f,
                 {
                     {BossSkillType::Projectile, "Lightning Spear", Config::BossProjectileRadius, 2, 0.0f, 0.0f, 520.0f, 1, 0.0f},
                     {BossSkillType::CircularAoe, "Thundercall", 150.0f, 3, 0.50f, 0.25f, 0.0f, 1, 0.0f},
@@ -104,6 +113,9 @@ private:
                 3.2f,
                 2.0f,
                 2,
+                0.50f,
+                0.72f,
+                1.20f,
                 {
                     {BossSkillType::Projectile, "Acid Spray", Config::BossProjectileRadius, 1, 0.0f, 0.0f, 420.0f, 3, 28.0f},
                     {BossSkillType::CircularAoe, "Nest Burst", 115.0f, 2, 0.55f, 0.25f, 0.0f, 1, 0.0f},
