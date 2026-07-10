@@ -510,6 +510,16 @@ void Renderer::drawMap(const GameWorld& world) {
     floor.setPosition({-camera.x, -camera.y});
     window_.draw(floor);
 
+    for (const auto& obstacle : map.obstacles()) {
+        sf::RectangleShape shape({obstacle.halfExtents.x * 2.0f, obstacle.halfExtents.y * 2.0f});
+        shape.setFillColor(sf::Color(65, 70, 72));
+        shape.setOutlineColor(sf::Color(120, 130, 132));
+        shape.setOutlineThickness(3.0f);
+        shape.setOrigin({obstacle.halfExtents.x, obstacle.halfExtents.y});
+        shape.setPosition(worldToScreen(world, obstacle.center));
+        window_.draw(shape);
+    }
+
     const sf::Vector2f bossCenter = worldToScreen(world, map.bossCenter());
     sf::CircleShape gate(Config::BossGateRadius);
     gate.setFillColor(sf::Color(120, 70, 40, 35));
@@ -1191,6 +1201,17 @@ void Renderer::drawMinimap(const GameWorld& world) {
     drawMapCircle(map.playerStart(), Config::StartSafeRadius, sf::Color(80, 210, 120));
     drawMapCircle(map.bossCenter(), Config::BossGateRadius, sf::Color(255, 190, 90));
     drawMapCircle(map.bossCenter(), Config::BossArenaRadius, sf::Color(255, 80, 60), 1.5f);
+
+    for (const auto& obstacle : map.obstacles()) {
+        sf::RectangleShape shape({obstacle.halfExtents.x * 2.0f * scaleX,
+            obstacle.halfExtents.y * 2.0f * scaleY});
+        shape.setFillColor(sf::Color(70, 76, 80, 220));
+        shape.setOutlineColor(sf::Color(135, 145, 150));
+        shape.setOutlineThickness(0.75f);
+        shape.setOrigin({obstacle.halfExtents.x * scaleX, obstacle.halfExtents.y * scaleY});
+        shape.setPosition(toMinimap(obstacle.center));
+        window_.draw(shape);
+    }
 
     for (const auto& event : map.events()) {
         sf::CircleShape eventDot(3.0f);

@@ -3,11 +3,13 @@
 #include "EnemyType.hpp"
 #include "Vector2.hpp"
 
+class MapInstance;
+
 class Enemy {
 public:
     Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type = EnemyType::Normal);
 
-    void update(float dt, const Vector2& targetPosition);
+    void update(float dt, const Vector2& targetPosition, const MapInstance& map);
 
     void takeDamage(int damage);
     void kill();

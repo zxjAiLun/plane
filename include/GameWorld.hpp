@@ -124,6 +124,7 @@ public:
 private:
     void startNextMap();
     void updatePlaying(float dt, Input& input);
+    void movePlayerBy(const Vector2& delta);
     void updateObjects(float dt);
     void updateBossSkills(float dt);
     void updateBossProjectiles(float dt);

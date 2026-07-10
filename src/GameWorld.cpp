@@ -126,10 +126,14 @@ void GameWorld::updatePlaying(float dt, Input& input) {
         }
     }
 
-    if (input.moveLeft()) player_.moveLeft(dt);
-    if (input.moveRight()) player_.moveRight(dt);
-    if (input.moveUp()) player_.moveUp(dt);
-    if (input.moveDown()) player_.moveDown(dt);
+    Vector2 movement;
+    if (input.moveLeft()) movement.x -= 1.0f;
+    if (input.moveRight()) movement.x += 1.0f;
+    if (input.moveUp()) movement.y -= 1.0f;
+    if (input.moveDown()) movement.y += 1.0f;
+    if (movement.lengthSquared() > 0.0f) {
+        movePlayerBy(movement.normalized() * player_.moveSpeed() * dt);
+    }
 
     player_.update(dt);
     skillBar_.update(dt);
@@ -199,6 +203,10 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     } else if (isMapCleared()) {
         state_ = GameState::MapComplete;
     }
+}
+
+void GameWorld::movePlayerBy(const Vector2& delta) {
+    player_.setPosition(map_.resolveMovement(player_.position(), player_.radius(), delta));
 }
 
 void GameWorld::reset() {
@@ -325,10 +333,16 @@ void GameWorld::startNextMap() {
 
 void GameWorld::updateObjects(float dt) {
     for (auto& projectile : projectiles_) {
+        const Vector2 previousPosition = projectile.position();
         projectile.update(dt, map_.size());
+        if (projectile.isAlive() && map_.pathIntersectsObstacle(
+                previousPosition, projectile.position(), projectile.radius()
+            )) {
+            projectile.kill();
+        }
     }
     for (auto& enemy : enemies_) {
-        enemy.update(dt, player_.position());
+        enemy.update(dt, player_.position(), map_);
     }
 }
 
@@ -414,11 +428,17 @@ void GameWorld::updateBossProjectiles(float dt) {
             continue;
         }
 
+        const Vector2 previousPosition = projectile.position;
         projectile.position += projectile.velocity * dt;
         if (projectile.position.y + projectile.radius < 0.0f
             || projectile.position.y - projectile.radius > map_.size().y
             || projectile.position.x + projectile.radius < 0.0f
             || projectile.position.x - projectile.radius > map_.size().x) {
+            projectile.alive = false;
+        }
+        if (projectile.alive && map_.pathIntersectsObstacle(
+                previousPosition, projectile.position, projectile.radius
+            )) {
             projectile.alive = false;
         }
     }
@@ -430,11 +450,17 @@ void GameWorld::updateEnemyProjectiles(float dt) {
             continue;
         }
 
+        const Vector2 previousPosition = projectile.position;
         projectile.position += projectile.velocity * dt;
         if (projectile.position.y + projectile.radius < 0.0f
             || projectile.position.y - projectile.radius > map_.size().y
             || projectile.position.x + projectile.radius < 0.0f
             || projectile.position.x - projectile.radius > map_.size().x) {
+            projectile.alive = false;
+        }
+        if (projectile.alive && map_.pathIntersectsObstacle(
+                previousPosition, projectile.position, projectile.radius
+            )) {
             projectile.alive = false;
         }
     }
@@ -466,7 +492,7 @@ void GameWorld::spawnEnemies(float dt) {
     const int hp = std::max(1, static_cast<int>(std::ceil(enemyHpForMap() * definition.hpMultiplier)));
     const int damage = enemyDamageForMap() + definition.damageBonus;
 
-    if (auto enemy = spawner_.trySpawnNear(player_.position(), map_.size(), hp, damage, type)) {
+    if (auto enemy = spawner_.trySpawnNear(player_.position(), map_.size(), map_, hp, damage, type)) {
         enemies_.push_back(*enemy);
         ++enemiesSpawnedInWave_;
     }
@@ -609,7 +635,7 @@ void GameWorld::tryCastMovementSkill(Input& input) {
         return;
     }
 
-    player_.setPosition(player_.position() + direction * Config::DashDistance);
+    movePlayerBy(direction * Config::DashDistance);
 }
 
 void GameWorld::tryCastUtilitySkill(Input& input) {

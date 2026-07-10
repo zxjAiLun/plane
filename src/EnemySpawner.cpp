@@ -1,5 +1,6 @@
 #include "EnemySpawner.hpp"
 #include "Config.hpp"
+#include "MapInstance.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -54,6 +55,7 @@ std::optional<Enemy> EnemySpawner::trySpawn(int hp, int contactDamage, EnemyType
 std::optional<Enemy> EnemySpawner::trySpawnNear(
     const Vector2& playerPosition,
     const Vector2& worldSize,
+    const MapInstance& map,
     int hp,
     int contactDamage,
     EnemyType type
@@ -65,16 +67,23 @@ std::optional<Enemy> EnemySpawner::trySpawnNear(
     spawnTimer_.reset();
 
     constexpr float twoPi = 6.28318530718f;
-    const float angle = (static_cast<float>(std::rand() % 6283) / 6283.0f) * twoPi;
-    const float distance = Config::EnemySpawnMinDistance
-        + static_cast<float>(std::rand() % static_cast<int>(Config::EnemySpawnMaxDistance - Config::EnemySpawnMinDistance));
-    const Vector2 offset(std::cos(angle) * distance, std::sin(angle) * distance);
-    Vector2 position = playerPosition + offset;
+    for (int attempt = 0; attempt < 8; ++attempt) {
+        const float angle = (static_cast<float>(std::rand() % 6283) / 6283.0f) * twoPi;
+        const float distance = Config::EnemySpawnMinDistance
+            + static_cast<float>(std::rand() % static_cast<int>(Config::EnemySpawnMaxDistance - Config::EnemySpawnMinDistance));
+        const Vector2 offset(std::cos(angle) * distance, std::sin(angle) * distance);
+        Vector2 position = playerPosition + offset;
 
-    position.x = std::clamp(position.x, Config::EnemyRadius, worldSize.x - Config::EnemyRadius);
-    position.y = std::clamp(position.y, Config::EnemyRadius, worldSize.y - Config::EnemyRadius);
+        position.x = std::clamp(position.x, Config::EnemyRadius, worldSize.x - Config::EnemyRadius);
+        position.y = std::clamp(position.y, Config::EnemyRadius, worldSize.y - Config::EnemyRadius);
 
-    return Enemy(position, hp, contactDamage, type);
+        Enemy enemy(position, hp, contactDamage, type);
+        if (!map.intersectsObstacle(enemy.position(), enemy.radius())) {
+            return enemy;
+        }
+    }
+
+    return std::nullopt;
 }
 
 void EnemySpawner::reset() {

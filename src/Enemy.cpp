@@ -1,6 +1,7 @@
 #include "Enemy.hpp"
 #include "Config.hpp"
 #include "EnemyDefinition.hpp"
+#include "MapInstance.hpp"
 
 #include <algorithm>
 
@@ -17,10 +18,10 @@ Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type)
     , attackReady_(false) {
 }
 
-void Enemy::update(float dt, const Vector2& targetPosition) {
+void Enemy::update(float dt, const Vector2& targetPosition, const MapInstance& map) {
     if (isBoss()) {
         Vector2 direction = (targetPosition - position_).normalized();
-        position_ += direction * Config::EnemySpeed * dt;
+        position_ = map.resolveMovement(position_, radius_, direction * Config::EnemySpeed * dt);
         return;
     }
 
@@ -47,7 +48,7 @@ void Enemy::update(float dt, const Vector2& targetPosition) {
     }
 
     Vector2 direction = (targetPosition - position_).normalized();
-    position_ += direction * Config::EnemySpeed * dt;
+    position_ = map.resolveMovement(position_, radius_, direction * Config::EnemySpeed * dt);
 }
 
 void Enemy::takeDamage(int damage) {

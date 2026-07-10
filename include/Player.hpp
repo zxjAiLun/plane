@@ -34,6 +34,7 @@ public:
 
     const Vector2& position() const;
     float radius() const;
+    float moveSpeed() const;
     int hp() const;
     int maxHp() const;
     int level() const;

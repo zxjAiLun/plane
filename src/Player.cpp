@@ -160,6 +160,7 @@ void Player::recalculateStats() {
 
 const Vector2& Player::position() const { return position_; }
 float Player::radius() const { return radius_; }
+float Player::moveSpeed() const { return baseSpeed_ * stats_.moveSpeedMultiplier; }
 int Player::hp() const { return hp_; }
 int Player::maxHp() const { return maxHp_; }
 int Player::level() const { return level_; }

@@ -5,6 +5,8 @@
 #include "Timer.hpp"
 #include "Vector2.hpp"
 
+class MapInstance;
+
 class EnemySpawner {
 public:
     EnemySpawner();
@@ -14,6 +16,7 @@ public:
     std::optional<Enemy> trySpawnNear(
         const Vector2& playerPosition,
         const Vector2& worldSize,
+        const MapInstance& map,
         int hp,
         int contactDamage,
         EnemyType type = EnemyType::Normal
