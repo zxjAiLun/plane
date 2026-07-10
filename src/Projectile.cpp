@@ -1,11 +1,15 @@
 #include "Projectile.hpp"
 #include "Config.hpp"
 
-Projectile::Projectile(const Vector2& position, const Vector2& velocity, int damage)
+#include <algorithm>
+
+Projectile::Projectile(const Vector2& position, const Vector2& velocity, int damage, int pierceCount)
     : position_(position)
     , velocity_(velocity)
     , radius_(Config::ProjectileRadius)
     , damage_(damage)
+    , remainingPierces_(pierceCount)
+    , hitEnemyIds_()
     , alive_(true) {
 }
 
@@ -23,6 +27,17 @@ void Projectile::update(float dt, const Vector2& worldSize) {
 const Vector2& Projectile::position() const { return position_; }
 float Projectile::radius() const { return radius_; }
 int Projectile::damage() const { return damage_; }
+bool Projectile::hasHitEnemy(int enemyId) const {
+    return std::find(hitEnemyIds_.begin(), hitEnemyIds_.end(), enemyId) != hitEnemyIds_.end();
+}
+void Projectile::recordEnemyHit(int enemyId) {
+    hitEnemyIds_.push_back(enemyId);
+    if (remainingPierces_ <= 0) {
+        kill();
+    } else {
+        --remainingPierces_;
+    }
+}
 
 bool Projectile::isAlive() const { return alive_; }
 void Projectile::kill() { alive_ = false; }

@@ -43,6 +43,7 @@ struct EnemyProjectile {
 
 struct RunProgression {
     std::set<std::string> unlockedSkills;
+    std::set<std::string> unlockedSupports;
     float itemQuantityRewardMultiplier = 1.0f;
 };
 
@@ -88,6 +89,7 @@ public:
     int hoveredPassiveNode() const;
     std::string passiveBuildSummary() const;
     bool isSkillUnlocked(const std::string& name) const;
+    bool isSupportUnlocked(const std::string& name) const;
 
     GameState state() const;
     int score() const;
@@ -144,11 +146,13 @@ private:
     void dropItemsAround(const Vector2& center, int count);
     int damageForPlayerSkill(const SkillDefinition& skill) const;
     float radiusForPlayerSkill(const SkillDefinition& skill) const;
+    int pierceCountForPlayerSkill(const SkillDefinition& skill) const;
     void noteElitePackEnemyDefeated(const Enemy& enemy);
     void tryPickupDroppedItem(Input& input);
     void trySpendPassivePoint(Input& input);
     void updatePassiveTreeHover(const Input& input);
     void tryAssignSkill(Input& input);
+    void tryCycleSkillSupport(Input& input);
     void tryEquipInventoryItem(Input& input);
     void trySelectInventoryItem(Input& input);
     void tryDropSelectedInventoryItem(Input& input);

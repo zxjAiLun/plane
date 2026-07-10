@@ -159,6 +159,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     } else if (skillPanelOpen_) {
         hoveredPassiveNode_ = -1;
         tryAssignSkill(input);
+        tryCycleSkillSupport(input);
     } else {
         hoveredPassiveNode_ = -1;
         tryCastMovementSkill(input);
@@ -482,8 +483,12 @@ void GameWorld::handleCollisions() {
                     projectile.position(), projectile.radius(),
                     enemy.position(), enemy.radius()
                 )) {
+                if (projectile.hasHitEnemy(enemy.id())) {
+                    continue;
+                }
+
                 enemy.takeDamage(projectile.damage());
-                projectile.kill();
+                projectile.recordEnemyHit(enemy.id());
 
                 if (enemy.isDead()) {
                     rewardEnemyKill(enemy);
@@ -654,7 +659,9 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
     const int damage = damageForPlayerSkill(skill);
 
     if (skill.projectileCount <= 1 || skill.spreadAngle <= 0.0f) {
-        projectiles_.push_back(Projectile(player_.position(), direction * Config::ProjectileSpeed, damage));
+        projectiles_.push_back(Projectile(
+            player_.position(), direction * Config::ProjectileSpeed, damage, pierceCountForPlayerSkill(skill)
+        ));
         return;
     }
 
@@ -673,7 +680,8 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
         projectiles_.push_back(Projectile(
             player_.position(),
             rotated * Config::ProjectileSpeed,
-            damage
+            damage,
+            pierceCountForPlayerSkill(skill)
         ));
     }
 }
@@ -840,21 +848,35 @@ int GameWorld::damageForPlayerSkill(const SkillDefinition& skill) const {
             break;
     }
 
+    if (const auto* support = skillBar_.support(skill.slot)) {
+        damage *= support->damageMultiplier;
+    }
+
     const float multiplier = shrineBuffTimer_ > 0.0f ? ShrineDamageMultiplier : 1.0f;
     return std::max(1, static_cast<int>(std::ceil(damage * multiplier)));
 }
 
 float GameWorld::radiusForPlayerSkill(const SkillDefinition& skill) const {
+    const float supportMultiplier = [&]() {
+        const auto* support = skillBar_.support(skill.slot);
+        return support ? support->radiusMultiplier : 1.0f;
+    }();
+
     switch (skill.castType) {
         case SkillCastType::SelfCenteredArea:
         case SkillCastType::MouseTargetedArea:
-            return skill.radius * player_.stats().areaRadiusMultiplier;
+            return skill.radius * player_.stats().areaRadiusMultiplier * supportMultiplier;
         case SkillCastType::Projectile:
         case SkillCastType::Dash:
             return skill.radius;
     }
 
     return skill.radius;
+}
+
+int GameWorld::pierceCountForPlayerSkill(const SkillDefinition& skill) const {
+    const auto* support = skillBar_.support(skill.slot);
+    return support ? support->pierceCount : 0;
 }
 
 void GameWorld::noteElitePackEnemyDefeated(const Enemy& enemy) {
@@ -983,6 +1005,32 @@ void GameWorld::tryAssignSkill(Input& input) {
     }
 }
 
+void GameWorld::tryCycleSkillSupport(Input& input) {
+    if (!skillPanelOpen_ || input.functionChoice() <= 0 || input.functionChoice() > 3) {
+        return;
+    }
+
+    const SkillSlot slot = static_cast<SkillSlot>(input.functionChoice() - 1);
+    const auto& skill = skillBar_.definition(slot);
+    std::vector<std::string> options = {""};
+    for (const auto& support : SupportLibrary::all()) {
+        if (isSupportUnlocked(support.name) && SupportLibrary::supportsSkill(support, skill)) {
+            options.push_back(support.name);
+        }
+    }
+
+    const auto* current = skillBar_.support(slot);
+    const std::string currentName = current ? current->name : "";
+    auto currentIt = std::find(options.begin(), options.end(), currentName);
+    const std::size_t currentIndex = currentIt == options.end()
+        ? 0
+        : static_cast<std::size_t>(currentIt - options.begin());
+    const std::string& next = options[(currentIndex + 1) % options.size()];
+    if (skillBar_.assignSupport(slot, next)) {
+        skillBar_.applyStats(player_.stats());
+    }
+}
+
 void GameWorld::tryEquipInventoryItem(Input& input) {
     if (input.numberChoice() <= 0) {
         return;
@@ -1105,6 +1153,11 @@ void GameWorld::applyMapReward(const MapRewardDefinition& reward) {
                 progression_.unlockedSkills.insert(reward.skillName);
             }
             break;
+        case MapRewardType::UnlockSupport:
+            if (!reward.supportName.empty()) {
+                progression_.unlockedSupports.insert(reward.supportName);
+            }
+            break;
         case MapRewardType::Damage:
             player_.applyUpgrade(UpgradeType::Damage);
             break;
@@ -1121,7 +1174,9 @@ void GameWorld::applyMapReward(const MapRewardDefinition& reward) {
 }
 
 void GameWorld::generateMapRewardOptions() {
-    mapRewardOptions_ = MapRewardLibrary::generateOptions(progression_.unlockedSkills);
+    mapRewardOptions_ = MapRewardLibrary::generateOptions(
+        progression_.unlockedSkills, progression_.unlockedSupports
+    );
     selectedMapRewardOption_ = -1;
     mapRewardChosen_ = false;
 }
@@ -1351,6 +1406,9 @@ std::string GameWorld::passiveBuildSummary() const {
 }
 bool GameWorld::isSkillUnlocked(const std::string& name) const {
     return progression_.unlockedSkills.find(name) != progression_.unlockedSkills.end();
+}
+bool GameWorld::isSupportUnlocked(const std::string& name) const {
+    return progression_.unlockedSupports.find(name) != progression_.unlockedSupports.end();
 }
 GameState GameWorld::state() const { return state_; }
 int GameWorld::score() const { return score_; }

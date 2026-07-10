@@ -7,9 +7,11 @@
 #include <vector>
 
 #include "SkillLibrary.hpp"
+#include "SupportLibrary.hpp"
 
 enum class MapRewardType {
     UnlockSkill,
+    UnlockSupport,
     Damage,
     MaxHp,
     ItemQuantity
@@ -20,6 +22,7 @@ struct MapRewardDefinition {
     std::string title;
     std::string description;
     std::string skillName;
+    std::string supportName;
     float itemQuantityMultiplierBonus = 1.0f;
 };
 
@@ -34,6 +37,18 @@ public:
                 + "  R " + std::to_string(static_cast<int>(skill.radius))
                 + "  CD " + std::to_string(static_cast<int>(skill.cooldown * 1000.0f)) + "ms",
             skill.name,
+            "",
+            1.0f
+        };
+    }
+
+    static MapRewardDefinition supportUnlockReward(const SupportDefinition& support) {
+        return {
+            MapRewardType::UnlockSupport,
+            "Unlock " + support.name,
+            support.description,
+            "",
+            support.name,
             1.0f
         };
     }
@@ -45,12 +60,14 @@ public:
                 "+20% Global Damage",
                 "Permanent character damage bonus",
                 "",
+                "",
                 1.0f
             },
             {
                 MapRewardType::MaxHp,
                 "+1 Max HP",
                 "Permanent maximum health bonus",
+                "",
                 "",
                 1.0f
             },
@@ -59,19 +76,24 @@ public:
                 "+15% Future Item Quantity",
                 "Permanent item quantity bonus for future drops",
                 "",
+                "",
                 1.15f
             }
         }};
         return rewards;
     }
 
-    static std::array<MapRewardDefinition, 3> generateOptions(const std::set<std::string>& unlockedSkills) {
+    static std::array<MapRewardDefinition, 3> generateOptions(
+        const std::set<std::string>& unlockedSkills,
+        const std::set<std::string>& unlockedSupports
+    ) {
         std::vector<const SkillDefinition*> lockedSkills;
         for (const auto& skill : SkillLibrary::all()) {
             if (unlockedSkills.find(skill.name) == unlockedSkills.end()) {
                 lockedSkills.push_back(&skill);
             }
         }
+        const bool allSkillsAlreadyUnlocked = lockedSkills.empty();
 
         std::array<MapRewardDefinition, 3> rewards{};
         std::size_t rewardIndex = 0;
@@ -80,6 +102,22 @@ public:
             rewards[rewardIndex] = skillUnlockReward(*lockedSkills[randomIndex]);
             lockedSkills.erase(lockedSkills.begin() + randomIndex);
             ++rewardIndex;
+        }
+
+        if (allSkillsAlreadyUnlocked) {
+            std::vector<const SupportDefinition*> lockedSupports;
+            for (const auto& support : SupportLibrary::all()) {
+                if (unlockedSupports.find(support.name) == unlockedSupports.end()) {
+                    lockedSupports.push_back(&support);
+                }
+            }
+
+            while (rewardIndex < rewards.size() && !lockedSupports.empty()) {
+                const auto randomIndex = static_cast<std::size_t>(std::rand()) % lockedSupports.size();
+                rewards[rewardIndex] = supportUnlockReward(*lockedSupports[randomIndex]);
+                lockedSupports.erase(lockedSupports.begin() + randomIndex);
+                ++rewardIndex;
+            }
         }
 
         const auto& fallbacks = fallbackRewards();

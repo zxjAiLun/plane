@@ -14,6 +14,7 @@ public:
     bool isDead() const;
 
     const Vector2& position() const;
+    int id() const;
     float radius() const;
     int hp() const;
     int maxHp() const;
@@ -28,6 +29,7 @@ public:
 
 private:
     Vector2 position_;
+    int id_;
     float radius_;
     int hp_;
     int maxHp_;
@@ -36,4 +38,6 @@ private:
     float attackCooldownTimer_;
     float attackWindupTimer_;
     bool attackReady_;
+
+    inline static int nextId_ = 1;
 };

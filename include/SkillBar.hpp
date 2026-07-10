@@ -1,11 +1,13 @@
 #pragma once
 
 #include <array>
+#include <string>
 
 #include "Config.hpp"
 #include "PlayerStats.hpp"
 #include "Skill.hpp"
 #include "SkillLibrary.hpp"
+#include "SupportLibrary.hpp"
 
 class SkillBar {
 public:
@@ -32,10 +34,14 @@ public:
     void applyStats(const PlayerStats& stats) {
         for (std::size_t i = 0; i < definitions_.size(); ++i) {
             const auto slot = static_cast<SkillSlot>(i);
+            float cooldown = definitions_[i].cooldown;
+            if (const auto* support = supportForSlot(slot)) {
+                cooldown *= support->cooldownMultiplier;
+            }
             if (slot == SkillSlot::Primary) {
-                actualCooldowns_[i] = definitions_[i].cooldown / stats.attackSpeedMultiplier;
+                actualCooldowns_[i] = cooldown / stats.attackSpeedMultiplier;
             } else {
-                actualCooldowns_[i] = definitions_[i].cooldown;
+                actualCooldowns_[i] = cooldown;
             }
         }
     }
@@ -52,12 +58,42 @@ public:
 
         const auto idx = slotIndex(slot);
         definitions_[idx] = *skill;
+        if (!supportNames_[idx].empty()) {
+            const auto* support = SupportLibrary::find(supportNames_[idx]);
+            if (!support || !SupportLibrary::supportsSkill(*support, *skill)) {
+                supportNames_[idx].clear();
+            }
+        }
         actualCooldowns_[idx] = skill->cooldown;
+        return true;
+    }
+
+    bool assignSupport(SkillSlot slot, const std::string& name) {
+        if (slot == SkillSlot::Movement) {
+            return false;
+        }
+
+        const auto idx = slotIndex(slot);
+        if (name.empty()) {
+            supportNames_[idx].clear();
+            return true;
+        }
+
+        const auto* support = SupportLibrary::find(name);
+        if (!support || !SupportLibrary::supportsSkill(*support, definitions_[idx])) {
+            return false;
+        }
+
+        supportNames_[idx] = name;
         return true;
     }
 
     const SkillDefinition& definition(SkillSlot slot) const {
         return definitions_[slotIndex(slot)];
+    }
+
+    const SupportDefinition* support(SkillSlot slot) const {
+        return supportForSlot(slot);
     }
 
     float cooldownProgress(SkillSlot slot) const {
@@ -83,11 +119,18 @@ private:
         for (std::size_t i = 0; i < definitions_.size(); ++i) {
             actualCooldowns_[i] = definitions_[i].cooldown;
         }
+        supportNames_.fill("");
         elapsed_.fill(999.0f);
+    }
+
+    const SupportDefinition* supportForSlot(SkillSlot slot) const {
+        const auto& name = supportNames_[slotIndex(slot)];
+        return name.empty() ? nullptr : SupportLibrary::find(name);
     }
 
 private:
     std::array<SkillDefinition, static_cast<std::size_t>(SkillSlot::Count)> definitions_{};
     std::array<float, static_cast<std::size_t>(SkillSlot::Count)> actualCooldowns_{};
     std::array<float, static_cast<std::size_t>(SkillSlot::Count)> elapsed_{};
+    std::array<std::string, static_cast<std::size_t>(SkillSlot::Count)> supportNames_{};
 };
