@@ -212,7 +212,7 @@ void GameWorld::movePlayerBy(const Vector2& delta) {
 
 void GameWorld::reset() {
     player_ = Player();
-    map_ = MapInstance(1);
+    map_ = MapInstance(1, 0);
     bossDefinition_ = &BossLibrary::forMapLevel(1);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
@@ -279,7 +279,7 @@ void GameWorld::startNextMap() {
     }
 
     ++mapLevel_;
-    map_ = MapInstance(mapLevel_);
+    map_ = MapInstance(mapLevel_, currentMapOption_.templateIndex);
     bossDefinition_ = &BossLibrary::forMapLevel(mapLevel_);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());

@@ -74,6 +74,13 @@ public:
         return templates[index];
     }
 
+    static const MapTemplateDefinition& forIndex(int templateIndex) {
+        const auto& templates = all();
+        const int count = static_cast<int>(templates.size());
+        const int normalizedIndex = ((templateIndex % count) + count) % count;
+        return templates[static_cast<std::size_t>(normalizedIndex)];
+    }
+
 private:
     static std::vector<MapTemplateDefinition> buildTemplates() {
         return {
@@ -121,11 +128,13 @@ private:
 
 class MapInstance {
 public:
-    explicit MapInstance(int mapLevel = 1)
+    explicit MapInstance(int mapLevel = 1, int templateIndex = -1)
         : size_(Config::MapWidth, Config::MapHeight)
         , playerStart_(220.0f, Config::MapHeight - 220.0f)
         , bossCenter_(Config::MapWidth - 320.0f, 300.0f)
-        , templateDefinition_(&MapTemplateLibrary::forMapLevel(mapLevel))
+        , templateDefinition_(templateIndex >= 0
+            ? &MapTemplateLibrary::forIndex(templateIndex)
+            : &MapTemplateLibrary::forMapLevel(mapLevel))
         , bossTriggered_(false)
         , bossDefeated_(false) {
         generateObstacles();

@@ -17,6 +17,7 @@ struct MapOption {
     MapModifier modifier;
     std::string rewardDescription = "Baseline map rewards";
     std::string recommendedLevel = "Recommended level 1";
+    int templateIndex = 0;
 };
 
 class MapOptionLibrary {
@@ -25,7 +26,8 @@ public:
         return {
             {"Quiet Coast", "No modifier", 1.0f, 0, 1.0f, 0},
             "Baseline monster density and loot",
-            "Recommended level 1"
+            "Recommended level 1",
+            0
         };
     }
 
@@ -42,7 +44,8 @@ public:
                     0
                 },
                 "+Item quantity, moderate monster life",
-                "Recommended level " + std::to_string(mapLevel)
+                "Recommended level " + std::to_string(mapLevel),
+                0
             },
             {
                 {
@@ -54,7 +57,8 @@ public:
                     1
                 },
                 "+Boss guaranteed drop, higher contact damage",
-                "Recommended level " + std::to_string(mapLevel + 1)
+                "Recommended level " + std::to_string(mapLevel + 1),
+                1
             },
             {
                 {
@@ -66,7 +70,8 @@ public:
                     mapLevel >= 4 ? 1 : 0
                 },
                 "High item quantity, high monster life",
-                "Recommended level " + std::to_string(mapLevel + 1)
+                "Recommended level " + std::to_string(mapLevel + 1),
+                2
             },
         }};
     }

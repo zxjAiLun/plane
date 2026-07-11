@@ -1387,7 +1387,8 @@ void Renderer::drawMapComplete(const GameWorld& world) {
             const std::string marker = selected ? "> " : "  ";
             drawText(marker + std::to_string(i + 1) + ". " + option.modifier.name + " - " + option.recommendedLevel,
                 {center.x - 235.0f, optionY}, 14, color);
-            drawText("     " + option.modifier.description,
+            drawText("     " + MapTemplateLibrary::forIndex(option.templateIndex).name
+                    + " | " + option.modifier.description,
                 {center.x - 235.0f, optionY + 17.0f}, 12, sf::Color(230, 220, 170));
             drawText("     " + mapOptionSummary(option) + "  |  " + option.rewardDescription,
                 {center.x - 235.0f, optionY + 32.0f}, 12, sf::Color(200, 220, 245));
