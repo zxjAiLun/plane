@@ -18,7 +18,8 @@ enum class AffixStat {
     PickupRangeMultiplier,
     ProjectileDamageMultiplier,
     AreaDamageMultiplier,
-    AreaRadiusMultiplier
+    AreaRadiusMultiplier,
+    Armor
 };
 
 struct AffixDefinition {
@@ -127,6 +128,8 @@ private:
             {"Reinforced", true, EquipmentSlot::Armor, AffixStat::MaxHp, {3.0f, 6.0f, 9.0f}},
             {"Plated", true, EquipmentSlot::Armor, AffixStat::MaxHp, {2.0f, 5.0f, 8.0f}},
             {"of Vitality", false, EquipmentSlot::Armor, AffixStat::MaxHp, {2.0f, 4.0f, 6.0f}},
+            {"Guarded", true, EquipmentSlot::Armor, AffixStat::Armor, {1.0f, 2.0f, 3.0f}},
+            {"of Bulwark", false, EquipmentSlot::Armor, AffixStat::Armor, {1.0f, 1.0f, 2.0f}},
             {"of Haste", false, EquipmentSlot::Armor, AffixStat::MoveSpeedMultiplier, {0.04f, 0.07f, 0.10f}},
             {"of Reach", false, EquipmentSlot::Armor, AffixStat::PickupRangeMultiplier, {0.08f, 0.14f, 0.20f}},
 
@@ -251,6 +254,9 @@ private:
                 break;
             case AffixStat::AreaRadiusMultiplier:
                 stats.areaRadiusMultiplier += value;
+                break;
+            case AffixStat::Armor:
+                stats.armor += static_cast<int>(value);
                 break;
         }
     }

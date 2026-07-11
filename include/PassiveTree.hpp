@@ -49,10 +49,10 @@ public:
 
         // Survival branch (10-14)
         nodes_[10] = {"Vigour", "+5 max HP", Stats{5, 1.0f, 1.0f, 1.0f, 1.0f}, -1, false, {-70.0f, 42.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
-        nodes_[11] = {"Swift Foot", "+6% move speed", Stats{0, 1.06f, 1.0f, 1.0f, 1.0f}, 10, false, {-135.0f, 78.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
-        nodes_[12] = {"Iron Heart", "+6 max HP", Stats{6, 1.0f, 1.0f, 1.0f, 1.0f}, 11, false, {-200.0f, 115.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
+        nodes_[11] = {"Stone Skin", "+1 armor", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1}, 10, false, {-135.0f, 78.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
+        nodes_[12] = {"Iron Heart", "+6 max HP and +1 armor", Stats{6, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1}, 11, false, {-200.0f, 115.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
         nodes_[13] = {"Wind Runner", "+8% move speed", Stats{0, 1.08f, 1.0f, 1.0f, 1.0f}, 12, false, {-260.0f, 150.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
-        nodes_[14] = {"Unyielding", "+8 max HP", Stats{8, 1.0f, 1.0f, 1.0f, 1.0f}, 13, false, {-318.0f, 184.0f}, PassiveBranch::Survival, PassiveNodeSize::Notable};
+        nodes_[14] = {"Unyielding", "+8 max HP and +2 armor", Stats{8, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2}, 13, false, {-318.0f, 184.0f}, PassiveBranch::Survival, PassiveNodeSize::Notable};
 
         // Loot branch (15-19)
         nodes_[15] = {"Scavenger", "+15% pickup range", Stats{0, 1.0f, 1.0f, 1.0f, 1.15f}, -1, false, {70.0f, 42.0f}, PassiveBranch::Loot, PassiveNodeSize::Small};

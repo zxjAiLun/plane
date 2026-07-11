@@ -62,6 +62,9 @@ std::string statsSummary(const Stats& stats) {
     if (stats.areaRadiusMultiplier > 1.0f) {
         summary += "+" + std::to_string(multiplierPercent(stats.areaRadiusMultiplier)) + "% AREA ";
     }
+    if (stats.armor > 0) {
+        summary += "+" + std::to_string(stats.armor) + " ARM ";
+    }
     return summary;
 }
 
@@ -79,6 +82,7 @@ Stats statsDelta(const Stats& next, const Stats& current) {
         next.projectileDamageMultiplier / current.projectileDamageMultiplier,
         next.areaDamageMultiplier / current.areaDamageMultiplier,
         next.areaRadiusMultiplier / current.areaRadiusMultiplier,
+        next.armor - current.armor,
     };
 }
 
@@ -115,6 +119,9 @@ std::string statsDeltaSummary(const Stats& delta) {
         const int value = multiplierPercent(delta.areaRadiusMultiplier);
         summary += (value > 0 ? "+" : "") + std::to_string(value) + "% AREA ";
     }
+    if (delta.armor != 0) {
+        summary += (delta.armor > 0 ? "+" : "") + std::to_string(delta.armor) + " ARM ";
+    }
     return summary.empty() ? "No stat change" : summary;
 }
 
@@ -126,7 +133,8 @@ sf::Color deltaColor(const Stats& delta) {
         || delta.pickupRangeMultiplier > 1.0f
         || delta.projectileDamageMultiplier > 1.0f
         || delta.areaDamageMultiplier > 1.0f
-        || delta.areaRadiusMultiplier > 1.0f;
+        || delta.areaRadiusMultiplier > 1.0f
+        || delta.armor > 0;
     const bool negative = delta.maxHp < 0
         || delta.damageMultiplier < 1.0f
         || delta.attackSpeedMultiplier < 1.0f
@@ -134,7 +142,8 @@ sf::Color deltaColor(const Stats& delta) {
         || delta.pickupRangeMultiplier < 1.0f
         || delta.projectileDamageMultiplier < 1.0f
         || delta.areaDamageMultiplier < 1.0f
-        || delta.areaRadiusMultiplier < 1.0f;
+        || delta.areaRadiusMultiplier < 1.0f
+        || delta.armor < 0;
 
     if (positive && !negative) {
         return sf::Color(120, 230, 140);
@@ -479,7 +488,8 @@ void Renderer::render(const GameWorld& world) {
         + "%  MS +" + std::to_string(multiplierPercent(stats.moveSpeedMultiplier))
         + "%  PDMG +" + std::to_string(multiplierPercent(stats.projectileDamageMultiplier))
         + "%  ADMG +" + std::to_string(multiplierPercent(stats.areaDamageMultiplier))
-        + "%  AREA +" + std::to_string(multiplierPercent(stats.areaRadiusMultiplier)) + "%",
+        + "%  AREA +" + std::to_string(multiplierPercent(stats.areaRadiusMultiplier))
+        + "%  ARM " + std::to_string(stats.armor),
         {16.0f, 84.0f}, 14, sf::Color(210, 220, 255));
     drawSkillBar(world);
     drawEquipment(world);

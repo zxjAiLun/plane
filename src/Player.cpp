@@ -62,7 +62,7 @@ void Player::setBounds(const Vector2& bounds) {
 }
 
 void Player::takeDamage(int damage) {
-    hp_ -= damage;
+    hp_ -= std::max(1, damage - stats_.armor);
 }
 
 int Player::heal(int amount) {

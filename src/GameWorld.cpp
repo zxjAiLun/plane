@@ -1190,6 +1190,7 @@ void GameWorld::tryUpgradeSelectedInventoryItem(Input& input) {
     item->stats.projectileDamageMultiplier = improveMultiplier(item->stats.projectileDamageMultiplier);
     item->stats.areaDamageMultiplier = improveMultiplier(item->stats.areaDamageMultiplier);
     item->stats.areaRadiusMultiplier = improveMultiplier(item->stats.areaRadiusMultiplier);
+    item->stats.armor = static_cast<int>(std::ceil(item->stats.armor * 1.15f));
     ++item->upgradeLevel;
     progression_.forgeFragments -= Config::ForgeUpgradeCost;
 }
