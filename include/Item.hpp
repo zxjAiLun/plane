@@ -12,6 +12,11 @@ enum class Rarity {
     Rare
 };
 
+struct ItemAffix {
+    std::string name;
+    int tier = 1;
+};
+
 struct Item {
     std::string name;
     EquipmentSlot slot = EquipmentSlot::Weapon;
@@ -19,7 +24,7 @@ struct Item {
     Stats stats;
     int itemLevel = 1;
     int upgradeLevel = 0;
-    std::vector<std::string> affixes;
+    std::vector<ItemAffix> affixes;
 };
 
 inline const char* rarityName(Rarity rarity) {

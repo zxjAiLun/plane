@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <set>
@@ -39,24 +40,23 @@ public:
         item.rarity = randomRarity(monsterLevel);
 
         const int affixCount = affixCountFor(item.rarity);
-        std::vector<std::string> prefixes;
-        std::vector<std::string> suffixes;
+        const int tier = tierForLevel(monsterLevel) + 1;
+        std::vector<ItemAffix> prefixes;
+        std::vector<ItemAffix> suffixes;
         std::set<std::size_t> usedIndices;
         for (int i = 0; i < affixCount; ++i) {
             const AffixDefinition& affix = randomAffixFor(item.slot, usedIndices);
             applyAffix(item.stats, affix, monsterLevel);
             if (affix.isPrefix) {
-                prefixes.push_back(affix.name);
+                prefixes.push_back({affix.name, tier});
             } else {
-                suffixes.push_back(affix.name);
+                suffixes.push_back({affix.name, tier});
             }
         }
 
-        item.name = makeName(item.slot, item.rarity, prefixes, suffixes);
-        item.affixes = suffixes;
-        if (!prefixes.empty()) {
-            item.affixes.insert(item.affixes.begin(), prefixes.begin(), prefixes.end());
-        }
+        item.name = makeName(item.slot, prefixes, suffixes);
+        item.affixes = std::move(prefixes);
+        item.affixes.insert(item.affixes.end(), suffixes.begin(), suffixes.end());
 
         return item;
     }
@@ -66,7 +66,7 @@ public:
         Item item;
         item.itemLevel = monsterLevel;
         item.rarity = Rarity::Rare;
-        item.affixes.push_back("Boss relic");
+        item.affixes.push_back({"Boss relic", tier + 1});
 
         switch (theme) {
             case BossLootTheme::Brimstone:
@@ -74,8 +74,8 @@ public:
                 item.slot = EquipmentSlot::Weapon;
                 item.stats.damageMultiplier += std::array<float, 3>{0.14f, 0.20f, 0.27f}[tier];
                 item.stats.areaDamageMultiplier += std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier];
-                item.affixes.push_back("Brimstone might");
-                item.affixes.push_back("Crushing impact");
+                item.affixes.push_back({"Brimstone might", tier + 1});
+                item.affixes.push_back({"Crushing impact", tier + 1});
                 break;
 
             case BossLootTheme::Storm:
@@ -83,8 +83,8 @@ public:
                 item.slot = EquipmentSlot::Ring;
                 item.stats.attackSpeedMultiplier += std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier];
                 item.stats.projectileDamageMultiplier += std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier];
-                item.affixes.push_back("Storm cadence");
-                item.affixes.push_back("Charged projectiles");
+                item.affixes.push_back({"Storm cadence", tier + 1});
+                item.affixes.push_back({"Charged projectiles", tier + 1});
                 break;
 
             case BossLootTheme::Brood:
@@ -92,12 +92,25 @@ public:
                 item.slot = EquipmentSlot::Amulet;
                 item.stats.areaDamageMultiplier += std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier];
                 item.stats.areaRadiusMultiplier += std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier];
-                item.affixes.push_back("Brood surge");
-                item.affixes.push_back("Expanding nests");
+                item.affixes.push_back({"Brood surge", tier + 1});
+                item.affixes.push_back({"Expanding nests", tier + 1});
                 break;
         }
 
         return item;
+    }
+
+    static Rarity rarityForRoll(int monsterLevel, int roll) {
+        const int normalizedLevel = std::max(1, monsterLevel);
+        const int rareChance = std::min(32, 8 + normalizedLevel * 4);
+        const int magicChance = std::min(58, 30 + normalizedLevel * 3);
+        if (roll < rareChance) {
+            return Rarity::Rare;
+        }
+        if (roll < rareChance + magicChance) {
+            return Rarity::Magic;
+        }
+        return Rarity::Normal;
     }
 
 private:
@@ -175,16 +188,7 @@ private:
     }
 
     static Rarity randomRarity(int monsterLevel) {
-        const int roll = std::rand() % 100;
-        const int rareChance = 10 + monsterLevel / 3;
-        const int magicChance = 35 + monsterLevel / 4;
-        if (roll < rareChance) {
-            return Rarity::Rare;
-        }
-        if (roll < rareChance + magicChance) {
-            return Rarity::Magic;
-        }
-        return Rarity::Normal;
+        return rarityForRoll(monsterLevel, std::rand() % 100);
     }
 
     static int affixCountFor(Rarity rarity) {
@@ -219,10 +223,10 @@ private:
     }
 
     static int tierForLevel(int monsterLevel) {
-        if (monsterLevel <= 1) {
+        if (monsterLevel <= 2) {
             return 0;
         }
-        if (monsterLevel <= 3) {
+        if (monsterLevel <= 4) {
             return 1;
         }
         return 2;
@@ -261,15 +265,15 @@ private:
         }
     }
 
-    static std::string makeName(EquipmentSlot slot, Rarity rarity,
-        const std::vector<std::string>& prefixes, const std::vector<std::string>& suffixes) {
+    static std::string makeName(EquipmentSlot slot,
+        const std::vector<ItemAffix>& prefixes, const std::vector<ItemAffix>& suffixes) {
         std::string name;
         if (!prefixes.empty()) {
-            name += prefixes.front() + " ";
+            name += prefixes.front().name + " ";
         }
         name += slotName(slot);
         if (!suffixes.empty()) {
-            name += " " + suffixes.front();
+            name += " " + suffixes.front().name;
         }
         return name;
     }

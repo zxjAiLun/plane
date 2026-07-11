@@ -249,6 +249,9 @@ void testLootGeneration() {
         expect(static_cast<int>(item.affixes.size()) == expectedAffixes,
             "item ilvl3 roll " + std::to_string(i) + " affix count matches rarity");
         expect(item.itemLevel == 3, "itemLevel equals monster level 3 for roll " + std::to_string(i));
+        for (const auto& affix : item.affixes) {
+            expect(affix.tier == 2, "item ilvl3 roll " + std::to_string(i) + " rolls T2 affixes");
+        }
     }
 
     expect(sawName, "generated items have non-empty names");
@@ -261,6 +264,14 @@ void testLootGeneration() {
     expect(!boss.name.empty(), "boss relic has a name");
     expect(!boss.affixes.empty(), "boss relic has affixes");
     expect(boss.slot == EquipmentSlot::Weapon, "Brimstone boss relic is a Weapon");
+    for (const auto& affix : boss.affixes) {
+        expect(affix.tier == 3, "boss ilvl5 relic rolls T3 affixes");
+    }
+
+    expect(LootGenerator::rarityForRoll(1, 20) == Rarity::Magic,
+        "low-level rarity roll 20 is Magic");
+    expect(LootGenerator::rarityForRoll(5, 20) == Rarity::Rare,
+        "same roll becomes Rare at higher map level");
 }
 
 // --- Elite modifiers ---

@@ -1007,7 +1007,8 @@ void Renderer::drawItemDetailPanel(const GameWorld& world, const sf::Vector2f& p
     y += 18.0f;
 
     for (const auto& affix : item.affixes) {
-        drawText("- " + affix, {x, y}, 11, sf::Color(160, 200, 255));
+        drawText("- " + affix.name + " T" + std::to_string(affix.tier),
+            {x, y}, 11, sf::Color(160, 200, 255));
         y += 15.0f;
     }
 
