@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 
+#include "Config.hpp"
 #include "EnemyType.hpp"
 
 struct EnemyColor {
@@ -28,6 +29,8 @@ struct EnemyDefinition {
     int scoreReward = 100;
     int expMultiplier = 1;
     float dropMultiplier = 1.0f;
+    int flaskChargeChancePercent = 0;
+    int flaskChargeAmount = 0;
     EnemyAttackStyle attackStyle = EnemyAttackStyle::Melee;
     float attackRange = 0.0f;
     float attackWindup = 0.0f;
@@ -57,6 +60,8 @@ public:
                 100,
                 1,
                 1.0f,
+                20,
+                1,
                 EnemyAttackStyle::Melee,
                 44.0f,
                 0.35f,
@@ -76,6 +81,8 @@ public:
                 140,
                 1,
                 1.20f,
+                25,
+                1,
                 EnemyAttackStyle::Projectile,
                 420.0f,
                 0.45f,
@@ -95,6 +102,8 @@ public:
                 500,
                 5,
                 2.5f,
+                100,
+                1,
                 EnemyAttackStyle::Melee,
                 60.0f,
                 0.25f,
@@ -114,6 +123,8 @@ public:
                 1000,
                 10,
                 1.0f,
+                100,
+                Config::LifeFlaskMaxCharges,
                 EnemyAttackStyle::Boss,
                 0.0f,
                 0.0f,

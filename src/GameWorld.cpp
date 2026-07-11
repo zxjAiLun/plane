@@ -761,6 +761,21 @@ void GameWorld::tryUseLifeFlask(Input& input) {
     lifeFlaskStatusTimer_ = 1.5f;
 }
 
+void GameWorld::restoreLifeFlaskCharges(int charges, const std::string& source) {
+    const int previousCharges = lifeFlaskCharges_;
+    lifeFlaskCharges_ = refilledFlaskCharges(
+        lifeFlaskCharges_, Config::LifeFlaskMaxCharges, charges
+    );
+
+    const int restoredCharges = lifeFlaskCharges_ - previousCharges;
+    if (restoredCharges <= 0) {
+        return;
+    }
+
+    lifeFlaskStatusMessage_ = source + ": Flask +" + std::to_string(restoredCharges);
+    lifeFlaskStatusTimer_ = 1.5f;
+}
+
 void GameWorld::dealAreaDamage(const Vector2& center, float radius, int damage) {
     for (auto& enemy : enemies_) {
         if (enemy.isDead()) {
@@ -1304,6 +1319,16 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
     const int exp = Config::ExpPerKill * definition.expMultiplier;
     player_.gainExp(exp);
     mapExperienceGained_ += exp;
+
+    const bool restoresFlask = definition.flaskChargeAmount > 0
+        && (definition.flaskChargeChancePercent >= 100
+            || (std::rand() % 100) < definition.flaskChargeChancePercent);
+    if (restoresFlask) {
+        restoreLifeFlaskCharges(
+            definition.flaskChargeAmount,
+            enemy.isBoss() ? "Boss kill" : definition.name + " kill"
+        );
+    }
 
     const float eliteDropMultiplier = enemy.isBoss() ? bossDefinition_->dropMultiplier
         : definition.dropMultiplier;

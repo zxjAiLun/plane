@@ -9,6 +9,7 @@
 #include "CombatMath.hpp"
 #include "Config.hpp"
 #include "EliteModifier.hpp"
+#include "EnemyDefinition.hpp"
 #include "Equipment.hpp"
 #include "Item.hpp"
 #include "LootGenerator.hpp"
@@ -158,6 +159,10 @@ void testCombatMathDamageRadiusPierce() {
     expect(skillPierceCount(nullptr) == 0, "no support => 0 pierce");
     expect(skillPierceCount(pierce) == 1, "Pierce support => 1 pierce");
     expect(skillPierceCount(amplify) == 0, "Amplify does not grant pierce");
+
+    expect(refilledFlaskCharges(0, 3, 1) == 1, "flask refill adds granted charge");
+    expect(refilledFlaskCharges(2, 3, 3) == 3, "flask refill is capped at maximum charges");
+    expect(refilledFlaskCharges(1, 3, -1) == 1, "negative flask refill does not remove charges");
 }
 
 // --- Armor mitigation via Player (shipped path) ---
@@ -278,6 +283,26 @@ void testEliteModifierDefinitions() {
         "Volatile defines a damaging death burst");
 }
 
+// --- Flask reward definitions ---
+void testFlaskChargeRewards() {
+    section("Enemy flask charge rewards");
+
+    const auto& normal = EnemyLibrary::forType(EnemyType::Normal);
+    const auto& ranged = EnemyLibrary::forType(EnemyType::Ranged);
+    const auto& elite = EnemyLibrary::forType(EnemyType::Elite);
+    const auto& boss = EnemyLibrary::forType(EnemyType::Boss);
+
+    expect(normal.flaskChargeChancePercent > 0 && normal.flaskChargeChancePercent < 100,
+        "normal enemies restore flask charges only occasionally");
+    expect(ranged.flaskChargeChancePercent > 0 && ranged.flaskChargeChancePercent < 100,
+        "ranged enemies restore flask charges only occasionally");
+    expect(elite.flaskChargeChancePercent == 100 && elite.flaskChargeAmount == 1,
+        "elites always restore one flask charge");
+    expect(boss.flaskChargeChancePercent == 100
+            && boss.flaskChargeAmount >= Config::LifeFlaskMaxCharges,
+        "boss kill refills the life flask");
+}
+
 // --- Map options ---
 void testMapOptionGeneration() {
     section("MapOptionLibrary distinct modifiers");
@@ -372,6 +397,7 @@ int main() {
     testEquipmentChangesCombatStats();
     testLootGeneration();
     testEliteModifierDefinitions();
+    testFlaskChargeRewards();
     testMapOptionGeneration();
     testMapRewardGeneration();
     testPassiveAndEquipPipeline();

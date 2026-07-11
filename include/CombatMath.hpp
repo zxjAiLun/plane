@@ -14,6 +14,10 @@ inline int mitigatedDamage(int rawDamage, int armor) {
     return std::max(1, rawDamage - armor);
 }
 
+inline int refilledFlaskCharges(int currentCharges, int maxCharges, int restoredCharges) {
+    return std::clamp(currentCharges + std::max(0, restoredCharges), 0, maxCharges);
+}
+
 inline int skillDamage(
     const SkillDefinition& skill,
     const Stats& stats,

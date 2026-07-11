@@ -146,6 +146,7 @@ private:
     void tryCastSecondarySkill(Input& input);
     void tryCastPrimarySkill(Input& input);
     void tryUseLifeFlask(Input& input);
+    void restoreLifeFlaskCharges(int charges, const std::string& source);
     void dealAreaDamage(const Vector2& center, float radius, int damage);
     void updateMapEvents(float dt, Input& input);
     void triggerElitePackEvent(std::size_t eventIndex);
