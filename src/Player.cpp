@@ -62,8 +62,10 @@ void Player::setBounds(const Vector2& bounds) {
     setPosition(position_);
 }
 
-void Player::takeDamage(int damage) {
-    hp_ -= mitigatedDamage(damage, stats_.armor);
+int Player::takeDamage(int damage) {
+    const int actualDamage = mitigatedDamage(damage, stats_.armor);
+    hp_ -= actualDamage;
+    return actualDamage;
 }
 
 int Player::heal(int amount) {

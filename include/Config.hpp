@@ -13,6 +13,7 @@ namespace Config {
     constexpr float PlayerRadius = 20.0f;
     constexpr int PlayerHp = 3;
     constexpr float PlayerHitCooldown = 0.6f;
+    constexpr float PlayerHitEffectDuration = 0.45f;
     constexpr int LifeFlaskMaxCharges = 3;
     constexpr int LifeFlaskHealAmount = 2;
 

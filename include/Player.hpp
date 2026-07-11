@@ -22,7 +22,7 @@ public:
     void setPosition(const Vector2& position);
     void setBounds(const Vector2& bounds);
 
-    void takeDamage(int damage);
+    int takeDamage(int damage);
     int heal(int amount);
     bool isDead() const;
 

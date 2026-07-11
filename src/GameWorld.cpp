@@ -147,6 +147,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     bossAoeEffectTimer_ = std::max(0.0f, bossAoeEffectTimer_ - dt);
     volatileExplosionTimer_ = std::max(0.0f, volatileExplosionTimer_ - dt);
     playerHitCooldown_ = std::max(0.0f, playerHitCooldown_ - dt);
+    playerHitEffectTimer_ = std::max(0.0f, playerHitEffectTimer_ - dt);
     shrineBuffTimer_ = std::max(0.0f, shrineBuffTimer_ - dt);
     if (lifeFlaskStatusTimer_ > 0.0f) {
         lifeFlaskStatusTimer_ = std::max(0.0f, lifeFlaskStatusTimer_ - dt);
@@ -249,6 +250,9 @@ void GameWorld::reset() {
     bossSkillIndex_ = 0;
     bossEnraged_ = false;
     playerHitCooldown_ = 0.0f;
+    playerHitEffectTimer_ = 0.0f;
+    playerHitDamage_ = 0;
+    playerHitSource_.clear();
     mapLevel_ = 1;
     currentWave_ = 0;
     enemiesSpawnedInWave_ = 0;
@@ -307,6 +311,9 @@ void GameWorld::startNextMap() {
     bossSkillIndex_ = 0;
     bossEnraged_ = false;
     playerHitCooldown_ = 0.0f;
+    playerHitEffectTimer_ = 0.0f;
+    playerHitDamage_ = 0;
+    playerHitSource_.clear();
 
     projectiles_.clear();
     bossProjectiles_.clear();
@@ -385,7 +392,7 @@ void GameWorld::updateBossSkills(float dt) {
                 player_.position(), player_.radius(),
                 bossAoeCenter_, bossAoeSkill_.radius
             )) {
-            damagePlayer(bossAoeSkill_.damage);
+            damagePlayer(bossAoeSkill_.damage, bossAoeSkill_.name);
         }
         bossAoeEffectTimer_ = bossAoeSkill_.effectDuration;
     }
@@ -438,6 +445,7 @@ void GameWorld::updateBossSkills(float dt) {
                     rotated * skill.projectileSpeed,
                     skill.radius,
                     bossSkillDamage(skill.damage),
+                    skill.name,
                     true
                 });
             }
@@ -561,7 +569,7 @@ void GameWorld::handleCollisions() {
                     player_.position(), player_.radius(),
                     enemy.position(), enemy.radius()
                 )) {
-                damagePlayer(enemy.contactDamage());
+                damagePlayer(enemy.contactDamage(), bossDefinition_->name + " contact");
             }
             continue;
         }
@@ -571,8 +579,8 @@ void GameWorld::handleCollisions() {
         }
 
         const Vector2 toPlayer = player_.position() - enemy.position();
+        const auto& definition = EnemyLibrary::forType(enemy.type());
         if (enemy.isRanged()) {
-            const auto& definition = EnemyLibrary::forType(enemy.type());
             const Vector2 direction = toPlayer.normalized();
             if (direction.lengthSquared() > 0.0f) {
                 enemyProjectiles_.push_back({
@@ -580,11 +588,12 @@ void GameWorld::handleCollisions() {
                     direction * definition.projectileSpeed,
                     definition.projectileRadius,
                     enemy.contactDamage(),
+                    definition.name + " shot",
                     true
                 });
             }
         } else if (toPlayer.lengthSquared() <= enemy.attackRange() * enemy.attackRange()) {
-            damagePlayer(enemy.contactDamage());
+            damagePlayer(enemy.contactDamage(), definition.name + " strike");
         }
     }
 }
@@ -599,7 +608,7 @@ void GameWorld::handleBossProjectileCollisions() {
                 player_.position(), player_.radius(),
                 projectile.position, projectile.radius
             )) {
-            damagePlayer(projectile.damage);
+            damagePlayer(projectile.damage, projectile.source);
             projectile.alive = false;
         }
     }
@@ -615,7 +624,7 @@ void GameWorld::handleEnemyProjectileCollisions() {
                 player_.position(), player_.radius(),
                 projectile.position, projectile.radius
             )) {
-            damagePlayer(projectile.damage);
+            damagePlayer(projectile.damage, projectile.source);
             projectile.alive = false;
         }
     }
@@ -1296,7 +1305,7 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
                 player_.position(), player_.radius(),
                 volatileExplosionCenter_, volatileExplosionRadius_
             )) {
-            damagePlayer(eliteModifier.deathBurstDamage);
+                damagePlayer(eliteModifier.deathBurstDamage, eliteModifier.name + " explosion");
         }
     }
 
@@ -1358,12 +1367,14 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
     noteElitePackEnemyDefeated(enemy);
 }
 
-void GameWorld::damagePlayer(int damage) {
+void GameWorld::damagePlayer(int damage, const std::string& source) {
     if (playerHitCooldown_ > 0.0f) {
         return;
     }
 
-    player_.takeDamage(damage);
+    playerHitDamage_ = player_.takeDamage(damage);
+    playerHitSource_ = source;
+    playerHitEffectTimer_ = Config::PlayerHitEffectDuration;
     playerHitCooldown_ = Config::PlayerHitCooldown;
 }
 
@@ -1481,6 +1492,13 @@ int GameWorld::lifeFlaskCharges() const { return lifeFlaskCharges_; }
 int GameWorld::lifeFlaskMaxCharges() const { return Config::LifeFlaskMaxCharges; }
 std::string GameWorld::lifeFlaskStatusMessage() const { return lifeFlaskStatusMessage_; }
 float GameWorld::lifeFlaskStatusTimeRemaining() const { return lifeFlaskStatusTimer_; }
+int GameWorld::playerHitDamage() const { return playerHitDamage_; }
+std::string GameWorld::playerHitSource() const { return playerHitSource_; }
+float GameWorld::playerHitEffectProgress() const {
+    return Config::PlayerHitEffectDuration > 0.0f
+        ? playerHitEffectTimer_ / Config::PlayerHitEffectDuration
+        : 0.0f;
+}
 const Vector2& GameWorld::aimPosition() const { return aimPosition_; }
 float GameWorld::novaEffectProgress() const {
     const float duration = skillBar_.definition(SkillSlot::Utility).effectDuration;

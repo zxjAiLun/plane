@@ -422,6 +422,10 @@ void Renderer::render(const GameWorld& world) {
         drawText(world.lifeFlaskStatusMessage(), {310.0f, 12.0f}, 14,
             flaskEmpty ? sf::Color(255, 120, 120) : sf::Color(180, 245, 200));
     }
+    if (world.playerHitEffectProgress() > 0.0f) {
+        drawText("HIT " + world.playerHitSource() + " -" + std::to_string(world.playerHitDamage()),
+            {16.0f, 84.0f}, 15, sf::Color(255, 105, 90));
+    }
     drawText("LV " + std::to_string(world.player().level())
         + "  EXP " + std::to_string(world.player().exp()) + "/" + std::to_string(world.player().expToNextLevel())
         + "  SP " + std::to_string(world.player().talentPoints()),
@@ -567,8 +571,21 @@ void Renderer::drawMap(const GameWorld& world) {
 
 void Renderer::drawPlayer(const GameWorld& world) {
     const auto& player = world.player();
+    const float hitProgress = world.playerHitEffectProgress();
+    if (hitProgress > 0.0f) {
+        const float pulseRadius = player.radius() + 8.0f + (1.0f - hitProgress) * 8.0f;
+        const auto alpha = static_cast<std::uint8_t>(190.0f * hitProgress);
+        sf::CircleShape pulse(pulseRadius);
+        pulse.setFillColor(sf::Color(255, 60, 45, alpha / 6));
+        pulse.setOutlineColor(sf::Color(255, 105, 75, alpha));
+        pulse.setOutlineThickness(3.0f);
+        pulse.setOrigin({pulseRadius, pulseRadius});
+        pulse.setPosition(worldToScreen(world, player.position()));
+        window_.draw(pulse);
+    }
+
     sf::CircleShape shape(player.radius());
-    shape.setFillColor(sf::Color::Green);
+    shape.setFillColor(hitProgress > 0.0f ? sf::Color(245, 105, 80) : sf::Color::Green);
     shape.setOrigin({player.radius(), player.radius()});
     shape.setPosition(worldToScreen(world, player.position()));
     window_.draw(shape);
@@ -724,17 +741,24 @@ void Renderer::drawEnemyProjectiles(const GameWorld& world) {
 void Renderer::drawEnemies(const GameWorld& world) {
     for (const auto& enemy : world.enemies()) {
         const auto& definition = EnemyLibrary::forType(enemy.type());
+        const auto& modifier = EliteModifierLibrary::forModifier(enemy.eliteModifier());
         const sf::Vector2f screenPosition = worldToScreen(world, enemy.position());
         if (enemy.isAttackWindingUp()) {
             sf::CircleShape warning(enemy.attackRange());
-            const sf::Color warningColor = enemy.isRanged()
+            sf::Color warningColor = enemy.isRanged()
                 ? sf::Color(255, 220, 75, 210)
                 : sf::Color(255, 110, 75, 210);
-            warning.setFillColor(enemy.isRanged()
-                ? sf::Color(255, 220, 75, 28)
-                : sf::Color(255, 50, 40, 28));
+            if (enemy.eliteModifier() != EliteModifier::None) {
+                warningColor = sf::Color(
+                    modifier.outlineColor.r,
+                    modifier.outlineColor.g,
+                    modifier.outlineColor.b,
+                    220
+                );
+            }
+            warning.setFillColor(sf::Color(warningColor.r, warningColor.g, warningColor.b, 28));
             warning.setOutlineColor(warningColor);
-            warning.setOutlineThickness(2.0f);
+            warning.setOutlineThickness(enemy.isElite() ? 3.0f : 2.0f);
             warning.setOrigin({enemy.attackRange(), enemy.attackRange()});
             warning.setPosition(screenPosition);
             window_.draw(warning);
@@ -742,12 +766,30 @@ void Renderer::drawEnemies(const GameWorld& world) {
 
         sf::RectangleShape shape({enemy.radius() * 2, enemy.radius() * 2});
         shape.setFillColor(enemyColor(definition.fillColor));
-        const auto& modifier = EliteModifierLibrary::forModifier(enemy.eliteModifier());
         if (definition.outlineThickness > 0.0f) {
             shape.setOutlineColor(enemy.eliteModifier() == EliteModifier::None
                 ? enemyColor(definition.outlineColor)
                 : enemyColor(modifier.outlineColor));
             shape.setOutlineThickness(definition.outlineThickness);
+        }
+
+        if (enemy.isElite() && !enemy.isBoss()) {
+            const float barWidth = enemy.radius() * 2.0f;
+            const float hpRatio = enemy.maxHp() > 0
+                ? static_cast<float>(std::max(0, enemy.hp())) / static_cast<float>(enemy.maxHp())
+                : 0.0f;
+            sf::RectangleShape background({barWidth, 4.0f});
+            background.setFillColor(sf::Color(35, 30, 40, 220));
+            background.setOrigin({barWidth * 0.5f, 2.0f});
+            background.setPosition({screenPosition.x, screenPosition.y - enemy.radius() - 8.0f});
+            window_.draw(background);
+
+            sf::RectangleShape fill({barWidth * hpRatio, 4.0f});
+            fill.setFillColor(enemyColor(modifier.outlineColor));
+            fill.setOrigin({barWidth * 0.5f, 2.0f});
+            fill.setPosition({screenPosition.x - barWidth * (1.0f - hpRatio) * 0.5f,
+                screenPosition.y - enemy.radius() - 8.0f});
+            window_.draw(fill);
         }
         shape.setOrigin({enemy.radius(), enemy.radius()});
         shape.setPosition(screenPosition);

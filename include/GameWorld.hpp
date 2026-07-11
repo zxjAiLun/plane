@@ -30,6 +30,7 @@ struct BossProjectile {
     Vector2 velocity;
     float radius = 0.0f;
     int damage = 0;
+    std::string source;
     bool alive = true;
 };
 
@@ -38,6 +39,7 @@ struct EnemyProjectile {
     Vector2 velocity;
     float radius = 0.0f;
     int damage = 0;
+    std::string source;
     bool alive = true;
 };
 
@@ -69,6 +71,9 @@ public:
     int lifeFlaskMaxCharges() const;
     std::string lifeFlaskStatusMessage() const;
     float lifeFlaskStatusTimeRemaining() const;
+    int playerHitDamage() const;
+    std::string playerHitSource() const;
+    float playerHitEffectProgress() const;
     const Vector2& aimPosition() const;
     float novaEffectProgress() const;
     float novaEffectRadius() const;
@@ -175,7 +180,7 @@ private:
     void generateNextMapOptions();
     void initializeRunProgression();
     void rewardEnemyKill(const Enemy& enemy);
-    void damagePlayer(int damage);
+    void damagePlayer(int damage, const std::string& source);
     const Enemy* activeBoss() const;
     float bossSkillInterval() const;
     int bossSkillDamage(int baseDamage) const;
@@ -224,6 +229,9 @@ private:
     bool bossEnraged_ = false;
     const BossDefinition* bossDefinition_;
     float playerHitCooldown_;
+    float playerHitEffectTimer_ = 0.0f;
+    int playerHitDamage_ = 0;
+    std::string playerHitSource_;
     int mapLevel_;
     int currentWave_;
     int enemiesSpawnedInWave_;

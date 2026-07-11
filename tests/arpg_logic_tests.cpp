@@ -174,7 +174,7 @@ void testPlayerArmorMitigation() {
     expect(hpFull == player.maxHp(), "fresh player at full HP");
 
     // No armor: 2 damage should remove 2 HP.
-    player.takeDamage(2);
+    expect(player.takeDamage(2) == 2, "takeDamage reports actual damage without armor");
     expect(player.hp() == hpFull - 2, "takeDamage without armor subtracts full amount");
 
     // Equip armor with +2 armor so mitigation uses shipped equip + recalculate path.
@@ -188,7 +188,8 @@ void testPlayerArmorMitigation() {
     expect(player.stats().armor == 2, "equipped armor contributes to combined stats.armor");
 
     const int hpBefore = player.hp();
-    player.takeDamage(3);
+    expect(player.takeDamage(3) == mitigatedDamage(3, 2),
+        "takeDamage reports armor-mitigated damage");
     // mitigatedDamage(3, 2) == 1
     expect(player.hp() == hpBefore - mitigatedDamage(3, 2),
         "takeDamage uses mitigatedDamage(raw, armor) via shipped Player path");
