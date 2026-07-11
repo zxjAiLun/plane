@@ -42,6 +42,7 @@ target_link_libraries(PlaneShooter PRIVATE SFML::Graphics SFML::Window SFML::Sys
 add_executable(arpg_logic_tests
     tests/arpg_logic_tests.cpp
     src/Player.cpp
+    src/Enemy.cpp
 )
 target_include_directories(arpg_logic_tests PRIVATE include)
 # Player.cpp needs no SFML; keep the test binary free of graphics deps.

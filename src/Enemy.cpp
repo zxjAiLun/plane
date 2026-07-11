@@ -16,7 +16,10 @@ Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type,
     , eliteModifier_(type == EnemyType::Elite ? eliteModifier : EliteModifier::None)
     , attackCooldownTimer_(0.0f)
     , attackWindupTimer_(0.0f)
-    , attackReady_(false) {
+    , attackReady_(false)
+    , chargeDirection_()
+    , chargeTimer_(0.0f)
+    , chargeHitConsumed_(false) {
 }
 
 void Enemy::update(float dt, const Vector2& targetPosition, const MapInstance& map) {
@@ -28,11 +31,30 @@ void Enemy::update(float dt, const Vector2& targetPosition, const MapInstance& m
 
     const auto& definition = EnemyLibrary::forType(type_);
     attackCooldownTimer_ = std::max(0.0f, attackCooldownTimer_ - dt);
+    const float speedMultiplier = EliteModifierLibrary::forModifier(eliteModifier_).speedMultiplier;
+
+    if (chargeTimer_ > 0.0f) {
+        const float chargeStep = std::min(dt, chargeTimer_);
+        position_ = map.resolveMovement(
+            position_, radius_,
+            chargeDirection_ * Config::EnemySpeed * definition.chargeSpeedMultiplier * speedMultiplier * chargeStep
+        );
+        chargeTimer_ = std::max(0.0f, chargeTimer_ - dt);
+        if (chargeTimer_ == 0.0f) {
+            attackCooldownTimer_ = definition.attackCooldown;
+        }
+        return;
+    }
 
     if (attackWindupTimer_ > 0.0f) {
         attackWindupTimer_ = std::max(0.0f, attackWindupTimer_ - dt);
         if (attackWindupTimer_ == 0.0f) {
-            attackReady_ = true;
+            if (isCharger()) {
+                chargeTimer_ = definition.chargeDuration;
+                chargeHitConsumed_ = false;
+            } else {
+                attackReady_ = true;
+            }
         }
         return;
     }
@@ -40,6 +62,12 @@ void Enemy::update(float dt, const Vector2& targetPosition, const MapInstance& m
     const Vector2 toTarget = targetPosition - position_;
     if (attackCooldownTimer_ <= 0.0f
         && toTarget.lengthSquared() <= definition.attackRange * definition.attackRange) {
+        if (isCharger()) {
+            chargeDirection_ = toTarget.normalized();
+            if (chargeDirection_.lengthSquared() <= 0.0f) {
+                return;
+            }
+        }
         attackWindupTimer_ = definition.attackWindup;
         return;
     }
@@ -49,7 +77,6 @@ void Enemy::update(float dt, const Vector2& targetPosition, const MapInstance& m
     }
 
     Vector2 direction = (targetPosition - position_).normalized();
-    const float speedMultiplier = EliteModifierLibrary::forModifier(eliteModifier_).speedMultiplier;
     position_ = map.resolveMovement(position_, radius_, direction * Config::EnemySpeed * speedMultiplier * dt);
 }
 
@@ -85,6 +112,27 @@ bool Enemy::consumeAttack() {
 EnemyType Enemy::type() const { return type_; }
 bool Enemy::isRanged() const {
     return EnemyLibrary::forType(type_).attackStyle == EnemyAttackStyle::Projectile;
+}
+bool Enemy::isCharger() const {
+    return EnemyLibrary::forType(type_).attackStyle == EnemyAttackStyle::Charge;
+}
+bool Enemy::isCharging() const { return chargeTimer_ > 0.0f; }
+Vector2 Enemy::chargeTargetPosition() const {
+    if (!isCharger()) {
+        return position_;
+    }
+
+    const auto& definition = EnemyLibrary::forType(type_);
+    const float duration = chargeTimer_ > 0.0f ? chargeTimer_ : definition.chargeDuration;
+    return position_ + chargeDirection_ * Config::EnemySpeed * definition.chargeSpeedMultiplier * duration;
+}
+bool Enemy::consumeChargeHit() {
+    if (!isCharging() || chargeHitConsumed_) {
+        return false;
+    }
+
+    chargeHitConsumed_ = true;
+    return true;
 }
 bool Enemy::isElite() const { return type_ == EnemyType::Elite || type_ == EnemyType::Boss; }
 bool Enemy::isBoss() const { return type_ == EnemyType::Boss; }

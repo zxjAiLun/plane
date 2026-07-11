@@ -9,11 +9,13 @@
 #include "CombatMath.hpp"
 #include "Config.hpp"
 #include "EliteModifier.hpp"
+#include "Enemy.hpp"
 #include "EnemyDefinition.hpp"
 #include "Equipment.hpp"
 #include "Item.hpp"
 #include "LootGenerator.hpp"
 #include "MapModifier.hpp"
+#include "MapInstance.hpp"
 #include "MapRewardLibrary.hpp"
 #include "PassiveTree.hpp"
 #include "Player.hpp"
@@ -295,6 +297,40 @@ void testEliteModifierDefinitions() {
         "Volatile defines a damaging death burst");
 }
 
+// --- Charger behavior ---
+void testChargerStateMachine() {
+    section("Charger windup and charge state");
+
+    const auto& definition = EnemyLibrary::forType(EnemyType::Charger);
+    expect(definition.attackStyle == EnemyAttackStyle::Charge,
+        "Ravager uses the charge attack style");
+    expect(definition.chargeSpeedMultiplier > 1.0f && definition.chargeDuration > 0.0f,
+        "Ravager definition has a fast finite charge");
+
+    MapInstance map;
+    Enemy charger({400.0f, 400.0f}, 10, 2, EnemyType::Charger);
+    const Vector2 target{650.0f, 400.0f};
+    charger.update(0.1f, target, map);
+    expect(charger.isAttackWindingUp(), "charger enters windup inside charge range");
+
+    charger.update(0.6f, target, map);
+    expect(charger.isCharging(), "charger enters charge state after windup");
+    const float beforeChargeX = charger.position().x;
+    charger.update(0.1f, target, map);
+    expect(charger.position().x > beforeChargeX, "charger moves along its telegraphed direction");
+    expect(charger.consumeChargeHit(), "charger exposes one impact during a charge");
+    expect(!charger.consumeChargeHit(), "charger cannot apply multiple impacts per charge");
+
+    for (const auto& mapTemplate : MapTemplateLibrary::all()) {
+        const auto& encounter = mapTemplate.encounter;
+        expect(encounter.chargerWeight > 0,
+            mapTemplate.name + " includes Charger encounters");
+        expect(encounter.normalWeight + encounter.rangedWeight
+                + encounter.eliteWeight + encounter.chargerWeight == 100,
+            mapTemplate.name + " encounter weights total 100");
+    }
+}
+
 // --- Flask reward definitions ---
 void testFlaskChargeRewards() {
     section("Enemy flask charge rewards");
@@ -418,6 +454,7 @@ int main() {
     testEquipmentChangesCombatStats();
     testLootGeneration();
     testEliteModifierDefinitions();
+    testChargerStateMachine();
     testFlaskChargeRewards();
     testMapOptionGeneration();
     testMapRewardGeneration();

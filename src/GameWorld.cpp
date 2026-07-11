@@ -574,6 +574,17 @@ void GameWorld::handleCollisions() {
             continue;
         }
 
+        if (enemy.isCharger()) {
+            if (enemy.isCharging() && Collision::circleCircle(
+                    player_.position(), player_.radius(),
+                    enemy.position(), enemy.radius()
+                ) && enemy.consumeChargeHit()) {
+                const auto& definition = EnemyLibrary::forType(enemy.type());
+                damagePlayer(enemy.contactDamage(), definition.name + " charge");
+            }
+            continue;
+        }
+
         if (!enemy.consumeAttack()) {
             continue;
         }
@@ -1441,7 +1452,8 @@ EnemyType GameWorld::nextMapEnemyType() const {
     );
     const int normalWeight = std::max(1, encounter.normalWeight - (eliteWeight - encounter.eliteWeight));
     const int rangedWeight = std::max(0, encounter.rangedWeight);
-    const int totalWeight = normalWeight + rangedWeight + eliteWeight;
+    const int chargerWeight = std::max(0, encounter.chargerWeight);
+    const int totalWeight = normalWeight + rangedWeight + chargerWeight + eliteWeight;
     const int roll = std::rand() % totalWeight;
 
     if (roll < eliteWeight) {
@@ -1449,6 +1461,9 @@ EnemyType GameWorld::nextMapEnemyType() const {
     }
     if (roll < eliteWeight + rangedWeight) {
         return EnemyType::Ranged;
+    }
+    if (roll < eliteWeight + rangedWeight + chargerWeight) {
+        return EnemyType::Charger;
     }
     return EnemyType::Normal;
 }

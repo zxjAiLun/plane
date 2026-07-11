@@ -748,6 +748,23 @@ void Renderer::drawEnemies(const GameWorld& world) {
         const auto& modifier = EliteModifierLibrary::forModifier(enemy.eliteModifier());
         const sf::Vector2f screenPosition = worldToScreen(world, enemy.position());
         if (enemy.isAttackWindingUp()) {
+            if (enemy.isCharger()) {
+                const sf::Vector2f chargeTarget = worldToScreen(world, enemy.chargeTargetPosition());
+                sf::VertexArray line(sf::PrimitiveType::Lines, 2);
+                line[0].position = screenPosition;
+                line[0].color = sf::Color(255, 210, 100, 210);
+                line[1].position = chargeTarget;
+                line[1].color = sf::Color(255, 125, 55, 120);
+                window_.draw(line);
+
+                sf::CircleShape target(12.0f);
+                target.setFillColor(sf::Color(255, 125, 55, 28));
+                target.setOutlineColor(sf::Color(255, 215, 100, 220));
+                target.setOutlineThickness(2.0f);
+                target.setOrigin({12.0f, 12.0f});
+                target.setPosition(chargeTarget);
+                window_.draw(target);
+            } else {
             sf::CircleShape warning(enemy.attackRange());
             sf::Color warningColor = enemy.isRanged()
                 ? sf::Color(255, 220, 75, 210)
@@ -766,6 +783,7 @@ void Renderer::drawEnemies(const GameWorld& world) {
             warning.setOrigin({enemy.attackRange(), enemy.attackRange()});
             warning.setPosition(screenPosition);
             window_.draw(warning);
+            }
         }
 
         sf::RectangleShape shape({enemy.radius() * 2, enemy.radius() * 2});

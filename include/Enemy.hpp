@@ -28,6 +28,10 @@ public:
     bool consumeAttack();
     EnemyType type() const;
     bool isRanged() const;
+    bool isCharger() const;
+    bool isCharging() const;
+    Vector2 chargeTargetPosition() const;
+    bool consumeChargeHit();
     bool isElite() const;
     bool isBoss() const;
     EliteModifier eliteModifier() const;
@@ -44,6 +48,9 @@ private:
     float attackCooldownTimer_;
     float attackWindupTimer_;
     bool attackReady_;
+    Vector2 chargeDirection_;
+    float chargeTimer_;
+    bool chargeHitConsumed_;
 
     inline static int nextId_ = 1;
 };

@@ -17,6 +17,7 @@ struct EnemyColor {
 enum class EnemyAttackStyle {
     Melee,
     Projectile,
+    Charge,
     Boss
 };
 
@@ -40,6 +41,8 @@ struct EnemyDefinition {
     EnemyColor fillColor;
     EnemyColor outlineColor;
     float outlineThickness = 0.0f;
+    float chargeSpeedMultiplier = 1.0f;
+    float chargeDuration = 0.0f;
 };
 
 class EnemyLibrary {
@@ -49,8 +52,8 @@ public:
         return definitions[static_cast<std::size_t>(type)];
     }
 
-    static const std::array<EnemyDefinition, 4>& all() {
-        static const std::array<EnemyDefinition, 4> definitions = {{
+    static const std::array<EnemyDefinition, 5>& all() {
+        static const std::array<EnemyDefinition, 5> definitions = {{
             {
                 EnemyType::Normal,
                 "Feral",
@@ -134,6 +137,29 @@ public:
                 {255, 80, 40},
                 {255, 220, 120},
                 5.0f
+            },
+            {
+                EnemyType::Charger,
+                "Ravager",
+                1.10f,
+                1.25f,
+                1,
+                180,
+                2,
+                1.40f,
+                30,
+                1,
+                EnemyAttackStyle::Charge,
+                340.0f,
+                0.55f,
+                2.40f,
+                0.0f,
+                0.0f,
+                {235, 140, 45},
+                {255, 215, 100},
+                2.0f,
+                4.80f,
+                0.42f
             },
         }};
 
