@@ -12,14 +12,16 @@ public:
     EnemySpawner();
 
     void update(float dt);
-    std::optional<Enemy> trySpawn(int hp, int contactDamage, EnemyType type = EnemyType::Normal);
+    std::optional<Enemy> trySpawn(int hp, int contactDamage, EnemyType type = EnemyType::Normal,
+        EliteModifier eliteModifier = EliteModifier::None);
     std::optional<Enemy> trySpawnNear(
         const Vector2& playerPosition,
         const Vector2& worldSize,
         const MapInstance& map,
         int hp,
         int contactDamage,
-        EnemyType type = EnemyType::Normal
+        EnemyType type = EnemyType::Normal,
+        EliteModifier eliteModifier = EliteModifier::None
     );
 
     void setSpawnInterval(float interval);

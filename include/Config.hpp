@@ -64,6 +64,7 @@ namespace Config {
     constexpr int MaxActiveEnemies = 28;
     constexpr float EnemySpawnMinDistance = 520.0f;
     constexpr float EnemySpawnMaxDistance = 760.0f;
+    constexpr float VolatileExplosionEffectDuration = 0.35f;
 
     constexpr int ExpPerKill = 1;
     constexpr int BaseExpToLevel = 5;

@@ -79,6 +79,9 @@ public:
     float bossAoeRadius() const;
     float bossAoeTelegraphProgress() const;
     float bossAoeEffectProgress() const;
+    const Vector2& volatileExplosionCenter() const;
+    float volatileExplosionRadius() const;
+    float volatileExplosionProgress() const;
     const BossDefinition& bossDefinition() const;
     const SkillBar& skillBar() const;
     const MapInstance& map() const;
@@ -181,6 +184,7 @@ private:
     int enemyHpForMap() const;
     int enemyDamageForMap() const;
     EnemyType nextMapEnemyType() const;
+    EliteModifier randomEliteModifier() const;
     bool shouldSpawnBoss() const;
     void triggerBossIfNeeded();
 
@@ -210,6 +214,9 @@ private:
     Vector2 bossAoeCenter_;
     float bossAoeTelegraphTimer_;
     float bossAoeEffectTimer_;
+    Vector2 volatileExplosionCenter_;
+    float volatileExplosionTimer_ = 0.0f;
+    float volatileExplosionRadius_ = 0.0f;
     BossSkillDefinition bossAoeSkill_;
     float bossSkillTimer_;
     int bossSkillIndex_;

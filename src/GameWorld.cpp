@@ -27,6 +27,7 @@ GameWorld::GameWorld()
     , bossAoeCenter_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
     , bossAoeTelegraphTimer_(0.0f)
     , bossAoeEffectTimer_(0.0f)
+    , volatileExplosionCenter_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
     , bossAoeSkill_()
     , bossSkillTimer_(Config::BossSkillInterval)
     , bossSkillIndex_(0)
@@ -144,6 +145,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     novaEffectTimer_ = std::max(0.0f, novaEffectTimer_ - dt);
     secondarySkillEffectTimer_ = std::max(0.0f, secondarySkillEffectTimer_ - dt);
     bossAoeEffectTimer_ = std::max(0.0f, bossAoeEffectTimer_ - dt);
+    volatileExplosionTimer_ = std::max(0.0f, volatileExplosionTimer_ - dt);
     playerHitCooldown_ = std::max(0.0f, playerHitCooldown_ - dt);
     shrineBuffTimer_ = std::max(0.0f, shrineBuffTimer_ - dt);
     if (lifeFlaskStatusTimer_ > 0.0f) {
@@ -240,6 +242,8 @@ void GameWorld::reset() {
     bossAoeCenter_ = map_.bossCenter();
     bossAoeTelegraphTimer_ = 0.0f;
     bossAoeEffectTimer_ = 0.0f;
+    volatileExplosionTimer_ = 0.0f;
+    volatileExplosionRadius_ = 0.0f;
     bossAoeSkill_ = BossSkillDefinition();
     bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
@@ -296,6 +300,8 @@ void GameWorld::startNextMap() {
     bossAoeCenter_ = map_.bossCenter();
     bossAoeTelegraphTimer_ = 0.0f;
     bossAoeEffectTimer_ = 0.0f;
+    volatileExplosionTimer_ = 0.0f;
+    volatileExplosionRadius_ = 0.0f;
     bossAoeSkill_ = BossSkillDefinition();
     bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
@@ -505,10 +511,16 @@ void GameWorld::spawnEnemies(float dt) {
     spawner_.update(dt);
     const EnemyType type = nextMapEnemyType();
     const auto& definition = EnemyLibrary::forType(type);
-    const int hp = std::max(1, static_cast<int>(std::ceil(enemyHpForMap() * definition.hpMultiplier)));
-    const int damage = enemyDamageForMap() + definition.damageBonus;
+    const EliteModifier modifier = type == EnemyType::Elite ? randomEliteModifier() : EliteModifier::None;
+    const auto& modifierDefinition = EliteModifierLibrary::forModifier(modifier);
+    const int hp = std::max(1, static_cast<int>(std::ceil(
+        enemyHpForMap() * definition.hpMultiplier * modifierDefinition.hpMultiplier
+    )));
+    const int damage = enemyDamageForMap() + definition.damageBonus + modifierDefinition.damageBonus;
 
-    if (auto enemy = spawner_.trySpawnNear(player_.position(), map_.size(), map_, hp, damage, type)) {
+    if (auto enemy = spawner_.trySpawnNear(
+            player_.position(), map_.size(), map_, hp, damage, type, modifier
+        )) {
         enemies_.push_back(*enemy);
         ++enemiesSpawnedInWave_;
     }
@@ -839,9 +851,13 @@ void GameWorld::triggerElitePackEvent(std::size_t eventIndex) {
 
     const auto spawnEventEnemy = [&](EnemyType type, const Vector2& position) {
         const auto& definition = EnemyLibrary::forType(type);
-        const int hp = std::max(1, static_cast<int>(std::ceil(enemyHpForMap() * definition.hpMultiplier)));
-        const int damage = enemyDamageForMap() + definition.damageBonus;
-        enemies_.push_back(Enemy(position, hp, damage, type));
+        const EliteModifier modifier = type == EnemyType::Elite ? randomEliteModifier() : EliteModifier::None;
+        const auto& modifierDefinition = EliteModifierLibrary::forModifier(modifier);
+        const int hp = std::max(1, static_cast<int>(std::ceil(
+            enemyHpForMap() * definition.hpMultiplier * modifierDefinition.hpMultiplier
+        )));
+        const int damage = enemyDamageForMap() + definition.damageBonus + modifierDefinition.damageBonus;
+        enemies_.emplace_back(position, hp, damage, type, modifier);
     };
 
     spawnEventEnemy(EnemyType::Elite, event.position + offsets[0]);
@@ -1256,6 +1272,19 @@ void GameWorld::initializeRunProgression() {
 void GameWorld::rewardEnemyKill(const Enemy& enemy) {
     const auto& definition = EnemyLibrary::forType(enemy.type());
 
+    const auto& eliteModifier = EliteModifierLibrary::forModifier(enemy.eliteModifier());
+    if (eliteModifier.deathBurstRadius > 0.0f) {
+        volatileExplosionCenter_ = enemy.position();
+        volatileExplosionRadius_ = eliteModifier.deathBurstRadius;
+        volatileExplosionTimer_ = Config::VolatileExplosionEffectDuration;
+        if (Collision::circleCircle(
+                player_.position(), player_.radius(),
+                volatileExplosionCenter_, volatileExplosionRadius_
+            )) {
+            damagePlayer(eliteModifier.deathBurstDamage);
+        }
+    }
+
     if (enemy.isBoss()) {
         map_.markBossDefeated();
         bossProjectiles_.clear();
@@ -1358,6 +1387,11 @@ int GameWorld::enemyDamageForMap() const {
     return Config::EnemyContactDamage + (mapLevel_ - 1) / 3 + mapModifier_.monsterDamageBonus;
 }
 
+EliteModifier GameWorld::randomEliteModifier() const {
+    const int modifierCount = static_cast<int>(EliteModifierLibrary::all().size()) - 1;
+    return static_cast<EliteModifier>(1 + std::rand() % modifierCount);
+}
+
 EnemyType GameWorld::nextMapEnemyType() const {
     const auto& encounter = map_.definition().encounter;
     const int eliteWeight = std::min(35, encounter.eliteWeight + mapLevel_ * 2);
@@ -1397,6 +1431,8 @@ void GameWorld::triggerBossIfNeeded() {
     bossAoeCenter_ = map_.bossCenter();
     bossAoeTelegraphTimer_ = 0.0f;
     bossAoeEffectTimer_ = 0.0f;
+    volatileExplosionTimer_ = 0.0f;
+    volatileExplosionRadius_ = 0.0f;
     bossAoeSkill_ = BossSkillDefinition();
     bossSkillTimer_ = bossDefinition_->skillInterval * 0.5f;
     bossSkillIndex_ = 0;
@@ -1448,6 +1484,13 @@ float GameWorld::bossAoeTelegraphProgress() const {
 float GameWorld::bossAoeEffectProgress() const {
     return bossAoeSkill_.effectDuration > 0.0f
         ? bossAoeEffectTimer_ / bossAoeSkill_.effectDuration
+        : 0.0f;
+}
+const Vector2& GameWorld::volatileExplosionCenter() const { return volatileExplosionCenter_; }
+float GameWorld::volatileExplosionRadius() const { return volatileExplosionRadius_; }
+float GameWorld::volatileExplosionProgress() const {
+    return Config::VolatileExplosionEffectDuration > 0.0f
+        ? volatileExplosionTimer_ / Config::VolatileExplosionEffectDuration
         : 0.0f;
 }
 const BossDefinition& GameWorld::bossDefinition() const { return *bossDefinition_; }

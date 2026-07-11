@@ -1,13 +1,15 @@
 #pragma once
 
 #include "EnemyType.hpp"
+#include "EliteModifier.hpp"
 #include "Vector2.hpp"
 
 class MapInstance;
 
 class Enemy {
 public:
-    Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type = EnemyType::Normal);
+    Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type = EnemyType::Normal,
+        EliteModifier eliteModifier = EliteModifier::None);
 
     void update(float dt, const Vector2& targetPosition, const MapInstance& map);
 
@@ -28,6 +30,7 @@ public:
     bool isRanged() const;
     bool isElite() const;
     bool isBoss() const;
+    EliteModifier eliteModifier() const;
 
 private:
     Vector2 position_;
@@ -37,6 +40,7 @@ private:
     int maxHp_;
     int contactDamage_;
     EnemyType type_;
+    EliteModifier eliteModifier_;
     float attackCooldownTimer_;
     float attackWindupTimer_;
     bool attackReady_;

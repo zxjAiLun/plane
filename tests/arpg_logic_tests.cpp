@@ -8,6 +8,7 @@
 
 #include "CombatMath.hpp"
 #include "Config.hpp"
+#include "EliteModifier.hpp"
 #include "Equipment.hpp"
 #include "Item.hpp"
 #include "LootGenerator.hpp"
@@ -256,6 +257,27 @@ void testLootGeneration() {
     expect(boss.slot == EquipmentSlot::Weapon, "Brimstone boss relic is a Weapon");
 }
 
+// --- Elite modifiers ---
+void testEliteModifierDefinitions() {
+    section("Elite modifier definitions");
+
+    const auto& none = EliteModifierLibrary::forModifier(EliteModifier::None);
+    const auto& hardened = EliteModifierLibrary::forModifier(EliteModifier::Hardened);
+    const auto& swift = EliteModifierLibrary::forModifier(EliteModifier::Swift);
+    const auto& volatileModifier = EliteModifierLibrary::forModifier(EliteModifier::Volatile);
+
+    expect(none.name.empty(), "None modifier has no display label");
+    expect(std::abs(none.hpMultiplier - 1.0f) < 0.0001f
+            && std::abs(none.speedMultiplier - 1.0f) < 0.0001f,
+        "None modifier leaves elite base stats unchanged");
+    expect(hardened.hpMultiplier > 1.0f && hardened.speedMultiplier == 1.0f,
+        "Hardened increases life without increasing speed");
+    expect(swift.speedMultiplier > 1.0f && swift.hpMultiplier == 1.0f,
+        "Swift increases speed without increasing life");
+    expect(volatileModifier.deathBurstRadius > 0.0f && volatileModifier.deathBurstDamage > 0,
+        "Volatile defines a damaging death burst");
+}
+
 // --- Map options ---
 void testMapOptionGeneration() {
     section("MapOptionLibrary distinct modifiers");
@@ -349,6 +371,7 @@ int main() {
     testPlayerArmorMitigation();
     testEquipmentChangesCombatStats();
     testLootGeneration();
+    testEliteModifierDefinitions();
     testMapOptionGeneration();
     testMapRewardGeneration();
     testPassiveAndEquipPipeline();

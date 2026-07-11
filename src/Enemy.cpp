@@ -5,7 +5,7 @@
 
 #include <algorithm>
 
-Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type)
+Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type, EliteModifier eliteModifier)
     : position_(position)
     , id_(nextId_++)
     , radius_(Config::EnemyRadius * EnemyLibrary::forType(type).radiusMultiplier)
@@ -13,6 +13,7 @@ Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type)
     , maxHp_(hp)
     , contactDamage_(contactDamage)
     , type_(type)
+    , eliteModifier_(type == EnemyType::Elite ? eliteModifier : EliteModifier::None)
     , attackCooldownTimer_(0.0f)
     , attackWindupTimer_(0.0f)
     , attackReady_(false) {
@@ -48,7 +49,8 @@ void Enemy::update(float dt, const Vector2& targetPosition, const MapInstance& m
     }
 
     Vector2 direction = (targetPosition - position_).normalized();
-    position_ = map.resolveMovement(position_, radius_, direction * Config::EnemySpeed * dt);
+    const float speedMultiplier = EliteModifierLibrary::forModifier(eliteModifier_).speedMultiplier;
+    position_ = map.resolveMovement(position_, radius_, direction * Config::EnemySpeed * speedMultiplier * dt);
 }
 
 void Enemy::takeDamage(int damage) {
@@ -86,3 +88,4 @@ bool Enemy::isRanged() const {
 }
 bool Enemy::isElite() const { return type_ == EnemyType::Elite || type_ == EnemyType::Boss; }
 bool Enemy::isBoss() const { return type_ == EnemyType::Boss; }
+EliteModifier Enemy::eliteModifier() const { return eliteModifier_; }

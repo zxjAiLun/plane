@@ -18,6 +18,7 @@ private:
     void drawNovaEffect(const GameWorld& world);
     void drawSecondarySkillEffect(const GameWorld& world);
     void drawBossAoeEffect(const GameWorld& world);
+    void drawVolatileExplosionEffect(const GameWorld& world);
     void drawAimIndicator(const GameWorld& world);
     void drawProjectiles(const GameWorld& world);
     void drawBossProjectiles(const GameWorld& world);

@@ -402,6 +402,7 @@ void Renderer::render(const GameWorld& world) {
     drawNovaEffect(world);
     drawSecondarySkillEffect(world);
     drawBossAoeEffect(world);
+    drawVolatileExplosionEffect(world);
     drawPlayer(world);
     drawAimIndicator(world);
     drawProjectiles(world);
@@ -643,6 +644,23 @@ void Renderer::drawBossAoeEffect(const GameWorld& world) {
     window_.draw(shape);
 }
 
+void Renderer::drawVolatileExplosionEffect(const GameWorld& world) {
+    const float progress = world.volatileExplosionProgress();
+    if (progress <= 0.0f) {
+        return;
+    }
+
+    const float radius = world.volatileExplosionRadius() * (1.0f + (1.0f - progress) * 0.12f);
+    const auto alpha = static_cast<std::uint8_t>(220.0f * progress);
+    sf::CircleShape shape(radius);
+    shape.setFillColor(sf::Color(255, 100, 45, alpha / 5));
+    shape.setOutlineColor(sf::Color(255, 185, 85, alpha));
+    shape.setOutlineThickness(4.0f);
+    shape.setOrigin({radius, radius});
+    shape.setPosition(worldToScreen(world, world.volatileExplosionCenter()));
+    window_.draw(shape);
+}
+
 void Renderer::drawAimIndicator(const GameWorld& world) {
     const auto& player = world.player();
     const auto& aim = world.aimPosition();
@@ -724,8 +742,11 @@ void Renderer::drawEnemies(const GameWorld& world) {
 
         sf::RectangleShape shape({enemy.radius() * 2, enemy.radius() * 2});
         shape.setFillColor(enemyColor(definition.fillColor));
+        const auto& modifier = EliteModifierLibrary::forModifier(enemy.eliteModifier());
         if (definition.outlineThickness > 0.0f) {
-            shape.setOutlineColor(enemyColor(definition.outlineColor));
+            shape.setOutlineColor(enemy.eliteModifier() == EliteModifier::None
+                ? enemyColor(definition.outlineColor)
+                : enemyColor(modifier.outlineColor));
             shape.setOutlineThickness(definition.outlineThickness);
         }
         shape.setOrigin({enemy.radius(), enemy.radius()});
@@ -733,9 +754,12 @@ void Renderer::drawEnemies(const GameWorld& world) {
         window_.draw(shape);
 
         if (definition.outlineThickness > 0.0f) {
-            const std::string label = enemy.isBoss() ? world.bossDefinition().name : definition.name;
+            const std::string label = enemy.isBoss() ? world.bossDefinition().name
+                : modifier.name.empty() ? definition.name : modifier.name + " " + definition.name;
             drawCenteredText(label, {screenPosition.x, screenPosition.y - enemy.radius() - 18.0f},
-                11, enemyColor(definition.outlineColor));
+                11, enemy.eliteModifier() == EliteModifier::None
+                    ? enemyColor(definition.outlineColor)
+                    : enemyColor(modifier.outlineColor));
         }
     }
 }

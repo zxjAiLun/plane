@@ -18,7 +18,7 @@ void EnemySpawner::setSpawnInterval(float interval) {
     spawnTimer_.setDuration(interval);
 }
 
-std::optional<Enemy> EnemySpawner::trySpawn(int hp, int contactDamage, EnemyType type) {
+std::optional<Enemy> EnemySpawner::trySpawn(int hp, int contactDamage, EnemyType type, EliteModifier eliteModifier) {
     if (spawnTimer_.isReady()) {
         spawnTimer_.reset();
 
@@ -47,7 +47,7 @@ std::optional<Enemy> EnemySpawner::trySpawn(int hp, int contactDamage, EnemyType
 
         Vector2 position(x, y);
 
-        return Enemy(position, hp, contactDamage, type);
+        return Enemy(position, hp, contactDamage, type, eliteModifier);
     }
     return std::nullopt;
 }
@@ -58,7 +58,8 @@ std::optional<Enemy> EnemySpawner::trySpawnNear(
     const MapInstance& map,
     int hp,
     int contactDamage,
-    EnemyType type
+    EnemyType type,
+    EliteModifier eliteModifier
 ) {
     if (!spawnTimer_.isReady()) {
         return std::nullopt;
@@ -77,7 +78,7 @@ std::optional<Enemy> EnemySpawner::trySpawnNear(
         position.x = std::clamp(position.x, Config::EnemyRadius, worldSize.x - Config::EnemyRadius);
         position.y = std::clamp(position.y, Config::EnemyRadius, worldSize.y - Config::EnemyRadius);
 
-        Enemy enemy(position, hp, contactDamage, type);
+        Enemy enemy(position, hp, contactDamage, type, eliteModifier);
         if (!map.intersectsObstacle(enemy.position(), enemy.radius())) {
             return enemy;
         }
