@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -35,12 +36,96 @@ struct MapObstacle {
     Vector2 halfExtents;
 };
 
+struct MapColor {
+    std::uint8_t r = 0;
+    std::uint8_t g = 0;
+    std::uint8_t b = 0;
+};
+
+struct MapPalette {
+    MapColor floor;
+    MapColor obstacle;
+    MapColor bossGate;
+    MapColor bossArena;
+    MapColor startArea;
+};
+
+struct MapTemplateDefinition {
+    std::string name;
+    std::string theme;
+    MapPalette palette;
+    std::vector<MapObstacle> obstacles;
+    std::vector<Vector2> eventPositions;
+};
+
+class MapTemplateLibrary {
+public:
+    static const std::vector<MapTemplateDefinition>& all() {
+        static const std::vector<MapTemplateDefinition> templates = buildTemplates();
+        return templates;
+    }
+
+    static const MapTemplateDefinition& forMapLevel(int mapLevel) {
+        const auto& templates = all();
+        const int normalizedLevel = std::max(1, mapLevel);
+        const auto index = static_cast<std::size_t>(
+            (normalizedLevel - 1) % static_cast<int>(templates.size())
+        );
+        return templates[index];
+    }
+
+private:
+    static std::vector<MapTemplateDefinition> buildTemplates() {
+        return {
+            {
+                "Ashen Causeway",
+                "Ash and stone",
+                {{24, 28, 30}, {65, 70, 72}, {120, 70, 40}, {120, 35, 35}, {40, 110, 70}},
+                {
+                    {{720.0f, 1330.0f}, {135.0f, 70.0f}},
+                    {{1040.0f, 1120.0f}, {95.0f, 170.0f}},
+                    {{1250.0f, 730.0f}, {180.0f, 80.0f}},
+                    {{1650.0f, 800.0f}, {100.0f, 145.0f}},
+                },
+                {{700.0f, 1090.0f}, {1315.0f, 950.0f}, {1365.0f, 555.0f}}
+            },
+            {
+                "Stormscar Expanse",
+                "Rain and shattered glass",
+                {{20, 29, 38}, {52, 72, 92}, {75, 115, 145}, {46, 72, 125}, {42, 95, 110}},
+                {
+                    {{650.0f, 1300.0f}, {90.0f, 130.0f}},
+                    {{900.0f, 1020.0f}, {160.0f, 70.0f}},
+                    {{1250.0f, 1200.0f}, {105.0f, 150.0f}},
+                    {{1510.0f, 700.0f}, {160.0f, 85.0f}},
+                    {{1770.0f, 620.0f}, {75.0f, 150.0f}},
+                },
+                {{680.0f, 1040.0f}, {1180.0f, 820.0f}, {1580.0f, 500.0f}}
+            },
+            {
+                "Venom Hollow",
+                "Acid and overgrowth",
+                {{23, 38, 31}, {55, 82, 61}, {105, 125, 55}, {92, 68, 35}, {42, 110, 70}},
+                {
+                    {{600.0f, 1420.0f}, {140.0f, 65.0f}},
+                    {{970.0f, 1120.0f}, {90.0f, 180.0f}},
+                    {{1410.0f, 1040.0f}, {150.0f, 65.0f}},
+                    {{1650.0f, 700.0f}, {105.0f, 150.0f}},
+                    {{1820.0f, 820.0f}, {80.0f, 115.0f}},
+                },
+                {{720.0f, 1150.0f}, {1260.0f, 900.0f}, {1450.0f, 510.0f}}
+            },
+        };
+    }
+};
+
 class MapInstance {
 public:
-    MapInstance()
+    explicit MapInstance(int mapLevel = 1)
         : size_(Config::MapWidth, Config::MapHeight)
         , playerStart_(220.0f, Config::MapHeight - 220.0f)
         , bossCenter_(Config::MapWidth - 320.0f, 300.0f)
+        , templateDefinition_(&MapTemplateLibrary::forMapLevel(mapLevel))
         , bossTriggered_(false)
         , bossDefeated_(false) {
         generateObstacles();
@@ -50,6 +135,7 @@ public:
     const Vector2& size() const { return size_; }
     const Vector2& playerStart() const { return playerStart_; }
     const Vector2& bossCenter() const { return bossCenter_; }
+    const MapTemplateDefinition& definition() const { return *templateDefinition_; }
     bool bossTriggered() const { return bossTriggered_; }
     bool bossDefeated() const { return bossDefeated_; }
     const std::vector<MapEventInstance>& events() const { return events_; }
@@ -153,36 +239,29 @@ public:
 
 private:
     void generateObstacles() {
-        // The route stays open, while each obstacle requires a small detour.
-        // Start, event locations, Boss Gate and Boss Arena remain unobstructed.
-        obstacles_ = {
-            {{720.0f, 1330.0f}, {135.0f, 70.0f}},
-            {{1040.0f, 1120.0f}, {95.0f, 170.0f}},
-            {{1250.0f, 730.0f}, {180.0f, 80.0f}},
-            {{1650.0f, 800.0f}, {100.0f, 145.0f}},
-        };
+        obstacles_ = templateDefinition_->obstacles;
     }
 
     void generateEvents() {
-        const Vector2 route = bossCenter_ - playerStart_;
+        const auto& eventPositions = templateDefinition_->eventPositions;
         events_.clear();
         events_.push_back({
             MapEventType::LootCache,
-            playerStart_ + route * 0.28f + Vector2(-40.0f, -130.0f),
+            eventPositions[0],
             78.0f,
             false,
             false
         });
         events_.push_back({
             MapEventType::ElitePack,
-            playerStart_ + route * 0.52f + Vector2(130.0f, 35.0f),
+            eventPositions[1],
             95.0f,
             false,
             false
         });
         events_.push_back({
             MapEventType::Shrine,
-            playerStart_ + route * 0.74f + Vector2(-115.0f, -75.0f),
+            eventPositions[2],
             82.0f,
             false,
             false
@@ -192,6 +271,7 @@ private:
     Vector2 size_;
     Vector2 playerStart_;
     Vector2 bossCenter_;
+    const MapTemplateDefinition* templateDefinition_;
     std::vector<MapObstacle> obstacles_;
     std::vector<MapEventInstance> events_;
     bool bossTriggered_;

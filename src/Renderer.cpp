@@ -28,6 +28,10 @@ sf::Color enemyColor(const EnemyColor& color) {
     return sf::Color(color.r, color.g, color.b);
 }
 
+sf::Color mapColor(const MapColor& color, std::uint8_t alpha = 255) {
+    return sf::Color(color.r, color.g, color.b, alpha);
+}
+
 int multiplierPercent(float multiplier) {
     return static_cast<int>((multiplier - 1.0f) * 100.0f + 0.5f);
 }
@@ -415,7 +419,8 @@ void Renderer::render(const GameWorld& world) {
     drawText("TIME " + std::to_string(static_cast<int>(world.survivalTime()))
         + "  SCORE " + std::to_string(world.score()),
         {16.0f, 60.0f}, 18, sf::Color::White);
-    drawText("MAP " + std::to_string(world.mapLevel()) + "  " + world.currentMapOption().modifier.name
+    drawText("MAP " + std::to_string(world.mapLevel()) + " " + world.map().definition().name
+        + "  " + world.currentMapOption().modifier.name
         + "  AREA " + mapAreaName(world.currentMapArea())
         + "  ENEMIES " + std::to_string(world.enemiesRemainingInWave()),
         {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));
@@ -502,9 +507,10 @@ void Renderer::render(const GameWorld& world) {
 void Renderer::drawMap(const GameWorld& world) {
     const Vector2 camera = world.cameraTopLeft();
     const auto& map = world.map();
+    const auto& palette = map.definition().palette;
 
     sf::RectangleShape floor({map.size().x, map.size().y});
-    floor.setFillColor(sf::Color(24, 28, 30));
+    floor.setFillColor(mapColor(palette.floor));
     floor.setOutlineColor(sf::Color(80, 90, 96));
     floor.setOutlineThickness(6.0f);
     floor.setPosition({-camera.x, -camera.y});
@@ -512,7 +518,7 @@ void Renderer::drawMap(const GameWorld& world) {
 
     for (const auto& obstacle : map.obstacles()) {
         sf::RectangleShape shape({obstacle.halfExtents.x * 2.0f, obstacle.halfExtents.y * 2.0f});
-        shape.setFillColor(sf::Color(65, 70, 72));
+        shape.setFillColor(mapColor(palette.obstacle));
         shape.setOutlineColor(sf::Color(120, 130, 132));
         shape.setOutlineThickness(3.0f);
         shape.setOrigin({obstacle.halfExtents.x, obstacle.halfExtents.y});
@@ -522,16 +528,16 @@ void Renderer::drawMap(const GameWorld& world) {
 
     const sf::Vector2f bossCenter = worldToScreen(world, map.bossCenter());
     sf::CircleShape gate(Config::BossGateRadius);
-    gate.setFillColor(sf::Color(120, 70, 40, 35));
-    gate.setOutlineColor(sf::Color(210, 150, 90, 130));
+    gate.setFillColor(mapColor(palette.bossGate, 35));
+    gate.setOutlineColor(mapColor(palette.bossGate, 130));
     gate.setOutlineThickness(3.0f);
     gate.setOrigin({Config::BossGateRadius, Config::BossGateRadius});
     gate.setPosition(bossCenter);
     window_.draw(gate);
 
     sf::CircleShape arena(Config::BossArenaRadius);
-    arena.setFillColor(sf::Color(120, 35, 35, 45));
-    arena.setOutlineColor(sf::Color(240, 90, 80, 160));
+    arena.setFillColor(mapColor(palette.bossArena, 45));
+    arena.setOutlineColor(mapColor(palette.bossArena, 160));
     arena.setOutlineThickness(4.0f);
     arena.setOrigin({Config::BossArenaRadius, Config::BossArenaRadius});
     arena.setPosition(bossCenter);
@@ -539,8 +545,8 @@ void Renderer::drawMap(const GameWorld& world) {
 
     const sf::Vector2f startCenter = worldToScreen(world, map.playerStart());
     sf::CircleShape start(Config::StartSafeRadius);
-    start.setFillColor(sf::Color(40, 110, 70, 45));
-    start.setOutlineColor(sf::Color(90, 210, 130, 120));
+    start.setFillColor(mapColor(palette.startArea, 45));
+    start.setOutlineColor(mapColor(palette.startArea, 120));
     start.setOutlineThickness(3.0f);
     start.setOrigin({Config::StartSafeRadius, Config::StartSafeRadius});
     start.setPosition(startCenter);
@@ -1169,6 +1175,7 @@ void Renderer::drawMinimap(const GameWorld& world) {
         18.0f
     };
     const auto& map = world.map();
+    const auto& palette = map.definition().palette;
     const Vector2 mapSize = map.size();
     const float scaleX = size.x / mapSize.x;
     const float scaleY = size.y / mapSize.y;
@@ -1182,7 +1189,7 @@ void Renderer::drawMinimap(const GameWorld& world) {
 
     sf::RectangleShape background(size);
     background.setPosition(origin);
-    background.setFillColor(sf::Color(10, 14, 18, 205));
+    background.setFillColor(mapColor(palette.floor, 205));
     background.setOutlineColor(sf::Color(180, 190, 200));
     background.setOutlineThickness(1.0f);
     window_.draw(background);
@@ -1205,7 +1212,7 @@ void Renderer::drawMinimap(const GameWorld& world) {
     for (const auto& obstacle : map.obstacles()) {
         sf::RectangleShape shape({obstacle.halfExtents.x * 2.0f * scaleX,
             obstacle.halfExtents.y * 2.0f * scaleY});
-        shape.setFillColor(sf::Color(70, 76, 80, 220));
+        shape.setFillColor(mapColor(palette.obstacle, 220));
         shape.setOutlineColor(sf::Color(135, 145, 150));
         shape.setOutlineThickness(0.75f);
         shape.setOrigin({obstacle.halfExtents.x * scaleX, obstacle.halfExtents.y * scaleY});
@@ -1233,8 +1240,7 @@ void Renderer::drawMinimap(const GameWorld& world) {
     playerDot.setFillColor(sf::Color(90, 180, 255));
     window_.draw(playerDot);
 
-    drawText("Map " + std::to_string(world.mapLevel())
-        + "  " + std::to_string(static_cast<int>(map.progressToBoss(world.player().position()) * 100.0f)) + "%",
+    drawText(map.definition().name + "  " + std::to_string(static_cast<int>(map.progressToBoss(world.player().position()) * 100.0f)) + "%",
         {origin.x, origin.y + size.y + 5.0f}, 11, sf::Color(210, 220, 230));
 }
 
