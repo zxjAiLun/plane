@@ -1,4 +1,5 @@
 #include "Player.hpp"
+#include "CombatMath.hpp"
 #include "Config.hpp"
 
 #include <algorithm>
@@ -62,7 +63,7 @@ void Player::setBounds(const Vector2& bounds) {
 }
 
 void Player::takeDamage(int damage) {
-    hp_ -= std::max(1, damage - stats_.armor);
+    hp_ -= mitigatedDamage(damage, stats_.armor);
 }
 
 int Player::heal(int amount) {

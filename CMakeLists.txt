@@ -38,6 +38,16 @@ add_executable(PlaneShooter
 target_include_directories(PlaneShooter PRIVATE include)
 target_link_libraries(PlaneShooter PRIVATE SFML::Graphics SFML::Window SFML::System)
 
+# Pure-logic unit tests: header-only systems + CombatMath (no SFML, no window).
+add_executable(arpg_logic_tests
+    tests/arpg_logic_tests.cpp
+    src/Player.cpp
+)
+target_include_directories(arpg_logic_tests PRIVATE include)
+# Player.cpp needs no SFML; keep the test binary free of graphics deps.
+enable_testing()
+add_test(NAME arpg_logic_tests COMMAND arpg_logic_tests)
+
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets")
     add_custom_command(
         TARGET PlaneShooter POST_BUILD

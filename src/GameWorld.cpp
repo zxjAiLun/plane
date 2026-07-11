@@ -1,5 +1,6 @@
 #include "GameWorld.hpp"
 #include "Collision.hpp"
+#include "CombatMath.hpp"
 #include "Config.hpp"
 #include "EnemyDefinition.hpp"
 
@@ -876,48 +877,16 @@ void GameWorld::dropItemsAround(const Vector2& center, int count) {
 }
 
 int GameWorld::damageForPlayerSkill(const SkillDefinition& skill) const {
-    float damage = static_cast<float>(skill.baseDamage) * player_.stats().damageMultiplier;
-    switch (skill.castType) {
-        case SkillCastType::Projectile:
-            damage *= player_.stats().projectileDamageMultiplier;
-            break;
-        case SkillCastType::SelfCenteredArea:
-        case SkillCastType::MouseTargetedArea:
-            damage *= player_.stats().areaDamageMultiplier;
-            break;
-        case SkillCastType::Dash:
-            break;
-    }
-
-    if (const auto* support = skillBar_.support(skill.slot)) {
-        damage *= support->damageMultiplier;
-    }
-
-    const float multiplier = shrineBuffTimer_ > 0.0f ? ShrineDamageMultiplier : 1.0f;
-    return std::max(1, static_cast<int>(std::ceil(damage * multiplier)));
+    const float shrineMultiplier = shrineBuffTimer_ > 0.0f ? ShrineDamageMultiplier : 1.0f;
+    return skillDamage(skill, player_.stats(), skillBar_.support(skill.slot), shrineMultiplier);
 }
 
 float GameWorld::radiusForPlayerSkill(const SkillDefinition& skill) const {
-    const float supportMultiplier = [&]() {
-        const auto* support = skillBar_.support(skill.slot);
-        return support ? support->radiusMultiplier : 1.0f;
-    }();
-
-    switch (skill.castType) {
-        case SkillCastType::SelfCenteredArea:
-        case SkillCastType::MouseTargetedArea:
-            return skill.radius * player_.stats().areaRadiusMultiplier * supportMultiplier;
-        case SkillCastType::Projectile:
-        case SkillCastType::Dash:
-            return skill.radius;
-    }
-
-    return skill.radius;
+    return skillRadius(skill, player_.stats(), skillBar_.support(skill.slot));
 }
 
 int GameWorld::pierceCountForPlayerSkill(const SkillDefinition& skill) const {
-    const auto* support = skillBar_.support(skill.slot);
-    return support ? support->pierceCount : 0;
+    return skillPierceCount(skillBar_.support(skill.slot));
 }
 
 void GameWorld::noteElitePackEnemyDefeated(const Enemy& enemy) {
