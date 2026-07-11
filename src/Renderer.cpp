@@ -841,7 +841,8 @@ void Renderer::drawInventory(const GameWorld& world) {
     const bool inventoryFull = world.inventory().isFull();
     const std::string inventoryTitle = "Inventory "
         + std::to_string(world.inventory().size()) + "/"
-        + std::to_string(world.inventory().capacity());
+        + std::to_string(world.inventory().capacity())
+        + "  Forge " + std::to_string(world.forgeFragments());
     float y = 118.0f;
     drawText(inventoryTitle, {x, y}, 16, inventoryFull ? sf::Color(255, 90, 90) : sf::Color::White);
     y += 22.0f;
@@ -849,7 +850,7 @@ void Renderer::drawInventory(const GameWorld& world) {
         drawText("Inventory full - equip or drop an item", {x, y}, 12, sf::Color(255, 90, 90));
         y += 16.0f;
     } else {
-        drawText("Tab Select  Del Drop", {x, y}, 12, sf::Color(150, 160, 175));
+        drawText("Tab Select  Del Drop  C Salvage  V Improve", {x, y}, 12, sf::Color(150, 160, 175));
         y += 16.0f;
     }
 
@@ -860,7 +861,8 @@ void Renderer::drawInventory(const GameWorld& world) {
         const bool isSelected = (static_cast<int>(i) == selectedIndex);
         const bool isHovered = (i == hovered);
         const std::string line = (isSelected ? "> " : "") + std::to_string(i + 1) + ". "
-            + item.name + " [" + slotName(item.slot) + "] " + statsSummary(item.stats);
+            + item.name + (item.upgradeLevel > 0 ? " +" + std::to_string(item.upgradeLevel) : "")
+            + " [" + slotName(item.slot) + "] " + statsSummary(item.stats);
         sf::Color rowColor = rarityColor(item.rarity);
         if (isSelected) {
             rowColor = sf::Color(255, 215, 90);
@@ -907,7 +909,8 @@ void Renderer::drawInventory(const GameWorld& world) {
         } else if (selectedIndex >= 0 && static_cast<std::size_t>(selectedIndex) < items.size()) {
             const int key = selectedIndex + 1;
             drawItemDetailPanel(world, inventoryDetailPos, items[selectedIndex], equipment.itemInSlot(items[selectedIndex].slot),
-                "Selected", std::to_string(key) + " Equip  |  Del Drop");
+                "Selected", std::to_string(key) + " Equip  |  Del Drop  |  C Salvage  |  V Improve "
+                    + std::to_string(Config::ForgeUpgradeCost));
         }
     }
 }
@@ -919,7 +922,8 @@ void Renderer::drawItemDetailPanel(const GameWorld& world, const sf::Vector2f& p
     const float x = panelPos.x + 14.0f;
     float y = panelPos.y + 12.0f;
 
-    drawText(item.name + "  [" + rarityName(item.rarity) + "]  " + statusLabel, {x, y}, 16, rarityColor(item.rarity));
+    drawText(item.name + (item.upgradeLevel > 0 ? " +" + std::to_string(item.upgradeLevel) : "")
+        + "  [" + rarityName(item.rarity) + "]  " + statusLabel, {x, y}, 16, rarityColor(item.rarity));
     y += 20.0f;
 
     drawText("Slot: " + std::string(slotName(item.slot)) + "   iLvl: " + std::to_string(item.itemLevel),
@@ -1427,7 +1431,8 @@ void Renderer::drawMapCompleteInventoryPanel(const GameWorld& world) {
     const bool inventoryFull = world.inventory().isFull();
     const std::string inventoryTitle = "Inventory "
         + std::to_string(world.inventory().size()) + "/"
-        + std::to_string(world.inventory().capacity());
+        + std::to_string(world.inventory().capacity())
+        + "  Forge " + std::to_string(world.forgeFragments());
     float y = panelTop + 8.0f;
     drawText(inventoryTitle, {x, y}, 16, inventoryFull ? sf::Color(255, 90, 90) : sf::Color::White);
     y += 20.0f;
@@ -1435,7 +1440,7 @@ void Renderer::drawMapCompleteInventoryPanel(const GameWorld& world) {
         drawText("Inventory full - drop an item to loot", {x, y}, 12, sf::Color(255, 90, 90));
         y += 16.0f;
     } else {
-        drawText("Tab Select  Del Drop", {x, y}, 12, sf::Color(150, 160, 175));
+        drawText("Tab Select  Del Drop  C Salvage  V Improve", {x, y}, 12, sf::Color(150, 160, 175));
         y += 16.0f;
     }
 
@@ -1445,7 +1450,8 @@ void Renderer::drawMapCompleteInventoryPanel(const GameWorld& world) {
         const auto& item = items[i];
         const bool isSelected = (static_cast<int>(i) == selectedIndex);
         const std::string line = (isSelected ? "> " : "") + std::to_string(i + 1) + ". "
-            + item.name + " [" + slotName(item.slot) + "] " + statsSummary(item.stats);
+            + item.name + (item.upgradeLevel > 0 ? " +" + std::to_string(item.upgradeLevel) : "")
+            + " [" + slotName(item.slot) + "] " + statsSummary(item.stats);
         sf::Color rowColor = rarityColor(item.rarity);
         if (isSelected) {
             rowColor = sf::Color(255, 215, 90);

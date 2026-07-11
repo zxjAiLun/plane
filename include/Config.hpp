@@ -72,6 +72,8 @@ namespace Config {
     constexpr float ItemPickupRange = 32.0f;
     constexpr int ItemDropChancePercent = 35;
     constexpr int InventoryCapacity = 9;
+    constexpr int ForgeUpgradeCost = 3;
+    constexpr int MaxItemUpgradeLevel = 3;
 
     constexpr int MapWaveCount = 3;
     constexpr int BaseEnemiesPerWave = 6;

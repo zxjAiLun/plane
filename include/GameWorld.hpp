@@ -45,6 +45,7 @@ struct RunProgression {
     std::set<std::string> unlockedSkills;
     std::set<std::string> unlockedSupports;
     float itemQuantityRewardMultiplier = 1.0f;
+    int forgeFragments = 0;
 };
 
 class GameWorld {
@@ -63,6 +64,7 @@ public:
     const Inventory& inventory() const;
     float inventoryFullPromptTimeRemaining() const;
     int selectedInventoryIndex() const;
+    int forgeFragments() const;
     int lifeFlaskCharges() const;
     int lifeFlaskMaxCharges() const;
     std::string lifeFlaskStatusMessage() const;
@@ -159,6 +161,8 @@ private:
     void tryEquipInventoryItem(Input& input);
     void trySelectInventoryItem(Input& input);
     void tryDropSelectedInventoryItem(Input& input);
+    void trySalvageSelectedInventoryItem(Input& input);
+    void tryUpgradeSelectedInventoryItem(Input& input);
     void updateSelectedInventoryIndex();
     void tryChooseMapReward(Input& input);
     void applyMapReward(const MapRewardDefinition& reward);

@@ -33,6 +33,10 @@ public:
         return items_;
     }
 
+    Item* itemAt(std::size_t index) {
+        return index < items_.size() ? &items_[index] : nullptr;
+    }
+
     void clear() {
         items_.clear();
     }

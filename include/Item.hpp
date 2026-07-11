@@ -18,6 +18,7 @@ struct Item {
     Rarity rarity = Rarity::Normal;
     Stats stats;
     int itemLevel = 1;
+    int upgradeLevel = 0;
     std::vector<std::string> affixes;
 };
 

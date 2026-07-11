@@ -94,6 +94,8 @@ void GameWorld::update(float dt, Input& input) {
             tryPickupDroppedItem(input);
             trySelectInventoryItem(input);
             tryDropSelectedInventoryItem(input);
+            trySalvageSelectedInventoryItem(input);
+            tryUpgradeSelectedInventoryItem(input);
             removeDeadObjects();
             if (!mapRewardChosen_) {
                 tryChooseMapReward(input);
@@ -181,6 +183,8 @@ void GameWorld::updatePlaying(float dt, Input& input) {
         tryUseLifeFlask(input);
         trySelectInventoryItem(input);
         tryDropSelectedInventoryItem(input);
+        trySalvageSelectedInventoryItem(input);
+        tryUpgradeSelectedInventoryItem(input);
         tryEquipInventoryItem(input);
         tryCastPrimarySkill(input);
     }
@@ -1143,6 +1147,53 @@ void GameWorld::tryDropSelectedInventoryItem(Input& input) {
     updateSelectedInventoryIndex();
 }
 
+void GameWorld::trySalvageSelectedInventoryItem(Input& input) {
+    if (!input.inventorySalvageSelected()
+        || selectedInventoryIndex_ < 0
+        || static_cast<std::size_t>(selectedInventoryIndex_) >= inventory_.size()) {
+        return;
+    }
+
+    const std::size_t index = static_cast<std::size_t>(selectedInventoryIndex_);
+    if (auto item = inventory_.take(index)) {
+        int value = 1;
+        switch (item->rarity) {
+            case Rarity::Magic: value = 2; break;
+            case Rarity::Rare: value = 4; break;
+            case Rarity::Normal: break;
+        }
+        progression_.forgeFragments += value + item->upgradeLevel;
+    }
+    updateSelectedInventoryIndex();
+}
+
+void GameWorld::tryUpgradeSelectedInventoryItem(Input& input) {
+    if (!input.inventoryUpgradeSelected()
+        || progression_.forgeFragments < Config::ForgeUpgradeCost
+        || selectedInventoryIndex_ < 0) {
+        return;
+    }
+
+    Item* item = inventory_.itemAt(static_cast<std::size_t>(selectedInventoryIndex_));
+    if (!item || item->upgradeLevel >= Config::MaxItemUpgradeLevel) {
+        return;
+    }
+
+    const auto improveMultiplier = [](float multiplier) {
+        return 1.0f + (multiplier - 1.0f) * 1.15f;
+    };
+    item->stats.maxHp = static_cast<int>(std::ceil(item->stats.maxHp * 1.15f));
+    item->stats.moveSpeedMultiplier = improveMultiplier(item->stats.moveSpeedMultiplier);
+    item->stats.damageMultiplier = improveMultiplier(item->stats.damageMultiplier);
+    item->stats.attackSpeedMultiplier = improveMultiplier(item->stats.attackSpeedMultiplier);
+    item->stats.pickupRangeMultiplier = improveMultiplier(item->stats.pickupRangeMultiplier);
+    item->stats.projectileDamageMultiplier = improveMultiplier(item->stats.projectileDamageMultiplier);
+    item->stats.areaDamageMultiplier = improveMultiplier(item->stats.areaDamageMultiplier);
+    item->stats.areaRadiusMultiplier = improveMultiplier(item->stats.areaRadiusMultiplier);
+    ++item->upgradeLevel;
+    progression_.forgeFragments -= Config::ForgeUpgradeCost;
+}
+
 void GameWorld::updateSelectedInventoryIndex() {
     const std::size_t size = inventory_.size();
     if (size == 0) {
@@ -1532,6 +1583,7 @@ std::string GameWorld::pickupPrompt() const {
 }
 
 int GameWorld::selectedInventoryIndex() const { return selectedInventoryIndex_; }
+int GameWorld::forgeFragments() const { return progression_.forgeFragments; }
 int GameWorld::mapEventsCompleted() const {
     return static_cast<int>(std::count_if(map_.events().begin(), map_.events().end(),
         [](const MapEventInstance& event) { return event.completed; }));
