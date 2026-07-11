@@ -114,6 +114,7 @@ public:
     int activeEliteEventEnemiesRemaining() const;
     std::string bossSkillWarning() const;
     bool bossEnraged() const;
+    std::string bossPhaseSummary() const;
     bool nextMapOptionChosen() const;
     bool mapRewardChosen() const;
     const MapOption& currentMapOption() const;

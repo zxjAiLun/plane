@@ -1266,9 +1266,14 @@ void Renderer::drawBossHealth(const GameWorld& world) {
         {position.x, position.y - 18.0f}, 13,
         world.bossEnraged() ? sf::Color(255, 150, 80) : sf::Color(255, 210, 160));
 
+    float detailY = position.y + 18.0f;
+    drawText(world.bossPhaseSummary(), {position.x, detailY}, 12,
+        world.bossEnraged() ? sf::Color(255, 175, 95) : sf::Color(230, 210, 175));
+    detailY += 17.0f;
+
     const std::string castWarning = world.bossSkillWarning();
     if (!castWarning.empty()) {
-        drawText(castWarning, {position.x, position.y + 18.0f}, 13, sf::Color(255, 130, 90));
+        drawText(castWarning, {position.x, detailY}, 13, sf::Color(255, 130, 90));
     }
 
     sf::RectangleShape background(size);

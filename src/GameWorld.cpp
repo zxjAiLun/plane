@@ -393,8 +393,9 @@ void GameWorld::updateBossSkills(float dt) {
         return;
     }
 
-    const BossSkillDefinition& skill =
-        bossDefinition_->skills[static_cast<std::size_t>(bossSkillIndex_) % bossDefinition_->skills.size()];
+    const BossSkillDefinition& skill = bossDefinition_->skillForCast(
+        static_cast<std::size_t>(bossSkillIndex_), bossEnraged_
+    );
 
     if (skill.type == BossSkillType::CircularAoe) {
         bossAoeCenter_ = player_.position();
@@ -1495,6 +1496,11 @@ std::string GameWorld::bossSkillWarning() const {
     return "Boss casting: " + bossAoeSkill_.name;
 }
 bool GameWorld::bossEnraged() const { return bossEnraged_; }
+std::string GameWorld::bossPhaseSummary() const {
+    return bossEnraged_
+        ? "Enraged: " + bossDefinition_->enragedPatternDescription
+        : "Pattern: " + bossDefinition_->patternDescription;
+}
 
 std::string GameWorld::pickupPrompt() const {
     const int index = focusedDroppedItemIndex();

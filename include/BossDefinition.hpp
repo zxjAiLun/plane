@@ -34,7 +34,28 @@ struct BossDefinition {
     float enrageHealthRatio = 0.5f;
     float enragedSkillIntervalMultiplier = 0.7f;
     float enragedDamageMultiplier = 1.15f;
+    std::string patternDescription;
+    std::string enragedPatternDescription;
     std::vector<BossSkillDefinition> skills;
+    std::vector<std::size_t> normalSkillOrder;
+    std::vector<std::size_t> enragedSkillOrder;
+
+    const BossSkillDefinition& skillForCast(std::size_t castIndex, bool enraged) const {
+        static const BossSkillDefinition fallback;
+        if (skills.empty()) {
+            return fallback;
+        }
+
+        const auto& order = enraged && !enragedSkillOrder.empty()
+            ? enragedSkillOrder
+            : normalSkillOrder;
+        if (order.empty()) {
+            return skills[castIndex % skills.size()];
+        }
+
+        const std::size_t skillIndex = order[castIndex % order.size()];
+        return skills[skillIndex < skills.size() ? skillIndex : 0];
+    }
 };
 
 class BossLibrary {
@@ -64,6 +85,8 @@ private:
                 0.50f,
                 0.70f,
                 1.15f,
+                "Alternates magma slams and flame spears",
+                "Repeated magma slams",
                 {
                     {
                         BossSkillType::CircularAoe,
@@ -87,7 +110,9 @@ private:
                         1,
                         0.0f
                     },
-                }
+                },
+                {0, 1},
+                {0, 0, 1}
             },
             {
                 "Storm Herald",
@@ -100,10 +125,14 @@ private:
                 0.45f,
                 0.65f,
                 1.10f,
+                "Lightning spear pressure",
+                "Rapid lightning spear barrage",
                 {
                     {BossSkillType::Projectile, "Lightning Spear", Config::BossProjectileRadius, 2, 0.0f, 0.0f, 520.0f, 1, 0.0f},
                     {BossSkillType::CircularAoe, "Thundercall", 150.0f, 3, 0.50f, 0.25f, 0.0f, 1, 0.0f},
-                }
+                },
+                {0, 0, 1},
+                {0, 0, 0, 1}
             },
             {
                 "Brood Matriarch",
@@ -116,10 +145,14 @@ private:
                 0.50f,
                 0.72f,
                 1.20f,
+                "Alternates acid spray and nest bursts",
+                "Relentless acid spray",
                 {
                     {BossSkillType::Projectile, "Acid Spray", Config::BossProjectileRadius, 1, 0.0f, 0.0f, 420.0f, 3, 28.0f},
                     {BossSkillType::CircularAoe, "Nest Burst", 115.0f, 2, 0.55f, 0.25f, 0.0f, 1, 0.0f},
-                }
+                },
+                {0, 1, 0},
+                {0, 0, 1}
             },
         };
     }
