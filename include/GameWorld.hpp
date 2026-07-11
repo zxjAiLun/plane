@@ -176,6 +176,7 @@ private:
     int enemiesPerWave() const;
     int enemyHpForMap() const;
     int enemyDamageForMap() const;
+    EnemyType nextMapEnemyType() const;
     bool shouldSpawnBoss() const;
     void triggerBossIfNeeded();
 

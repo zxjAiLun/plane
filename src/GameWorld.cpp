@@ -498,11 +498,7 @@ void GameWorld::spawnEnemies(float dt) {
     }
 
     spawner_.update(dt);
-    const bool spawnElite = (std::rand() % 100) < std::min(20, 6 + mapLevel_ * 2);
-    const bool spawnRanged = !spawnElite && (std::rand() % 100) < 25;
-    const EnemyType type = spawnElite ? EnemyType::Elite
-        : spawnRanged ? EnemyType::Ranged
-        : EnemyType::Normal;
+    const EnemyType type = nextMapEnemyType();
     const auto& definition = EnemyLibrary::forType(type);
     const int hp = std::max(1, static_cast<int>(std::ceil(enemyHpForMap() * definition.hpMultiplier)));
     const int damage = enemyDamageForMap() + definition.damageBonus;
@@ -1336,6 +1332,23 @@ int GameWorld::enemyHpForMap() const {
 
 int GameWorld::enemyDamageForMap() const {
     return Config::EnemyContactDamage + (mapLevel_ - 1) / 3 + mapModifier_.monsterDamageBonus;
+}
+
+EnemyType GameWorld::nextMapEnemyType() const {
+    const auto& encounter = map_.definition().encounter;
+    const int eliteWeight = std::min(35, encounter.eliteWeight + mapLevel_ * 2);
+    const int normalWeight = std::max(1, encounter.normalWeight - (eliteWeight - encounter.eliteWeight));
+    const int rangedWeight = std::max(0, encounter.rangedWeight);
+    const int totalWeight = normalWeight + rangedWeight + eliteWeight;
+    const int roll = std::rand() % totalWeight;
+
+    if (roll < eliteWeight) {
+        return EnemyType::Elite;
+    }
+    if (roll < eliteWeight + rangedWeight) {
+        return EnemyType::Ranged;
+    }
+    return EnemyType::Normal;
 }
 
 bool GameWorld::shouldSpawnBoss() const {

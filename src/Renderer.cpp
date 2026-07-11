@@ -424,7 +424,8 @@ void Renderer::render(const GameWorld& world) {
         + "  AREA " + mapAreaName(world.currentMapArea())
         + "  ENEMIES " + std::to_string(world.enemiesRemainingInWave()),
         {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));
-    drawText(world.mapModifier().description + "  |  " + mapOptionSummary(world.currentMapOption()),
+    drawText(world.mapModifier().description + "  |  Threat: " + world.map().definition().encounter.threatDescription
+        + "  |  " + mapOptionSummary(world.currentMapOption()),
         {16.0f, 130.0f}, 14, sf::Color(255, 220, 150));
     const std::string bossLine = world.map().bossDefeated()
         ? "Boss defeated: " + world.bossDefinition().name

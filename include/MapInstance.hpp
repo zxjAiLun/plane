@@ -50,10 +50,18 @@ struct MapPalette {
     MapColor startArea;
 };
 
+struct MapEncounterProfile {
+    int normalWeight = 65;
+    int rangedWeight = 25;
+    int eliteWeight = 10;
+    std::string threatDescription = "Balanced melee packs";
+};
+
 struct MapTemplateDefinition {
     std::string name;
     std::string theme;
     MapPalette palette;
+    MapEncounterProfile encounter;
     std::vector<MapObstacle> obstacles;
     std::vector<Vector2> eventPositions;
 };
@@ -88,6 +96,7 @@ private:
                 "Ashen Causeway",
                 "Ash and stone",
                 {{24, 28, 30}, {65, 70, 72}, {120, 70, 40}, {120, 35, 35}, {40, 110, 70}},
+                {65, 25, 10, "Balanced melee packs"},
                 {
                     {{720.0f, 1330.0f}, {135.0f, 70.0f}},
                     {{1040.0f, 1120.0f}, {95.0f, 170.0f}},
@@ -100,6 +109,7 @@ private:
                 "Stormscar Expanse",
                 "Rain and shattered glass",
                 {{20, 29, 38}, {52, 72, 92}, {75, 115, 145}, {46, 72, 125}, {42, 95, 110}},
+                {35, 50, 15, "Heavy ranged pressure"},
                 {
                     {{650.0f, 1300.0f}, {90.0f, 130.0f}},
                     {{900.0f, 1020.0f}, {160.0f, 70.0f}},
@@ -113,6 +123,7 @@ private:
                 "Venom Hollow",
                 "Acid and overgrowth",
                 {{23, 38, 31}, {55, 82, 61}, {105, 125, 55}, {92, 68, 35}, {42, 110, 70}},
+                {45, 25, 30, "Frequent elite patrols"},
                 {
                     {{600.0f, 1420.0f}, {140.0f, 65.0f}},
                     {{970.0f, 1120.0f}, {90.0f, 180.0f}},
