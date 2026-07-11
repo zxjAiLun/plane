@@ -355,10 +355,13 @@ std::string rewardStatPreview(const MapRewardDefinition& reward, const GameWorld
 
 std::string mapOptionSummary(const MapOption& option) {
     const auto& modifier = option.modifier;
-    return "HP +" + std::to_string(multiplierPercent(modifier.monsterHpMultiplier))
-        + "%  DMG +" + std::to_string(modifier.monsterDamageBonus)
-        + "  IQ +" + std::to_string(multiplierPercent(modifier.itemQuantityMultiplier))
-        + "%  Boss +" + std::to_string(modifier.bossDropBonus);
+    return "MHP+" + std::to_string(multiplierPercent(modifier.monsterHpMultiplier))
+        + " MD+" + std::to_string(modifier.monsterDamageBonus)
+        + " E+" + std::to_string(modifier.eliteWeightBonus)
+        + " BHP+" + std::to_string(multiplierPercent(modifier.bossHpMultiplier))
+        + " BD+" + std::to_string(multiplierPercent(modifier.bossDamageMultiplier))
+        + " IQ+" + std::to_string(multiplierPercent(modifier.itemQuantityMultiplier))
+        + " IL+" + std::to_string(modifier.itemLevelBonus);
 }
 
 sf::Color mapEventColor(MapEventType type, bool completed) {
@@ -422,10 +425,6 @@ void Renderer::render(const GameWorld& world) {
         drawText(world.lifeFlaskStatusMessage(), {310.0f, 12.0f}, 14,
             flaskEmpty ? sf::Color(255, 120, 120) : sf::Color(180, 245, 200));
     }
-    if (world.playerHitEffectProgress() > 0.0f) {
-        drawText("HIT " + world.playerHitSource() + " -" + std::to_string(world.playerHitDamage()),
-            {16.0f, 84.0f}, 15, sf::Color(255, 105, 90));
-    }
     drawText("LV " + std::to_string(world.player().level())
         + "  EXP " + std::to_string(world.player().exp()) + "/" + std::to_string(world.player().expToNextLevel())
         + "  SP " + std::to_string(world.player().talentPoints()),
@@ -438,8 +437,7 @@ void Renderer::render(const GameWorld& world) {
         + "  AREA " + mapAreaName(world.currentMapArea())
         + "  ENEMIES " + std::to_string(world.enemiesRemainingInWave()),
         {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));
-    drawText(world.mapModifier().description + "  |  Threat: " + world.map().definition().encounter.threatDescription
-        + "  |  " + mapOptionSummary(world.currentMapOption()),
+    drawText(world.mapModifier().description + "  |  Threat: " + world.map().definition().encounter.threatDescription,
         {16.0f, 130.0f}, 14, sf::Color(255, 220, 150));
     const std::string bossLine = world.map().bossDefeated()
         ? "Boss defeated: " + world.bossDefinition().name
@@ -571,6 +569,7 @@ void Renderer::drawMap(const GameWorld& world) {
 
 void Renderer::drawPlayer(const GameWorld& world) {
     const auto& player = world.player();
+    const sf::Vector2f screenPosition = worldToScreen(world, player.position());
     const float hitProgress = world.playerHitEffectProgress();
     if (hitProgress > 0.0f) {
         const float pulseRadius = player.radius() + 8.0f + (1.0f - hitProgress) * 8.0f;
@@ -580,15 +579,20 @@ void Renderer::drawPlayer(const GameWorld& world) {
         pulse.setOutlineColor(sf::Color(255, 105, 75, alpha));
         pulse.setOutlineThickness(3.0f);
         pulse.setOrigin({pulseRadius, pulseRadius});
-        pulse.setPosition(worldToScreen(world, player.position()));
+        pulse.setPosition(screenPosition);
         window_.draw(pulse);
     }
 
     sf::CircleShape shape(player.radius());
     shape.setFillColor(hitProgress > 0.0f ? sf::Color(245, 105, 80) : sf::Color::Green);
     shape.setOrigin({player.radius(), player.radius()});
-    shape.setPosition(worldToScreen(world, player.position()));
+    shape.setPosition(screenPosition);
     window_.draw(shape);
+
+    if (hitProgress > 0.0f) {
+        drawCenteredText("HIT -" + std::to_string(world.playerHitDamage()) + " " + world.playerHitSource(),
+            {screenPosition.x, screenPosition.y - player.radius() - 36.0f}, 12, sf::Color(255, 105, 90));
+    }
 }
 
 void Renderer::drawNovaEffect(const GameWorld& world) {

@@ -189,6 +189,7 @@ private:
     int enemiesPerWave() const;
     int enemyHpForMap() const;
     int enemyDamageForMap() const;
+    int itemLevelForMap() const;
     EnemyType nextMapEnemyType() const;
     EliteModifier randomEliteModifier() const;
     bool shouldSpawnBoss() const;

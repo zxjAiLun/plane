@@ -343,6 +343,15 @@ void testMapOptionGeneration() {
     expect(distinctHp && distinctLoot, "options differ in monster life and loot quantity");
     expect(distinctDmg || distinctHp, "options differ in damage bonus or life");
 
+    expect(options[0].modifier.eliteWeightBonus < options[1].modifier.eliteWeightBonus
+            && options[1].modifier.eliteWeightBonus < options[2].modifier.eliteWeightBonus,
+        "map options scale elite pressure from moderate to high");
+    expect(options[1].modifier.bossHpMultiplier > 1.0f
+            && options[1].modifier.bossDamageMultiplier > 1.0f,
+        "Savage Hollow increases Boss risk");
+    expect(options[2].modifier.itemLevelBonus == 1,
+        "Gilded Ruins grants one effective item level");
+
     // Template indices map to themed maps (linked in generateOptions).
     expect(options[0].templateIndex == 0
             && options[1].templateIndex == 1

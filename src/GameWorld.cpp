@@ -911,7 +911,7 @@ void GameWorld::dropItemsAround(const Vector2& center, int count) {
         const float angle = static_cast<float>(i) * 2.39996323f;
         const float radius = i == 0 ? 0.0f : 24.0f + static_cast<float>(i) * 5.0f;
         const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
-        droppedItems_.push_back(DroppedItem(center + offset, lootGenerator_.generate(mapLevel_)));
+        droppedItems_.push_back(DroppedItem(center + offset, lootGenerator_.generate(itemLevelForMap())));
         ++mapItemsDropped_;
     }
 }
@@ -1355,8 +1355,8 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         const float radius = i == 0 ? 0.0f : 18.0f + static_cast<float>(i) * 4.0f;
         const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
         Item item = enemy.isBoss() && i == 0
-            ? lootGenerator_.generateBossReward(mapLevel_, bossDefinition_->lootTheme)
-            : lootGenerator_.generate(mapLevel_);
+            ? lootGenerator_.generateBossReward(itemLevelForMap(), bossDefinition_->lootTheme)
+            : lootGenerator_.generate(itemLevelForMap());
         droppedItems_.push_back(DroppedItem(enemy.position() + offset, std::move(item)));
         ++mapItemsDropped_;
         if (enemy.isBoss()) {
@@ -1395,10 +1395,12 @@ float GameWorld::bossSkillInterval() const {
 }
 
 int GameWorld::bossSkillDamage(int baseDamage) const {
-    const float multiplier = bossEnraged_
+    const float enrageMultiplier = bossEnraged_
         ? bossDefinition_->enragedDamageMultiplier
         : 1.0f;
-    return std::max(1, static_cast<int>(std::ceil(baseDamage * multiplier)));
+    const float mapDamage = static_cast<float>(baseDamage + mapModifier_.monsterDamageBonus)
+        * mapModifier_.bossDamageMultiplier;
+    return std::max(1, static_cast<int>(std::ceil(mapDamage * enrageMultiplier)));
 }
 
 void GameWorld::advanceWaveIfComplete() {
@@ -1423,6 +1425,10 @@ int GameWorld::enemyDamageForMap() const {
     return Config::EnemyContactDamage + (mapLevel_ - 1) / 3 + mapModifier_.monsterDamageBonus;
 }
 
+int GameWorld::itemLevelForMap() const {
+    return std::max(1, mapLevel_ + mapModifier_.itemLevelBonus);
+}
+
 EliteModifier GameWorld::randomEliteModifier() const {
     const int modifierCount = static_cast<int>(EliteModifierLibrary::all().size()) - 1;
     return static_cast<EliteModifier>(1 + std::rand() % modifierCount);
@@ -1430,7 +1436,9 @@ EliteModifier GameWorld::randomEliteModifier() const {
 
 EnemyType GameWorld::nextMapEnemyType() const {
     const auto& encounter = map_.definition().encounter;
-    const int eliteWeight = std::min(35, encounter.eliteWeight + mapLevel_ * 2);
+    const int eliteWeight = std::min(
+        45, encounter.eliteWeight + mapLevel_ * 2 + mapModifier_.eliteWeightBonus
+    );
     const int normalWeight = std::max(1, encounter.normalWeight - (eliteWeight - encounter.eliteWeight));
     const int rangedWeight = std::max(0, encounter.rangedWeight);
     const int totalWeight = normalWeight + rangedWeight + eliteWeight;
@@ -1476,8 +1484,13 @@ void GameWorld::triggerBossIfNeeded() {
     eventStatusMessage_ = "Boss awakened: " + bossDefinition_->name;
     eventStatusTimer_ = 2.0f;
 
-    const int hp = std::max(1, static_cast<int>(std::ceil(enemyHpForMap() * bossDefinition_->hpMultiplier)));
-    const int damage = enemyDamageForMap() + bossDefinition_->damageBonus;
+    const int hp = std::max(1, static_cast<int>(std::ceil(
+        enemyHpForMap() * bossDefinition_->hpMultiplier * mapModifier_.bossHpMultiplier
+    )));
+    const int damage = std::max(1, static_cast<int>(std::ceil(
+        static_cast<float>(enemyDamageForMap() + bossDefinition_->damageBonus)
+            * mapModifier_.bossDamageMultiplier
+    )));
     enemies_.push_back(Enemy(map_.bossCenter(), hp, damage, EnemyType::Boss));
 }
 
