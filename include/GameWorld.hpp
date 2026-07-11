@@ -80,6 +80,9 @@ public:
     const Vector2& secondarySkillEffectPosition() const;
     float secondarySkillEffectProgress() const;
     float secondarySkillEffectRadius() const;
+    const Vector2& dashImpactPosition() const;
+    float dashImpactProgress() const;
+    float dashImpactRadius() const;
     const Vector2& bossAoeCenter() const;
     float bossAoeRadius() const;
     float bossAoeTelegraphProgress() const;
@@ -161,6 +164,8 @@ private:
     int damageForPlayerSkill(const SkillDefinition& skill) const;
     float radiusForPlayerSkill(const SkillDefinition& skill) const;
     int pierceCountForPlayerSkill(const SkillDefinition& skill) const;
+    int projectileCountForPlayerSkill(const SkillDefinition& skill) const;
+    float spreadAngleForPlayerSkill(const SkillDefinition& skill) const;
     void noteElitePackEnemyDefeated(const Enemy& enemy);
     void tryPickupDroppedItem(Input& input);
     void trySpendPassivePoint(Input& input);
@@ -218,6 +223,10 @@ private:
     float novaEffectTimer_;
     Vector2 secondarySkillEffectPosition_;
     float secondarySkillEffectTimer_;
+    Vector2 dashImpactPosition_;
+    float dashImpactTimer_ = 0.0f;
+    float dashImpactDuration_ = 0.0f;
+    float dashImpactRadius_ = 0.0f;
     Vector2 bossAoeCenter_;
     float bossAoeTelegraphTimer_;
     float bossAoeEffectTimer_;

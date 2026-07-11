@@ -24,6 +24,7 @@ GameWorld::GameWorld()
     , novaEffectTimer_(0.0f)
     , secondarySkillEffectPosition_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
     , secondarySkillEffectTimer_(0.0f)
+    , dashImpactPosition_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
     , bossAoeCenter_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
     , bossAoeTelegraphTimer_(0.0f)
     , bossAoeEffectTimer_(0.0f)
@@ -144,6 +145,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     skillBar_.update(dt);
     novaEffectTimer_ = std::max(0.0f, novaEffectTimer_ - dt);
     secondarySkillEffectTimer_ = std::max(0.0f, secondarySkillEffectTimer_ - dt);
+    dashImpactTimer_ = std::max(0.0f, dashImpactTimer_ - dt);
     bossAoeEffectTimer_ = std::max(0.0f, bossAoeEffectTimer_ - dt);
     volatileExplosionTimer_ = std::max(0.0f, volatileExplosionTimer_ - dt);
     playerHitCooldown_ = std::max(0.0f, playerHitCooldown_ - dt);
@@ -240,6 +242,10 @@ void GameWorld::reset() {
     novaEffectTimer_ = 0.0f;
     secondarySkillEffectPosition_ = Vector2(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f);
     secondarySkillEffectTimer_ = 0.0f;
+    dashImpactPosition_ = player_.position();
+    dashImpactTimer_ = 0.0f;
+    dashImpactDuration_ = 0.0f;
+    dashImpactRadius_ = 0.0f;
     bossAoeCenter_ = map_.bossCenter();
     bossAoeTelegraphTimer_ = 0.0f;
     bossAoeEffectTimer_ = 0.0f;
@@ -301,6 +307,10 @@ void GameWorld::startNextMap() {
     survivalTime_ = 0.0f;
     novaEffectTimer_ = 0.0f;
     secondarySkillEffectTimer_ = 0.0f;
+    dashImpactPosition_ = player_.position();
+    dashImpactTimer_ = 0.0f;
+    dashImpactDuration_ = 0.0f;
+    dashImpactRadius_ = 0.0f;
     bossAoeCenter_ = map_.bossCenter();
     bossAoeTelegraphTimer_ = 0.0f;
     bossAoeEffectTimer_ = 0.0f;
@@ -683,7 +693,21 @@ void GameWorld::tryCastMovementSkill(Input& input) {
         return;
     }
 
+    const auto* support = skillBar_.support(SkillSlot::Movement);
     movePlayerBy(direction * Config::DashDistance);
+
+    if (support && support->dashBaseDamage > 0 && support->dashRadius > 0.0f) {
+        const float shrineMultiplier = shrineBuffTimer_ > 0.0f ? ShrineDamageMultiplier : 1.0f;
+        dashImpactPosition_ = player_.position();
+        dashImpactRadius_ = supportAreaRadius(*support, player_.stats());
+        dashImpactDuration_ = support->effectDuration;
+        dashImpactTimer_ = support->effectDuration;
+        dealAreaDamage(
+            dashImpactPosition_,
+            dashImpactRadius_,
+            supportAreaDamage(*support, player_.stats(), shrineMultiplier)
+        );
+    }
 }
 
 void GameWorld::tryCastUtilitySkill(Input& input) {
@@ -732,7 +756,9 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
     const auto& skill = skillBar_.definition(SkillSlot::Primary);
     const int damage = damageForPlayerSkill(skill);
 
-    if (skill.projectileCount <= 1 || skill.spreadAngle <= 0.0f) {
+    const int projectileCount = projectileCountForPlayerSkill(skill);
+    const float spreadAngle = spreadAngleForPlayerSkill(skill);
+    if (projectileCount <= 1 || spreadAngle <= 0.0f) {
         projectiles_.push_back(Projectile(
             player_.position(), direction * Config::ProjectileSpeed, damage, pierceCountForPlayerSkill(skill)
         ));
@@ -740,9 +766,9 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
     }
 
     const float degToRad = 3.14159265f / 180.0f;
-    const float halfSpread = skill.spreadAngle * 0.5f;
-    const float step = skill.spreadAngle / static_cast<float>(skill.projectileCount - 1);
-    for (int i = 0; i < skill.projectileCount; ++i) {
+    const float halfSpread = spreadAngle * 0.5f;
+    const float step = spreadAngle / static_cast<float>(projectileCount - 1);
+    for (int i = 0; i < projectileCount; ++i) {
         const float angleDeg = -halfSpread + step * static_cast<float>(i);
         const float angleRad = angleDeg * degToRad;
         const float cosA = std::cos(angleRad);
@@ -940,6 +966,14 @@ int GameWorld::pierceCountForPlayerSkill(const SkillDefinition& skill) const {
     return skillPierceCount(skillBar_.support(skill.slot));
 }
 
+int GameWorld::projectileCountForPlayerSkill(const SkillDefinition& skill) const {
+    return skillProjectileCount(skill, skillBar_.support(skill.slot));
+}
+
+float GameWorld::spreadAngleForPlayerSkill(const SkillDefinition& skill) const {
+    return skillSpreadAngle(skill, skillBar_.support(skill.slot));
+}
+
 void GameWorld::noteElitePackEnemyDefeated(const Enemy& enemy) {
     if (enemy.isBoss() || activeEliteEventIndex_ < 0 || eliteEventEnemiesRemaining_ <= 0) {
         return;
@@ -1067,7 +1101,7 @@ void GameWorld::tryAssignSkill(Input& input) {
 }
 
 void GameWorld::tryCycleSkillSupport(Input& input) {
-    if (!skillPanelOpen_ || input.functionChoice() <= 0 || input.functionChoice() > 3) {
+    if (!skillPanelOpen_ || input.functionChoice() <= 0 || input.functionChoice() > 4) {
         return;
     }
 
@@ -1545,6 +1579,11 @@ float GameWorld::secondarySkillEffectProgress() const {
 float GameWorld::secondarySkillEffectRadius() const {
     return radiusForPlayerSkill(skillBar_.definition(SkillSlot::Secondary));
 }
+const Vector2& GameWorld::dashImpactPosition() const { return dashImpactPosition_; }
+float GameWorld::dashImpactProgress() const {
+    return dashImpactDuration_ > 0.0f ? dashImpactTimer_ / dashImpactDuration_ : 0.0f;
+}
+float GameWorld::dashImpactRadius() const { return dashImpactRadius_; }
 const Vector2& GameWorld::bossAoeCenter() const { return bossAoeCenter_; }
 float GameWorld::bossAoeRadius() const { return bossAoeSkill_.radius; }
 float GameWorld::bossAoeTelegraphProgress() const {

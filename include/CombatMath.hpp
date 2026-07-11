@@ -64,3 +64,31 @@ inline float skillRadius(
 inline int skillPierceCount(const SupportDefinition* support) {
     return support ? support->pierceCount : 0;
 }
+
+inline int skillProjectileCount(const SkillDefinition& skill, const SupportDefinition* support) {
+    return std::max(1, skill.projectileCount + (support ? support->extraProjectileCount : 0));
+}
+
+inline float skillSpreadAngle(const SkillDefinition& skill, const SupportDefinition* support) {
+    return std::max(0.0f, skill.spreadAngle + (support ? support->extraSpreadAngle : 0.0f));
+}
+
+inline int supportAreaDamage(
+    const SupportDefinition& support,
+    const Stats& stats,
+    float shrineMultiplier = 1.0f
+) {
+    if (support.dashBaseDamage <= 0) {
+        return 0;
+    }
+
+    const float damage = static_cast<float>(support.dashBaseDamage)
+        * stats.damageMultiplier
+        * stats.areaDamageMultiplier
+        * support.damageMultiplier;
+    return std::max(1, static_cast<int>(std::ceil(damage * shrineMultiplier)));
+}
+
+inline float supportAreaRadius(const SupportDefinition& support, const Stats& stats) {
+    return support.dashRadius * stats.areaRadiusMultiplier;
+}

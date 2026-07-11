@@ -69,10 +69,6 @@ public:
     }
 
     bool assignSupport(SkillSlot slot, const std::string& name) {
-        if (slot == SkillSlot::Movement) {
-            return false;
-        }
-
         const auto idx = slotIndex(slot);
         if (name.empty()) {
             supportNames_[idx].clear();

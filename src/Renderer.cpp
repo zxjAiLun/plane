@@ -338,7 +338,7 @@ std::string rewardDetailSummary(const MapRewardDefinition& reward, const GameWor
 
 std::string rewardStatPreview(const MapRewardDefinition& reward, const GameWorld& world) {
     if (reward.type == MapRewardType::UnlockSupport) {
-        return "Configure it in K with F1 / F2 / F3";
+        return "Configure it in K with F1 / F2 / F3 / F4";
     }
 
     if (reward.type != MapRewardType::UnlockSkill) {
@@ -404,6 +404,7 @@ void Renderer::render(const GameWorld& world) {
     drawMap(world);
     drawNovaEffect(world);
     drawSecondarySkillEffect(world);
+    drawDashImpactEffect(world);
     drawBossAoeEffect(world);
     drawVolatileExplosionEffect(world);
     drawPlayer(world);
@@ -632,6 +633,23 @@ void Renderer::drawSecondarySkillEffect(const GameWorld& world) {
     shape.setOutlineThickness(3.0f);
     shape.setOrigin({radius, radius});
     shape.setPosition(worldToScreen(world, center));
+    window_.draw(shape);
+}
+
+void Renderer::drawDashImpactEffect(const GameWorld& world) {
+    const float progress = world.dashImpactProgress();
+    if (progress <= 0.0f) {
+        return;
+    }
+
+    const float radius = world.dashImpactRadius() * (1.0f - progress * 0.18f);
+    const auto alpha = static_cast<std::uint8_t>(190.0f * progress);
+    sf::CircleShape shape(radius);
+    shape.setFillColor(sf::Color(255, 225, 105, alpha / 5));
+    shape.setOutlineColor(sf::Color(255, 245, 175, alpha));
+    shape.setOutlineThickness(3.0f);
+    shape.setOrigin({radius, radius});
+    shape.setPosition(worldToScreen(world, world.dashImpactPosition()));
     window_.draw(shape);
 }
 
@@ -1201,9 +1219,9 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
     overlay.setFillColor(sf::Color(0, 0, 0, 145));
     window_.draw(overlay);
 
-    drawBox({center.x, center.y}, {760.0f, 540.0f}, sf::Color(24, 30, 40));
+    drawBox({center.x, center.y}, {760.0f, 560.0f}, sf::Color(24, 30, 40));
     drawCenteredText("Skill Panel", {center.x, center.y - 248.0f}, 24, sf::Color::White);
-    drawCenteredText("1-8 assign unlocked skill  |  F1-F3 cycle support  |  K close",
+    drawCenteredText("1-8 assign unlocked skill  |  F1-F4 cycle support  |  K close",
         {center.x, center.y - 220.0f}, 14, sf::Color(210, 230, 255));
 
     const SkillSlot slots[] = {
@@ -1256,12 +1274,13 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
     const SkillSlot supportSlots[] = {
         SkillSlot::Primary,
         SkillSlot::Secondary,
-        SkillSlot::Utility
+        SkillSlot::Utility,
+        SkillSlot::Movement
     };
-    const char* supportKeys[] = {"F1", "F2", "F3"};
-    const float supportY = center.y + 186.0f;
+    const char* supportKeys[] = {"F1", "F2", "F3", "F4"};
+    const float supportY = center.y + 170.0f;
     drawText("Supports", {center.x - 350.0f, supportY}, 16, sf::Color::White);
-    for (std::size_t i = 0; i < 3; ++i) {
+    for (std::size_t i = 0; i < 4; ++i) {
         const auto slot = supportSlots[i];
         const auto* support = world.skillBar().support(slot);
         const std::string supportName = support ? support->name : "None";

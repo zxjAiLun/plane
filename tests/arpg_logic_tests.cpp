@@ -102,7 +102,12 @@ void testSkillBarAssignSkillAndSupport() {
         "Secondary support is Amplify");
 
     expect(!bar.assignSupport(SkillSlot::Movement, "Quickcast"),
-        "reject any support on Movement slot");
+        "reject Quickcast on Movement slot");
+    expect(bar.assignSupport(SkillSlot::Movement, "Trailblazer"),
+        "Trailblazer attaches to Movement slot");
+    expect(bar.support(SkillSlot::Movement) != nullptr
+            && bar.support(SkillSlot::Movement)->name == "Trailblazer",
+        "Movement support is Trailblazer");
 
     // Replacing projectile skill with another keeps Pierce only if still compatible.
     expect(bar.assignSkill(SkillSlot::Utility, "Pulse"), "assign Pulse to Utility");
@@ -122,7 +127,11 @@ void testCombatMathDamageRadiusPierce() {
     const SupportDefinition* pierce = SupportLibrary::find("Pierce");
     const SupportDefinition* amplify = SupportLibrary::find("Amplify");
     const SupportDefinition* quickcast = SupportLibrary::find("Quickcast");
-    expect(pierce != nullptr && amplify != nullptr && quickcast != nullptr, "supports exist in library");
+    const SupportDefinition* volley = SupportLibrary::find("Volley");
+    const SupportDefinition* trailblazer = SupportLibrary::find("Trailblazer");
+    expect(pierce != nullptr && amplify != nullptr && quickcast != nullptr
+            && volley != nullptr && trailblazer != nullptr,
+        "supports exist in library");
 
     Stats stats;
     stats.damageMultiplier = 1.0f;
@@ -161,6 +170,16 @@ void testCombatMathDamageRadiusPierce() {
     expect(skillPierceCount(nullptr) == 0, "no support => 0 pierce");
     expect(skillPierceCount(pierce) == 1, "Pierce support => 1 pierce");
     expect(skillPierceCount(amplify) == 0, "Amplify does not grant pierce");
+    expect(skillProjectileCount(projectile, volley) == projectile.projectileCount + 2,
+        "Volley adds two projectiles");
+    expect(skillSpreadAngle(projectile, volley) > projectile.spreadAngle,
+        "Volley widens projectile spread");
+    expect(supportAreaDamage(*trailblazer, stats) > 0,
+        "Trailblazer produces area damage with player stats");
+    expect(supportAreaDamage(*trailblazer, stats, 1.35f) > supportAreaDamage(*trailblazer, stats),
+        "Trailblazer damage stacks shrine multiplier");
+    expect(supportAreaRadius(*trailblazer, stats) > trailblazer->dashRadius,
+        "Trailblazer radius scales with area specialization");
 
     expect(refilledFlaskCharges(0, 3, 1) == 1, "flask refill adds granted charge");
     expect(refilledFlaskCharges(2, 3, 3) == 3, "flask refill is capped at maximum charges");
