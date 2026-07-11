@@ -1270,7 +1270,10 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         const float angle = static_cast<float>(i) * 2.39996323f;
         const float radius = i == 0 ? 0.0f : 18.0f + static_cast<float>(i) * 4.0f;
         const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
-        droppedItems_.push_back(DroppedItem(enemy.position() + offset, lootGenerator_.generate(mapLevel_)));
+        Item item = enemy.isBoss() && i == 0
+            ? lootGenerator_.generateBossReward(mapLevel_, bossDefinition_->lootTheme)
+            : lootGenerator_.generate(mapLevel_);
+        droppedItems_.push_back(DroppedItem(enemy.position() + offset, std::move(item)));
         ++mapItemsDropped_;
         if (enemy.isBoss()) {
             ++mapBossItemsDropped_;

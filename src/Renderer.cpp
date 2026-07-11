@@ -1339,9 +1339,8 @@ void Renderer::drawMapComplete(const GameWorld& world) {
         + "  Boss Drops " + std::to_string(world.mapBossItemsDropped())
         + "  Picked " + std::to_string(world.mapItemsPickedUp()),
         {center.x, center.y - 52.0f}, 16, sf::Color::White);
-    drawCenteredText("Events " + std::to_string(world.mapEventsCompleted())
-        + "/" + std::to_string(world.mapEventsTotal()),
-        {center.x, center.y - 30.0f}, 16, sf::Color::White);
+    drawCenteredText("Boss relic: " + world.bossDefinition().lootRewardDescription,
+        {center.x, center.y - 30.0f}, 13, sf::Color(255, 225, 145));
 
     // Left-side pickup guidance (always available during MapComplete):
     // looting runs concurrently with reward / next-map selection, so the player

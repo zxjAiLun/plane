@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "BossDefinition.hpp"
 #include "Item.hpp"
 
 enum class AffixStat {
@@ -54,6 +55,45 @@ public:
         item.affixes = suffixes;
         if (!prefixes.empty()) {
             item.affixes.insert(item.affixes.begin(), prefixes.begin(), prefixes.end());
+        }
+
+        return item;
+    }
+
+    Item generateBossReward(int monsterLevel, BossLootTheme theme) const {
+        const int tier = tierForLevel(monsterLevel);
+        Item item;
+        item.itemLevel = monsterLevel;
+        item.rarity = Rarity::Rare;
+        item.affixes.push_back("Boss relic");
+
+        switch (theme) {
+            case BossLootTheme::Brimstone:
+                item.name = "Colossus's Brand";
+                item.slot = EquipmentSlot::Weapon;
+                item.stats.damageMultiplier += std::array<float, 3>{0.14f, 0.20f, 0.27f}[tier];
+                item.stats.areaDamageMultiplier += std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier];
+                item.affixes.push_back("Brimstone might");
+                item.affixes.push_back("Crushing impact");
+                break;
+
+            case BossLootTheme::Storm:
+                item.name = "Herald's Signet";
+                item.slot = EquipmentSlot::Ring;
+                item.stats.attackSpeedMultiplier += std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier];
+                item.stats.projectileDamageMultiplier += std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier];
+                item.affixes.push_back("Storm cadence");
+                item.affixes.push_back("Charged projectiles");
+                break;
+
+            case BossLootTheme::Brood:
+                item.name = "Matriarch's Talisman";
+                item.slot = EquipmentSlot::Amulet;
+                item.stats.areaDamageMultiplier += std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier];
+                item.stats.areaRadiusMultiplier += std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier];
+                item.affixes.push_back("Brood surge");
+                item.affixes.push_back("Expanding nests");
+                break;
         }
 
         return item;

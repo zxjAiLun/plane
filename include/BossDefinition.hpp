@@ -11,6 +11,12 @@ enum class BossSkillType {
     Projectile
 };
 
+enum class BossLootTheme {
+    Brimstone,
+    Storm,
+    Brood
+};
+
 struct BossSkillDefinition {
     BossSkillType type = BossSkillType::CircularAoe;
     std::string name;
@@ -26,6 +32,8 @@ struct BossSkillDefinition {
 struct BossDefinition {
     std::string name;
     std::string theme;
+    BossLootTheme lootTheme = BossLootTheme::Brimstone;
+    std::string lootRewardDescription;
     float hpMultiplier = 1.0f;
     int damageBonus = 0;
     float dropMultiplier = 1.0f;
@@ -77,6 +85,8 @@ private:
             {
                 "Brimstone Colossus",
                 "Lava and stone",
+                BossLootTheme::Brimstone,
+                "Rare weapon: damage and area damage",
                 24.0f,
                 2,
                 3.5f,
@@ -117,6 +127,8 @@ private:
             {
                 "Storm Herald",
                 "Lightning and speed",
+                BossLootTheme::Storm,
+                "Rare ring: attack speed and projectile damage",
                 18.0f,
                 1,
                 3.0f,
@@ -137,6 +149,8 @@ private:
             {
                 "Brood Matriarch",
                 "Acid and brood",
+                BossLootTheme::Brood,
+                "Rare amulet: area damage and radius",
                 20.0f,
                 1,
                 3.2f,
