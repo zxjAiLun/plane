@@ -2,17 +2,25 @@
 
 #include <vector>
 
+#include "Ailment.hpp"
 #include "Vector2.hpp"
 
 class Projectile {
 public:
-    Projectile(const Vector2& position, const Vector2& velocity, int damage, int pierceCount = 0);
+    Projectile(
+        const Vector2& position,
+        const Vector2& velocity,
+        int damage,
+        int pierceCount = 0,
+        AilmentDefinition ailment = {}
+    );
 
     void update(float dt, const Vector2& worldSize);
 
     const Vector2& position() const;
     float radius() const;
     int damage() const;
+    const AilmentDefinition& ailment() const;
     bool hasHitEnemy(int enemyId) const;
     void recordEnemyHit(int enemyId);
 
@@ -24,6 +32,7 @@ private:
     Vector2 velocity_;
     float radius_;
     int damage_;
+    AilmentDefinition ailment_;
     int remainingPierces_;
     std::vector<int> hitEnemyIds_;
     bool alive_;

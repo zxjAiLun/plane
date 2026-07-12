@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Ailment.hpp"
 #include "EnemyType.hpp"
 #include "EliteModifier.hpp"
 #include "Vector2.hpp"
@@ -12,8 +13,11 @@ public:
         EliteModifier eliteModifier = EliteModifier::None);
 
     void update(float dt, const Vector2& targetPosition, const MapInstance& map);
+    void updateAilments(float dt);
 
     void takeDamage(int damage);
+    void applyIgnite(int damagePerTick, float duration);
+    void applyChill(float speedMultiplier, float duration);
     void kill();
     bool isDead() const;
 
@@ -30,6 +34,9 @@ public:
     bool isRanged() const;
     bool isCharger() const;
     bool isCharging() const;
+    bool isIgnited() const;
+    bool isChilled() const;
+    float movementSpeedMultiplier() const;
     Vector2 chargeTargetPosition() const;
     bool consumeChargeHit();
     bool isElite() const;
@@ -51,6 +58,11 @@ private:
     Vector2 chargeDirection_;
     float chargeTimer_;
     bool chargeHitConsumed_;
+    int igniteDamagePerTick_;
+    float igniteTimer_;
+    float igniteTickTimer_;
+    float chillTimer_;
+    float chillSpeedMultiplier_;
 
     inline static int nextId_ = 1;
 };

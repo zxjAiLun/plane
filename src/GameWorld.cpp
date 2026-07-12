@@ -373,6 +373,11 @@ void GameWorld::updateObjects(float dt) {
         }
     }
     for (auto& enemy : enemies_) {
+        enemy.updateAilments(dt);
+        if (enemy.isDead()) {
+            rewardEnemyKill(enemy);
+            continue;
+        }
         enemy.update(dt, player_.position(), map_);
     }
 }
@@ -560,6 +565,7 @@ void GameWorld::handleCollisions() {
                 }
 
                 enemy.takeDamage(projectile.damage());
+                applySkillAilment(enemy, projectile.ailment(), projectile.damage());
                 projectile.recordEnemyHit(enemy.id());
 
                 if (enemy.isDead()) {
@@ -719,7 +725,8 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
     dealAreaDamage(
         player_.position(),
         radiusForPlayerSkill(skill),
-        damageForPlayerSkill(skill)
+        damageForPlayerSkill(skill),
+        &skill.ailment
     );
     novaEffectTimer_ = skill.effectDuration;
 }
@@ -733,7 +740,8 @@ void GameWorld::tryCastSecondarySkill(Input& input) {
     dealAreaDamage(
         aimPosition_,
         radiusForPlayerSkill(skill),
-        damageForPlayerSkill(skill)
+        damageForPlayerSkill(skill),
+        &skill.ailment
     );
     secondarySkillEffectPosition_ = aimPosition_;
     secondarySkillEffectTimer_ = skill.effectDuration;
@@ -760,7 +768,8 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
     const float spreadAngle = spreadAngleForPlayerSkill(skill);
     if (projectileCount <= 1 || spreadAngle <= 0.0f) {
         projectiles_.push_back(Projectile(
-            player_.position(), direction * Config::ProjectileSpeed, damage, pierceCountForPlayerSkill(skill)
+            player_.position(), direction * Config::ProjectileSpeed, damage,
+            pierceCountForPlayerSkill(skill), skill.ailment
         ));
         return;
     }
@@ -781,7 +790,8 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
             player_.position(),
             rotated * Config::ProjectileSpeed,
             damage,
-            pierceCountForPlayerSkill(skill)
+            pierceCountForPlayerSkill(skill),
+            skill.ailment
         ));
     }
 }
@@ -822,7 +832,12 @@ void GameWorld::restoreLifeFlaskCharges(int charges, const std::string& source) 
     lifeFlaskStatusTimer_ = 1.5f;
 }
 
-void GameWorld::dealAreaDamage(const Vector2& center, float radius, int damage) {
+void GameWorld::dealAreaDamage(
+    const Vector2& center,
+    float radius,
+    int damage,
+    const AilmentDefinition* ailment
+) {
     for (auto& enemy : enemies_) {
         if (enemy.isDead()) {
             continue;
@@ -833,11 +848,31 @@ void GameWorld::dealAreaDamage(const Vector2& center, float radius, int damage) 
                 enemy.position(), enemy.radius()
             )) {
             enemy.takeDamage(damage);
+            if (ailment) {
+                applySkillAilment(enemy, *ailment, damage);
+            }
 
             if (enemy.isDead()) {
                 rewardEnemyKill(enemy);
             }
         }
+    }
+}
+
+void GameWorld::applySkillAilment(
+    Enemy& enemy,
+    const AilmentDefinition& ailment,
+    int hitDamage
+) {
+    switch (ailment.type) {
+        case AilmentType::Ignite:
+            enemy.applyIgnite(ailmentTickDamage(ailment, hitDamage), ailment.duration);
+            break;
+        case AilmentType::Chill:
+            enemy.applyChill(ailment.speedMultiplier, ailment.duration);
+            break;
+        case AilmentType::None:
+            break;
     }
 }
 

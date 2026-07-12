@@ -259,6 +259,20 @@ float effectiveSkillCooldown(const SkillDefinition& skill, const Stats& stats, c
     return cooldown;
 }
 
+std::string ailmentSummary(const AilmentDefinition& ailment) {
+    switch (ailment.type) {
+        case AilmentType::Ignite:
+            return "Ignite " + formatFloat(ailment.duration, 1) + "s";
+        case AilmentType::Chill:
+            return "Chill " + formatFloat(ailment.duration, 1) + "s "
+                + std::to_string(static_cast<int>((1.0f - ailment.speedMultiplier) * 100.0f)) + "% slow";
+        case AilmentType::None:
+            return "";
+    }
+
+    return "";
+}
+
 std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& stats, const SupportDefinition* support = nullptr) {
     return "Base " + std::to_string(skill.baseDamage)
         + "/" + std::to_string(static_cast<int>(skill.radius))
@@ -729,7 +743,13 @@ void Renderer::drawAimIndicator(const GameWorld& world) {
 void Renderer::drawProjectiles(const GameWorld& world) {
     for (const auto& projectile : world.projectiles()) {
         sf::CircleShape shape(projectile.radius());
-        shape.setFillColor(sf::Color::Yellow);
+        sf::Color color = sf::Color::Yellow;
+        if (projectile.ailment().type == AilmentType::Ignite) {
+            color = sf::Color(255, 125, 45);
+        } else if (projectile.ailment().type == AilmentType::Chill) {
+            color = sf::Color(105, 225, 255);
+        }
+        shape.setFillColor(color);
         shape.setOrigin({projectile.radius(), projectile.radius()});
         shape.setPosition(worldToScreen(world, projectile.position()));
         window_.draw(shape);
@@ -834,6 +854,27 @@ void Renderer::drawEnemies(const GameWorld& world) {
         shape.setOrigin({enemy.radius(), enemy.radius()});
         shape.setPosition(screenPosition);
         window_.draw(shape);
+
+        if (enemy.isIgnited()) {
+            const float ringRadius = enemy.radius() + 5.0f;
+            sf::CircleShape ring(ringRadius);
+            ring.setFillColor(sf::Color::Transparent);
+            ring.setOutlineColor(sf::Color(255, 120, 45, 230));
+            ring.setOutlineThickness(2.5f);
+            ring.setOrigin({ringRadius, ringRadius});
+            ring.setPosition(screenPosition);
+            window_.draw(ring);
+        }
+        if (enemy.isChilled()) {
+            const float ringRadius = enemy.radius() + (enemy.isIgnited() ? 9.0f : 5.0f);
+            sf::CircleShape ring(ringRadius);
+            ring.setFillColor(sf::Color::Transparent);
+            ring.setOutlineColor(sf::Color(105, 225, 255, 230));
+            ring.setOutlineThickness(2.0f);
+            ring.setOrigin({ringRadius, ringRadius});
+            ring.setPosition(screenPosition);
+            window_.draw(ring);
+        }
 
         if (definition.outlineThickness > 0.0f) {
             const std::string label = enemy.isBoss() ? world.bossDefinition().name
@@ -1266,7 +1307,14 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         drawText("     " + skillSlotName(skill.slot) + " / " + skillCastTypeName(skill.castType),
             {columnX, rowY + 17.0f}, 11,
             unlocked ? sf::Color(190, 205, 220) : sf::Color(105, 112, 122));
-        drawText("     " + skillEffectiveSummary(skill, world.player().stats(), world.skillBar().support(skill.slot)),
+        std::string summary = skillEffectiveSummary(
+            skill, world.player().stats(), world.skillBar().support(skill.slot)
+        );
+        const std::string ailment = ailmentSummary(skill.ailment);
+        if (!ailment.empty()) {
+            summary += "  " + ailment;
+        }
+        drawText("     " + summary,
             {columnX, rowY + 32.0f}, 10,
             unlocked ? sf::Color(190, 205, 220) : sf::Color(105, 112, 122));
     }

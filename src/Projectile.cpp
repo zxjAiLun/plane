@@ -3,11 +3,18 @@
 
 #include <algorithm>
 
-Projectile::Projectile(const Vector2& position, const Vector2& velocity, int damage, int pierceCount)
+Projectile::Projectile(
+    const Vector2& position,
+    const Vector2& velocity,
+    int damage,
+    int pierceCount,
+    AilmentDefinition ailment
+)
     : position_(position)
     , velocity_(velocity)
     , radius_(Config::ProjectileRadius)
     , damage_(damage)
+    , ailment_(ailment)
     , remainingPierces_(pierceCount)
     , hitEnemyIds_()
     , alive_(true) {
@@ -27,6 +34,7 @@ void Projectile::update(float dt, const Vector2& worldSize) {
 const Vector2& Projectile::position() const { return position_; }
 float Projectile::radius() const { return radius_; }
 int Projectile::damage() const { return damage_; }
+const AilmentDefinition& Projectile::ailment() const { return ailment_; }
 bool Projectile::hasHitEnemy(int enemyId) const {
     return std::find(hitEnemyIds_.begin(), hitEnemyIds_.end(), enemyId) != hitEnemyIds_.end();
 }

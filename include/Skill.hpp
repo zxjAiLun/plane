@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include "Ailment.hpp"
+
 enum class SkillSlot {
     Primary,
     Secondary,
@@ -27,5 +29,5 @@ struct SkillDefinition {
     float effectDuration = 0.0f;
     int projectileCount = 1;
     float spreadAngle = 0.0f;
+    AilmentDefinition ailment;
 };
-

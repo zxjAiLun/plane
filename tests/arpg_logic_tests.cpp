@@ -186,6 +186,40 @@ void testCombatMathDamageRadiusPierce() {
     expect(refilledFlaskCharges(1, 3, -1) == 1, "negative flask refill does not remove charges");
 }
 
+// --- Ailments ---
+void testSkillAilments() {
+    section("Skill ailments and enemy lifecycle");
+
+    const SkillDefinition flare = SkillLibrary::flare();
+    const SkillDefinition meteor = SkillLibrary::meteor();
+    const SkillDefinition frostBomb = SkillLibrary::frostBomb();
+    expect(flare.ailment.type == AilmentType::Ignite, "Flare applies Ignite");
+    expect(meteor.ailment.type == AilmentType::Ignite, "Meteor applies Ignite");
+    expect(frostBomb.ailment.type == AilmentType::Chill, "Frost Bomb applies Chill");
+    expect(ailmentTickDamage(meteor.ailment, 4) == 2,
+        "Ignite tick damage derives from the scaled hit damage");
+    expect(ailmentTickDamage(frostBomb.ailment, 4) == 0,
+        "Chill does not create damage-over-time ticks");
+
+    Enemy enemy({0.0f, 0.0f}, 10, 1);
+    enemy.applyIgnite(2, 2.0f);
+    expect(enemy.isIgnited(), "Ignite is active after application");
+    enemy.updateAilments(Config::AilmentTickInterval);
+    expect(enemy.hp() == 8, "Ignite deals its configured tick damage");
+
+    enemy.applyChill(0.55f, 1.5f);
+    expect(enemy.isChilled(), "Chill is active after application");
+    expect(std::abs(enemy.movementSpeedMultiplier() - 0.55f) < 0.0001f,
+        "Chill applies its movement speed multiplier");
+    enemy.applyChill(0.70f, 2.0f);
+    expect(std::abs(enemy.movementSpeedMultiplier() - 0.55f) < 0.0001f,
+        "weaker Chill does not overwrite a stronger existing Chill");
+    enemy.updateAilments(2.1f);
+    expect(!enemy.isChilled(), "Chill expires after its duration");
+    expect(std::abs(enemy.movementSpeedMultiplier() - 1.0f) < 0.0001f,
+        "movement speed returns to normal after Chill expires");
+}
+
 // --- Armor mitigation via Player (shipped path) ---
 void testPlayerArmorMitigation() {
     section("Player armor damage mitigation");
@@ -469,6 +503,7 @@ int main() {
     testPassiveTreePrerequisitesAndStats();
     testSkillBarAssignSkillAndSupport();
     testCombatMathDamageRadiusPierce();
+    testSkillAilments();
     testPlayerArmorMitigation();
     testEquipmentChangesCombatStats();
     testLootGeneration();

@@ -19,19 +19,27 @@ Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type,
     , attackReady_(false)
     , chargeDirection_()
     , chargeTimer_(0.0f)
-    , chargeHitConsumed_(false) {
+    , chargeHitConsumed_(false)
+    , igniteDamagePerTick_(0)
+    , igniteTimer_(0.0f)
+    , igniteTickTimer_(0.0f)
+    , chillTimer_(0.0f)
+    , chillSpeedMultiplier_(1.0f) {
 }
 
 void Enemy::update(float dt, const Vector2& targetPosition, const MapInstance& map) {
     if (isBoss()) {
         Vector2 direction = (targetPosition - position_).normalized();
-        position_ = map.resolveMovement(position_, radius_, direction * Config::EnemySpeed * dt);
+        position_ = map.resolveMovement(
+            position_, radius_, direction * Config::EnemySpeed * movementSpeedMultiplier() * dt
+        );
         return;
     }
 
     const auto& definition = EnemyLibrary::forType(type_);
     attackCooldownTimer_ = std::max(0.0f, attackCooldownTimer_ - dt);
-    const float speedMultiplier = EliteModifierLibrary::forModifier(eliteModifier_).speedMultiplier;
+    const float speedMultiplier = EliteModifierLibrary::forModifier(eliteModifier_).speedMultiplier
+        * movementSpeedMultiplier();
 
     if (chargeTimer_ > 0.0f) {
         const float chargeStep = std::min(dt, chargeTimer_);
@@ -80,8 +88,51 @@ void Enemy::update(float dt, const Vector2& targetPosition, const MapInstance& m
     position_ = map.resolveMovement(position_, radius_, direction * Config::EnemySpeed * speedMultiplier * dt);
 }
 
+void Enemy::updateAilments(float dt) {
+    if (igniteTimer_ > 0.0f) {
+        const float activeTime = std::min(dt, igniteTimer_);
+        igniteTimer_ = std::max(0.0f, igniteTimer_ - dt);
+        igniteTickTimer_ -= activeTime;
+        while (igniteTickTimer_ <= 0.0f && igniteTimer_ > 0.0f && !isDead()) {
+            takeDamage(igniteDamagePerTick_);
+            igniteTickTimer_ += Config::AilmentTickInterval;
+        }
+        if (igniteTimer_ <= 0.0f) {
+            igniteDamagePerTick_ = 0;
+            igniteTickTimer_ = 0.0f;
+        }
+    }
+
+    chillTimer_ = std::max(0.0f, chillTimer_ - dt);
+    if (chillTimer_ <= 0.0f) {
+        chillSpeedMultiplier_ = 1.0f;
+    }
+}
+
 void Enemy::takeDamage(int damage) {
     hp_ -= damage;
+}
+
+void Enemy::applyIgnite(int damagePerTick, float duration) {
+    if (damagePerTick <= 0 || duration <= 0.0f) {
+        return;
+    }
+
+    igniteDamagePerTick_ = std::max(igniteDamagePerTick_, damagePerTick);
+    igniteTimer_ = std::max(igniteTimer_, duration);
+    igniteTickTimer_ = std::min(igniteTickTimer_, Config::AilmentTickInterval);
+    if (igniteTickTimer_ <= 0.0f) {
+        igniteTickTimer_ = Config::AilmentTickInterval;
+    }
+}
+
+void Enemy::applyChill(float speedMultiplier, float duration) {
+    if (speedMultiplier <= 0.0f || speedMultiplier >= 1.0f || duration <= 0.0f) {
+        return;
+    }
+
+    chillSpeedMultiplier_ = std::min(chillSpeedMultiplier_, speedMultiplier);
+    chillTimer_ = std::max(chillTimer_, duration);
 }
 
 void Enemy::kill() {
@@ -117,6 +168,11 @@ bool Enemy::isCharger() const {
     return EnemyLibrary::forType(type_).attackStyle == EnemyAttackStyle::Charge;
 }
 bool Enemy::isCharging() const { return chargeTimer_ > 0.0f; }
+bool Enemy::isIgnited() const { return igniteTimer_ > 0.0f; }
+bool Enemy::isChilled() const { return chillTimer_ > 0.0f; }
+float Enemy::movementSpeedMultiplier() const {
+    return isChilled() ? chillSpeedMultiplier_ : 1.0f;
+}
 Vector2 Enemy::chargeTargetPosition() const {
     if (!isCharger()) {
         return position_;

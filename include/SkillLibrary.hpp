@@ -44,7 +44,10 @@ public:
             Config::SecondarySkillCooldown,
             Config::SecondarySkillRadius,
             Config::SecondarySkillDamage,
-            Config::SecondarySkillEffectDuration
+            Config::SecondarySkillEffectDuration,
+            1,
+            0.0f,
+            {AilmentType::Ignite, 2.5f, 0.50f}
         };
     }
 
@@ -56,7 +59,10 @@ public:
             Config::MeteorCooldown,
             Config::MeteorRadius,
             Config::MeteorDamage,
-            Config::MeteorEffectDuration
+            Config::MeteorEffectDuration,
+            1,
+            0.0f,
+            {AilmentType::Ignite, 3.5f, 0.50f}
         };
     }
 
@@ -68,7 +74,10 @@ public:
             1.2f,
             100.0f,
             2,
-            0.20f
+            0.20f,
+            1,
+            0.0f,
+            {AilmentType::Chill, 2.5f, 0.0f, 0.55f}
         };
     }
 

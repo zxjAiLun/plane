@@ -92,3 +92,13 @@ inline int supportAreaDamage(
 inline float supportAreaRadius(const SupportDefinition& support, const Stats& stats) {
     return support.dashRadius * stats.areaRadiusMultiplier;
 }
+
+inline int ailmentTickDamage(const AilmentDefinition& ailment, int hitDamage) {
+    if (ailment.type != AilmentType::Ignite || ailment.damageMultiplier <= 0.0f || hitDamage <= 0) {
+        return 0;
+    }
+
+    return std::max(1, static_cast<int>(std::ceil(
+        static_cast<float>(hitDamage) * ailment.damageMultiplier
+    )));
+}
