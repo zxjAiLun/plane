@@ -722,11 +722,12 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
     }
 
     const auto& skill = skillBar_.definition(SkillSlot::Utility);
+    const AilmentDefinition ailment = ailmentForPlayerSkill(skill);
     dealAreaDamage(
         player_.position(),
         radiusForPlayerSkill(skill),
         damageForPlayerSkill(skill),
-        &skill.ailment
+        &ailment
     );
     novaEffectTimer_ = skill.effectDuration;
 }
@@ -737,11 +738,12 @@ void GameWorld::tryCastSecondarySkill(Input& input) {
     }
 
     const auto& skill = skillBar_.definition(SkillSlot::Secondary);
+    const AilmentDefinition ailment = ailmentForPlayerSkill(skill);
     dealAreaDamage(
         aimPosition_,
         radiusForPlayerSkill(skill),
         damageForPlayerSkill(skill),
-        &skill.ailment
+        &ailment
     );
     secondarySkillEffectPosition_ = aimPosition_;
     secondarySkillEffectTimer_ = skill.effectDuration;
@@ -763,13 +765,14 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
 
     const auto& skill = skillBar_.definition(SkillSlot::Primary);
     const int damage = damageForPlayerSkill(skill);
+    const AilmentDefinition ailment = ailmentForPlayerSkill(skill);
 
     const int projectileCount = projectileCountForPlayerSkill(skill);
     const float spreadAngle = spreadAngleForPlayerSkill(skill);
     if (projectileCount <= 1 || spreadAngle <= 0.0f) {
         projectiles_.push_back(Projectile(
             player_.position(), direction * Config::ProjectileSpeed, damage,
-            pierceCountForPlayerSkill(skill), skill.ailment
+            pierceCountForPlayerSkill(skill), ailment
         ));
         return;
     }
@@ -791,7 +794,7 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
             rotated * Config::ProjectileSpeed,
             damage,
             pierceCountForPlayerSkill(skill),
-            skill.ailment
+            ailment
         ));
     }
 }
@@ -1007,6 +1010,10 @@ int GameWorld::projectileCountForPlayerSkill(const SkillDefinition& skill) const
 
 float GameWorld::spreadAngleForPlayerSkill(const SkillDefinition& skill) const {
     return skillSpreadAngle(skill, skillBar_.support(skill.slot));
+}
+
+AilmentDefinition GameWorld::ailmentForPlayerSkill(const SkillDefinition& skill) const {
+    return skillAilment(skill, skillBar_.support(skill.slot));
 }
 
 void GameWorld::noteElitePackEnemyDefeated(const Enemy& enemy) {

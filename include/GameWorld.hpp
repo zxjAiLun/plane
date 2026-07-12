@@ -172,6 +172,7 @@ private:
     int pierceCountForPlayerSkill(const SkillDefinition& skill) const;
     int projectileCountForPlayerSkill(const SkillDefinition& skill) const;
     float spreadAngleForPlayerSkill(const SkillDefinition& skill) const;
+    AilmentDefinition ailmentForPlayerSkill(const SkillDefinition& skill) const;
     void noteElitePackEnemyDefeated(const Enemy& enemy);
     void tryPickupDroppedItem(Input& input);
     void trySpendPassivePoint(Input& input);

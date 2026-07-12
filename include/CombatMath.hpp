@@ -93,6 +93,34 @@ inline float supportAreaRadius(const SupportDefinition& support, const Stats& st
     return support.dashRadius * stats.areaRadiusMultiplier;
 }
 
+inline AilmentDefinition skillAilment(
+    const SkillDefinition& skill,
+    const SupportDefinition* support
+) {
+    AilmentDefinition ailment = skill.ailment;
+    if (ailment.type == AilmentType::None || !support) {
+        return ailment;
+    }
+
+    ailment.duration *= support->ailmentDurationMultiplier;
+    switch (ailment.type) {
+        case AilmentType::Ignite:
+            ailment.damageMultiplier *= support->ailmentDamageMultiplier;
+            break;
+        case AilmentType::Chill:
+            ailment.speedMultiplier = std::clamp(
+                1.0f - (1.0f - ailment.speedMultiplier) * support->chillMagnitudeMultiplier,
+                0.20f,
+                1.0f
+            );
+            break;
+        case AilmentType::None:
+            break;
+    }
+
+    return ailment;
+}
+
 inline int ailmentTickDamage(const AilmentDefinition& ailment, int hitDamage) {
     if (ailment.type != AilmentType::Ignite || ailment.damageMultiplier <= 0.0f || hitDamage <= 0) {
         return 0;

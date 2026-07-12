@@ -1,4 +1,5 @@
 #include "Renderer.hpp"
+#include "CombatMath.hpp"
 #include "Config.hpp"
 #include "EnemyDefinition.hpp"
 #include "Equipment.hpp"
@@ -1310,7 +1311,9 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         std::string summary = skillEffectiveSummary(
             skill, world.player().stats(), world.skillBar().support(skill.slot)
         );
-        const std::string ailment = ailmentSummary(skill.ailment);
+        const std::string ailment = ailmentSummary(
+            skillAilment(skill, world.skillBar().support(skill.slot))
+        );
         if (!ailment.empty()) {
             summary += "  " + ailment;
         }

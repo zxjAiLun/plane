@@ -109,6 +109,15 @@ void testSkillBarAssignSkillAndSupport() {
             && bar.support(SkillSlot::Movement)->name == "Trailblazer",
         "Movement support is Trailblazer");
 
+    expect(bar.assignSkill(SkillSlot::Secondary, "Flare"), "assign Flare to Secondary");
+    expect(bar.assignSupport(SkillSlot::Secondary, "Combustion"),
+        "Combustion attaches to Ignite skill");
+    expect(!bar.assignSupport(SkillSlot::Secondary, "Deep Chill"),
+        "reject Deep Chill on Ignite skill");
+    expect(bar.assignSkill(SkillSlot::Secondary, "Frost Bomb"), "assign Frost Bomb to Secondary");
+    expect(bar.assignSupport(SkillSlot::Secondary, "Deep Chill"),
+        "Deep Chill attaches to Chill skill");
+
     // Replacing projectile skill with another keeps Pierce only if still compatible.
     expect(bar.assignSkill(SkillSlot::Utility, "Pulse"), "assign Pulse to Utility");
     expect(bar.assignSupport(SkillSlot::Utility, "Quickcast"), "Quickcast on Utility");
@@ -129,8 +138,11 @@ void testCombatMathDamageRadiusPierce() {
     const SupportDefinition* quickcast = SupportLibrary::find("Quickcast");
     const SupportDefinition* volley = SupportLibrary::find("Volley");
     const SupportDefinition* trailblazer = SupportLibrary::find("Trailblazer");
+    const SupportDefinition* combustion = SupportLibrary::find("Combustion");
+    const SupportDefinition* deepChill = SupportLibrary::find("Deep Chill");
     expect(pierce != nullptr && amplify != nullptr && quickcast != nullptr
-            && volley != nullptr && trailblazer != nullptr,
+            && volley != nullptr && trailblazer != nullptr
+            && combustion != nullptr && deepChill != nullptr,
         "supports exist in library");
 
     Stats stats;
@@ -180,6 +192,22 @@ void testCombatMathDamageRadiusPierce() {
         "Trailblazer damage stacks shrine multiplier");
     expect(supportAreaRadius(*trailblazer, stats) > trailblazer->dashRadius,
         "Trailblazer radius scales with area specialization");
+
+    const AilmentDefinition baseIgnite = SkillLibrary::meteor().ailment;
+    const AilmentDefinition combustionIgnite = skillAilment(SkillLibrary::meteor(), combustion);
+    expect(combustionIgnite.damageMultiplier > baseIgnite.damageMultiplier,
+        "Combustion increases Ignite damage multiplier");
+    expect(combustionIgnite.duration > baseIgnite.duration,
+        "Combustion increases Ignite duration");
+    expect(skillDamage(SkillLibrary::meteor(), stats, combustion) < areaDmg,
+        "Combustion applies its hit damage tradeoff");
+
+    const AilmentDefinition baseChill = SkillLibrary::frostBomb().ailment;
+    const AilmentDefinition specializedChill = skillAilment(SkillLibrary::frostBomb(), deepChill);
+    expect(specializedChill.duration > baseChill.duration,
+        "Deep Chill increases Chill duration");
+    expect(specializedChill.speedMultiplier < baseChill.speedMultiplier,
+        "Deep Chill increases Chill slow strength");
 
     expect(refilledFlaskCharges(0, 3, 1) == 1, "flask refill adds granted charge");
     expect(refilledFlaskCharges(2, 3, 3) == 3, "flask refill is capped at maximum charges");
