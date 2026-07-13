@@ -595,6 +595,7 @@ void Renderer::render(const GameWorld& world) {
         case GameState::MapComplete:
             drawMapComplete(world);
             drawMapCompleteInventoryPanel(world);
+            drawMapCompleteStashPanel(world);
             drawCraftingPanel(world);
             drawMapCompleteLootDetail(world);
             break;
@@ -1222,7 +1223,8 @@ void Renderer::drawInventory(const GameWorld& world) {
     const std::size_t visibleCount = std::min<std::size_t>(items.size(), 9);
     for (std::size_t i = 0; i < visibleCount; ++i) {
         const auto& item = items[i];
-        const bool isSelected = (static_cast<int>(i) == selectedIndex);
+        const bool isSelected = !world.stashSelectionActive()
+            && static_cast<int>(i) == selectedIndex;
         const bool isHovered = (i == hovered);
         const std::string line = (isSelected ? "> " : "") + std::to_string(i + 1) + ". "
             + item.name + " [" + slotName(item.slot) + "] " + statsSummary(item.stats);
@@ -1752,7 +1754,10 @@ void Renderer::drawMapComplete(const GameWorld& world) {
         pickupY += 20.0f;
     }
     if (world.inventory().isFull()) {
-        drawText("Inventory full - Tab select / Del drop an item", {20.0f, pickupY}, 14, sf::Color(255, 90, 90));
+        const std::string fullPrompt = world.stashSelectionActive()
+            ? "Inventory full - O Take selected Stash item"
+            : "Inventory full - Tab select / Del drop an item";
+        drawText(fullPrompt, {20.0f, pickupY}, 14, sf::Color(255, 90, 90));
     }
 
     const auto& mapOptions = world.nextMapOptions();
@@ -1830,10 +1835,12 @@ void Renderer::drawMapCompleteInventoryPanel(const GameWorld& world) {
     drawText(inventoryTitle, {x, y}, 16, inventoryFull ? sf::Color(255, 90, 90) : sf::Color::White);
     y += 20.0f;
     if (inventoryFull) {
-        drawText("Inventory full - drop an item to loot", {x, y}, 12, sf::Color(255, 90, 90));
+        drawText("Inventory full - O Take / Del Drop", {x, y}, 12, sf::Color(255, 90, 90));
+        y += 16.0f;
+        drawText("Tab Cycle  I Store", {x, y}, 12, sf::Color(165, 175, 190));
         y += 16.0f;
     } else {
-        drawText("Tab Select  Del Drop  C Salvage  V Craft", {x, y}, 12, sf::Color(150, 160, 175));
+        drawText("Tab Cycle  I Store  O Take  C Salvage", {x, y}, 12, sf::Color(150, 160, 175));
         y += 16.0f;
     }
 
@@ -1841,7 +1848,8 @@ void Renderer::drawMapCompleteInventoryPanel(const GameWorld& world) {
     const std::size_t visibleCount = std::min<std::size_t>(items.size(), 9);
     for (std::size_t i = 0; i < visibleCount; ++i) {
         const auto& item = items[i];
-        const bool isSelected = (static_cast<int>(i) == selectedIndex);
+        const bool isSelected = !world.stashSelectionActive()
+            && static_cast<int>(i) == selectedIndex;
         const std::string line = (isSelected ? "> " : "") + std::to_string(i + 1) + ". "
             + item.name + " [" + slotName(item.slot) + "] " + statsSummary(item.stats);
         sf::Color rowColor = rarityColor(item.rarity);
@@ -1860,6 +1868,48 @@ void Renderer::drawMapCompleteInventoryPanel(const GameWorld& world) {
     }
 }
 
+void Renderer::drawMapCompleteStashPanel(const GameWorld& world) {
+    const float x = 8.0f;
+    const float y = static_cast<float>(Config::WindowHeight) - 174.0f;
+    const float panelW = 154.0f;
+    const float panelH = 166.0f;
+    drawBox({x + panelW / 2.0f, y + panelH / 2.0f}, {panelW, panelH}, sf::Color(18, 22, 30));
+
+    const auto& items = world.stash().items();
+    const std::string title = "Stash " + std::to_string(world.stash().size())
+        + "/" + std::to_string(world.stash().capacity());
+    drawText(title, {x + 8.0f, y + 8.0f}, 16, world.stash().isFull()
+        ? sf::Color(255, 90, 90)
+        : sf::Color::White);
+    drawText("Tab Cycle  I Store  O Take", {x + 8.0f, y + 28.0f}, 11, sf::Color(165, 175, 190));
+
+    const int selectedIndex = world.selectedStashIndex();
+    const auto compactName = [](const std::string& name) {
+        return name.size() > 17 ? name.substr(0, 14) + "..." : name;
+    };
+    if (world.stashSelectionActive() && selectedIndex >= 0
+        && static_cast<std::size_t>(selectedIndex) < items.size()) {
+        drawText("Selected: " + compactName(items[static_cast<std::size_t>(selectedIndex)].name),
+            {x + 8.0f, y + 48.0f}, 11, sf::Color(255, 215, 90));
+    } else {
+        drawText("Selected: Inventory", {x + 8.0f, y + 48.0f}, 11, sf::Color(180, 195, 210));
+    }
+
+    const std::size_t visibleCount = std::min<std::size_t>(items.size(), 5);
+    float rowY = y + 68.0f;
+    for (std::size_t i = 0; i < visibleCount; ++i) {
+        const bool selected = world.stashSelectionActive()
+            && static_cast<int>(i) == selectedIndex;
+        const std::string marker = selected ? "> " : "  ";
+        drawText(marker + std::to_string(i + 1) + ". " + compactName(items[i].name),
+            {x + 8.0f, rowY}, 11, selected ? sf::Color(255, 215, 90) : rarityColor(items[i].rarity));
+        rowY += 16.0f;
+    }
+    if (items.size() > visibleCount) {
+        drawText("... Tab cycles remaining", {x + 8.0f, rowY}, 10, sf::Color(150, 160, 175));
+    }
+}
+
 void Renderer::drawMapCompleteLootDetail(const GameWorld& world) {
     const int index = world.focusedDroppedItemIndex();
     if (index < 0) {
@@ -1868,7 +1918,9 @@ void Renderer::drawMapCompleteLootDetail(const GameWorld& world) {
     const auto& droppedItem = world.droppedItems()[static_cast<std::size_t>(index)];
     const Item& item = droppedItem.item();
     const std::string actionHint = world.inventory().isFull()
-        ? "Inventory full - Tab select / Del drop an item"
+        ? (world.stashSelectionActive()
+            ? "Inventory full - O Take selected Stash item"
+            : "Inventory full - Tab select / Del drop an item")
         : "F Pick up";
     // Top-left placement keeps the detail visible in the 800x600 window while
     // leaving the centered reward/map choice area and right-side inventory readable.

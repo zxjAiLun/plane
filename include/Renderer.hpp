@@ -40,6 +40,7 @@ private:
     void drawGameOver(const GameWorld& world);
     void drawMapComplete(const GameWorld& world);
     void drawMapCompleteInventoryPanel(const GameWorld& world);
+    void drawMapCompleteStashPanel(const GameWorld& world);
     void drawMapCompleteLootDetail(const GameWorld& world);
 
     void drawBox(const sf::Vector2f& center, const sf::Vector2f& size, const sf::Color& color);

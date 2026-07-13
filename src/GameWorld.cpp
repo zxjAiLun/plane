@@ -96,6 +96,8 @@ GameWorld::GameWorld()
     , lifeFlaskStatusTimer_(0.0f)
     , inventoryFullTimer_(0.0f)
     , selectedInventoryIndex_(-1)
+    , selectedStashIndex_(-1)
+    , stashSelectionActive_(false)
     , mapEventInteractionConsumed_(false)
     , activeEliteEventIndex_(-1)
     , eliteEventEnemiesRemaining_(0) {
@@ -148,6 +150,8 @@ void GameWorld::update(float dt, Input& input) {
             // 1-9 stays mapped to reward/map choices and never equips during settlement.
             tryPickupDroppedItem(input);
             trySelectInventoryItem(input);
+            tryMoveSelectedInventoryToStash(input);
+            tryMoveSelectedStashToInventory(input);
             tryDropSelectedInventoryItem(input);
             trySalvageSelectedInventoryItem(input);
             removeDeadObjects();
@@ -289,6 +293,7 @@ void GameWorld::reset() {
     groundHazards_.clear();
     droppedItems_.clear();
     inventory_.clear();
+    stash_.clear();
     spawner_.reset();
     skillBar_.reset();
     initializeRunProgression();
@@ -344,6 +349,8 @@ void GameWorld::reset() {
     lifeFlaskStatusTimer_ = 0.0f;
     inventoryFullTimer_ = 0.0f;
     selectedInventoryIndex_ = -1;
+    selectedStashIndex_ = -1;
+    stashSelectionActive_ = false;
     mapEventInteractionConsumed_ = false;
     activeEliteEventIndex_ = -1;
     eliteEventEnemiesRemaining_ = 0;
@@ -417,6 +424,8 @@ void GameWorld::startNextMap() {
     lifeFlaskStatusTimer_ = 0.0f;
     inventoryFullTimer_ = 0.0f;
     selectedInventoryIndex_ = -1;
+    selectedStashIndex_ = -1;
+    stashSelectionActive_ = false;
     mapEventInteractionConsumed_ = false;
     activeEliteEventIndex_ = -1;
     eliteEventEnemiesRemaining_ = 0;
@@ -1450,16 +1459,54 @@ void GameWorld::trySelectInventoryItem(Input& input) {
         return;
     }
 
-    const std::size_t size = inventory_.size();
-    if (size == 0) {
-        selectedInventoryIndex_ = -1;
+    if (state_ != GameState::MapComplete) {
+        stashSelectionActive_ = false;
+        const std::size_t size = inventory_.size();
+        if (size == 0) {
+            selectedInventoryIndex_ = -1;
+            return;
+        }
+        selectedInventoryIndex_ = (selectedInventoryIndex_ + 1) % static_cast<int>(size);
         return;
     }
-    selectedInventoryIndex_ = (selectedInventoryIndex_ + 1) % static_cast<int>(size);
+
+    const std::size_t inventorySize = inventory_.size();
+    const std::size_t stashSize = stash_.size();
+    if (inventorySize == 0 && stashSize == 0) {
+        selectedInventoryIndex_ = -1;
+        selectedStashIndex_ = -1;
+        stashSelectionActive_ = false;
+        return;
+    }
+
+    if (!stashSelectionActive_) {
+        if (selectedInventoryIndex_ + 1 < static_cast<int>(inventorySize)) {
+            ++selectedInventoryIndex_;
+        } else if (stashSize > 0) {
+            stashSelectionActive_ = true;
+            selectedStashIndex_ = 0;
+        } else {
+            selectedInventoryIndex_ = 0;
+        }
+        return;
+    }
+
+    if (selectedStashIndex_ + 1 < static_cast<int>(stashSize)) {
+        ++selectedStashIndex_;
+    } else if (inventorySize > 0) {
+        stashSelectionActive_ = false;
+        selectedInventoryIndex_ = 0;
+    } else {
+        selectedStashIndex_ = 0;
+    }
 }
 
 void GameWorld::tryDropSelectedInventoryItem(Input& input) {
     if (!input.inventoryDropSelected()) {
+        return;
+    }
+
+    if (state_ == GameState::MapComplete && stashSelectionActive_) {
         return;
     }
 
@@ -1499,6 +1546,7 @@ void GameWorld::tryDropSelectedInventoryItem(Input& input) {
 
 void GameWorld::trySalvageSelectedInventoryItem(Input& input) {
     if (!input.inventorySalvageSelected()
+        || (state_ == GameState::MapComplete && stashSelectionActive_)
         || selectedInventoryIndex_ < 0
         || static_cast<std::size_t>(selectedInventoryIndex_) >= inventory_.size()) {
         return;
@@ -1517,6 +1565,85 @@ void GameWorld::trySalvageSelectedInventoryItem(Input& input) {
     updateSelectedInventoryIndex();
 }
 
+void GameWorld::tryMoveSelectedInventoryToStash(Input& input) {
+    if (!input.stashStoreSelected()
+        || state_ != GameState::MapComplete
+        || craftingState_.open
+        || stashSelectionActive_) {
+        return;
+    }
+
+    if (selectedInventoryIndex_ < 0
+        || static_cast<std::size_t>(selectedInventoryIndex_) >= inventory_.size()) {
+        eventStatusMessage_ = "Select an inventory item first";
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+    if (stash_.isFull()) {
+        eventStatusMessage_ = "Stash full";
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+
+    const std::size_t index = static_cast<std::size_t>(selectedInventoryIndex_);
+    auto item = inventory_.take(index);
+    if (!item) {
+        updateSelectedInventoryIndex();
+        return;
+    }
+
+    // Check capacity before taking and keep a defensive rollback for future
+    // changes to the container implementation.
+    if (!stash_.add(*item)) {
+        inventory_.insert(index, std::move(*item));
+        eventStatusMessage_ = "Stash full";
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+
+    eventStatusMessage_ = "Moved item to Stash";
+    eventStatusTimer_ = 2.0f;
+    updateSelectedInventoryIndex();
+}
+
+void GameWorld::tryMoveSelectedStashToInventory(Input& input) {
+    if (!input.stashWithdrawSelected()
+        || state_ != GameState::MapComplete
+        || craftingState_.open
+        || !stashSelectionActive_) {
+        return;
+    }
+
+    if (selectedStashIndex_ < 0
+        || static_cast<std::size_t>(selectedStashIndex_) >= stash_.size()) {
+        updateSelectedInventoryIndex();
+        return;
+    }
+    if (inventory_.isFull()) {
+        eventStatusMessage_ = "Inventory full";
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+
+    const std::size_t index = static_cast<std::size_t>(selectedStashIndex_);
+    auto item = stash_.take(index);
+    if (!item) {
+        updateSelectedInventoryIndex();
+        return;
+    }
+
+    if (!inventory_.add(*item)) {
+        stash_.insert(index, std::move(*item));
+        eventStatusMessage_ = "Inventory full";
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+
+    eventStatusMessage_ = "Moved item to Inventory";
+    eventStatusTimer_ = 2.0f;
+    updateSelectedInventoryIndex();
+}
+
 void GameWorld::tryToggleCraftingPanel(Input& input) {
     if (!input.craftingToggle()) {
         return;
@@ -1527,7 +1654,8 @@ void GameWorld::tryToggleCraftingPanel(Input& input) {
         return;
     }
 
-    if (selectedInventoryIndex_ < 0
+    if (stashSelectionActive_
+        || selectedInventoryIndex_ < 0
         || static_cast<std::size_t>(selectedInventoryIndex_) >= inventory_.size()) {
         eventStatusMessage_ = "Select an inventory item first";
         eventStatusTimer_ = 2.0f;
@@ -1656,10 +1784,30 @@ void GameWorld::updateSelectedInventoryIndex() {
     const std::size_t size = inventory_.size();
     if (size == 0) {
         selectedInventoryIndex_ = -1;
+    } else if (selectedInventoryIndex_ >= static_cast<int>(size)) {
+        selectedInventoryIndex_ = static_cast<int>(size) - 1;
+    }
+
+    const std::size_t stashSize = stash_.size();
+    if (stashSize == 0) {
+        selectedStashIndex_ = -1;
+    } else if (selectedStashIndex_ >= static_cast<int>(stashSize)) {
+        selectedStashIndex_ = static_cast<int>(stashSize) - 1;
+    }
+
+    if (state_ != GameState::MapComplete) {
+        stashSelectionActive_ = false;
+        selectedStashIndex_ = -1;
         return;
     }
-    if (selectedInventoryIndex_ >= static_cast<int>(size)) {
-        selectedInventoryIndex_ = static_cast<int>(size) - 1;
+
+    if (stashSelectionActive_ && stashSize == 0 && size > 0) {
+        stashSelectionActive_ = false;
+    } else if (!stashSelectionActive_ && size == 0 && stashSize > 0) {
+        stashSelectionActive_ = true;
+        if (selectedStashIndex_ < 0) {
+            selectedStashIndex_ = 0;
+        }
     }
 }
 
@@ -1975,6 +2123,7 @@ const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
 const std::vector<GroundHazard>& GameWorld::groundHazards() const { return groundHazards_; }
 const std::vector<DroppedItem>& GameWorld::droppedItems() const { return droppedItems_; }
 const Inventory& GameWorld::inventory() const { return inventory_; }
+const Stash& GameWorld::stash() const { return stash_; }
 int GameWorld::lifeFlaskCharges() const { return lifeFlaskCharges_; }
 int GameWorld::lifeFlaskMaxCharges() const { return Config::LifeFlaskMaxCharges; }
 std::string GameWorld::lifeFlaskStatusMessage() const { return lifeFlaskStatusMessage_; }
@@ -2146,6 +2295,8 @@ std::string GameWorld::pickupPrompt() const {
 }
 
 int GameWorld::selectedInventoryIndex() const { return selectedInventoryIndex_; }
+int GameWorld::selectedStashIndex() const { return selectedStashIndex_; }
+bool GameWorld::stashSelectionActive() const { return stashSelectionActive_; }
 bool GameWorld::craftingPanelOpen() const { return craftingState_.open; }
 CraftingOperation GameWorld::craftingOperation() const { return craftingState_.operation; }
 int GameWorld::craftingAffixIndex() const { return craftingState_.affixIndex; }

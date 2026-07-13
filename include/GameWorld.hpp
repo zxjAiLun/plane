@@ -17,6 +17,7 @@
 #include "MapModifier.hpp"
 #include "MapRewardLibrary.hpp"
 #include "SkillBar.hpp"
+#include "Stash.hpp"
 #include "Upgrade.hpp"
 #include "Input.hpp"
 
@@ -66,8 +67,11 @@ public:
     const std::vector<GroundHazard>& groundHazards() const;
     const std::vector<DroppedItem>& droppedItems() const;
     const Inventory& inventory() const;
+    const Stash& stash() const;
     float inventoryFullPromptTimeRemaining() const;
     int selectedInventoryIndex() const;
+    int selectedStashIndex() const;
+    bool stashSelectionActive() const;
     bool craftingPanelOpen() const;
     CraftingOperation craftingOperation() const;
     int craftingAffixIndex() const;
@@ -199,6 +203,8 @@ private:
     void trySelectInventoryItem(Input& input);
     void tryDropSelectedInventoryItem(Input& input);
     void trySalvageSelectedInventoryItem(Input& input);
+    void tryMoveSelectedInventoryToStash(Input& input);
+    void tryMoveSelectedStashToInventory(Input& input);
     void tryToggleCraftingPanel(Input& input);
     void tryCraftSelectedItem(Input& input);
     void applyCraftingOperation();
@@ -238,6 +244,7 @@ private:
     std::vector<GroundHazard> groundHazards_;
     std::vector<DroppedItem> droppedItems_;
     Inventory inventory_;
+    Stash stash_;
     LootGenerator lootGenerator_;
     EnemySpawner spawner_;
     SkillBar skillBar_;
@@ -301,6 +308,8 @@ private:
     float lifeFlaskStatusTimer_;
     float inventoryFullTimer_ = 0.0f;
     int selectedInventoryIndex_ = -1;
+    int selectedStashIndex_ = -1;
+    bool stashSelectionActive_ = false;
     bool mapEventInteractionConsumed_;
     int activeEliteEventIndex_;
     int eliteEventEnemiesRemaining_;

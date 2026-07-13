@@ -8,9 +8,8 @@
 #include "Config.hpp"
 #include "Item.hpp"
 
-class Inventory {
+class Stash {
 public:
-    // Adds the item. Returns false (and leaves the inventory unchanged) when full.
     bool add(const Item& item) {
         if (isFull()) {
             return false;
@@ -57,10 +56,6 @@ public:
         return items_;
     }
 
-    Item* itemAt(std::size_t index) {
-        return index < items_.size() ? &items_[index] : nullptr;
-    }
-
     void clear() {
         items_.clear();
     }
@@ -70,15 +65,11 @@ public:
     }
 
     std::size_t capacity() const {
-        return static_cast<std::size_t>(Config::InventoryCapacity);
+        return static_cast<std::size_t>(Config::StashCapacity);
     }
 
     bool isFull() const {
         return items_.size() >= capacity();
-    }
-
-    std::size_t remainingSlots() const {
-        return isFull() ? 0 : capacity() - items_.size();
     }
 
 private:

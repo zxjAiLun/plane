@@ -15,6 +15,8 @@ void Input::update() {
     inventoryDropSelected_ = false;
     inventorySalvageSelected_ = false;
     craftingToggle_ = false;
+    stashStoreSelected_ = false;
+    stashWithdrawSelected_ = false;
     cancel_ = false;
     numberChoice_ = 0;
     functionChoice_ = 0;
@@ -43,6 +45,8 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::Delete: inventoryDropSelected_ = true; break;
         case sf::Keyboard::Key::C: inventorySalvageSelected_ = true; break;
         case sf::Keyboard::Key::V: craftingToggle_ = true; break;
+        case sf::Keyboard::Key::I: stashStoreSelected_ = true; break;
+        case sf::Keyboard::Key::O: stashWithdrawSelected_ = true; break;
         case sf::Keyboard::Key::Num1: numberChoice_ = 1; break;
         case sf::Keyboard::Key::Num2: numberChoice_ = 2; break;
         case sf::Keyboard::Key::Num3: numberChoice_ = 3; break;
@@ -144,5 +148,7 @@ bool Input::inventorySelectNext() const { return inventorySelectNext_; }
 bool Input::inventoryDropSelected() const { return inventoryDropSelected_; }
 bool Input::inventorySalvageSelected() const { return inventorySalvageSelected_; }
 bool Input::craftingToggle() const { return craftingToggle_; }
+bool Input::stashStoreSelected() const { return stashStoreSelected_; }
+bool Input::stashWithdrawSelected() const { return stashWithdrawSelected_; }
 bool Input::cancel() const { return cancel_; }
 sf::Vector2i Input::mousePosition() const { return mousePosition_; }

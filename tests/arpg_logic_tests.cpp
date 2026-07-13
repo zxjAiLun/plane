@@ -20,6 +20,7 @@
 #include "EnemyDefinition.hpp"
 #include "Equipment.hpp"
 #include "GroundHazard.hpp"
+#include "Inventory.hpp"
 #include "Item.hpp"
 #include "LootGenerator.hpp"
 #include "MapModifier.hpp"
@@ -29,6 +30,7 @@
 #include "Player.hpp"
 #include "SkillBar.hpp"
 #include "SkillLibrary.hpp"
+#include "Stash.hpp"
 #include "Stats.hpp"
 #include "SupportLibrary.hpp"
 
@@ -1285,6 +1287,68 @@ void testPassiveAndEquipPipeline() {
     expect(!player.spendPassivePoint(12), "reject allocate Iron Heart without middle nodes");
 }
 
+// --- Item container ownership and capacity ---
+void testItemContainers() {
+    section("Inventory and Stash capacity/ownership");
+
+    Stash stash;
+    expect(stash.size() == 0, "stash starts empty");
+    expect(stash.capacity() == static_cast<std::size_t>(Config::StashCapacity),
+        "stash exposes configured capacity");
+
+    Item preserved;
+    preserved.name = "Preserved Relic";
+    preserved.baseId = "test.relic";
+    preserved.itemLevel = 7;
+    expect(stash.add(preserved), "stash accepts a complete Item");
+    auto taken = stash.take(0);
+    expect(taken.has_value() && taken->name == "Preserved Relic"
+            && taken->baseId == "test.relic" && taken->itemLevel == 7,
+        "stash take preserves complete Item fields");
+    expect(!stash.take(0).has_value(), "stash rejects out-of-range take");
+
+    for (int index = 0; index < Config::StashCapacity; ++index) {
+        Item item;
+        item.name = "Stash Item " + std::to_string(index);
+        expect(stash.add(std::move(item)), "stash accepts item " + std::to_string(index));
+    }
+    expect(stash.isFull() && stash.size() == stash.capacity(), "stash reaches capacity");
+    Item rejected;
+    rejected.name = "Must Stay With Caller";
+    expect(!stash.add(rejected), "full stash rejects without growing");
+    expect(rejected.name == "Must Stay With Caller", "full stash leaves rejected Item untouched");
+    expect(stash.items().back().name == "Stash Item " + std::to_string(Config::StashCapacity - 1),
+        "full stash keeps existing items unchanged");
+    stash.clear();
+    expect(stash.size() == 0 && !stash.isFull(), "stash clear resets capacity state");
+
+    Inventory inventory;
+    Item first;
+    first.name = "First";
+    Item second;
+    second.name = "Second";
+    expect(inventory.add(std::move(first)) && inventory.add(std::move(second)),
+        "inventory accepts items");
+    Item inserted;
+    inserted.name = "Inserted";
+    expect(inventory.insert(1, std::move(inserted)), "inventory can restore an item at its source index");
+    expect(inventory.items().size() == 3 && inventory.items()[1].name == "Inserted",
+        "inventory insert preserves ordering");
+
+    for (int index = static_cast<int>(inventory.size());
+        index < static_cast<int>(inventory.capacity());
+        ++index) {
+        Item item;
+        item.name = "Inventory Item " + std::to_string(index);
+        inventory.add(std::move(item));
+    }
+    Item inventoryRejected;
+    inventoryRejected.name = "Inventory Must Stay";
+    expect(!inventory.add(std::move(inventoryRejected)), "full inventory rejects an Item");
+    expect(inventoryRejected.name == "Inventory Must Stay",
+        "full inventory leaves rejected Item untouched");
+}
+
 } // namespace
 
 int main() {
@@ -1312,6 +1376,7 @@ int main() {
     testMapOptionGeneration();
     testMapRewardGeneration();
     testPassiveAndEquipPipeline();
+    testItemContainers();
 
     std::cout << "\n========================================\n";
     std::cout << "Passed: " << g_passed << "  Failed: " << g_failures << '\n';

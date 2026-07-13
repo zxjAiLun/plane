@@ -37,6 +37,8 @@ public:
     bool inventoryDropSelected() const;
     bool inventorySalvageSelected() const;
     bool craftingToggle() const;
+    bool stashStoreSelected() const;
+    bool stashWithdrawSelected() const;
     bool cancel() const;
     sf::Vector2i mousePosition() const;
 
@@ -63,6 +65,8 @@ private:
     bool inventoryDropSelected_ = false;
     bool inventorySalvageSelected_ = false;
     bool craftingToggle_ = false;
+    bool stashStoreSelected_ = false;
+    bool stashWithdrawSelected_ = false;
     bool cancel_ = false;
     sf::Vector2i mousePosition_{0, 0};
 };
