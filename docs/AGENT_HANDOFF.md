@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`7e541a7 Harden map progression save validation`
+玩法代码基线：`595f03f Add multi-support skill links`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -1200,37 +1200,56 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 已知约束：连续地图测试通过 SaveData fixture 模拟 Boss 击杀，因此仍缺少无辅助输入的完整战斗通关自动化；这不是生产 debug API 的理由，后续应优先增加可测试的纯战斗/遭遇边界，而不是暴露私有世界容器。
 
-### 13.16 hy3 下一项实施任务：多 Support Link v1
+### 13.16 已完成任务记录：多 Support Link v1
 
-目标：把当前“每个技能最多一个 Support”升级为最小的 PoE-like Support Link 构筑。玩家可以在技能面板为同一主动技能装配两个兼容 Support，Support 的实际效果叠加，保存、预览、施法和结算奖励保持一致。
+目标：把每个技能的单 Support 限制升级为最小的 PoE-like 双 Link 构筑，并让实际施法、技能面板、装备比较和存档使用同一份结果。
+
+实现结果：
+
+- `SupportLibrary` 定义固定双 Link 数据结构；非 Movement 技能提供 2 个 Link，Movement 保持 1 个 Link；`SkillBar` 提供按 Link 查询、分配、清除和兼容性校验。
+- 同一 Support 不可重复安装，非兼容 Support、Movement 第二 Link、未知 Support 和坏存档字段都会被拒绝；未解锁 Support 只能通过结算奖励解锁，不能被 Skill Panel 快捷键绕过。
+- `CombatMath` 统一聚合全部 Link：伤害/冷却/范围倍率相乘，穿透/额外投射物/散射角累加，Ignite/Chill 的持续时间、强度和穿透按数据字段聚合；GameWorld 的 Projectile、Area、异常和 Movement 施法使用该路径。
+- `Renderer` 的 Skill Panel、装备替换预览和技能实际值预览改用多 Link 结果；面板显示两个 Link、兼容 Support 池以及 `E/A/L` 状态（已装备/可用/锁定）。F5/F6 选择 Link，F1-F4 在对应槽位循环 Support。
+- `SaveData::Version` 升级为 2；SkillBar 的每个槽位序列化两个 Support 名称。旧 v1、截断、CRC 损坏、非法重复和超出 Link 数量的存档不会污染当前运行。
+
+验收结果：
+
+- `arpg_logic_tests`：`930 passed / 0 failed`，覆盖双 Link 聚合、兼容/重复/Movement 边界和 SkillBar round-trip。
+- `arpg_save_tests`：`11 passed / 0 failed`，覆盖双 Link 序列化、旧 v1 拒绝、未知版本、CRC、截断和原子替换保护。
+- `arpg_world_tests`：`85 passed / 0 failed`，地图推进、Pause、MapComplete、存档恢复回归通过。
+- MSVC clean build、CTest `3/3`、三套测试直接运行和 3 秒启动 smoke 全部通过。
+- 主 review 修正了 Grok 产物中“数据结构已经双 Link、但战斗/Renderer 仍只读取第一条”的闭环缺口，最终提交为 `595f03f Add multi-support skill links`。
+
+已知约束：当前仍没有无辅助输入的完整 Boss 通关端到端测试；现有世界测试用合法 SaveData fixture 进入 MapComplete，这是测试边界而非生产 debug API。Support 仍是单局解锁、固定 Link 数量，没有颜色、等级、质量或 Support 物品。
+
+### 13.17 hy3 下一项实施任务：战斗反馈与完整 Boss 通关验证 v1
+
+目标：在继续增加内容前，证明玩家能理解并完成“移动 -> 命中 -> 受伤 -> 进入 Boss Arena -> 击杀 Boss -> 拾取掉落”的真实战斗闭环。重点是战斗反馈和可测试边界，不新增职业、技能或地图系统。
 
 开始前必须阅读：
 
-- `SkillBar.hpp`、`Skill.hpp`、`SupportLibrary.hpp`、`CombatMath.hpp`。
-- `GameWorld::tryCast*()`、`damageForPlayerSkill()`、`radiusForPlayerSkill()`、`tryCycleSkillSupport()`。
-- `Renderer::drawSkillPanel()`、技能详情/装备比较预览和 `SaveData/SaveService` 的 SkillBar 序列化。
-- `tests/arpg_logic_tests.cpp` 中 Support 兼容性、CombatMath 和 SkillBar save/restore 测试。
+- 本文档第 2、4、5、7、11、13.15、13.16 节。
+- `GameWorld::tryCast*()`、`handleCollisions()`、`handleBossProjectileCollisions()`、`rewardEnemyKill()`、`isMapCleared()`、`triggerBossIfNeeded()`。
+- `Enemy.hpp`、`EnemyDefinition.hpp`、`BossDefinition.hpp`、`CombatMath.hpp`、`Renderer.cpp` 的敌人/Boss 绘制和 HUD。
+- `tests/arpg_logic_tests.cpp`、`tests/game_world_logic_tests.cpp`、`tests/save_logic_tests.cpp`；先运行三套测试并记录基线。
 
-实施约束：
+实施范围：
 
-1. 非 Movement 技能默认提供 2 个 Support Link；Movement 默认 1 个，暂不做 Link 颜色、插槽掉落或 Support 物品。
-2. `SkillBar` 保存每个槽位的 Support 列表，保持空槽可序列化；旧的单 Support 存档若不兼容必须显式提升 `SaveData::Version` 并拒绝旧版本，不允许静默错读字段。
-3. `SupportLibrary::supportsSkill()` 仍是唯一兼容性判断；同一 Support 不得装入同一技能两次；两个 Support 的效果按 `CombatMath` 明确顺序聚合，禁止在 `GameWorld` 各施法分支手写叠加公式。
-4. `SkillBar` 提供只读 Support 列表、按 link index 分配/清除和实际 Support 查询；输入上下文只在 Skill Panel 处理，Playing 中数字键、鼠标和战斗输入语义不变。
-5. Skill Panel 增加 Link 选择和每个 Link 的兼容/锁定/已装备状态；保留现有 `1-8` 技能分配和 `F1-F4` 槽位 Support 快捷路径，但新增 link 选择必须有明确且不冲突的按键。
-6. Skill Panel、MapComplete 奖励预览、装备详情的实际数值必须共用同一套多 Support `CombatMath` 结果；Primary 的冷却、Projectile/Area 专精、Shrine buff、Ailment 和 Dash Trailblazer 都要覆盖。
-7. Support 奖励解锁仍是单局成长；没有解锁的 Support 在 Skill Panel 显示 Locked，不能通过快捷键绕过解锁状态。
-8. 不新增技能、不扩大天赋盘、不改装备槽、不引入技能宝石掉落、不重写 GameWorld 主循环；如果 `SkillBar` 过大，只抽取纯数据/计算 helper，不做无测试的大重构。
+1. 增加一个有上限的战斗反馈数据通道，例如短生命周期的 `CombatFeedback`/damage number 记录；记录来源、伤害值、世界坐标和剩余时间，不能让 Renderer 修改 GameWorld 状态。单帧/全局数量必须有硬上限，避免长时间刷怪导致无限增长。
+2. 玩家技能命中普通怪、精英和 Boss 时显示可读的伤害反馈；Boss 受伤时 HUD 血条、名称、阶段提示和伤害反馈必须同步，不得出现“血条掉了但没有命中反馈”或“显示命中但实际没有扣血”。
+3. 玩家受到普通怪接触伤害、敌人投射物和 Boss AoE/冲刺伤害时提供统一受击反馈；保持现有无敌帧、护甲、异常和 Shrine/Support 公式，不在 Renderer 复制伤害计算。
+4. 增加可自动测试的战斗边界，优先使用纯 `CombatMath`/Enemy 生命周期测试或现有公开行为；不要为了测试暴露生产环境的敌人容器、强制击杀 API 或 debug 按钮。至少覆盖：Support 双 Link 命中伤害、Boss HP 下降后血条查询一致、死亡奖励只结算一次、Boss 击杀后进入 MapComplete 且保底掉落存在。
+5. 如果必须补公开只读 getter，只暴露稳定业务信息（Boss 当前 HP/max HP、反馈记录只读视图）；不要把私有碰撞步骤搬到测试专用分支。事件短提示、地面拾取最近目标、MapComplete 背包管理必须保持不回归。
+6. UI 只做 800x600 可读性修正：伤害数字不遮挡目标名称和 Boss 血条，MapComplete 的奖励/地图选项、Inventory/Stash、Skill Panel 不新增重叠。不要引入贴图、粒子库、音频或复杂动画系统。
 
 必须验证：
 
-- 两个兼容 Support 同时装备后，Projectile/Area/Dash 的伤害、半径、冷却、投射物数量、异常效果和实际施法结果一致。
-- 非兼容、重复、未解锁和超出 Link 数量的分配全部失败且无状态副作用。
-- Save/Load round-trip 保留每个 Link；坏版本和截断存档不污染当前 run。
-- MapComplete 的 Support 解锁奖励、Skill Panel、装备比较预览和 HUD 数值保持一致。
-- clean build、CTest、直接运行三类测试和 3 秒启动 smoke；实现 Agent 不提交代码，由主 review Agent 复核并提交。
+- 固定 seed 下，至少一条真实技能命中路径能观察到普通怪和 Boss 的 HP 变化；Support 双 Link、Projectile/Area 专精和 Shrine buff 的最终伤害与反馈数字一致。
+- 普通怪、精英、Boss 的死亡奖励不会重复计数；Boss 击杀后掉落、MapComplete、F 拾取和下一图选择流程完整。
+- `arpg_logic_tests`、`arpg_save_tests`、`arpg_world_tests` 全部通过并报告精确数量；至少新增 Boss/战斗边界测试，不接受只说“构建通过”。
+- MSVC clean build、CTest `3/3`、三套测试直接运行、3 秒启动 smoke；完成后保持工作区未提交，由主 review Agent 检查 diff、修复、提交并更新本手册。
 
-明确不做：Support 等级、质量、颜色、宝石掉落、Link 随机数、技能树重做、交易和完整职业系统。
+明确不做：新技能、新 Support、新 Boss、新地图事件、职业系统、装备新槽、掉落过滤、自动拾取、音频、美术资源、网络、跨运行存档和大型 GameWorld 重构。
 
 ## 14. 项目进度看板
 
@@ -1249,6 +1268,6 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
 | 连续刷图验收 | v1 完成 | 五次 MapComplete -> 选奖励 -> 选地图 -> E 推进、成长保留和非法阶段保护已有 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 920 条、存档 11 条、GameWorld 85 条通过，仍缺 Renderer/UI 和完整战斗通关端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 930 条、存档 11 条、GameWorld 85 条通过，仍缺 Renderer/UI 和完整战斗通关端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
