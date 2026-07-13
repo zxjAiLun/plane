@@ -278,52 +278,42 @@ std::string formatFloat(float value, int precision = 1) {
     return stream.str();
 }
 
-int effectiveSkillDamage(const SkillDefinition& skill, const Stats& stats, const SupportDefinition* support = nullptr) {
+int effectiveSkillDamage(const SkillDefinition& skill, const Stats& stats, const SupportList& supports) {
     if (skill.baseDamage <= 0) {
         return 0;
     }
 
-    float damage = static_cast<float>(skill.baseDamage) * stats.damageMultiplier;
-    switch (skill.castType) {
-        case SkillCastType::Projectile:
-            damage *= stats.projectileDamageMultiplier;
-            break;
-        case SkillCastType::SelfCenteredArea:
-        case SkillCastType::MouseTargetedArea:
-            damage *= stats.areaDamageMultiplier;
-            break;
-        case SkillCastType::Dash:
-            break;
-    }
+    return skillDamage(skill, stats, supports);
+}
 
-    if (support) {
-        damage *= support->damageMultiplier;
-    }
+int effectiveSkillDamage(const SkillDefinition& skill, const Stats& stats, const SupportDefinition* support = nullptr) {
+    return effectiveSkillDamage(skill, stats, SupportList{support, nullptr});
+}
 
-    return std::max(1, static_cast<int>(std::ceil(damage)));
+float effectiveSkillRadius(const SkillDefinition& skill, const Stats& stats, const SupportList& supports) {
+    return skillRadius(skill, stats, supports);
 }
 
 float effectiveSkillRadius(const SkillDefinition& skill, const Stats& stats, const SupportDefinition* support = nullptr) {
-    const float supportMultiplier = support ? support->radiusMultiplier : 1.0f;
-    switch (skill.castType) {
-        case SkillCastType::SelfCenteredArea:
-        case SkillCastType::MouseTargetedArea:
-            return skill.radius * stats.areaRadiusMultiplier * supportMultiplier;
-        case SkillCastType::Projectile:
-        case SkillCastType::Dash:
-            return skill.radius;
-    }
-
-    return skill.radius;
+    return effectiveSkillRadius(skill, stats, SupportList{support, nullptr});
 }
 
-float effectiveSkillCooldown(const SkillDefinition& skill, const Stats& stats, const SupportDefinition* support = nullptr) {
-    const float cooldown = skill.cooldown * (support ? support->cooldownMultiplier : 1.0f);
+float effectiveSkillCooldown(const SkillDefinition& skill, const Stats& stats, const SupportList& supports) {
+    float cooldown = skill.cooldown;
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            cooldown *= support->cooldownMultiplier;
+        }
+    }
     if (skill.slot == SkillSlot::Primary) {
         return cooldown / stats.attackSpeedMultiplier;
     }
 
     return cooldown;
+}
+
+float effectiveSkillCooldown(const SkillDefinition& skill, const Stats& stats, const SupportDefinition* support = nullptr) {
+    return effectiveSkillCooldown(skill, stats, SupportList{support, nullptr});
 }
 
 std::string ailmentSummary(const AilmentDefinition& ailment) {
@@ -346,18 +336,22 @@ std::string ailmentSummary(const AilmentDefinition& ailment) {
     return "";
 }
 
-std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& stats, const SupportDefinition* support = nullptr) {
+std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& stats, const SupportList& supports) {
     std::string summary = "Base " + std::to_string(skill.baseDamage)
         + "/" + std::to_string(static_cast<int>(skill.radius))
         + "/" + formatFloat(skill.cooldown, 2)
-        + "  Actual " + std::to_string(effectiveSkillDamage(skill, stats, support))
-        + "/" + std::to_string(static_cast<int>(effectiveSkillRadius(skill, stats, support)))
-        + "/" + formatFloat(effectiveSkillCooldown(skill, stats, support), 2)
+        + "  Actual " + std::to_string(effectiveSkillDamage(skill, stats, supports))
+        + "/" + std::to_string(static_cast<int>(effectiveSkillRadius(skill, stats, supports)))
+        + "/" + formatFloat(effectiveSkillCooldown(skill, stats, supports), 2)
         + "  Mana " + formatFloat(skill.manaCost, 0);
     if (skill.castType == SkillCastType::Projectile) {
-        summary += "  Proj " + std::to_string(skillProjectileCount(skill, support, stats));
+        summary += "  Proj " + std::to_string(skillProjectileCount(skill, supports, stats));
     }
     return summary;
+}
+
+std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& stats, const SupportDefinition* support = nullptr) {
+    return skillEffectiveSummary(skill, stats, SupportList{support, nullptr});
 }
 
 // Combined equipment stats if `candidate` were equipped into its own slot,
@@ -388,18 +382,18 @@ Stats previewEquipmentStats(const Equipment& equipment, const Item& candidate) {
 std::vector<std::string> skillImpactDetailLines(const Stats& before, const Stats& after, const SkillBar& skillBar) {
     std::vector<std::string> lines;
     const auto detail = [&](const char* label, const SkillDefinition& skill, bool showRadius) {
-        const auto* support = skillBar.support(skill.slot);
+        const auto supports = skillBar.supportDefinitions(skill.slot);
         std::string line = std::string(label) + ": DMG "
-            + std::to_string(effectiveSkillDamage(skill, before, support)) + " -> "
-            + std::to_string(effectiveSkillDamage(skill, after, support));
+            + std::to_string(effectiveSkillDamage(skill, before, supports)) + " -> "
+            + std::to_string(effectiveSkillDamage(skill, after, supports));
         if (showRadius) {
             line += "  R "
-                + std::to_string(static_cast<int>(effectiveSkillRadius(skill, before, support))) + " -> "
-                + std::to_string(static_cast<int>(effectiveSkillRadius(skill, after, support)));
+                + std::to_string(static_cast<int>(effectiveSkillRadius(skill, before, supports))) + " -> "
+                + std::to_string(static_cast<int>(effectiveSkillRadius(skill, after, supports)));
         } else {
             line += "  CD "
-                + formatFloat(effectiveSkillCooldown(skill, before, support), 2) + " -> "
-                + formatFloat(effectiveSkillCooldown(skill, after, support), 2);
+                + formatFloat(effectiveSkillCooldown(skill, before, supports), 2) + " -> "
+                + formatFloat(effectiveSkillCooldown(skill, after, supports), 2);
         }
         return line;
     };
@@ -1534,7 +1528,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
 
     drawBox({center.x, center.y}, {760.0f, 560.0f}, sf::Color(24, 30, 40));
     drawCenteredText("Skill Panel", {center.x, center.y - 248.0f}, 24, sf::Color::White);
-    drawCenteredText("1-8 assign unlocked skill  |  F1-F4 cycle support  |  K close",
+    drawCenteredText("1-8 assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
         {center.x, center.y - 220.0f}, 14, sf::Color(210, 230, 255));
 
     const SkillSlot slots[] = {
@@ -1580,10 +1574,10 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
             {columnX, rowY + 17.0f}, 11,
             unlocked ? sf::Color(190, 205, 220) : sf::Color(105, 112, 122));
         std::string summary = skillEffectiveSummary(
-            skill, world.player().stats(), world.skillBar().support(skill.slot)
+            skill, world.player().stats(), world.skillBar().supportDefinitions(skill.slot)
         );
         const std::string ailment = ailmentSummary(
-            skillAilment(skill, world.skillBar().support(skill.slot))
+            skillAilment(skill, world.skillBar().supportDefinitions(skill.slot))
         );
         if (!ailment.empty()) {
             summary += "  " + ailment;
@@ -1599,17 +1593,45 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         SkillSlot::Utility,
         SkillSlot::Movement
     };
-    const char* supportKeys[] = {"F1", "F2", "F3", "F4"};
-    const float supportY = center.y + 170.0f;
-    drawText("Supports", {center.x - 350.0f, supportY}, 16, sf::Color::White);
+    const float supportY = center.y + 122.0f;
+    drawText("Supports  E equipped A available L locked  |  F1-F4 cycle  |  F5/F6 link",
+        {center.x - 350.0f, supportY}, 11, sf::Color::White);
     for (std::size_t i = 0; i < 4; ++i) {
         const auto slot = supportSlots[i];
-        const auto* support = world.skillBar().support(slot);
-        const std::string supportName = support ? support->name : "None";
-        const std::string detail = support ? " - " + support->description : "";
-        drawText(std::string(supportKeys[i]) + " " + skillSlotName(slot) + ": " + supportName + detail,
-            {center.x - 350.0f, supportY + 23.0f + static_cast<float>(i) * 22.0f}, 13,
-            support ? sf::Color(150, 245, 175) : sf::Color(180, 190, 205));
+        const auto supportLabel = [&](std::size_t link) {
+            const auto* support = world.skillBar().supportAt(slot, link);
+            const bool selected = world.selectedSupportLink() == static_cast<int>(link)
+                && link < SkillBar::supportLinkCount(slot);
+            return std::string(selected ? "*" : " ") + "L"
+                + std::to_string(link + 1) + ": "
+                + (support ? support->name : "None");
+        };
+        const std::string line = skillSlotName(slot) + "  "
+            + supportLabel(0)
+            + (SkillBar::supportLinkCount(slot) > 1 ? "  |  " + supportLabel(1) : "");
+        std::string pool = "Pool ";
+        bool firstPoolEntry = true;
+        for (const auto& support : SupportLibrary::all()) {
+            if (!SupportLibrary::supportsSkill(support, world.skillBar().definition(slot))) {
+                continue;
+            }
+
+            const bool equipped = (world.skillBar().supportAt(slot, 0) != nullptr
+                    && world.skillBar().supportAt(slot, 0)->name == support.name)
+                || (world.skillBar().supportAt(slot, 1) != nullptr
+                    && world.skillBar().supportAt(slot, 1)->name == support.name);
+            const char status = equipped ? 'E' : world.isSupportUnlocked(support.name) ? 'A' : 'L';
+            if (!firstPoolEntry) {
+                pool += "  ";
+            }
+            pool += support.name + "(" + status + ")";
+            firstPoolEntry = false;
+        }
+        const float blockX = center.x - 350.0f + static_cast<float>(i % 2) * 370.0f;
+        const float blockY = supportY + 22.0f + static_cast<float>(i / 2) * 48.0f;
+        drawText(line,
+            {blockX, blockY}, 11, sf::Color(150, 245, 175));
+        drawText(pool, {blockX, blockY + 15.0f}, 9, sf::Color(175, 190, 205));
     }
 }
 

@@ -291,6 +291,13 @@ void testSkillBarAssignSkillAndSupport() {
     expect(bar.assignSupport(SkillSlot::Primary, "Pierce"), "Pierce attaches to projectile Primary");
     expect(bar.support(SkillSlot::Primary) != nullptr, "Primary has support after Pierce");
     expect(bar.support(SkillSlot::Primary)->name == "Pierce", "Primary support name is Pierce");
+    expect(bar.assignSupport(SkillSlot::Primary, "Volley", 1),
+        "Volley attaches to the second projectile link");
+    expect(bar.supportAt(SkillSlot::Primary, 1) != nullptr
+            && bar.supportAt(SkillSlot::Primary, 1)->name == "Volley",
+        "second projectile link stores Volley");
+    expect(!bar.assignSupport(SkillSlot::Primary, "Pierce", 1),
+        "duplicate support cannot occupy two links");
 
     expect(!bar.assignSupport(SkillSlot::Secondary, "Pierce"),
         "reject Pierce on area Secondary (incompatible)");
@@ -325,6 +332,19 @@ void testSkillBarAssignSkillAndSupport() {
     expect(bar.support(SkillSlot::Utility) != nullptr
             && bar.support(SkillSlot::Utility)->name == "Quickcast",
         "Quickcast remains (compatible with Nova)");
+
+    const SkillBarSaveState saved = bar.saveState();
+    SkillBar restored;
+    expect(restored.restoreState(saved), "SkillBar restores two support links");
+    expect(restored.supportAt(SkillSlot::Primary, 0) != nullptr
+            && restored.supportAt(SkillSlot::Primary, 1) != nullptr
+            && restored.supportAt(SkillSlot::Primary, 1)->name == "Volley",
+        "SkillBar restore preserves link order");
+
+    SkillBarSaveState invalid = saved;
+    invalid.supports[static_cast<std::size_t>(SkillSlot::Movement)][1] = "Trailblazer";
+    expect(!restored.restoreState(invalid),
+        "SkillBar rejects a second Movement support link");
 }
 
 // --- Mana resource ---
@@ -469,6 +489,17 @@ void testCombatMathDamageRadiusPierce() {
     expect(skillPierceCount(amplify) == 0, "Amplify does not grant pierce");
     expect(skillProjectileCount(projectile, volley) == projectile.projectileCount + 2,
         "Volley adds two projectiles");
+    const SupportList projectileSupports{pierce, volley};
+    expect(skillPierceCount(projectileSupports) == pierce->pierceCount,
+        "multi-link projectile math sums pierce effects");
+    expect(skillProjectileCount(projectile, projectileSupports)
+            == projectile.projectileCount + volley->extraProjectileCount,
+        "multi-link projectile math sums projectile effects");
+    const SupportList areaSupports{amplify, quickcast};
+    expect(skillRadius(area, stats, areaSupports) > scaledRadius,
+        "multi-link area math multiplies radius supports");
+    expect(skillDamage(area, stats, areaSupports) < skillDamage(area, stats, amplify),
+        "multi-link area math combines damage tradeoffs");
     expect(skillSpreadAngle(projectile, volley) > projectile.spreadAngle,
         "Volley widens projectile spread");
     expect(supportAreaDamage(*trailblazer, stats) > 0,

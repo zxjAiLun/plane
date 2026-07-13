@@ -326,16 +326,24 @@ bool readPlayerState(Reader& reader, PlayerSaveState& state) {
 void writeSkillBarState(Writer& writer, const SkillBarSaveState& state) {
     for (std::size_t index = 0; index < state.skills.size(); ++index) {
         writer.string(state.skills[index]);
-        writer.string(state.supports[index]);
+        for (const auto& support : state.supports[index]) {
+            writer.string(support);
+        }
         writer.real(state.elapsed[index]);
     }
 }
 
 bool readSkillBarState(Reader& reader, SkillBarSaveState& state) {
     for (std::size_t index = 0; index < state.skills.size(); ++index) {
-        if (!reader.string(state.skills[index])
-            || !reader.string(state.supports[index])
-            || !reader.real(state.elapsed[index])) {
+        if (!reader.string(state.skills[index])) {
+            return false;
+        }
+        for (auto& support : state.supports[index]) {
+            if (!reader.string(support)) {
+                return false;
+            }
+        }
+        if (!reader.real(state.elapsed[index])) {
             return false;
         }
     }

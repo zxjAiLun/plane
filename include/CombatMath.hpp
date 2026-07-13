@@ -52,7 +52,7 @@ inline int availableBossSummonCount(int requested, int active, int maximum) {
 inline int skillDamage(
     const SkillDefinition& skill,
     const Stats& stats,
-    const SupportDefinition* support,
+    const SupportList& supports,
     float shrineMultiplier = 1.0f
 ) {
     float damage = static_cast<float>(skill.baseDamage) * stats.damageMultiplier;
@@ -68,19 +68,35 @@ inline int skillDamage(
             break;
     }
 
-    if (support) {
-        damage *= support->damageMultiplier;
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            damage *= support->damageMultiplier;
+        }
     }
 
     return std::max(1, static_cast<int>(std::ceil(damage * shrineMultiplier)));
 }
 
+inline int skillDamage(
+    const SkillDefinition& skill,
+    const Stats& stats,
+    const SupportDefinition* support,
+    float shrineMultiplier = 1.0f
+) {
+    return skillDamage(skill, stats, SupportList{support, nullptr}, shrineMultiplier);
+}
+
 inline float skillRadius(
     const SkillDefinition& skill,
     const Stats& stats,
-    const SupportDefinition* support
+    const SupportList& supports
 ) {
-    const float supportMultiplier = support ? support->radiusMultiplier : 1.0f;
+    float supportMultiplier = 1.0f;
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            supportMultiplier *= support->radiusMultiplier;
+        }
+    }
     switch (skill.castType) {
         case SkillCastType::SelfCenteredArea:
         case SkillCastType::MouseTargetedArea:
@@ -92,12 +108,51 @@ inline float skillRadius(
     return skill.radius;
 }
 
-inline int skillPierceCount(const SupportDefinition* support) {
-    return support ? support->pierceCount : 0;
+inline float skillRadius(
+    const SkillDefinition& skill,
+    const Stats& stats,
+    const SupportDefinition* support
+) {
+    return skillRadius(skill, stats, SupportList{support, nullptr});
 }
 
-inline int skillProjectileCount(const SkillDefinition& skill, const SupportDefinition* support) {
-    return std::max(1, skill.projectileCount + (support ? support->extraProjectileCount : 0));
+inline int skillPierceCount(const SupportList& supports) {
+    int pierceCount = 0;
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            pierceCount += support->pierceCount;
+        }
+    }
+    return pierceCount;
+}
+
+inline int skillPierceCount(const SupportDefinition* support) {
+    return skillPierceCount(SupportList{support, nullptr});
+}
+
+inline int skillProjectileCount(const SkillDefinition& skill, const SupportList& supports) {
+    int extraProjectiles = 0;
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            extraProjectiles += support->extraProjectileCount;
+        }
+    }
+    return std::max(1, skill.projectileCount + extraProjectiles);
+}
+
+inline int skillProjectileCount(
+    const SkillDefinition& skill,
+    const SupportDefinition* support
+) {
+    return skillProjectileCount(skill, SupportList{support, nullptr});
+}
+
+inline int skillProjectileCount(
+    const SkillDefinition& skill,
+    const SupportList& supports,
+    const Stats& stats
+) {
+    return std::max(1, skillProjectileCount(skill, supports) + stats.projectileCountBonus);
 }
 
 inline int skillProjectileCount(
@@ -105,13 +160,21 @@ inline int skillProjectileCount(
     const SupportDefinition* support,
     const Stats& stats
 ) {
-    return std::max(1, skill.projectileCount
-        + (support ? support->extraProjectileCount : 0)
-        + stats.projectileCountBonus);
+    return skillProjectileCount(skill, SupportList{support, nullptr}, stats);
+}
+
+inline float skillSpreadAngle(const SkillDefinition& skill, const SupportList& supports) {
+    float extraSpread = 0.0f;
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            extraSpread += support->extraSpreadAngle;
+        }
+    }
+    return std::max(0.0f, skill.spreadAngle + extraSpread);
 }
 
 inline float skillSpreadAngle(const SkillDefinition& skill, const SupportDefinition* support) {
-    return std::max(0.0f, skill.spreadAngle + (support ? support->extraSpreadAngle : 0.0f));
+    return skillSpreadAngle(skill, SupportList{support, nullptr});
 }
 
 inline int supportAreaDamage(
@@ -136,32 +199,45 @@ inline float supportAreaRadius(const SupportDefinition& support, const Stats& st
 
 inline AilmentDefinition skillAilment(
     const SkillDefinition& skill,
-    const SupportDefinition* support
+    const SupportList& supports
 ) {
     AilmentDefinition ailment = skill.ailment;
-    if (ailment.type == AilmentType::None || !support) {
+    if (ailment.type == AilmentType::None) {
         return ailment;
     }
 
-    ailment.duration *= support->ailmentDurationMultiplier;
-    ailment.ignitePenetration = support->ignitePenetration;
-    ailment.chillPenetration = support->chillPenetration;
-    switch (ailment.type) {
-        case AilmentType::Ignite:
-            ailment.damageMultiplier *= support->ailmentDamageMultiplier;
-            break;
-        case AilmentType::Chill:
-            ailment.speedMultiplier = std::clamp(
-                1.0f - (1.0f - ailment.speedMultiplier) * support->chillMagnitudeMultiplier,
-                0.20f,
-                1.0f
-            );
-            break;
-        case AilmentType::None:
-            break;
+    for (const auto* support : supports) {
+        if (support == nullptr) {
+            continue;
+        }
+
+        ailment.duration *= support->ailmentDurationMultiplier;
+        ailment.ignitePenetration += support->ignitePenetration;
+        ailment.chillPenetration += support->chillPenetration;
+        switch (ailment.type) {
+            case AilmentType::Ignite:
+                ailment.damageMultiplier *= support->ailmentDamageMultiplier;
+                break;
+            case AilmentType::Chill:
+                ailment.speedMultiplier = std::clamp(
+                    1.0f - (1.0f - ailment.speedMultiplier) * support->chillMagnitudeMultiplier,
+                    0.20f,
+                    1.0f
+                );
+                break;
+            case AilmentType::None:
+                break;
+        }
     }
 
     return ailment;
+}
+
+inline AilmentDefinition skillAilment(
+    const SkillDefinition& skill,
+    const SupportDefinition* support
+) {
+    return skillAilment(skill, SupportList{support, nullptr});
 }
 
 inline int ailmentTickDamage(const AilmentDefinition& ailment, int hitDamage) {

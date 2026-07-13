@@ -52,7 +52,9 @@ SaveData sampleData() {
     data.unlockedSkills.insert("Pulse");
     data.unlockedSkills.insert("Dash");
     data.skillBar = SkillBar().saveState();
-    data.skillBar.supports[0] = "Pierce";
+    data.skillBar.supports[0][0] = "Pierce";
+    data.skillBar.supports[0][1] = "Volley";
+    data.unlockedSupports.insert("Volley");
     data.skillBar.elapsed[0] = 0.17f;
 
     Item weapon;
@@ -120,7 +122,8 @@ void testFileValidation(const std::filesystem::path& path) {
             && restored.exploredCells == data.exploredCells
             && restored.player.equipment[0]->affixes[0].id
                 == "projectile_damage_t2"
-            && restored.skillBar.supports[0] == "Pierce"
+            && restored.skillBar.supports[0][0] == "Pierce"
+            && restored.skillBar.supports[0][1] == "Volley"
             && restored.inventory.size() == 1
             && restored.stash.size() == 1
             && restored.droppedItems.size() == 1,
@@ -135,6 +138,13 @@ void testFileValidation(const std::filesystem::path& path) {
         "CRC rejects a modified payload");
 
     expect(SaveService::save(path, data, &error), "test save can be rewritten");
+    bytes = readBytes(path);
+    bytes[4] = 1;
+    writeBytes(path, bytes);
+    expect(!SaveService::load(path, restored, &error),
+        "legacy v1 save is rejected after the multi-link schema change");
+
+    expect(SaveService::save(path, data, &error), "test save can be rewritten after version check");
     bytes = readBytes(path);
     bytes[4] = 99;
     writeBytes(path, bytes);

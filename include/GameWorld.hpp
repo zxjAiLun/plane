@@ -124,6 +124,7 @@ public:
     Vector2 cameraTopLeft() const;
     bool passiveTreeOpen() const;
     bool skillPanelOpen() const;
+    int selectedSupportLink() const;
     int hoveredPassiveNode() const;
     std::string passiveBuildSummary() const;
     bool isSkillUnlocked(const std::string& name) const;
@@ -317,6 +318,7 @@ private:
     bool nextMapOptionChosen_;
     bool passiveTreeOpen_;
     bool skillPanelOpen_;
+    int selectedSupportLink_;
     CraftingState craftingState_;
     int hoveredPassiveNode_;
     std::string nearbyEventPrompt_;

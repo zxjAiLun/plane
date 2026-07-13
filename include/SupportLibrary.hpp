@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -34,6 +36,10 @@ struct SupportDefinition {
     int ignitePenetration = 0;
     int chillPenetration = 0;
 };
+
+inline constexpr std::size_t SupportLinkCount = 2;
+using SupportNameList = std::array<std::string, SupportLinkCount>;
+using SupportList = std::array<const SupportDefinition*, SupportLinkCount>;
 
 class SupportLibrary {
 public:

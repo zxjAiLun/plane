@@ -166,6 +166,7 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , nextMapOptionChosen_(false)
     , passiveTreeOpen_(false)
     , skillPanelOpen_(false)
+    , selectedSupportLink_(0)
     , craftingState_()
     , hoveredPassiveNode_(-1)
     , nearbyEventPrompt_()
@@ -537,10 +538,12 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
             return false;
         }
     }
-    for (const auto& supportName : data.skillBar.supports) {
-        if (!supportName.empty()
-            && data.unlockedSupports.find(supportName) == data.unlockedSupports.end()) {
-            return false;
+    for (const auto& supportNames : data.skillBar.supports) {
+        for (const auto& supportName : supportNames) {
+            if (!supportName.empty()
+                && data.unlockedSupports.find(supportName) == data.unlockedSupports.end()) {
+                return false;
+            }
         }
     }
 
@@ -639,6 +642,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     shrineBuffTimer_ = 0.0f;
     passiveTreeOpen_ = false;
     skillPanelOpen_ = false;
+    selectedSupportLink_ = 0;
     craftingState_ = CraftingState();
     hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
@@ -672,6 +676,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
             passiveTreeOpen_ = false;
             hoveredPassiveNode_ = -1;
         }
+        selectedSupportLink_ = 0;
     }
 
     Vector2 movement;
@@ -832,6 +837,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     mapModifier_ = currentMapOption_.modifier;
     passiveTreeOpen_ = false;
     skillPanelOpen_ = false;
+    selectedSupportLink_ = 0;
     craftingState_ = CraftingState();
     hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
@@ -913,6 +919,7 @@ void GameWorld::startNextMap() {
     mapModifier_.itemQuantityMultiplier *= progression_.itemQuantityRewardMultiplier;
     passiveTreeOpen_ = false;
     skillPanelOpen_ = false;
+    selectedSupportLink_ = 0;
     craftingState_ = CraftingState();
     hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
@@ -1764,27 +1771,27 @@ int GameWorld::dropItemsAround(
 
 int GameWorld::damageForPlayerSkill(const SkillDefinition& skill) const {
     const float shrineMultiplier = shrineBuffTimer_ > 0.0f ? ShrineDamageMultiplier : 1.0f;
-    return skillDamage(skill, player_.stats(), skillBar_.support(skill.slot), shrineMultiplier);
+    return skillDamage(skill, player_.stats(), skillBar_.supportDefinitions(skill.slot), shrineMultiplier);
 }
 
 float GameWorld::radiusForPlayerSkill(const SkillDefinition& skill) const {
-    return skillRadius(skill, player_.stats(), skillBar_.support(skill.slot));
+    return skillRadius(skill, player_.stats(), skillBar_.supportDefinitions(skill.slot));
 }
 
 int GameWorld::pierceCountForPlayerSkill(const SkillDefinition& skill) const {
-    return skillPierceCount(skillBar_.support(skill.slot));
+    return skillPierceCount(skillBar_.supportDefinitions(skill.slot));
 }
 
 int GameWorld::projectileCountForPlayerSkill(const SkillDefinition& skill) const {
-    return skillProjectileCount(skill, skillBar_.support(skill.slot), player_.stats());
+    return skillProjectileCount(skill, skillBar_.supportDefinitions(skill.slot), player_.stats());
 }
 
 float GameWorld::spreadAngleForPlayerSkill(const SkillDefinition& skill) const {
-    return skillSpreadAngle(skill, skillBar_.support(skill.slot));
+    return skillSpreadAngle(skill, skillBar_.supportDefinitions(skill.slot));
 }
 
 AilmentDefinition GameWorld::ailmentForPlayerSkill(const SkillDefinition& skill) const {
-    return skillAilment(skill, skillBar_.support(skill.slot));
+    return skillAilment(skill, skillBar_.supportDefinitions(skill.slot));
 }
 
 void GameWorld::noteElitePackEnemyDefeated(const Enemy& enemy) {
@@ -1914,27 +1921,54 @@ void GameWorld::tryAssignSkill(Input& input) {
 }
 
 void GameWorld::tryCycleSkillSupport(Input& input) {
-    if (!skillPanelOpen_ || input.functionChoice() <= 0 || input.functionChoice() > 4) {
+    if (!skillPanelOpen_) {
         return;
     }
 
-    const SkillSlot slot = static_cast<SkillSlot>(input.functionChoice() - 1);
+    const int choice = input.functionChoice();
+    if (choice == 5 || choice == 6) {
+        selectedSupportLink_ = choice - 5;
+        return;
+    }
+    if (choice <= 0 || choice > 4) {
+        return;
+    }
+
+    const SkillSlot slot = static_cast<SkillSlot>(choice - 1);
+    const std::size_t linkCount = SkillBar::supportLinkCount(slot);
+    const std::size_t linkIndex = std::min(
+        static_cast<std::size_t>(std::max(0, selectedSupportLink_)),
+        linkCount - 1
+    );
+    selectedSupportLink_ = static_cast<int>(linkIndex);
     const auto& skill = skillBar_.definition(slot);
     std::vector<std::string> options = {""};
     for (const auto& support : SupportLibrary::all()) {
-        if (isSupportUnlocked(support.name) && SupportLibrary::supportsSkill(support, skill)) {
+        if (!isSupportUnlocked(support.name) || !SupportLibrary::supportsSkill(support, skill)) {
+            continue;
+        }
+
+        bool assignedToOtherLink = false;
+        for (std::size_t other = 0; other < linkCount; ++other) {
+            if (other != linkIndex && skillBar_.supportAt(slot, other) != nullptr
+                && skillBar_.supportAt(slot, other)->name == support.name) {
+                assignedToOtherLink = true;
+                break;
+            }
+        }
+        if (!assignedToOtherLink) {
             options.push_back(support.name);
         }
     }
 
-    const auto* current = skillBar_.support(slot);
+    const auto* current = skillBar_.supportAt(slot, linkIndex);
     const std::string currentName = current ? current->name : "";
     auto currentIt = std::find(options.begin(), options.end(), currentName);
     const std::size_t currentIndex = currentIt == options.end()
         ? 0
         : static_cast<std::size_t>(currentIt - options.begin());
     const std::string& next = options[(currentIndex + 1) % options.size()];
-    if (skillBar_.assignSupport(slot, next)) {
+    if (skillBar_.assignSupport(slot, next, linkIndex)) {
         skillBar_.applyStats(player_.stats());
     }
 }
@@ -2742,6 +2776,7 @@ Vector2 GameWorld::cameraTopLeft() const {
 }
 bool GameWorld::passiveTreeOpen() const { return passiveTreeOpen_; }
 bool GameWorld::skillPanelOpen() const { return skillPanelOpen_; }
+int GameWorld::selectedSupportLink() const { return selectedSupportLink_; }
 int GameWorld::hoveredPassiveNode() const { return hoveredPassiveNode_; }
 std::string GameWorld::passiveBuildSummary() const {
     const auto& tree = player_.passiveTree();
