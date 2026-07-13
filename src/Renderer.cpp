@@ -89,6 +89,16 @@ std::string itemSummary(const Item& item) {
     return item.name + " " + statsSummary(item.stats);
 }
 
+std::string truncateText(const std::string& text, std::size_t maxLength) {
+    if (text.size() <= maxLength) {
+        return text;
+    }
+    if (maxLength <= 3) {
+        return text.substr(0, maxLength);
+    }
+    return text.substr(0, maxLength - 3) + "...";
+}
+
 std::string affixTagsSummary(const std::vector<AffixTag>& tags) {
     std::string summary;
     for (std::size_t index = 0; index < tags.size(); ++index) {
@@ -519,13 +529,14 @@ void Renderer::render(const GameWorld& world) {
         + "  SCORE " + std::to_string(world.score()),
         {16.0f, 60.0f}, 18, sf::Color::White);
     drawText("MAP " + std::to_string(world.mapLevel()) + " " + world.map().definition().name
-        + "  " + world.currentMapOption().modifier.name
         + "  LAYOUT " + std::to_string(world.map().layoutIndex() + 1) + "/"
             + std::to_string(MapLayoutLibrary::VariantCount)
         + "  AREA " + mapAreaName(world.currentMapArea())
         + "  ENEMIES " + std::to_string(world.enemiesRemainingInWave()),
         {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));
-    drawText(world.mapModifier().description + "  |  Threat: " + world.map().definition().encounter.threatDescription,
+    drawText("MODS " + truncateText(world.mapModifier().name, 36)
+        + "  |  Threat: "
+        + truncateText(world.map().definition().encounter.threatDescription, 28),
         {16.0f, 130.0f}, 14, sf::Color(255, 220, 150));
     const std::string bossLine = world.map().bossDefeated()
         ? "Boss defeated: " + world.bossDefinition().name
@@ -996,7 +1007,10 @@ void Renderer::drawEnemies(const GameWorld& world) {
         const sf::Vector2f screenPosition = worldToScreen(world, enemy.position());
         if (enemy.isAttackWindingUp()) {
             if (enemy.isCharger()) {
-                const sf::Vector2f chargeTarget = worldToScreen(world, enemy.chargeTargetPosition());
+                const sf::Vector2f chargeTarget = worldToScreen(
+                    world,
+                    enemy.chargeTargetPosition(world.mapModifier().monsterSpeedMultiplier)
+                );
                 sf::VertexArray line(sf::PrimitiveType::Lines, 2);
                 line[0].position = screenPosition;
                 line[0].color = sf::Color(255, 210, 100, 210);
@@ -1833,12 +1847,17 @@ void Renderer::drawMapComplete(const GameWorld& world) {
             const auto& option = mapOptions[i];
             const sf::Color color = selected ? sf::Color(140, 255, 160) : sf::Color(220, 240, 255);
             const std::string marker = selected ? "> " : "  ";
-            drawText(marker + std::to_string(i + 1) + ". " + option.modifier.name + " - " + option.recommendedLevel,
+            drawText(marker + std::to_string(i + 1) + ". "
+                    + truncateText(option.modifier.name, 34) + " - " + option.recommendedLevel,
                 {center.x - 235.0f, optionY}, 14, color);
-            drawText("     " + MapTemplateLibrary::forIndex(option.templateIndex).name
-                    + " | " + option.modifier.description,
+            drawText("     " + truncateText(
+                        MapTemplateLibrary::forIndex(option.templateIndex).name
+                            + " | " + option.modifier.description,
+                        68),
                 {center.x - 235.0f, optionY + 17.0f}, 12, sf::Color(230, 220, 170));
-            drawText("     " + mapOptionSummary(option) + "  |  " + option.rewardDescription,
+            drawText("     " + truncateText(
+                        mapOptionSummary(option) + "  |  " + option.rewardDescription,
+                        72),
                 {center.x - 235.0f, optionY + 32.0f}, 12, sf::Color(200, 220, 245));
             optionY += 50.0f;
         }

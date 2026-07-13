@@ -28,10 +28,21 @@ Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type,
 }
 
 void Enemy::update(float dt, const Vector2& targetPosition, const MapInstance& map) {
+    update(dt, targetPosition, map, 1.0f);
+}
+
+void Enemy::update(
+    float dt,
+    const Vector2& targetPosition,
+    const MapInstance& map,
+    float mapSpeedMultiplier
+) {
+    const float safeMapSpeedMultiplier = std::max(0.0f, mapSpeedMultiplier);
     if (isBoss()) {
         Vector2 direction = (targetPosition - position_).normalized();
         position_ = map.resolveMovement(
-            position_, radius_, direction * Config::EnemySpeed * movementSpeedMultiplier() * dt
+            position_, radius_, direction * Config::EnemySpeed * safeMapSpeedMultiplier
+                * movementSpeedMultiplier() * dt
         );
         return;
     }
@@ -39,7 +50,7 @@ void Enemy::update(float dt, const Vector2& targetPosition, const MapInstance& m
     const auto& definition = EnemyLibrary::forType(type_);
     attackCooldownTimer_ = std::max(0.0f, attackCooldownTimer_ - dt);
     const float speedMultiplier = EliteModifierLibrary::forModifier(eliteModifier_).speedMultiplier
-        * movementSpeedMultiplier();
+        * safeMapSpeedMultiplier * movementSpeedMultiplier();
 
     if (chargeTimer_ > 0.0f) {
         const float chargeStep = std::min(dt, chargeTimer_);
@@ -177,14 +188,15 @@ bool Enemy::isChilled() const { return chillTimer_ > 0.0f; }
 float Enemy::movementSpeedMultiplier() const {
     return isChilled() ? chillSpeedMultiplier_ : 1.0f;
 }
-Vector2 Enemy::chargeTargetPosition() const {
+Vector2 Enemy::chargeTargetPosition(float mapSpeedMultiplier) const {
     if (!isCharger()) {
         return position_;
     }
 
     const auto& definition = EnemyLibrary::forType(type_);
     const float duration = chargeTimer_ > 0.0f ? chargeTimer_ : definition.chargeDuration;
-    return position_ + chargeDirection_ * Config::EnemySpeed * definition.chargeSpeedMultiplier * duration;
+    return position_ + chargeDirection_ * Config::EnemySpeed
+        * definition.chargeSpeedMultiplier * std::max(0.0f, mapSpeedMultiplier) * duration;
 }
 bool Enemy::consumeChargeHit() {
     if (!isCharging() || chargeHitConsumed_) {

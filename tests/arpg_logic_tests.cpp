@@ -1234,6 +1234,43 @@ void testMapOptionGeneration() {
     expect(options[2].modifier.itemLevelBonus == 1,
         "Gilded Ruins grants one effective item level");
 
+    expect(options[0].modifier.componentCount == 2
+            && options[1].modifier.componentCount == 2
+            && options[2].modifier.componentCount == 2,
+        "each map option composes exactly two data definitions");
+    expect(options[0].modifier.hasModifier("swift-hunt")
+            && options[0].modifier.hasModifier("hardened-front")
+            && options[1].modifier.hasModifier("frenzied-march")
+            && options[1].modifier.hasModifier("blood-tax")
+            && options[2].modifier.hasModifier("gilded-cache")
+            && options[2].modifier.hasModifier("elite-tide"),
+        "map options retain stable component identities");
+    expect(options[0].modifier.monsterSpeedMultiplier > 1.0f
+            && options[0].modifier.eventRewardMultiplier > 1.0f
+            && options[0].modifier.ailmentResistanceBonus > 0,
+        "first map composition exposes speed, event and resistance effects");
+    expect(options[1].modifier.monsterDamageBonus > 0
+            && options[1].modifier.bossDropBonus > 0
+            && options[1].modifier.bossDamageMultiplier > 1.0f,
+        "second map composition exposes damage and Boss reward effects");
+    expect(options[2].modifier.chargerWeightBonus > 0
+            && options[2].modifier.eventRewardMultiplier > 1.0f
+            && options[2].modifier.itemLevelBonus > 0,
+        "third map composition exposes encounter and item level effects");
+
+    const auto repeatedOptions = MapOptionLibrary::generateOptions(2);
+    expect(repeatedOptions[0].modifier.name == options[0].modifier.name
+            && repeatedOptions[1].modifier.itemQuantityMultiplier
+                == options[1].modifier.itemQuantityMultiplier
+            && repeatedOptions[2].modifier.componentCount == options[2].modifier.componentCount,
+        "map option generation is stable for the same map level");
+
+    const auto defaultOption = MapOptionLibrary::defaultOption();
+    expect(defaultOption.modifier.componentCount == 0
+            && defaultOption.modifier.monsterSpeedMultiplier == 1.0f
+            && defaultOption.modifier.eventRewardMultiplier == 1.0f,
+        "default map remains neutral without modifier components");
+
     // Template indices map to themed maps (linked in generateOptions).
     expect(options[0].templateIndex == 0
             && options[1].templateIndex == 1

@@ -13,6 +13,12 @@ public:
         EliteModifier eliteModifier = EliteModifier::None);
 
     void update(float dt, const Vector2& targetPosition, const MapInstance& map);
+    void update(
+        float dt,
+        const Vector2& targetPosition,
+        const MapInstance& map,
+        float mapSpeedMultiplier
+    );
     void moveBy(const Vector2& delta, const MapInstance& map);
     void updateAilments(float dt);
 
@@ -38,7 +44,7 @@ public:
     bool isIgnited() const;
     bool isChilled() const;
     float movementSpeedMultiplier() const;
-    Vector2 chargeTargetPosition() const;
+    Vector2 chargeTargetPosition(float mapSpeedMultiplier = 1.0f) const;
     bool consumeChargeHit();
     bool isElite() const;
     bool isBoss() const;

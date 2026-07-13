@@ -2,26 +2,77 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <string>
 
 #include "LootBias.hpp"
 
-struct MapModifier {
-    std::string name = "Quiet Coast";
-    std::string description = "No modifier";
+struct MapModifierEffect {
     float monsterHpMultiplier = 1.0f;
     int monsterDamageBonus = 0;
+    float monsterSpeedMultiplier = 1.0f;
     float itemQuantityMultiplier = 1.0f;
     int bossDropBonus = 0;
     int eliteWeightBonus = 0;
+    int chargerWeightBonus = 0;
     float bossHpMultiplier = 1.0f;
     float bossDamageMultiplier = 1.0f;
     int itemLevelBonus = 0;
+    float eventRewardMultiplier = 1.0f;
+    int ailmentResistanceBonus = 0;
+    AffixTag primaryLootBiasTag = AffixTag::None;
+    float primaryLootBiasWeightMultiplier = 1.0f;
+    AffixTag secondaryLootBiasTag = AffixTag::None;
+    float secondaryLootBiasWeightMultiplier = 1.0f;
+};
+
+struct MapModifierDefinition {
+    std::string id;
+    std::string name;
+    std::string riskDescription;
+    std::string rewardDescription;
+    MapModifierEffect effect;
+};
+
+struct MapModifier {
+    std::string name = "Quiet Coast";
+    std::string description = "No modifier";
+    std::string rewardDescription = "Baseline map rewards";
+    float monsterHpMultiplier = 1.0f;
+    int monsterDamageBonus = 0;
+    float monsterSpeedMultiplier = 1.0f;
+    float itemQuantityMultiplier = 1.0f;
+    int bossDropBonus = 0;
+    int eliteWeightBonus = 0;
+    int chargerWeightBonus = 0;
+    float bossHpMultiplier = 1.0f;
+    float bossDamageMultiplier = 1.0f;
+    int itemLevelBonus = 0;
+    float eventRewardMultiplier = 1.0f;
+    int ailmentResistanceBonus = 0;
     AffixTag lootBiasTag = AffixTag::None;
     float lootBiasWeightMultiplier = 1.0f;
+    AffixTag secondaryLootBiasTag = AffixTag::None;
+    float secondaryLootBiasWeightMultiplier = 1.0f;
+    std::array<MapModifierDefinition, 2> components{};
+    int componentCount = 0;
 
     LootBias lootBias() const {
-        return {lootBiasTag, lootBiasWeightMultiplier, AffixTag::None, 1.0f};
+        return {
+            lootBiasTag,
+            lootBiasWeightMultiplier,
+            secondaryLootBiasTag,
+            secondaryLootBiasWeightMultiplier
+        };
+    }
+
+    bool hasModifier(const std::string& id) const {
+        for (int index = 0; index < componentCount; ++index) {
+            if (components[static_cast<std::size_t>(index)].id == id) {
+                return true;
+            }
+        }
+        return false;
     }
 };
 
@@ -32,12 +83,195 @@ struct MapOption {
     int templateIndex = 0;
 };
 
+class MapModifierLibrary {
+public:
+    static const std::array<MapModifierDefinition, 6>& all() {
+        static const std::array<MapModifierDefinition, 6> definitions = {{
+            {
+                "swift-hunt",
+                "Swift Hunt",
+                "Monsters move faster",
+                "More event cache quantity",
+                {
+                    1.0f, 0, 1.25f, 1.05f, 0, 0, 4, 1.0f, 1.0f, 0,
+                    1.25f, 0, AffixTag::MoveSpeed, 1.30f,
+                    AffixTag::None, 1.0f
+                }
+            },
+            {
+                "hardened-front",
+                "Hardened Front",
+                "Monsters have more life",
+                "Survival affixes are favored",
+                {
+                    1.15f, 0, 1.0f, 1.05f, 0, 4, 0, 1.05f, 1.0f, 0,
+                    1.0f, 10, AffixTag::Survival, 1.35f,
+                    AffixTag::Armor, 1.15f
+                }
+            },
+            {
+                "frenzied-march",
+                "Frenzied March",
+                "Monsters deal more damage",
+                "Damage affixes and item quantity increase",
+                {
+                    1.05f, 1, 1.15f, 1.12f, 0, 8, 0, 1.10f, 1.15f, 0,
+                    1.0f, 0, AffixTag::Damage, 1.35f,
+                    AffixTag::AttackSpeed, 1.15f
+                }
+            },
+            {
+                "blood-tax",
+                "Blood Tax",
+                "Boss attacks hit harder",
+                "Boss drops are more reliable",
+                {
+                    1.0f, 1, 1.0f, 1.10f, 1, 0, 0, 1.0f, 1.10f, 0,
+                    1.0f, 0, AffixTag::Damage, 1.20f,
+                    AffixTag::Survival, 1.15f
+                }
+            },
+            {
+                "gilded-cache",
+                "Gilded Cache",
+                "Elite encounters are more common",
+                "Item quantity, event rewards and item level increase",
+                {
+                    1.10f, 0, 1.10f, 1.35f, 0, 6, 4, 1.20f, 1.05f, 1,
+                    1.50f, 0, AffixTag::Pickup, 1.35f,
+                    AffixTag::Area, 1.15f
+                }
+            },
+            {
+                "elite-tide",
+                "Elite Tide",
+                "Elite and charger packs are more common",
+                "Elite drops and area affixes are favored",
+                {
+                    1.0f, 0, 1.10f, 1.10f, 1, 6, 8, 1.0f, 1.0f, 0,
+                    1.0f, 0, AffixTag::Area, 1.35f,
+                    AffixTag::Damage, 1.15f
+                }
+            }
+        }};
+        return definitions;
+    }
+
+    static MapModifier empty() {
+        return {};
+    }
+
+    static MapModifier compose(
+        int mapLevel,
+        const std::array<const char*, 2>& modifierIds
+    ) {
+        MapModifier result;
+        const int normalizedLevel = std::max(1, mapLevel);
+        for (const char* modifierId : modifierIds) {
+            if (modifierId == nullptr || modifierId[0] == '\0') {
+                continue;
+            }
+
+            const auto* definition = find(modifierId);
+            if (definition == nullptr || result.componentCount >= 2) {
+                continue;
+            }
+
+            result.components[static_cast<std::size_t>(result.componentCount)] = *definition;
+            ++result.componentCount;
+            addDefinition(result, *definition);
+        }
+
+        if (result.componentCount == 0) {
+            return result;
+        }
+
+        applyLevelScaling(result, normalizedLevel);
+        return result;
+    }
+
+    static const MapModifierDefinition* find(const std::string& id) {
+        for (const auto& definition : all()) {
+            if (definition.id == id) {
+                return &definition;
+            }
+        }
+        return nullptr;
+    }
+
+private:
+    static void addLootBias(MapModifier& target, AffixTag tag, float multiplier) {
+        if (tag == AffixTag::None || multiplier <= 0.0f) {
+            return;
+        }
+
+        if (target.lootBiasTag == tag) {
+            target.lootBiasWeightMultiplier *= multiplier;
+        } else if (target.secondaryLootBiasTag == tag) {
+            target.secondaryLootBiasWeightMultiplier *= multiplier;
+        } else if (target.lootBiasTag == AffixTag::None) {
+            target.lootBiasTag = tag;
+            target.lootBiasWeightMultiplier = multiplier;
+        } else if (target.secondaryLootBiasTag == AffixTag::None) {
+            target.secondaryLootBiasTag = tag;
+            target.secondaryLootBiasWeightMultiplier = multiplier;
+        }
+    }
+
+    static void addDefinition(MapModifier& target, const MapModifierDefinition& definition) {
+        const auto& effect = definition.effect;
+        target.monsterHpMultiplier *= effect.monsterHpMultiplier;
+        target.monsterDamageBonus += effect.monsterDamageBonus;
+        target.monsterSpeedMultiplier *= effect.monsterSpeedMultiplier;
+        target.itemQuantityMultiplier *= effect.itemQuantityMultiplier;
+        target.bossDropBonus += effect.bossDropBonus;
+        target.eliteWeightBonus += effect.eliteWeightBonus;
+        target.chargerWeightBonus += effect.chargerWeightBonus;
+        target.bossHpMultiplier *= effect.bossHpMultiplier;
+        target.bossDamageMultiplier *= effect.bossDamageMultiplier;
+        target.itemLevelBonus += effect.itemLevelBonus;
+        target.eventRewardMultiplier *= effect.eventRewardMultiplier;
+        target.ailmentResistanceBonus += effect.ailmentResistanceBonus;
+        addLootBias(target, effect.primaryLootBiasTag, effect.primaryLootBiasWeightMultiplier);
+        addLootBias(target, effect.secondaryLootBiasTag, effect.secondaryLootBiasWeightMultiplier);
+
+        if (target.name == "Quiet Coast") {
+            target.name = definition.name;
+        } else {
+            target.name += " + " + definition.name;
+        }
+        if (target.description == "No modifier") {
+            target.description = definition.riskDescription;
+        } else {
+            target.description += " + " + definition.riskDescription;
+        }
+        if (target.rewardDescription == "Baseline map rewards") {
+            target.rewardDescription = definition.rewardDescription;
+        } else {
+            target.rewardDescription += " + " + definition.rewardDescription;
+        }
+    }
+
+    static void applyLevelScaling(MapModifier& modifier, int mapLevel) {
+        const int levels = mapLevel - 1;
+        if (levels <= 0) {
+            return;
+        }
+
+        const float level = static_cast<float>(levels);
+        modifier.monsterHpMultiplier *= 1.0f + level * 0.03f;
+        modifier.itemQuantityMultiplier *= 1.0f + level * 0.02f;
+        modifier.bossHpMultiplier *= 1.0f + level * 0.015f;
+        modifier.bossDamageMultiplier *= 1.0f + level * 0.02f;
+        modifier.monsterDamageBonus += levels / 4;
+    }
+};
+
 class MapOptionLibrary {
 public:
     static MapOption defaultOption() {
         return {
-            {"Quiet Coast", "No modifier", 1.0f, 0, 1.0f, 0, 0, 1.0f, 1.0f, 0,
-                AffixTag::None, 1.0f},
+            MapModifierLibrary::empty(),
             "Baseline monster density and loot",
             "Recommended level 1",
             0
@@ -45,62 +279,22 @@ public:
     }
 
     static std::array<MapOption, 3> generateOptions(int mapLevel) {
-        const float levelBonus = static_cast<float>(std::max(0, mapLevel - 1));
         return {{
             {
-                {
-                    "Feral Foothills",
-                    "More life and elites; Survival affixes favored",
-                    1.15f + levelBonus * 0.05f,
-                    mapLevel / 4,
-                    1.15f + levelBonus * 0.03f,
-                    0,
-                    4,
-                    1.05f,
-                    1.0f,
-                    0,
-                    AffixTag::Survival,
-                    1.35f
-                },
-                "+Survival affix weight, moderate elite pressure",
+                MapModifierLibrary::compose(mapLevel, {"swift-hunt", "hardened-front"}),
+                "Event quantity and Survival affix bias",
                 "Recommended level " + std::to_string(mapLevel),
                 0
             },
             {
-                {
-                    "Savage Hollow",
-                    "More damage and elites; Damage affixes favored",
-                    1.05f + levelBonus * 0.04f,
-                    1 + mapLevel / 3,
-                    1.25f + levelBonus * 0.04f,
-                    1,
-                    8,
-                    1.10f,
-                    1.15f,
-                    0,
-                    AffixTag::Damage,
-                    1.35f
-                },
-                "+Damage affix weight, richer Boss drops",
+                MapModifierLibrary::compose(mapLevel, {"frenzied-march", "blood-tax"}),
+                "Damage bias, richer drops and Boss pressure",
                 "Recommended level " + std::to_string(mapLevel + 1),
                 1
             },
             {
-                {
-                    "Gilded Ruins",
-                    "Tougher elites; Pickup affixes favored",
-                    1.30f + levelBonus * 0.06f,
-                    mapLevel / 5,
-                    1.50f + levelBonus * 0.05f,
-                    mapLevel >= 4 ? 1 : 0,
-                    12,
-                    1.20f,
-                    1.05f,
-                    1,
-                    AffixTag::Pickup,
-                    1.35f
-                },
-                "+Pickup affix weight, high item quantity and elite pressure",
+                MapModifierLibrary::compose(mapLevel, {"gilded-cache", "elite-tide"}),
+                "Pickup/Area bias, high item quantity and Elite pressure",
                 "Recommended level " + std::to_string(mapLevel + 1),
                 2
             },

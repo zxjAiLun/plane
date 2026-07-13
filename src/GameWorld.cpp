@@ -455,7 +455,7 @@ void GameWorld::updateObjects(float dt) {
             continue;
         }
         if (!enemy.isBoss() || !bossDashState_.isActive()) {
-            enemy.update(dt, player_.position(), map_);
+            enemy.update(dt, player_.position(), map_, mapModifier_.monsterSpeedMultiplier);
         }
     }
 }
@@ -1118,7 +1118,7 @@ void GameWorld::applySkillAilment(
             enemy.applyIgnite(
                 ailmentTickDamageAfterResistance(
                     ailmentTickDamage(ailment, hitDamage),
-                    igniteResistance,
+                    std::clamp(igniteResistance + mapModifier_.ailmentResistanceBonus, 0, 100),
                     ailment.ignitePenetration
                 ),
                 ailment.duration
@@ -1128,7 +1128,7 @@ void GameWorld::applySkillAilment(
             enemy.applyChill(
                 chillSpeedMultiplierAfterResistance(
                     ailment.speedMultiplier,
-                    chillResistance,
+                    std::clamp(chillResistance + mapModifier_.ailmentResistanceBonus, 0, 100),
                     ailment.chillPenetration
                 ),
                 ailment.duration
@@ -1228,7 +1228,11 @@ void GameWorld::triggerElitePackEvent(std::size_t eventIndex) {
 void GameWorld::openLootCacheEvent(MapEventInstance& event) {
     event.triggered = true;
     event.completed = true;
-    const int droppedCount = dropItemsAround(event.position, 2);
+    const int droppedCount = dropItemsAround(
+        event.position,
+        2,
+        mapModifier_.eventRewardMultiplier
+    );
     eventStatusMessage_ = "Cache opened: " + std::to_string(droppedCount) + " items dropped";
     eventStatusTimer_ = 2.0f;
 }
@@ -1241,9 +1245,15 @@ void GameWorld::activateShrineEvent(MapEventInstance& event) {
     eventStatusTimer_ = 2.0f;
 }
 
-int GameWorld::dropItemsAround(const Vector2& center, int count) {
+int GameWorld::dropItemsAround(
+    const Vector2& center,
+    int count,
+    float eventRewardMultiplier
+) {
+    const float quantityMultiplier = std::max(0.0f, eventRewardMultiplier)
+        * std::max(0.0f, mapModifier_.itemQuantityMultiplier);
     const int scaledCount = std::max(count, static_cast<int>(std::ceil(
-        static_cast<float>(count) * player_.stats().itemQuantityMultiplier
+        static_cast<float>(count) * player_.stats().itemQuantityMultiplier * quantityMultiplier
     )));
     for (int i = 0; i < scaledCount; ++i) {
         const float angle = static_cast<float>(i) * 2.39996323f;
@@ -2062,7 +2072,10 @@ EnemyType GameWorld::nextMapEnemyType() const {
     );
     const int normalWeight = std::max(1, encounter.normalWeight - (eliteWeight - encounter.eliteWeight));
     const int rangedWeight = std::max(0, encounter.rangedWeight);
-    const int chargerWeight = std::max(0, encounter.chargerWeight);
+    const int chargerWeight = std::max(
+        0,
+        encounter.chargerWeight + mapModifier_.chargerWeightBonus
+    );
     const int totalWeight = normalWeight + rangedWeight + chargerWeight + eliteWeight;
     const int roll = std::rand() % totalWeight;
 
