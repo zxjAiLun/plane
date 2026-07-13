@@ -313,14 +313,21 @@ void testMapCompleteLoad() {
     std::string error;
     expect(SaveService::load(path, data, &error), "settlement save can be edited for the fixture");
     data.state = SavedRunState::MapComplete;
+    data.mapEvents.resize(3);
+    for (auto& event : data.mapEvents) {
+        event.triggered = true;
+        event.completed = true;
+    }
     expect(SaveService::save(path, data, &error), "settlement fixture is written");
 
     GameWorld target(9102);
     expect(target.loadRun(path), "GameWorld loads a MapComplete checkpoint");
-    expect(target.state() == GameState::MapComplete
-            && target.map().bossDefeated()
-            && target.mapObjective() == "Choose Reward",
+    expect(target.state() == GameState::MapComplete && target.map().bossDefeated(),
         "MapComplete load restores the boss-defeated settlement phase");
+    expect(target.mapEventsCompleted() == target.mapEventsTotal(),
+        "legacy MapComplete migration marks the generated encounter settled");
+    expect(target.mapObjective() == "Choose Reward",
+        "MapComplete load starts at the reward selection stage");
     Input input;
     pressKey(target, input, sf::Keyboard::Key::Escape);
     expect(target.state() == GameState::Paused,
@@ -455,7 +462,7 @@ void testContinuousMapProgression() {
                 && world.player().level() >= initialLevel
                 && world.droppedItems().empty()
                 && world.mapEventsCompleted() == 0
-                && world.mapEventsTotal() == 3,
+                && world.mapEventsTotal() == 4,
             "next map keeps progression and resets transient map state");
     }
 
@@ -655,7 +662,7 @@ void testFiveMapRealBossProgression() {
             "E enters map " + std::to_string(expectedMapLevel + 1)
                 + " after real Boss settlement");
         expect(world.droppedItems().empty() && world.mapEventsCompleted() == 0
-                && world.mapEventsTotal() == 3,
+                && world.mapEventsTotal() == 4,
             "map " + std::to_string(expectedMapLevel + 1)
                 + " resets ground drops and map events");
         expect(world.inventory().size() + world.stash().size()
@@ -734,7 +741,7 @@ void testGameOverRestartBoundary() {
             && world.stash().size() == 0
             && world.droppedItems().empty()
             && world.mapEventsCompleted() == 0
-            && world.mapEventsTotal() == 3
+            && world.mapEventsTotal() == 4
             && world.player().level() == 1,
         "Restart creates a clean new run after GameOver");
     std::filesystem::remove(path);
@@ -1532,6 +1539,240 @@ void testElitePackEventFlow() {
     std::filesystem::remove(path);
 }
 
+bool moveToMapEvent(GameWorld& world, Input& input, const Vector2& position) {
+    const auto moveAxisPrecisely = [&](bool horizontal, float target) {
+        constexpr float arrivalDistance = 20.0f;
+        constexpr int maxFrames = 500;
+        for (int frame = 0; frame < maxFrames
+            && world.state() == GameState::Playing; ++frame) {
+            const float current = horizontal
+                ? world.player().position().x : world.player().position().y;
+            const float delta = target - current;
+            if (std::abs(delta) <= arrivalDistance) {
+                releaseMovement(input);
+                return true;
+            }
+
+            const bool positive = delta > 0.0f;
+            const auto key = horizontal
+                ? (positive ? sf::Keyboard::Key::D : sf::Keyboard::Key::A)
+                : (positive ? sf::Keyboard::Key::S : sf::Keyboard::Key::W);
+            const auto opposite = horizontal
+                ? (positive ? sf::Keyboard::Key::A : sf::Keyboard::Key::D)
+                : (positive ? sf::Keyboard::Key::W : sf::Keyboard::Key::S);
+            input.handleKeyPressed(key);
+            input.handleKeyReleased(opposite);
+            if (horizontal) {
+                input.handleKeyReleased(sf::Keyboard::Key::W);
+                input.handleKeyReleased(sf::Keyboard::Key::S);
+            } else {
+                input.handleKeyReleased(sf::Keyboard::Key::A);
+                input.handleKeyReleased(sf::Keyboard::Key::D);
+            }
+            world.update(0.05f, input);
+        }
+
+        releaseMovement(input);
+        return world.state() == GameState::Playing
+            && std::abs((horizontal
+                ? world.player().position().x : world.player().position().y) - target)
+                <= arrivalDistance;
+    };
+
+    return moveAxisPrecisely(true, position.x)
+        && moveAxisPrecisely(false, position.y);
+}
+
+void prepareCombinationFixture(
+    GameWorld& world,
+    const std::filesystem::path& path,
+    int templateIndex
+) {
+    SaveData data;
+    std::string error;
+    if (!world.saveRun(path) || !SaveService::load(path, data, &error)) {
+        return;
+    }
+
+    data.mapTemplateIndex = templateIndex;
+    data.mapLayoutIndex = 0;
+    data.currentMapOption.templateIndex = templateIndex;
+    data.state = SavedRunState::Playing;
+    data.mapRewardChosen = false;
+    data.nextMapOptionChosen = false;
+    data.selectedMapRewardOption = -1;
+    data.selectedNextMapOption = -1;
+    data.player.hp = 1000;
+    data.player.upgradeStats.maxHp = 1000;
+    data.player.upgradeStats.moveSpeedMultiplier = 2.0f;
+    data.player.upgradeStats.damageMultiplier = 10.0f;
+    data.player.upgradeStats.areaDamageMultiplier = 20.0f;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.player.mana = Config::PlayerMaxMana;
+    SaveService::save(path, data, &error);
+    world.loadRun(path);
+}
+
+const MapEventInstance* combinationEvent(const GameWorld& world) {
+    const auto it = std::find_if(
+        world.map().events().begin(),
+        world.map().events().end(),
+        [](const MapEventInstance& event) {
+            return event.type == MapEventType::Combination;
+        }
+    );
+    return it == world.map().events().end() ? nullptr : &*it;
+}
+
+void testCombinationMapEvents() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_combination_event_test.bin";
+    std::filesystem::remove(path);
+
+    {
+        GameWorld world(21001);
+        prepareCombinationFixture(world, path, 0);
+        const MapEventInstance* event = combinationEvent(world);
+        expect(event != nullptr
+                && event->encounterType == MapEncounterType::EnhancedCache,
+            "map 1 combination fixture uses the data-driven Enhanced Cache");
+        if (event != nullptr) {
+            const Vector2 position = event->position;
+            Input input;
+            expect(moveToMapEvent(world, input, position),
+                "player can reach the Enhanced Cache encounter");
+            pressKey(world, input, sf::Keyboard::Key::F);
+            const MapEventInstance* afterOpen = combinationEvent(world);
+            expect(afterOpen != nullptr && afterOpen->triggered && afterOpen->completed,
+                "Enhanced Cache completes exactly on its F interaction");
+            expect(world.mapEventsCompleted() == 1 && world.mapItemsDropped() >= 3,
+                "Enhanced Cache uses its configured drop quantity");
+            const int dropsAfterOpen = world.mapItemsDropped();
+            pressKey(world, input, sf::Keyboard::Key::F);
+            expect(world.mapItemsDropped() == dropsAfterOpen,
+                "completed Enhanced Cache cannot be opened twice");
+
+            expect(world.saveRun(path) && world.loadRun(path),
+                "completed combination event can be saved and loaded");
+            const MapEventInstance* afterLoad = combinationEvent(world);
+            expect(afterLoad != nullptr && afterLoad->completed
+                    && world.mapEventsCompleted() == 1,
+                "saved combination completion is restored without duplication");
+        }
+    }
+
+    {
+        GameWorld world(21002);
+        prepareCombinationFixture(world, path, 1);
+        const MapEventInstance* event = combinationEvent(world);
+        expect(event != nullptr
+                && event->encounterType == MapEncounterType::HazardousElitePack,
+            "map 1 alternate layout uses the Hazardous Elite Pack definition");
+        if (event != nullptr) {
+            const Vector2 position = event->position;
+            Input input;
+            const Vector2 verticalWaypoint(world.player().position().x, position.y);
+            expect(moveToMapEvent(world, input, verticalWaypoint)
+                    && moveToMapEvent(world, input, position),
+                "player can reach the Hazardous Elite Pack encounter");
+            expect(world.activeEliteEventEnemiesRemaining() == 5
+                    && world.groundHazards().size() == 1,
+                "Hazardous Elite Pack spawns five owned enemies and one hazard");
+
+            const Vector2 camera = world.cameraTopLeft();
+            input.handleMousePressed(
+                sf::Mouse::Button::Right,
+                {static_cast<int>(std::lround(position.x - camera.x)),
+                 static_cast<int>(std::lround(position.y - camera.y))}
+            );
+            world.update(0.05f, input);
+            const MapEventInstance* afterClear = combinationEvent(world);
+            expect(afterClear != nullptr && afterClear->completed
+                    && world.activeEliteEventEnemiesRemaining() == 0,
+                "Hazardous Elite Pack completes after its owned enemies die");
+            const std::size_t enemyCount = world.enemies().size();
+            for (int frame = 0; frame < 20; ++frame) {
+                world.update(0.05f, input);
+            }
+            expect(world.mapEventsCompleted() == 1
+                    && world.enemies().size() <= enemyCount + 1,
+                "completed Hazardous Elite Pack does not respawn its encounter enemies");
+        }
+    }
+
+    {
+        GameWorld world(21004);
+        prepareCombinationFixture(world, path, 1);
+        const MapEventInstance* event = combinationEvent(world);
+        const auto eliteIt = std::find_if(
+            world.map().events().begin(),
+            world.map().events().end(),
+            [](const MapEventInstance& candidate) {
+                return candidate.type == MapEventType::ElitePack;
+            }
+        );
+        expect(event != nullptr && eliteIt != world.map().events().end(),
+            "map event lock fixture exposes a basic Elite Pack and combination event");
+        if (event != nullptr && eliteIt != world.map().events().end()) {
+            Input input;
+            const Vector2 aroundObstacleWaypoint(1500.0f, 820.0f);
+            expect(moveToMapEvent(world, input, aroundObstacleWaypoint)
+                    && moveToMapEvent(world, input, eliteIt->position),
+                "player can reach the first Elite Pack in the event lock fixture");
+            expect(world.activeEliteEventEnemiesRemaining() == 5,
+                "first event owns its five spawned enemies");
+            const Vector2 combinationPosition = event->position;
+            expect(moveToMapEvent(world, input, combinationPosition),
+                "player can reach the second event while the first is active");
+            const MapEventInstance* afterMove = combinationEvent(world);
+            expect(afterMove != nullptr && !afterMove->triggered
+                    && world.activeEliteEventEnemiesRemaining() == 5,
+                "an active event blocks a second enemy encounter from overwriting ownership");
+        }
+    }
+
+    {
+        GameWorld world(21003);
+        prepareCombinationFixture(world, path, 2);
+        const MapEventInstance* event = combinationEvent(world);
+        expect(event != nullptr
+                && event->encounterType == MapEncounterType::GuardedShrine,
+            "map 1 third layout uses the Guarded Shrine definition");
+        if (event != nullptr) {
+            const Vector2 position = event->position;
+            Input input;
+            expect(moveToMapEvent(world, input, position),
+                "player can reach the Guarded Shrine encounter");
+            pressKey(world, input, sf::Keyboard::Key::F);
+            expect(world.activeEliteEventEnemiesRemaining() == 4
+                    && world.mapEventsCompleted() == 0,
+                "Guarded Shrine requires clearing four guardians first");
+            pressKey(world, input, sf::Keyboard::Key::F);
+            expect(world.activeEliteEventEnemiesRemaining() == 4
+                    && world.mapEventsCompleted() == 0,
+                "Guarded Shrine cannot be activated while guardians remain");
+
+            const Vector2 camera = world.cameraTopLeft();
+            input.handleMousePressed(
+                sf::Mouse::Button::Right,
+                {static_cast<int>(std::lround(position.x - camera.x)),
+                 static_cast<int>(std::lround(position.y - camera.y))}
+            );
+            world.update(0.05f, input);
+            expect(world.activeEliteEventEnemiesRemaining() == 0
+                    && world.mapEventsCompleted() == 0,
+                "Guarded Shrine remains incomplete after guardians are defeated");
+            pressKey(world, input, sf::Keyboard::Key::F);
+            const MapEventInstance* afterActivate = combinationEvent(world);
+            expect(afterActivate != nullptr && afterActivate->completed
+                    && world.shrineBuffTimeRemaining() > 0.0f,
+                "Guarded Shrine activates once after its guards are cleared");
+        }
+    }
+
+    std::filesystem::remove(path);
+}
+
 } // namespace
 
 int main() {
@@ -1587,6 +1828,7 @@ int main() {
     testExpandedSkillWorldHits();
     testBossCombatFlow();
     testElitePackEventFlow();
+    testCombinationMapEvents();
 
     std::cout << "Passed: " << (checks - failures)
         << "  Failed: " << failures << '\n';

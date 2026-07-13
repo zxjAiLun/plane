@@ -457,15 +457,23 @@ std::string mapOptionSummary(const MapOption& option) {
         + " IL+" + std::to_string(modifier.itemLevelBonus);
 }
 
-sf::Color mapEventColor(MapEventType type, bool completed) {
-    if (completed) {
+sf::Color mapEventColor(const MapEventInstance& event) {
+    if (event.completed) {
         return sf::Color(130, 130, 130);
     }
 
-    switch (type) {
+    switch (event.type) {
         case MapEventType::LootCache: return sf::Color(255, 215, 70);
         case MapEventType::ElitePack: return sf::Color(190, 90, 255);
         case MapEventType::Shrine: return sf::Color(80, 230, 230);
+        case MapEventType::Combination:
+            switch (event.encounterType) {
+                case MapEncounterType::EnhancedCache: return sf::Color(255, 150, 65);
+                case MapEncounterType::HazardousElitePack: return sf::Color(215, 80, 210);
+                case MapEncounterType::GuardedShrine: return sf::Color(70, 205, 185);
+                case MapEncounterType::None: break;
+            }
+            break;
     }
 
     return sf::Color::White;
@@ -516,9 +524,15 @@ std::string activeElitePackModifierDescription(const GameWorld& world) {
     }
 
     const MapEventInstance* activeEvent = nullptr;
-    for (const auto& event : world.map().events()) {
-        if (event.type == MapEventType::ElitePack && event.triggered && !event.completed) {
+    std::size_t activeEventIndex = 0;
+    for (std::size_t index = 0; index < world.map().events().size(); ++index) {
+        const auto& event = world.map().events()[index];
+        const bool isEliteEncounter = event.type == MapEventType::ElitePack
+            || (event.type == MapEventType::Combination
+                && event.encounterType == MapEncounterType::HazardousElitePack);
+        if (isEliteEncounter && event.triggered && !event.completed) {
             activeEvent = &event;
+            activeEventIndex = index;
             break;
         }
     }
@@ -530,6 +544,9 @@ std::string activeElitePackModifierDescription(const GameWorld& world) {
     float closestDistanceSquared = 0.0f;
     for (const auto& enemy : world.enemies()) {
         if (!enemy.isElite() || enemy.isBoss() || enemy.isDead()) {
+            continue;
+        }
+        if (enemy.mapEventIndex() != static_cast<int>(activeEventIndex)) {
             continue;
         }
 
@@ -544,6 +561,40 @@ std::string activeElitePackModifierDescription(const GameWorld& world) {
     }
 
     return eventElite == nullptr ? "" : eliteModifierDescription(*eventElite);
+}
+
+std::string mapEncounterStatus(const GameWorld& world) {
+    for (const auto& event : world.map().events()) {
+        if (event.type != MapEventType::Combination) {
+            continue;
+        }
+
+        const auto& definition = world.map().encounterDefinition();
+        if (event.completed) {
+            return definition.name + " [Cleared]";
+        }
+        if (!event.triggered) {
+            return definition.name + " [Available]";
+        }
+        if (event.triggered && world.activeEliteEventEnemiesRemaining() > 0) {
+            return definition.name + " [Enemies remaining]";
+        }
+        return definition.name + " [Ready]";
+    }
+    return "";
+}
+
+std::string activeMapEventLabel(const GameWorld& world) {
+    for (const auto& event : world.map().events()) {
+        if (event.triggered && !event.completed
+            && (event.type == MapEventType::ElitePack
+                || event.type == MapEventType::Combination)) {
+            return event.type == MapEventType::Combination
+                ? world.map().encounterDefinition().name
+                : "Elite Pack";
+        }
+    }
+    return "Elite Pack";
 }
 }
 
@@ -632,6 +683,12 @@ void Renderer::render(const GameWorld& world) {
         + "/" + std::to_string(world.mapEventsTotal()),
         {16.0f, hudY}, 14, sf::Color(210, 255, 210));
     hudY += 18.0f;
+    const std::string encounterStatus = mapEncounterStatus(world);
+    if (!encounterStatus.empty()) {
+        drawText(truncateText("Encounter: " + encounterStatus, 34),
+            {16.0f, hudY}, 14, sf::Color(255, 190, 140));
+        hudY += 18.0f;
+    }
     if (!world.nearbyEventPrompt().empty()) {
         drawText(truncateText(world.nearbyEventPrompt(), 34), {16.0f, hudY}, 14, sf::Color(255, 235, 150));
         hudY += 18.0f;
@@ -641,7 +698,7 @@ void Renderer::render(const GameWorld& world) {
         hudY += 18.0f;
     }
     if (world.activeEliteEventEnemiesRemaining() > 0) {
-        std::string elitePackLine = "Elite pack: "
+        std::string elitePackLine = activeMapEventLabel(world) + ": "
             + std::to_string(world.activeEliteEventEnemiesRemaining()) + " enemies left";
         const std::string modifierDescription = activeElitePackModifierDescription(world);
         if (!modifierDescription.empty()) {
@@ -1918,7 +1975,7 @@ void Renderer::drawMinimap(const GameWorld& world) {
         sf::CircleShape eventDot(3.0f);
         eventDot.setOrigin({3.0f, 3.0f});
         eventDot.setPosition(toMinimap(event.position));
-        eventDot.setFillColor(mapEventColor(event.type, event.completed));
+        eventDot.setFillColor(mapEventColor(event));
         window_.draw(eventDot);
     }
 

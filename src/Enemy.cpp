@@ -5,7 +5,24 @@
 
 #include <algorithm>
 
-Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type, EliteModifier eliteModifier)
+Enemy::Enemy(
+    const Vector2& position,
+    int hp,
+    int contactDamage,
+    EnemyType type,
+    EliteModifier eliteModifier
+)
+    : Enemy(position, hp, contactDamage, type, eliteModifier, -1) {
+}
+
+Enemy::Enemy(
+    const Vector2& position,
+    int hp,
+    int contactDamage,
+    EnemyType type,
+    EliteModifier eliteModifier,
+    int mapEventIndex
+)
     : position_(position)
     , id_(nextId_++)
     , radius_(Config::EnemyRadius * EnemyLibrary::forType(type).radiusMultiplier)
@@ -14,6 +31,7 @@ Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type,
     , contactDamage_(contactDamage)
     , type_(type)
     , eliteModifier_(type == EnemyType::Elite ? eliteModifier : EliteModifier::None)
+    , mapEventIndex_(mapEventIndex)
     , attackCooldownTimer_(0.0f)
     , attackWindupTimer_(0.0f)
     , attackReady_(false)
@@ -235,3 +253,4 @@ bool Enemy::consumeChargeHit() {
 bool Enemy::isElite() const { return type_ == EnemyType::Elite || type_ == EnemyType::Boss; }
 bool Enemy::isBoss() const { return type_ == EnemyType::Boss; }
 EliteModifier Enemy::eliteModifier() const { return eliteModifier_; }
+int Enemy::mapEventIndex() const { return mapEventIndex_; }

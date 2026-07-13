@@ -210,8 +210,15 @@ private:
     void applySkillAilment(Enemy& enemy, const AilmentDefinition& ailment, int hitDamage);
     void updateMapEvents(float dt, Input& input);
     void triggerElitePackEvent(std::size_t eventIndex);
+    void triggerCombinationEvent(std::size_t eventIndex);
+    void spawnMapEventEnemies(
+        std::size_t eventIndex,
+        int eliteCount,
+        int normalCount
+    );
     void openLootCacheEvent(MapEventInstance& event);
     void activateShrineEvent(MapEventInstance& event);
+    void activateGuardedShrineEvent(MapEventInstance& event);
     int dropItemsAround(const Vector2& center, int count, float eventRewardMultiplier = 1.0f);
     int damageForPlayerSkill(const SkillDefinition& skill) const;
     float radiusForPlayerSkill(const SkillDefinition& skill) const;
@@ -219,7 +226,7 @@ private:
     int projectileCountForPlayerSkill(const SkillDefinition& skill) const;
     float spreadAngleForPlayerSkill(const SkillDefinition& skill) const;
     AilmentDefinition ailmentForPlayerSkill(const SkillDefinition& skill) const;
-    void noteElitePackEnemyDefeated(const Enemy& enemy);
+    void noteMapEventEnemyDefeated(const Enemy& enemy);
     void tryPickupDroppedItem(Input& input);
     void trySpendPassivePoint(Input& input);
     void updatePassiveTreeHover(const Input& input);
@@ -345,8 +352,8 @@ private:
     int selectedStashIndex_ = -1;
     bool stashSelectionActive_ = false;
     bool mapEventInteractionConsumed_;
-    int activeEliteEventIndex_;
-    int eliteEventEnemiesRemaining_;
+    int activeMapEventIndex_;
+    int mapEventEnemiesRemaining_;
     std::string eventStatusMessage_;
     float eventStatusTimer_ = 0.0f;
 };

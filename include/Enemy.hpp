@@ -18,6 +18,14 @@ class Enemy {
 public:
     Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type = EnemyType::Normal,
         EliteModifier eliteModifier = EliteModifier::None);
+    Enemy(
+        const Vector2& position,
+        int hp,
+        int contactDamage,
+        EnemyType type,
+        EliteModifier eliteModifier,
+        int mapEventIndex
+    );
 
     void update(float dt, const Vector2& targetPosition, const MapInstance& map);
     void update(
@@ -57,6 +65,7 @@ public:
     bool isElite() const;
     bool isBoss() const;
     EliteModifier eliteModifier() const;
+    int mapEventIndex() const;
 
 private:
     Vector2 position_;
@@ -67,6 +76,7 @@ private:
     int contactDamage_;
     EnemyType type_;
     EliteModifier eliteModifier_;
+    int mapEventIndex_;
     float attackCooldownTimer_;
     float attackWindupTimer_;
     bool attackReady_;

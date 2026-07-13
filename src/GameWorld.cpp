@@ -204,8 +204,8 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , selectedStashIndex_(-1)
     , stashSelectionActive_(false)
     , mapEventInteractionConsumed_(false)
-    , activeEliteEventIndex_(-1)
-    , eliteEventEnemiesRemaining_(0) {
+    , activeMapEventIndex_(-1)
+    , mapEventEnemiesRemaining_(0) {
     initializeRunProgression();
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
@@ -459,7 +459,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
         || data.inventory.size() > static_cast<std::size_t>(Config::InventoryCapacity)
         || data.stash.size() > static_cast<std::size_t>(Config::StashCapacity)
         || data.droppedItems.size() > 4096
-        || data.mapEvents.size() != 3
+        || (data.mapEvents.size() != 3 && data.mapEvents.size() != 4)
         || !validFloat(data.survivalTime)
         || data.survivalTime < 0.0f
         || !validFloat(data.itemQuantityRewardMultiplier)
@@ -547,6 +547,15 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
             // encounter is reset and can be triggered again from the safe map.
             event.triggered = false;
         }
+    }
+
+    if (data.mapEvents.size() == 3 && data.state == SavedRunState::MapComplete) {
+        // Older settlement saves predate the fourth event. Treat the newly
+        // introduced encounter as already settled instead of showing a
+        // misleading incomplete event in an already-completed map summary.
+        auto& migratedEncounter = restoredMap.eventsForMutation().back();
+        migratedEncounter.triggered = true;
+        migratedEncounter.completed = true;
     }
 
     if (data.state == SavedRunState::MapComplete) {
@@ -679,8 +688,8 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     selectedStashIndex_ = -1;
     stashSelectionActive_ = false;
     mapEventInteractionConsumed_ = false;
-    activeEliteEventIndex_ = -1;
-    eliteEventEnemiesRemaining_ = 0;
+    activeMapEventIndex_ = -1;
+    mapEventEnemiesRemaining_ = 0;
     eventStatusMessage_.clear();
     eventStatusTimer_ = 0.0f;
     updateSelectedInventoryIndex();
@@ -883,8 +892,8 @@ void GameWorld::reset(std::uint64_t runSeed) {
     selectedStashIndex_ = -1;
     stashSelectionActive_ = false;
     mapEventInteractionConsumed_ = false;
-    activeEliteEventIndex_ = -1;
-    eliteEventEnemiesRemaining_ = 0;
+    activeMapEventIndex_ = -1;
+    mapEventEnemiesRemaining_ = 0;
     eventStatusMessage_.clear();
     eventStatusTimer_ = 0.0f;
 }
@@ -968,8 +977,8 @@ void GameWorld::startNextMap() {
     selectedStashIndex_ = -1;
     stashSelectionActive_ = false;
     mapEventInteractionConsumed_ = false;
-    activeEliteEventIndex_ = -1;
-    eliteEventEnemiesRemaining_ = 0;
+    activeMapEventIndex_ = -1;
+    mapEventEnemiesRemaining_ = 0;
     eventStatusMessage_.clear();
     eventStatusTimer_ = 0.0f;
 }
@@ -1816,11 +1825,74 @@ void GameWorld::updateMapEvents(float /*dt*/, Input& input) {
                 return;
 
             case MapEventType::ElitePack:
+                if (!event.triggered
+                    && activeMapEventIndex_ >= 0
+                    && mapEventEnemiesRemaining_ > 0) {
+                    nearbyEventPrompt_ = "Another encounter active";
+                    return;
+                }
                 nearbyEventPrompt_ = event.triggered ? "Elite Pack active" : "Elite Pack ambush";
                 if (!event.triggered) {
                     triggerElitePackEvent(i);
                 }
                 return;
+
+            case MapEventType::Combination: {
+                const auto& encounter = map_.encounterDefinition();
+                switch (encounter.type) {
+                    case MapEncounterType::EnhancedCache:
+                        nearbyEventPrompt_ = "F Open " + encounter.name;
+                        if (input.pickup()) {
+                            triggerCombinationEvent(i);
+                            mapEventInteractionConsumed_ = true;
+                        }
+                        return;
+
+                    case MapEncounterType::HazardousElitePack:
+                        if (!event.triggered
+                            && activeMapEventIndex_ >= 0
+                            && mapEventEnemiesRemaining_ > 0) {
+                            nearbyEventPrompt_ = "Another encounter active";
+                            return;
+                        }
+                        nearbyEventPrompt_ = event.triggered
+                            ? encounter.name + " active"
+                            : encounter.name + " ambush";
+                        if (!event.triggered) {
+                            triggerCombinationEvent(i);
+                        }
+                        return;
+
+                    case MapEncounterType::GuardedShrine:
+                        if (!event.triggered) {
+                            if (activeMapEventIndex_ >= 0
+                                && mapEventEnemiesRemaining_ > 0) {
+                                nearbyEventPrompt_ = "Another encounter active";
+                                return;
+                            }
+                            nearbyEventPrompt_ = "F Awaken " + encounter.name;
+                            if (input.pickup()) {
+                                triggerCombinationEvent(i);
+                                mapEventInteractionConsumed_ = true;
+                            }
+                        } else if (activeMapEventIndex_ >= 0
+                            && mapEventEnemiesRemaining_ > 0) {
+                            nearbyEventPrompt_ = encounter.name + ": "
+                                + std::to_string(mapEventEnemiesRemaining_)
+                                + " guardians left";
+                        } else {
+                            nearbyEventPrompt_ = "F Activate " + encounter.name;
+                            if (input.pickup()) {
+                                activateGuardedShrineEvent(event);
+                                mapEventInteractionConsumed_ = true;
+                            }
+                        }
+                        return;
+
+                    case MapEncounterType::None:
+                        return;
+                }
+            }
         }
     }
 }
@@ -1832,42 +1904,136 @@ void GameWorld::triggerElitePackEvent(std::size_t eventIndex) {
     }
 
     auto& event = events[eventIndex];
-    if (event.triggered || event.completed) {
+    if (event.triggered || event.completed
+        || (activeMapEventIndex_ >= 0 && mapEventEnemiesRemaining_ > 0)) {
         return;
     }
 
     event.triggered = true;
-    activeEliteEventIndex_ = static_cast<int>(eventIndex);
-    eliteEventEnemiesRemaining_ = 5;
+    activeMapEventIndex_ = static_cast<int>(eventIndex);
+    mapEventEnemiesRemaining_ = 5;
     eventStatusMessage_ = "Elite pack awakened";
     eventStatusTimer_ = 2.0f;
+    spawnMapEventEnemies(eventIndex, 1, 4);
+}
 
-    const Vector2 offsets[] = {
+void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
+    auto& events = map_.eventsForMutation();
+    if (eventIndex >= events.size()) {
+        return;
+    }
+
+    auto& event = events[eventIndex];
+    const auto& encounter = map_.encounterDefinition();
+    if (event.type != MapEventType::Combination
+        || event.encounterType != encounter.type
+        || event.triggered
+        || event.completed
+        || (activeMapEventIndex_ >= 0 && mapEventEnemiesRemaining_ > 0)) {
+        return;
+    }
+
+    event.triggered = true;
+    switch (encounter.type) {
+        case MapEncounterType::EnhancedCache: {
+            const int droppedCount = dropItemsAround(
+                event.position,
+                encounter.cacheDropCount,
+                encounter.rewardMultiplier
+            );
+            event.completed = true;
+            eventStatusMessage_ = encounter.name + ": "
+                + std::to_string(droppedCount) + " items dropped";
+            eventStatusTimer_ = 2.0f;
+            break;
+        }
+
+        case MapEncounterType::HazardousElitePack:
+            activeMapEventIndex_ = static_cast<int>(eventIndex);
+            mapEventEnemiesRemaining_ = encounter.eliteCount + encounter.normalCount;
+            spawnMapEventEnemies(
+                eventIndex,
+                encounter.eliteCount,
+                encounter.normalCount
+            );
+            if (encounter.hazard.isValid()) {
+                groundHazards_.emplace_back(event.position, encounter.hazard);
+            }
+            eventStatusMessage_ = encounter.name + " awakened";
+            eventStatusTimer_ = 2.0f;
+            break;
+
+        case MapEncounterType::GuardedShrine:
+            activeMapEventIndex_ = static_cast<int>(eventIndex);
+            mapEventEnemiesRemaining_ = encounter.eliteCount + encounter.normalCount;
+            spawnMapEventEnemies(
+                eventIndex,
+                encounter.eliteCount,
+                encounter.normalCount
+            );
+            eventStatusMessage_ = encounter.name + " awakened";
+            eventStatusTimer_ = 2.0f;
+            break;
+
+        case MapEncounterType::None:
+            event.triggered = false;
+            break;
+    }
+}
+
+void GameWorld::spawnMapEventEnemies(
+    std::size_t eventIndex,
+    int eliteCount,
+    int normalCount
+) {
+    if (eventIndex >= map_.events().size()) {
+        return;
+    }
+
+    const auto& event = map_.events()[eventIndex];
+    static const Vector2 offsets[] = {
         {0.0f, 0.0f},
         {-64.0f, -42.0f},
         {62.0f, -34.0f},
         {-48.0f, 58.0f},
-        {54.0f, 52.0f}
+        {54.0f, 52.0f},
+        {-92.0f, 12.0f},
+        {88.0f, 16.0f},
+        {0.0f, 94.0f}
     };
-
-    const auto spawnEventEnemy = [&](EnemyType type, const Vector2& position) {
+    const int totalCount = std::max(0, eliteCount) + std::max(0, normalCount);
+    for (int index = 0; index < totalCount; ++index) {
+        const EnemyType type = index < eliteCount ? EnemyType::Elite : EnemyType::Normal;
         const auto& definition = EnemyLibrary::forType(type);
-        const EliteModifier modifier = type == EnemyType::Elite ? randomEliteModifier() : EliteModifier::None;
+        const EliteModifier modifier = type == EnemyType::Elite
+            ? randomEliteModifier()
+            : EliteModifier::None;
         const auto& modifierDefinition = EliteModifierLibrary::forModifier(modifier);
         const int hp = std::max(1, static_cast<int>(std::ceil(
             enemyHpForMap() * definition.hpMultiplier * modifierDefinition.hpMultiplier
         )));
-        const int damage = enemyDamageForMap() + definition.damageBonus + modifierDefinition.damageBonus;
-        enemies_.emplace_back(position, hp, damage, type, modifier);
-    };
-
-    spawnEventEnemy(EnemyType::Elite, event.position + offsets[0]);
-    for (std::size_t i = 1; i < 5; ++i) {
-        spawnEventEnemy(EnemyType::Normal, event.position + offsets[i]);
+        const int damage = enemyDamageForMap()
+            + definition.damageBonus + modifierDefinition.damageBonus;
+        const int offsetCount = static_cast<int>(sizeof(offsets) / sizeof(offsets[0]));
+        const Vector2 offset = offsets[static_cast<std::size_t>(
+            std::min(index, offsetCount - 1)
+        )];
+        enemies_.emplace_back(
+            event.position + offset,
+            hp,
+            damage,
+            type,
+            modifier,
+            static_cast<int>(eventIndex)
+        );
     }
 }
 
 void GameWorld::openLootCacheEvent(MapEventInstance& event) {
+    if (event.triggered || event.completed) {
+        return;
+    }
+
     event.triggered = true;
     event.completed = true;
     const int droppedCount = dropItemsAround(
@@ -1880,12 +2046,33 @@ void GameWorld::openLootCacheEvent(MapEventInstance& event) {
 }
 
 void GameWorld::activateShrineEvent(MapEventInstance& event) {
+    if (event.triggered || event.completed) {
+        return;
+    }
+
     event.triggered = true;
     event.completed = true;
     shrineBuffTimer_ = Config::ShrineBuffDuration;
     eventStatusMessage_ = "Shrine activated: +"
         + std::to_string(Config::ShrineDamageBonusPercent)
         + "% damage";
+    eventStatusTimer_ = 2.0f;
+}
+
+void GameWorld::activateGuardedShrineEvent(MapEventInstance& event) {
+    const auto& encounter = map_.encounterDefinition();
+    if (event.type != MapEventType::Combination
+        || encounter.type != MapEncounterType::GuardedShrine
+        || !event.triggered
+        || event.completed
+        || mapEventEnemiesRemaining_ > 0) {
+        return;
+    }
+
+    event.completed = true;
+    shrineBuffTimer_ = Config::ShrineBuffDuration;
+    eventStatusMessage_ = encounter.name + " activated: +"
+        + std::to_string(Config::ShrineDamageBonusPercent) + "% damage";
     eventStatusTimer_ = 2.0f;
 }
 
@@ -1943,28 +2130,39 @@ AilmentDefinition GameWorld::ailmentForPlayerSkill(const SkillDefinition& skill)
     return skillAilment(skill, skillBar_.supportDefinitionsFor(skill));
 }
 
-void GameWorld::noteElitePackEnemyDefeated(const Enemy& enemy) {
-    if (enemy.isBoss() || activeEliteEventIndex_ < 0 || eliteEventEnemiesRemaining_ <= 0) {
+void GameWorld::noteMapEventEnemyDefeated(const Enemy& enemy) {
+    if (enemy.isBoss()
+        || enemy.mapEventIndex() < 0
+        || activeMapEventIndex_ < 0
+        || mapEventEnemiesRemaining_ <= 0
+        || enemy.mapEventIndex() != activeMapEventIndex_) {
         return;
     }
 
     auto& events = map_.eventsForMutation();
-    const auto eventIndex = static_cast<std::size_t>(activeEliteEventIndex_);
+    const auto eventIndex = static_cast<std::size_t>(activeMapEventIndex_);
     if (eventIndex >= events.size()) {
         return;
     }
 
     auto& event = events[eventIndex];
-    const float completionRadius = event.radius + 240.0f;
-    if ((enemy.position() - event.position).lengthSquared() > completionRadius * completionRadius) {
+    if (event.completed || !event.triggered) {
         return;
     }
 
-    --eliteEventEnemiesRemaining_;
-    if (eliteEventEnemiesRemaining_ <= 0) {
-        event.completed = true;
-        activeEliteEventIndex_ = -1;
-        eventStatusMessage_ = "Elite pack cleared - check nearby loot";
+    --mapEventEnemiesRemaining_;
+    if (mapEventEnemiesRemaining_ <= 0) {
+        activeMapEventIndex_ = -1;
+        const bool guardedShrine = event.type == MapEventType::Combination
+            && event.encounterType == MapEncounterType::GuardedShrine;
+        if (guardedShrine) {
+            eventStatusMessage_ = "Guardians defeated - activate shrine";
+        } else {
+            event.completed = true;
+            eventStatusMessage_ = event.type == MapEventType::Combination
+                ? map_.encounterDefinition().name + " cleared"
+                : "Elite pack cleared - check nearby loot";
+        }
         eventStatusTimer_ = 2.0f;
     }
 }
@@ -2685,7 +2883,7 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         }
     }
 
-    noteElitePackEnemyDefeated(enemy);
+    noteMapEventEnemyDefeated(enemy);
 }
 
 void GameWorld::damagePlayer(int damage, const std::string& source) {
@@ -2816,8 +3014,8 @@ void GameWorld::triggerBossIfNeeded() {
     projectiles_.clear();
     bossProjectiles_.clear();
     enemyProjectiles_.clear();
-    activeEliteEventIndex_ = -1;
-    eliteEventEnemiesRemaining_ = 0;
+    activeMapEventIndex_ = -1;
+    mapEventEnemiesRemaining_ = 0;
     nearbyEventPrompt_.clear();
     mapEventInteractionConsumed_ = false;
     bossAoeCenter_ = map_.bossCenter();
@@ -2995,7 +3193,7 @@ float GameWorld::shrineBuffTimeRemaining() const { return shrineBuffTimer_; }
 float GameWorld::inventoryFullPromptTimeRemaining() const { return inventoryFullTimer_; }
 std::string GameWorld::eventStatusMessage() const { return eventStatusMessage_; }
 float GameWorld::eventStatusTimeRemaining() const { return eventStatusTimer_; }
-int GameWorld::activeEliteEventEnemiesRemaining() const { return eliteEventEnemiesRemaining_; }
+int GameWorld::activeEliteEventEnemiesRemaining() const { return mapEventEnemiesRemaining_; }
 std::string GameWorld::bossSkillWarning() const {
     if (bossDashState_.isTelegraphing() && !bossDashSkill_.name.empty()) {
         return "Boss casting: " + bossDashSkill_.name;

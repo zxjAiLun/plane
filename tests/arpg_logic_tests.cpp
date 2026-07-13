@@ -1710,6 +1710,11 @@ void testMapLayoutVariants() {
                     && map.layoutIndex() == variantIndex
                     && map.layoutId() == layout.id,
                 "MapInstance binds the requested template and layout" + layoutLabel);
+            expect(map.events().size() == 4
+                    && map.events().back().type == MapEventType::Combination
+                    && map.events().back().encounterType != MapEncounterType::None
+                    && !map.encounterDefinition().id.empty(),
+                "layout adds exactly one data-driven combination encounter" + layoutLabel);
             expect(!map.intersectsObstacle(map.playerStart(), Config::PlayerRadius),
                 "layout leaves the player start clear" + layoutLabel);
             expect(!map.intersectsObstacle(map.bossCenter(), Config::BossArenaRadius),

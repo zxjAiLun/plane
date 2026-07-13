@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cmath>
 #include <queue>
@@ -9,6 +10,7 @@
 #include <vector>
 
 #include "Config.hpp"
+#include "GroundHazard.hpp"
 #include "MapExploration.hpp"
 #include "MapLayout.hpp"
 #include "Vector2.hpp"
@@ -24,7 +26,98 @@ enum class MapArea {
 enum class MapEventType {
     LootCache,
     ElitePack,
-    Shrine
+    Shrine,
+    Combination
+};
+
+enum class MapEncounterType {
+    None,
+    EnhancedCache,
+    HazardousElitePack,
+    GuardedShrine
+};
+
+struct MapEncounterDefinition {
+    MapEncounterType type = MapEncounterType::None;
+    std::string id;
+    std::string name;
+    std::string description;
+    float radius = 105.0f;
+    int cacheDropCount = 0;
+    int eliteCount = 0;
+    int normalCount = 0;
+    float rewardMultiplier = 1.0f;
+    GroundHazardDefinition hazard;
+    bool requiresGuardClearance = false;
+};
+
+class MapEncounterLibrary {
+public:
+    static const std::array<MapEncounterDefinition, 3>& all() {
+        static const std::array<MapEncounterDefinition, 3> definitions = {{
+            {
+                MapEncounterType::EnhancedCache,
+                "enhanced-cache",
+                "Enhanced Cache",
+                "A richer cache with additional item quantity",
+                105.0f,
+                3,
+                0,
+                0,
+                1.15f,
+                {},
+                false
+            },
+            {
+                MapEncounterType::HazardousElitePack,
+                "hazardous-elite-pack",
+                "Hazardous Elite Pack",
+                "An Elite pack protected by a lingering ground hazard",
+                112.0f,
+                0,
+                1,
+                4,
+                1.0f,
+                {"Ashen Trap", 115.0f, 8.0f, 0.5f, 2},
+                false
+            },
+            {
+                MapEncounterType::GuardedShrine,
+                "guarded-shrine",
+                "Guarded Shrine",
+                "Clear the shrine guardians before claiming its blessing",
+                108.0f,
+                0,
+                0,
+                4,
+                1.0f,
+                {},
+                true
+            }
+        }};
+        return definitions;
+    }
+
+    static const MapEncounterDefinition& forType(MapEncounterType type) {
+        for (const auto& definition : all()) {
+            if (definition.type == type) {
+                return definition;
+            }
+        }
+        static const MapEncounterDefinition none;
+        return none;
+    }
+
+    static const MapEncounterDefinition& forMap(
+        int mapLevel,
+        int templateIndex,
+        int layoutIndex
+    ) {
+        const int count = static_cast<int>(all().size());
+        const int normalizedLevel = std::max(1, mapLevel) - 1;
+        const int index = ((normalizedLevel + templateIndex + layoutIndex) % count + count) % count;
+        return all()[static_cast<std::size_t>(index)];
+    }
 };
 
 struct MapEventInstance {
@@ -33,6 +126,8 @@ struct MapEventInstance {
     float radius = 70.0f;
     bool triggered = false;
     bool completed = false;
+    MapEncounterType encounterType = MapEncounterType::None;
+    std::string encounterId;
 };
 
 struct MapColor {
@@ -119,6 +214,7 @@ public:
         , playerStart_(220.0f, Config::MapHeight - 220.0f)
         , bossCenter_(Config::MapWidth - 320.0f, 300.0f)
         , exploration_(size_)
+        , mapLevel_(std::max(1, mapLevel))
         , templateIndex_(templateIndex >= 0
             ? MapLayoutLibrary::normalizeTemplateIndex(templateIndex)
             : MapLayoutLibrary::normalizeTemplateIndex(std::max(1, mapLevel) - 1))
@@ -127,6 +223,9 @@ public:
             : MapLayoutLibrary::variantForMapLevel(mapLevel))
         , templateDefinition_(&MapTemplateLibrary::forIndex(templateIndex_))
         , layoutDefinition_(&MapLayoutLibrary::forTemplate(templateIndex_, layoutIndex_))
+        , encounterDefinition_(&MapEncounterLibrary::forMap(
+            mapLevel_, templateIndex_, layoutIndex_
+        ))
         , bossTriggered_(false)
         , bossDefeated_(false) {
         generateObstacles();
@@ -137,8 +236,10 @@ public:
     const Vector2& size() const { return size_; }
     const Vector2& playerStart() const { return playerStart_; }
     const Vector2& bossCenter() const { return bossCenter_; }
+    int mapLevel() const { return mapLevel_; }
     const MapTemplateDefinition& definition() const { return *templateDefinition_; }
     const MapLayoutDefinition& layoutDefinition() const { return *layoutDefinition_; }
+    const MapEncounterDefinition& encounterDefinition() const { return *encounterDefinition_; }
     int templateIndex() const { return templateIndex_; }
     int layoutIndex() const { return layoutIndex_; }
     const std::string& layoutId() const { return layoutDefinition_->id; }
@@ -175,12 +276,28 @@ public:
         }
 
         for (const auto& event : events_) {
+            const float startSafeDistance = Config::StartSafeRadius + event.radius;
+            const float bossArenaDistance = Config::BossArenaRadius + event.radius;
             if (event.position.x < event.radius
                 || event.position.x > size_.x - event.radius
                 || event.position.y < event.radius
                 || event.position.y > size_.y - event.radius
+                || (event.position - playerStart_).lengthSquared()
+                    <= startSafeDistance * startSafeDistance
+                || (event.position - bossCenter_).lengthSquared()
+                    <= bossArenaDistance * bossArenaDistance
                 || intersectsObstacle(event.position, event.radius)) {
                 return false;
+            }
+        }
+
+        for (std::size_t first = 0; first < events_.size(); ++first) {
+            for (std::size_t second = first + 1; second < events_.size(); ++second) {
+                const float minimumDistance = events_[first].radius + events_[second].radius;
+                if ((events_[first].position - events_[second].position).lengthSquared()
+                        < minimumDistance * minimumDistance) {
+                    return false;
+                }
             }
         }
 
@@ -376,16 +493,28 @@ private:
             false,
             false
         });
+        const auto& encounter = *encounterDefinition_;
+        events_.push_back({
+            MapEventType::Combination,
+            layoutDefinition_->encounterPosition,
+            encounter.radius,
+            false,
+            false,
+            encounter.type,
+            encounter.id
+        });
     }
 
     Vector2 size_;
     Vector2 playerStart_;
     Vector2 bossCenter_;
     MapExploration exploration_;
+    int mapLevel_;
     int templateIndex_;
     int layoutIndex_;
     const MapTemplateDefinition* templateDefinition_;
     const MapLayoutDefinition* layoutDefinition_;
+    const MapEncounterDefinition* encounterDefinition_;
     std::vector<MapObstacle> obstacles_;
     std::vector<MapEventInstance> events_;
     bool bossTriggered_;

@@ -688,7 +688,7 @@ bool readSaveData(Reader& reader, SaveData& data) {
         SavedMapEvent event;
         int type = 0;
         if (!reader.integer(type)
-            || !validEnumValue(type, 0, static_cast<int>(MapEventType::Shrine))
+            || !validEnumValue(type, 0, static_cast<int>(MapEventType::Combination))
             || !reader.boolean(event.triggered)
             || !reader.boolean(event.completed)) {
             return false;
