@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`57d8d85 Add pause state and input help`
+玩法代码基线：`7e541a7 Harden map progression save validation`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -94,7 +94,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前测试基线：`arpg_logic_tests 920 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 34 passed / 0 failed`。
+当前测试基线：`arpg_logic_tests 920 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 85 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -1160,7 +1160,7 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 已知约束：Input Help 表集中管理展示文案，但 SFML 事件到 `Input` 状态的 switch 仍在 `src/Input.cpp`；新增按键时必须同时更新两处并补输入上下文测试。Pause 仍是单文件存档、无多槽位、无音频和无设置页面。
 
-### 13.15 hy3 下一项实施任务：可玩性验收与难度曲线 v1
+### 13.15 已完成任务记录：可玩性验收与难度曲线 v1
 
 目标：不增加新系统，证明当前“探索地图 -> 事件 -> Boss -> 结算奖励 -> 选择下一图 -> 继续刷图”能够连续完成至少 5 张地图，并把明显的数值断点、状态丢失和进度回退修掉。
 
@@ -1190,6 +1190,48 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 明确不做：完整难度选择界面、随机地牢生成、更多技能/Support、职业系统、交易/经济扩展、音频、复杂美术、跨运行存档和大型 GameWorld 重构。
 
+验收结果：
+
+- `GameWorld::restoreFromSaveData()` 现在校验当前地图模板与 MapOption 一致，并拒绝越界选择、未选奖励却已选下一图、Playing 存档携带结算选择等非法阶段组合。
+- `arpg_world_tests` 使用 `SaveData/SaveService` 构造合法 MapComplete 存档，再通过真实 `1 -> 1 -> E` 输入连续推进五次，从 Map 1 到达 Map 6。
+- 连续推进验证 Inventory、Stash、玩家等级、技能奖励状态保留；旧地面掉落被清空；新地图事件重新初始化；未满足奖励/地图选择条件时 `E` 不推进。
+- `arpg_logic_tests`：`920 passed / 0 failed`；`arpg_save_tests`：`11 passed / 0 failed`；`arpg_world_tests`：`85 passed / 0 failed`。
+- clean build、CTest `3/3` 和 3 秒启动 smoke test 通过；代码提交为 `7e541a7 Harden map progression save validation`。
+
+已知约束：连续地图测试通过 SaveData fixture 模拟 Boss 击杀，因此仍缺少无辅助输入的完整战斗通关自动化；这不是生产 debug API 的理由，后续应优先增加可测试的纯战斗/遭遇边界，而不是暴露私有世界容器。
+
+### 13.16 hy3 下一项实施任务：多 Support Link v1
+
+目标：把当前“每个技能最多一个 Support”升级为最小的 PoE-like Support Link 构筑。玩家可以在技能面板为同一主动技能装配两个兼容 Support，Support 的实际效果叠加，保存、预览、施法和结算奖励保持一致。
+
+开始前必须阅读：
+
+- `SkillBar.hpp`、`Skill.hpp`、`SupportLibrary.hpp`、`CombatMath.hpp`。
+- `GameWorld::tryCast*()`、`damageForPlayerSkill()`、`radiusForPlayerSkill()`、`tryCycleSkillSupport()`。
+- `Renderer::drawSkillPanel()`、技能详情/装备比较预览和 `SaveData/SaveService` 的 SkillBar 序列化。
+- `tests/arpg_logic_tests.cpp` 中 Support 兼容性、CombatMath 和 SkillBar save/restore 测试。
+
+实施约束：
+
+1. 非 Movement 技能默认提供 2 个 Support Link；Movement 默认 1 个，暂不做 Link 颜色、插槽掉落或 Support 物品。
+2. `SkillBar` 保存每个槽位的 Support 列表，保持空槽可序列化；旧的单 Support 存档若不兼容必须显式提升 `SaveData::Version` 并拒绝旧版本，不允许静默错读字段。
+3. `SupportLibrary::supportsSkill()` 仍是唯一兼容性判断；同一 Support 不得装入同一技能两次；两个 Support 的效果按 `CombatMath` 明确顺序聚合，禁止在 `GameWorld` 各施法分支手写叠加公式。
+4. `SkillBar` 提供只读 Support 列表、按 link index 分配/清除和实际 Support 查询；输入上下文只在 Skill Panel 处理，Playing 中数字键、鼠标和战斗输入语义不变。
+5. Skill Panel 增加 Link 选择和每个 Link 的兼容/锁定/已装备状态；保留现有 `1-8` 技能分配和 `F1-F4` 槽位 Support 快捷路径，但新增 link 选择必须有明确且不冲突的按键。
+6. Skill Panel、MapComplete 奖励预览、装备详情的实际数值必须共用同一套多 Support `CombatMath` 结果；Primary 的冷却、Projectile/Area 专精、Shrine buff、Ailment 和 Dash Trailblazer 都要覆盖。
+7. Support 奖励解锁仍是单局成长；没有解锁的 Support 在 Skill Panel 显示 Locked，不能通过快捷键绕过解锁状态。
+8. 不新增技能、不扩大天赋盘、不改装备槽、不引入技能宝石掉落、不重写 GameWorld 主循环；如果 `SkillBar` 过大，只抽取纯数据/计算 helper，不做无测试的大重构。
+
+必须验证：
+
+- 两个兼容 Support 同时装备后，Projectile/Area/Dash 的伤害、半径、冷却、投射物数量、异常效果和实际施法结果一致。
+- 非兼容、重复、未解锁和超出 Link 数量的分配全部失败且无状态副作用。
+- Save/Load round-trip 保留每个 Link；坏版本和截断存档不污染当前 run。
+- MapComplete 的 Support 解锁奖励、Skill Panel、装备比较预览和 HUD 数值保持一致。
+- clean build、CTest、直接运行三类测试和 3 秒启动 smoke；实现 Agent 不提交代码，由主 review Agent 复核并提交。
+
+明确不做：Support 等级、质量、颜色、宝石掉落、Link 随机数、技能树重做、交易和完整职业系统。
+
 ## 14. 项目进度看板
 
 | 领域 | 状态 | 说明 |
@@ -1205,7 +1247,8 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 经济/锻造 | v1 完成 | 分解、Forge Fragments、三种选择式词缀加工和当前 run Stash 已有 |
 | 存档 | v1 完成 | 单文件版本化存档、RNG 恢复、坏档保护、MapComplete/安全出生点恢复已有 |
 | 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
+| 连续刷图验收 | v1 完成 | 五次 MapComplete -> 选奖励 -> 选地图 -> E 推进、成长保留和非法阶段保护已有 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 920 条、存档 11 条、GameWorld 34 条通过，仍缺 Renderer/UI 和完整端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 920 条、存档 11 条、GameWorld 85 条通过，仍缺 Renderer/UI 和完整战斗通关端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
