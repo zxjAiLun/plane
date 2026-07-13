@@ -611,6 +611,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     quitRequested_ = false;
 
     projectiles_.clear();
+    combatFeedback_.clear();
     bossProjectiles_.clear();
     enemyProjectiles_.clear();
     enemies_.clear();
@@ -690,6 +691,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
 
     player_.update(dt);
     skillBar_.update(dt);
+    updateCombatFeedback(dt);
     novaEffectTimer_ = std::max(0.0f, novaEffectTimer_ - dt);
     secondarySkillEffectTimer_ = std::max(0.0f, secondarySkillEffectTimer_ - dt);
     dashImpactTimer_ = std::max(0.0f, dashImpactTimer_ - dt);
@@ -782,6 +784,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
     projectiles_.clear();
+    combatFeedback_.clear();
     bossProjectiles_.clear();
     enemyProjectiles_.clear();
     enemies_.clear();
@@ -895,6 +898,7 @@ void GameWorld::startNextMap() {
     playerHitSource_.clear();
 
     projectiles_.clear();
+    combatFeedback_.clear();
     bossProjectiles_.clear();
     enemyProjectiles_.clear();
     enemies_.clear();
@@ -1278,7 +1282,16 @@ void GameWorld::handleCollisions() {
                     continue;
                 }
 
-                enemy.takeDamage(projectile.damage());
+                const int dealtDamage = enemy.takeDamage(projectile.damage());
+                if (dealtDamage > 0) {
+                    addCombatFeedback(
+                        enemy.position(),
+                        dealtDamage,
+                        projectile.source().empty()
+                            ? skillBar_.definition(SkillSlot::Primary).name
+                            : projectile.source()
+                    );
+                }
                 applySkillAilment(enemy, projectile.ailment(), projectile.damage());
                 projectile.recordEnemyHit(enemy.id());
 
@@ -1430,7 +1443,9 @@ void GameWorld::tryCastMovementSkill(Input& input) {
         dealAreaDamage(
             dashImpactPosition_,
             dashImpactRadius_,
-            supportAreaDamage(*support, player_.stats(), shrineMultiplier)
+            supportAreaDamage(*support, player_.stats(), shrineMultiplier),
+            nullptr,
+            skillBar_.definition(SkillSlot::Movement).name
         );
     }
 }
@@ -1446,7 +1461,8 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
         player_.position(),
         radiusForPlayerSkill(skill),
         damageForPlayerSkill(skill),
-        &ailment
+        &ailment,
+        skill.name
     );
     novaEffectTimer_ = skill.effectDuration;
 }
@@ -1462,7 +1478,8 @@ void GameWorld::tryCastSecondarySkill(Input& input) {
         aimPosition_,
         radiusForPlayerSkill(skill),
         damageForPlayerSkill(skill),
-        &ailment
+        &ailment,
+        skill.name
     );
     secondarySkillEffectPosition_ = aimPosition_;
     secondarySkillEffectTimer_ = skill.effectDuration;
@@ -1491,7 +1508,7 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
     if (projectileCount <= 1 || spreadAngle <= 0.0f) {
         projectiles_.push_back(Projectile(
             player_.position(), direction * Config::ProjectileSpeed, damage,
-            pierceCountForPlayerSkill(skill), ailment
+            pierceCountForPlayerSkill(skill), ailment, skill.name
         ));
         return;
     }
@@ -1513,7 +1530,8 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
             rotated * Config::ProjectileSpeed,
             damage,
             pierceCountForPlayerSkill(skill),
-            ailment
+            ailment,
+            skill.name
         ));
     }
 }
@@ -1577,7 +1595,8 @@ void GameWorld::dealAreaDamage(
     const Vector2& center,
     float radius,
     int damage,
-    const AilmentDefinition* ailment
+    const AilmentDefinition* ailment,
+    const std::string& source
 ) {
     for (auto& enemy : enemies_) {
         if (enemy.isDead()) {
@@ -1588,7 +1607,10 @@ void GameWorld::dealAreaDamage(
                 center, radius,
                 enemy.position(), enemy.radius()
             )) {
-            enemy.takeDamage(damage);
+            const int dealtDamage = enemy.takeDamage(damage);
+            if (dealtDamage > 0) {
+                addCombatFeedback(enemy.position(), dealtDamage, source);
+            }
             if (ailment) {
                 applySkillAilment(enemy, *ailment, damage);
             }
@@ -1598,6 +1620,43 @@ void GameWorld::dealAreaDamage(
             }
         }
     }
+}
+
+void GameWorld::addCombatFeedback(
+    const Vector2& position,
+    int damage,
+    const std::string& source
+) {
+    if (damage <= 0 || Config::MaxCombatFeedback <= 0) {
+        return;
+    }
+
+    if (combatFeedback_.size() >= static_cast<std::size_t>(Config::MaxCombatFeedback)) {
+        combatFeedback_.erase(combatFeedback_.begin());
+    }
+
+    combatFeedback_.push_back({
+        position,
+        damage,
+        source.empty() ? "Skill" : source,
+        Config::CombatFeedbackDuration
+    });
+}
+
+void GameWorld::updateCombatFeedback(float dt) {
+    const float elapsed = std::max(0.0f, dt);
+    for (auto& feedback : combatFeedback_) {
+        feedback.timeRemaining = std::max(0.0f, feedback.timeRemaining - elapsed);
+    }
+
+    combatFeedback_.erase(
+        std::remove_if(
+            combatFeedback_.begin(),
+            combatFeedback_.end(),
+            [](const CombatFeedback& feedback) { return feedback.timeRemaining <= 0.0f; }
+        ),
+        combatFeedback_.end()
+    );
 }
 
 void GameWorld::applySkillAilment(
@@ -2433,7 +2492,11 @@ void GameWorld::initializeRunProgression() {
     progression_.unlockedSkills.insert(SkillLibrary::dash().name);
 }
 
-void GameWorld::rewardEnemyKill(const Enemy& enemy) {
+void GameWorld::rewardEnemyKill(Enemy& enemy) {
+    if (!enemy.claimKillReward()) {
+        return;
+    }
+
     const auto& definition = EnemyLibrary::forType(enemy.type());
 
     const auto& eliteModifier = EliteModifierLibrary::forModifier(enemy.eliteModifier());
@@ -2525,6 +2588,10 @@ void GameWorld::damagePlayer(int damage, const std::string& source) {
     }
 
     playerHitDamage_ = player_.takeDamage(incomingDamage(damage, player_.stats()));
+    if (playerHitDamage_ <= 0) {
+        return;
+    }
+
     playerHitSource_ = source;
     playerHitEffectTimer_ = Config::PlayerHitEffectDuration;
     playerHitCooldown_ = Config::PlayerHitCooldown;
@@ -2669,6 +2736,7 @@ const std::vector<Projectile>& GameWorld::projectiles() const { return projectil
 const std::vector<BossProjectile>& GameWorld::bossProjectiles() const { return bossProjectiles_; }
 const std::vector<EnemyProjectile>& GameWorld::enemyProjectiles() const { return enemyProjectiles_; }
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
+const std::vector<CombatFeedback>& GameWorld::combatFeedback() const { return combatFeedback_; }
 const std::vector<GroundHazard>& GameWorld::groundHazards() const { return groundHazards_; }
 const std::vector<DroppedItem>& GameWorld::droppedItems() const { return droppedItems_; }
 const Inventory& GameWorld::inventory() const { return inventory_; }

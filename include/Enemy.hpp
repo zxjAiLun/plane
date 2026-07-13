@@ -22,11 +22,12 @@ public:
     void moveBy(const Vector2& delta, const MapInstance& map);
     void updateAilments(float dt);
 
-    void takeDamage(int damage);
+    int takeDamage(int damage);
     void applyIgnite(int damagePerTick, float duration);
     void applyChill(float speedMultiplier, float duration);
     void kill();
     bool isDead() const;
+    bool claimKillReward();
 
     const Vector2& position() const;
     int id() const;
@@ -70,6 +71,7 @@ private:
     float igniteTickTimer_;
     float chillTimer_;
     float chillSpeedMultiplier_;
+    bool killRewardClaimed_;
 
     inline static int nextId_ = 1;
 };

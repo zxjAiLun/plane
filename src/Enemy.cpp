@@ -24,7 +24,8 @@ Enemy::Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type,
     , igniteTimer_(0.0f)
     , igniteTickTimer_(0.0f)
     , chillTimer_(0.0f)
-    , chillSpeedMultiplier_(1.0f) {
+    , chillSpeedMultiplier_(1.0f)
+    , killRewardClaimed_(false) {
 }
 
 void Enemy::update(float dt, const Vector2& targetPosition, const MapInstance& map) {
@@ -124,8 +125,14 @@ void Enemy::updateAilments(float dt) {
     }
 }
 
-void Enemy::takeDamage(int damage) {
-    hp_ -= damage;
+int Enemy::takeDamage(int damage) {
+    if (damage <= 0 || isDead()) {
+        return 0;
+    }
+
+    const int previousHp = hp_;
+    hp_ = std::max(0, hp_ - damage);
+    return previousHp - hp_;
 }
 
 void Enemy::applyIgnite(int damagePerTick, float duration) {
@@ -156,6 +163,15 @@ void Enemy::kill() {
 
 bool Enemy::isDead() const {
     return hp_ <= 0;
+}
+
+bool Enemy::claimKillReward() {
+    if (!isDead() || killRewardClaimed_) {
+        return false;
+    }
+
+    killRewardClaimed_ = true;
+    return true;
 }
 
 const Vector2& Enemy::position() const { return position_; }

@@ -501,6 +501,7 @@ void Renderer::render(const GameWorld& world) {
     drawBossProjectiles(world);
     drawEnemyProjectiles(world);
     drawEnemies(world);
+    drawCombatFeedback(world);
     drawDroppedItems(world);
 
     drawText("HP " + std::to_string(world.player().hp()) + "/" + std::to_string(world.player().maxHp()),
@@ -1135,6 +1136,29 @@ void Renderer::drawEnemies(const GameWorld& world) {
                     ? enemyColor(definition.outlineColor)
                     : enemyColor(modifier.outlineColor));
         }
+    }
+}
+
+void Renderer::drawCombatFeedback(const GameWorld& world) {
+    const float duration = Config::CombatFeedbackDuration;
+    for (const auto& feedback : world.combatFeedback()) {
+        const float progress = duration > 0.0f
+            ? 1.0f - feedback.timeRemaining / duration
+            : 1.0f;
+        const float rise = std::clamp(progress, 0.0f, 1.0f) * 24.0f;
+        const auto alpha = static_cast<std::uint8_t>(
+            90.0f + (duration > 0.0f
+                ? std::clamp(feedback.timeRemaining / duration, 0.0f, 1.0f)
+                : 0.0f) * 165.0f
+        );
+        const sf::Color color(255, 235, 150, alpha);
+        const Vector2 textPosition(feedback.position.x, feedback.position.y - 24.0f - rise);
+        drawCenteredText(
+            "-" + std::to_string(feedback.damage) + " " + feedback.source,
+            worldToScreen(world, textPosition),
+            11,
+            color
+        );
     }
 }
 

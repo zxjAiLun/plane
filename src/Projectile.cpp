@@ -2,19 +2,22 @@
 #include "Config.hpp"
 
 #include <algorithm>
+#include <utility>
 
 Projectile::Projectile(
     const Vector2& position,
     const Vector2& velocity,
     int damage,
     int pierceCount,
-    AilmentDefinition ailment
+    AilmentDefinition ailment,
+    std::string source
 )
     : position_(position)
     , velocity_(velocity)
     , radius_(Config::ProjectileRadius)
     , damage_(damage)
     , ailment_(ailment)
+    , source_(std::move(source))
     , remainingPierces_(pierceCount)
     , hitEnemyIds_()
     , alive_(true) {
@@ -35,6 +38,7 @@ const Vector2& Projectile::position() const { return position_; }
 float Projectile::radius() const { return radius_; }
 int Projectile::damage() const { return damage_; }
 const AilmentDefinition& Projectile::ailment() const { return ailment_; }
+const std::string& Projectile::source() const { return source_; }
 bool Projectile::hasHitEnemy(int enemyId) const {
     return std::find(hitEnemyIds_.begin(), hitEnemyIds_.end(), enemyId) != hitEnemyIds_.end();
 }

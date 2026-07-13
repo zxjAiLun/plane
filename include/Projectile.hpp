@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "Ailment.hpp"
@@ -12,7 +13,8 @@ public:
         const Vector2& velocity,
         int damage,
         int pierceCount = 0,
-        AilmentDefinition ailment = {}
+        AilmentDefinition ailment = {},
+        std::string source = {}
     );
 
     void update(float dt, const Vector2& worldSize);
@@ -21,6 +23,7 @@ public:
     float radius() const;
     int damage() const;
     const AilmentDefinition& ailment() const;
+    const std::string& source() const;
     bool hasHitEnemy(int enemyId) const;
     void recordEnemyHit(int enemyId);
 
@@ -33,6 +36,7 @@ private:
     float radius_;
     int damage_;
     AilmentDefinition ailment_;
+    std::string source_;
     int remainingPierces_;
     std::vector<int> hitEnemyIds_;
     bool alive_;

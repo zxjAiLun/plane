@@ -327,6 +327,143 @@ void testInvalidProgressionSaveDoesNotMutate() {
     std::filesystem::remove(path);
 }
 
+void testCombatFeedbackAndDeathClaim() {
+    Enemy enemy({0.0f, 0.0f}, 3, 1);
+    expect(enemy.maxHp() == 3, "enemy keeps its configured max HP");
+    expect(enemy.takeDamage(8) == 3 && enemy.hp() == 0,
+        "enemy damage reports only actual damage and clamps HP at zero");
+    expect(enemy.takeDamage(1) == 0,
+        "dead enemy cannot receive additional damage");
+    expect(enemy.claimKillReward(), "dead enemy grants its kill claim once");
+    expect(!enemy.claimKillReward(), "dead enemy cannot grant its kill claim twice");
+
+    GameWorld world(17001);
+    Input input;
+    advanceIntoTheField(world, input);
+    expect(!world.enemies().empty(), "combat feedback fixture reaches a live enemy");
+    if (world.enemies().empty()) {
+        return;
+    }
+
+    const Vector2 target = world.enemies().front().position();
+    const Vector2 camera = world.cameraTopLeft();
+    const sf::Vector2i screenTarget(
+        static_cast<int>(std::lround(target.x - camera.x)),
+        static_cast<int>(std::lround(target.y - camera.y))
+    );
+    input.handleMousePressed(sf::Mouse::Button::Right, screenTarget);
+    world.update(0.05f, input);
+
+    expect(!world.combatFeedback().empty(),
+        "a real player area skill creates combat feedback on hit");
+    if (!world.combatFeedback().empty()) {
+        const auto& feedback = world.combatFeedback().back();
+        expect(feedback.damage > 0 && !feedback.source.empty()
+                && feedback.timeRemaining > 0.0f,
+            "combat feedback exposes positive damage, source, and lifetime");
+    }
+
+    world.update(Config::CombatFeedbackDuration + 0.05f, input);
+    expect(world.combatFeedback().empty(),
+        "expired combat feedback is removed from the world");
+}
+
+void testBossCombatFlow() {
+    const auto path = std::filesystem::temp_directory_path() / "plane_fight_boss_combat_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(18001);
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Boss combat fixture starts from a valid run save");
+
+    data.player.hp = 1000;
+    data.player.upgradeStats.maxHp = 1000;
+    data.player.upgradeStats.moveSpeedMultiplier = 8.0f;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.player.upgradeStats.projectileDamageMultiplier = 100.0f;
+    data.player.upgradeStats.areaDamageMultiplier = 2.0f;
+    data.player.mana = data.player.mana > 0.0f ? data.player.mana : Config::PlayerMaxMana;
+    data.state = SavedRunState::Playing;
+    data.mapRewardChosen = false;
+    data.nextMapOptionChosen = false;
+    data.selectedMapRewardOption = -1;
+    data.selectedNextMapOption = -1;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Boss combat fixture restores boosted test-only progression through SaveData");
+
+    Input input;
+    const Vector2 bossCenter = world.map().bossCenter();
+    for (int frame = 0; frame < 180 && !world.map().bossTriggered(); ++frame) {
+        const Vector2 delta = bossCenter - world.player().position();
+        if (delta.x > 25.0f) {
+            input.handleKeyPressed(sf::Keyboard::Key::D);
+        } else {
+            input.handleKeyReleased(sf::Keyboard::Key::D);
+        }
+        if (delta.y < -25.0f) {
+            input.handleKeyPressed(sf::Keyboard::Key::W);
+        } else {
+            input.handleKeyReleased(sf::Keyboard::Key::W);
+        }
+        world.update(0.05f, input);
+    }
+    input.handleKeyReleased(sf::Keyboard::Key::D);
+    input.handleKeyReleased(sf::Keyboard::Key::W);
+
+    expect(world.map().bossTriggered(),
+        "real movement reaches the Boss Arena and triggers the Boss");
+    if (!world.map().bossTriggered()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    bool bossHpReduced = false;
+    for (int frame = 0; frame < 120 && world.state() == GameState::Playing; ++frame) {
+        const auto bossIt = std::find_if(
+            world.enemies().begin(),
+            world.enemies().end(),
+            [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+        );
+        if (bossIt == world.enemies().end()) {
+            break;
+        }
+
+        const int hpBefore = bossIt->hp();
+        const Vector2 camera = world.cameraTopLeft();
+        const sf::Vector2i screenTarget(
+            static_cast<int>(std::lround(bossIt->position().x - camera.x)),
+            static_cast<int>(std::lround(bossIt->position().y - camera.y))
+        );
+        input.handleMousePressed(sf::Mouse::Button::Right, screenTarget);
+        world.update(0.05f, input);
+
+        const auto bossAfterHit = std::find_if(
+            world.enemies().begin(),
+            world.enemies().end(),
+            [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+        );
+        bossHpReduced = bossHpReduced
+            || (bossAfterHit != world.enemies().end() && bossAfterHit->hp() < hpBefore)
+            || world.state() == GameState::MapComplete;
+    }
+
+    const bool bossFeedbackObserved = std::any_of(
+        world.combatFeedback().begin(),
+        world.combatFeedback().end(),
+        [](const CombatFeedback& feedback) { return feedback.damage > 0; }
+    );
+    expect(bossFeedbackObserved, "Boss damage creates the same combat feedback records");
+    expect(bossHpReduced, "Boss HP decreases on the same hit that creates feedback");
+    expect(world.state() == GameState::MapComplete && world.map().bossDefeated(),
+        "Boss death enters MapComplete through the real reward path");
+    expect(world.mapBossItemsDropped() >= 1 && !world.droppedItems().empty(),
+        "Boss death creates at least one guaranteed ground drop");
+
+    std::filesystem::remove(path);
+}
+
 } // namespace
 
 int main() {
@@ -372,6 +509,8 @@ int main() {
     testPauseContextsAndFreeze();
     testContinuousMapProgression();
     testInvalidProgressionSaveDoesNotMutate();
+    testCombatFeedbackAndDeathClaim();
+    testBossCombatFlow();
 
     std::cout << "Passed: " << (checks - failures)
         << "  Failed: " << failures << '\n';

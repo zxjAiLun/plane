@@ -76,6 +76,8 @@ namespace Config {
     constexpr float EnemySpawnMaxDistance = 760.0f;
     constexpr float VolatileExplosionEffectDuration = 0.35f;
     constexpr float AilmentTickInterval = 1.0f;
+    constexpr float CombatFeedbackDuration = 0.8f;
+    constexpr int MaxCombatFeedback = 32;
 
     constexpr int ExpPerKill = 1;
     constexpr int BaseExpToLevel = 5;

@@ -6,6 +6,7 @@
 #include <string>
 #include <filesystem>
 #include "BossDefinition.hpp"
+#include "CombatFeedback.hpp"
 #include "Crafting.hpp"
 #include "Player.hpp"
 #include "Projectile.hpp"
@@ -73,6 +74,7 @@ public:
     const std::vector<BossProjectile>& bossProjectiles() const;
     const std::vector<EnemyProjectile>& enemyProjectiles() const;
     const std::vector<Enemy>& enemies() const;
+    const std::vector<CombatFeedback>& combatFeedback() const;
     const std::vector<GroundHazard>& groundHazards() const;
     const std::vector<DroppedItem>& droppedItems() const;
     const Inventory& inventory() const;
@@ -183,6 +185,8 @@ private:
     void handleBossProjectileCollisions();
     void handleEnemyProjectileCollisions();
     void removeDeadObjects();
+    void addCombatFeedback(const Vector2& position, int damage, const std::string& source);
+    void updateCombatFeedback(float dt);
     void tryCastMovementSkill(Input& input);
     void tryCastUtilitySkill(Input& input);
     void tryCastSecondarySkill(Input& input);
@@ -194,7 +198,8 @@ private:
         const Vector2& center,
         float radius,
         int damage,
-        const AilmentDefinition* ailment = nullptr
+        const AilmentDefinition* ailment = nullptr,
+        const std::string& source = ""
     );
     void applySkillAilment(Enemy& enemy, const AilmentDefinition& ailment, int hitDamage);
     void updateMapEvents(float dt, Input& input);
@@ -231,7 +236,7 @@ private:
     void tryChooseNextMapOption(Input& input);
     void generateNextMapOptions();
     void initializeRunProgression();
-    void rewardEnemyKill(const Enemy& enemy);
+    void rewardEnemyKill(Enemy& enemy);
     void damagePlayer(int damage, const std::string& source);
     Enemy* activeBoss();
     void resetBossDash();
@@ -256,6 +261,7 @@ private:
     std::vector<BossProjectile> bossProjectiles_;
     std::vector<EnemyProjectile> enemyProjectiles_;
     std::vector<Enemy> enemies_;
+    std::vector<CombatFeedback> combatFeedback_;
     std::vector<GroundHazard> groundHazards_;
     std::vector<DroppedItem> droppedItems_;
     Inventory inventory_;
