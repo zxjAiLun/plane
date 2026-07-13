@@ -2,10 +2,13 @@
 // Each assertion drives real headers/types used by the game binary.
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <set>
 #include <string>
+#include <utility>
 
 #include "BossDash.hpp"
 #include "BossDefinition.hpp"
@@ -41,6 +44,22 @@ void expect(bool condition, const std::string& label) {
         ++g_failures;
         std::cout << "  FAIL  " << label << '\n';
     }
+}
+
+bool statsEqual(const Stats& lhs, const Stats& rhs) {
+    return lhs.maxHp == rhs.maxHp
+        && std::abs(lhs.moveSpeedMultiplier - rhs.moveSpeedMultiplier) < 0.0001f
+        && std::abs(lhs.damageMultiplier - rhs.damageMultiplier) < 0.0001f
+        && std::abs(lhs.attackSpeedMultiplier - rhs.attackSpeedMultiplier) < 0.0001f
+        && std::abs(lhs.pickupRangeMultiplier - rhs.pickupRangeMultiplier) < 0.0001f
+        && std::abs(lhs.projectileDamageMultiplier - rhs.projectileDamageMultiplier) < 0.0001f
+        && std::abs(lhs.areaDamageMultiplier - rhs.areaDamageMultiplier) < 0.0001f
+        && std::abs(lhs.areaRadiusMultiplier - rhs.areaRadiusMultiplier) < 0.0001f
+        && lhs.armor == rhs.armor
+        && lhs.projectileCountBonus == rhs.projectileCountBonus
+        && std::abs(lhs.lifeFlaskEffectMultiplier - rhs.lifeFlaskEffectMultiplier) < 0.0001f
+        && std::abs(lhs.itemQuantityMultiplier - rhs.itemQuantityMultiplier) < 0.0001f
+        && std::abs(lhs.incomingDamageMultiplier - rhs.incomingDamageMultiplier) < 0.0001f;
 }
 
 void section(const std::string& title) {
@@ -630,6 +649,89 @@ void testLootGeneration() {
         "same roll becomes Rare at higher map level");
 }
 
+// --- Item base types and implicit stats ---
+void testItemBaseTypes() {
+    section("Item base types and implicit stats");
+
+    const auto& bases = ItemBaseLibrary::all();
+    std::set<std::string> baseIds;
+    for (const auto& base : bases) {
+        expect(baseIds.insert(base.id).second, base.id + " has a unique base id");
+        expect(!base.name.empty(), base.id + " has a display name");
+        expect(base.slot >= EquipmentSlot::Weapon && base.slot < EquipmentSlot::Count,
+            base.id + " uses a valid equipment slot");
+    }
+
+    for (int slotValue = static_cast<int>(EquipmentSlot::Weapon);
+        slotValue < static_cast<int>(EquipmentSlot::Count); ++slotValue) {
+        const auto slot = static_cast<EquipmentSlot>(slotValue);
+        int normalBaseCount = 0;
+        for (const auto& base : bases) {
+            normalBaseCount += base.kind == ItemBaseKind::Normal && base.slot == slot ? 1 : 0;
+        }
+        expect(normalBaseCount >= 3,
+            std::string(slotName(slot)) + " has at least three normal base types");
+    }
+
+    std::srand(17);
+    LootGenerator generator;
+    for (int roll = 0; roll < 16; ++roll) {
+        const Item item = generator.generate(3);
+        const auto* base = ItemBaseLibrary::find(item.baseId);
+        expect(base != nullptr, "generated item resolves its base id");
+        if (!base) {
+            continue;
+        }
+
+        expect(base->kind == ItemBaseKind::Normal && base->slot == item.slot,
+            "normal drop uses a normal base for its slot");
+        expect(item.baseName == base->name && statsEqual(item.implicitStats, base->implicitStats),
+            "generated item preserves base name and implicit stats");
+        expect(item.name.find(item.baseName) != std::string::npos,
+            "generated item name contains its base name");
+
+        Stats expected = item.implicitStats;
+        for (const auto& affix : item.affixes) {
+            expected = combineStats(expected, affix.stats);
+        }
+        expect(statsEqual(item.stats, expected),
+            "generated item stats equal implicit plus affix contributions");
+    }
+
+    const std::array<std::pair<BossLootTheme, std::string>, 3> bossThemes{{
+        {BossLootTheme::Brimstone, "boss.brimstone-brand"},
+        {BossLootTheme::Storm, "boss.storm-signet"},
+        {BossLootTheme::Brood, "boss.brood-talisman"},
+    }};
+    for (const auto& [theme, expectedBaseId] : bossThemes) {
+        const Item item = generator.generateBossReward(5, theme);
+        expect(item.baseId == expectedBaseId, "Boss relic keeps its theme-specific base");
+        const auto* base = ItemBaseLibrary::find(item.baseId);
+        expect(base != nullptr && base->kind == ItemBaseKind::BossRelic,
+            "Boss relic resolves to a special base definition");
+
+        Stats expected = item.implicitStats;
+        for (const auto& affix : item.affixes) {
+            expected = combineStats(expected, affix.stats);
+        }
+        expect(statsEqual(item.stats, expected),
+            "Boss relic stats equal implicit plus affix contributions");
+    }
+
+    const Item brimstone = generator.generateBossReward(5, BossLootTheme::Brimstone);
+    const Item storm = generator.generateBossReward(5, BossLootTheme::Storm);
+    const Item brood = generator.generateBossReward(5, BossLootTheme::Brood);
+    expect(std::abs(brimstone.stats.damageMultiplier - 1.27f) < 0.0001f
+            && std::abs(brimstone.stats.areaDamageMultiplier - 1.14f) < 0.0001f,
+        "Brimstone relic preserves its level-scaled combat bonuses");
+    expect(std::abs(storm.stats.attackSpeedMultiplier - 1.16f) < 0.0001f
+            && std::abs(storm.stats.projectileDamageMultiplier - 1.16f) < 0.0001f,
+        "Storm relic preserves its level-scaled combat bonuses");
+    expect(std::abs(brood.stats.areaDamageMultiplier - 1.16f) < 0.0001f
+            && std::abs(brood.stats.areaRadiusMultiplier - 1.14f) < 0.0001f,
+        "Brood relic preserves its level-scaled combat bonuses");
+}
+
 // --- Elite modifiers ---
 void testEliteModifierDefinitions() {
     section("Elite modifier definitions");
@@ -978,6 +1080,7 @@ int main() {
     testPlayerArmorMitigation();
     testEquipmentChangesCombatStats();
     testLootGeneration();
+    testItemBaseTypes();
     testEliteModifierDefinitions();
     testChargerStateMachine();
     testFlaskChargeRewards();

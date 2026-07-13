@@ -39,41 +39,45 @@ int multiplierPercent(float multiplier) {
 
 std::string statsSummary(const Stats& stats) {
     std::string summary;
+    const auto multiplierText = [](float multiplier) {
+        const int value = multiplierPercent(multiplier);
+        return (value > 0 ? "+" : "") + std::to_string(value) + "%";
+    };
     if (stats.maxHp > 0) {
         summary += "+" + std::to_string(stats.maxHp) + " HP ";
     }
-    if (stats.damageMultiplier > 1.0f) {
-        summary += "+" + std::to_string(multiplierPercent(stats.damageMultiplier)) + "% DMG ";
+    if (stats.damageMultiplier != 1.0f) {
+        summary += multiplierText(stats.damageMultiplier) + " DMG ";
     }
-    if (stats.attackSpeedMultiplier > 1.0f) {
-        summary += "+" + std::to_string(multiplierPercent(stats.attackSpeedMultiplier)) + "% AS ";
+    if (stats.attackSpeedMultiplier != 1.0f) {
+        summary += multiplierText(stats.attackSpeedMultiplier) + " AS ";
     }
-    if (stats.moveSpeedMultiplier > 1.0f) {
-        summary += "+" + std::to_string(multiplierPercent(stats.moveSpeedMultiplier)) + "% MS ";
+    if (stats.moveSpeedMultiplier != 1.0f) {
+        summary += multiplierText(stats.moveSpeedMultiplier) + " MS ";
     }
-    if (stats.pickupRangeMultiplier > 1.0f) {
-        summary += "+" + std::to_string(multiplierPercent(stats.pickupRangeMultiplier)) + "% PICKUP ";
+    if (stats.pickupRangeMultiplier != 1.0f) {
+        summary += multiplierText(stats.pickupRangeMultiplier) + " PICKUP ";
     }
-    if (stats.projectileDamageMultiplier > 1.0f) {
-        summary += "+" + std::to_string(multiplierPercent(stats.projectileDamageMultiplier)) + "% PDMG ";
+    if (stats.projectileDamageMultiplier != 1.0f) {
+        summary += multiplierText(stats.projectileDamageMultiplier) + " PDMG ";
     }
-    if (stats.areaDamageMultiplier > 1.0f) {
-        summary += "+" + std::to_string(multiplierPercent(stats.areaDamageMultiplier)) + "% ADMG ";
+    if (stats.areaDamageMultiplier != 1.0f) {
+        summary += multiplierText(stats.areaDamageMultiplier) + " ADMG ";
     }
-    if (stats.areaRadiusMultiplier > 1.0f) {
-        summary += "+" + std::to_string(multiplierPercent(stats.areaRadiusMultiplier)) + "% AREA ";
+    if (stats.areaRadiusMultiplier != 1.0f) {
+        summary += multiplierText(stats.areaRadiusMultiplier) + " AREA ";
     }
     if (stats.projectileCountBonus > 0) {
         summary += "+" + std::to_string(stats.projectileCountBonus) + " PROJ ";
     }
-    if (stats.lifeFlaskEffectMultiplier > 1.0f) {
-        summary += "+" + std::to_string(multiplierPercent(stats.lifeFlaskEffectMultiplier)) + "% FLASK ";
+    if (stats.lifeFlaskEffectMultiplier != 1.0f) {
+        summary += multiplierText(stats.lifeFlaskEffectMultiplier) + " FLASK ";
     }
-    if (stats.itemQuantityMultiplier > 1.0f) {
-        summary += "+" + std::to_string(multiplierPercent(stats.itemQuantityMultiplier)) + "% DROP ";
+    if (stats.itemQuantityMultiplier != 1.0f) {
+        summary += multiplierText(stats.itemQuantityMultiplier) + " DROP ";
     }
-    if (stats.incomingDamageMultiplier > 1.0f) {
-        summary += "+" + std::to_string(multiplierPercent(stats.incomingDamageMultiplier)) + "% TAKEN ";
+    if (stats.incomingDamageMultiplier != 1.0f) {
+        summary += multiplierText(stats.incomingDamageMultiplier) + " TAKEN ";
     }
     if (stats.armor > 0) {
         summary += "+" + std::to_string(stats.armor) + " ARM ";
@@ -1203,7 +1207,7 @@ void Renderer::drawInventory(const GameWorld& world) {
 }
 
 void Renderer::drawItemDetailPanel(const GameWorld& world, const sf::Vector2f& panelPos, const Item& item, const std::optional<Item>& current, const std::string& statusLabel, const std::string& actionHint) {
-    const sf::Vector2f panelSize{500.0f, 220.0f};
+    const sf::Vector2f panelSize{500.0f, 280.0f};
     drawBox({panelPos.x + panelSize.x / 2.0f, panelPos.y + panelSize.y / 2.0f}, panelSize, sf::Color(18, 22, 30));
 
     const float x = panelPos.x + 14.0f;
@@ -1216,6 +1220,15 @@ void Renderer::drawItemDetailPanel(const GameWorld& world, const sf::Vector2f& p
     drawText("Slot: " + std::string(slotName(item.slot)) + "   iLvl: " + std::to_string(item.itemLevel),
         {x, y}, 12, sf::Color(200, 210, 225));
     y += 18.0f;
+
+    drawText("Base: " + (item.baseName.empty() ? "Legacy item" : item.baseName),
+        {x, y}, 12, sf::Color(220, 205, 165));
+    y += 16.0f;
+
+    const std::string implicitSummary = statsSummary(item.implicitStats);
+    drawText("Implicit: " + (implicitSummary.empty() ? "None" : implicitSummary),
+        {x, y}, 11, sf::Color(220, 205, 165));
+    y += 16.0f;
 
     for (const auto& affix : item.affixes) {
         drawText("- " + affix.name + " T" + std::to_string(affix.tier),

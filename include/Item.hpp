@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "EquipmentSlot.hpp"
+#include "ItemBase.hpp"
 #include "Stats.hpp"
 
 enum class Rarity {
@@ -15,6 +16,7 @@ enum class Rarity {
 struct ItemAffix {
     std::string name;
     int tier = 1;
+    Stats stats;
 };
 
 struct Item {
@@ -25,6 +27,9 @@ struct Item {
     int itemLevel = 1;
     int upgradeLevel = 0;
     std::vector<ItemAffix> affixes;
+    std::string baseId;
+    std::string baseName;
+    Stats implicitStats;
 };
 
 inline const char* rarityName(Rarity rarity) {

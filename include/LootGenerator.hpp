@@ -38,6 +38,7 @@ public:
         item.itemLevel = monsterLevel;
         item.slot = randomSlot();
         item.rarity = randomRarity(monsterLevel);
+        applyBase(item, randomBaseFor(item.slot));
 
         const int affixCount = affixCountFor(item.rarity);
         const int tier = tierForLevel(monsterLevel) + 1;
@@ -46,15 +47,17 @@ public:
         std::set<std::size_t> usedIndices;
         for (int i = 0; i < affixCount; ++i) {
             const AffixDefinition& affix = randomAffixFor(item.slot, usedIndices);
-            applyAffix(item.stats, affix, monsterLevel);
+            const Stats contribution = affixStatsFor(affix, monsterLevel);
+            item.stats = combineStats(item.stats, contribution);
+            const ItemAffix itemAffix{affix.name, tier, contribution};
             if (affix.isPrefix) {
-                prefixes.push_back({affix.name, tier});
+                prefixes.push_back(itemAffix);
             } else {
-                suffixes.push_back({affix.name, tier});
+                suffixes.push_back(itemAffix);
             }
         }
 
-        item.name = makeName(item.slot, prefixes, suffixes);
+        item.name = makeName(item.baseName, prefixes, suffixes);
         item.affixes = std::move(prefixes);
         item.affixes.insert(item.affixes.end(), suffixes.begin(), suffixes.end());
 
@@ -66,34 +69,44 @@ public:
         Item item;
         item.itemLevel = monsterLevel;
         item.rarity = Rarity::Rare;
-        item.affixes.push_back({"Boss relic", tier + 1});
+        applyBase(item, ItemBaseLibrary::forBossTheme(toBaseTheme(theme)));
+        item.affixes.push_back({"Boss relic", tier + 1, {}});
 
         switch (theme) {
             case BossLootTheme::Brimstone:
                 item.name = "Colossus's Brand";
-                item.slot = EquipmentSlot::Weapon;
-                item.stats.damageMultiplier += std::array<float, 3>{0.14f, 0.20f, 0.27f}[tier];
-                item.stats.areaDamageMultiplier += std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier];
-                item.affixes.push_back({"Brimstone might", tier + 1});
-                item.affixes.push_back({"Crushing impact", tier + 1});
+                addBossAffix(item, "Brimstone might", tier + 1,
+                    damageContribution(relativeMultiplier(
+                        1.0f + std::array<float, 3>{0.14f, 0.20f, 0.27f}[tier],
+                        item.implicitStats.damageMultiplier)));
+                addBossAffix(item, "Crushing impact", tier + 1,
+                    areaDamageContribution(relativeMultiplier(
+                        1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
+                        item.implicitStats.areaDamageMultiplier)));
                 break;
 
             case BossLootTheme::Storm:
                 item.name = "Herald's Signet";
-                item.slot = EquipmentSlot::Ring;
-                item.stats.attackSpeedMultiplier += std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier];
-                item.stats.projectileDamageMultiplier += std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier];
-                item.affixes.push_back({"Storm cadence", tier + 1});
-                item.affixes.push_back({"Charged projectiles", tier + 1});
+                addBossAffix(item, "Storm cadence", tier + 1,
+                    attackSpeedContribution(relativeMultiplier(
+                        1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                        item.implicitStats.attackSpeedMultiplier)));
+                addBossAffix(item, "Charged projectiles", tier + 1,
+                    projectileDamageContribution(relativeMultiplier(
+                        1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                        item.implicitStats.projectileDamageMultiplier)));
                 break;
 
             case BossLootTheme::Brood:
                 item.name = "Matriarch's Talisman";
-                item.slot = EquipmentSlot::Amulet;
-                item.stats.areaDamageMultiplier += std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier];
-                item.stats.areaRadiusMultiplier += std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier];
-                item.affixes.push_back({"Brood surge", tier + 1});
-                item.affixes.push_back({"Expanding nests", tier + 1});
+                addBossAffix(item, "Brood surge", tier + 1,
+                    areaDamageContribution(relativeMultiplier(
+                        1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                        item.implicitStats.areaDamageMultiplier)));
+                addBossAffix(item, "Expanding nests", tier + 1,
+                    areaRadiusContribution(relativeMultiplier(
+                        1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
+                        item.implicitStats.areaRadiusMultiplier)));
                 break;
         }
 
@@ -114,6 +127,76 @@ public:
     }
 
 private:
+    static ItemBaseTheme toBaseTheme(BossLootTheme theme) {
+        switch (theme) {
+            case BossLootTheme::Brimstone: return ItemBaseTheme::Brimstone;
+            case BossLootTheme::Storm: return ItemBaseTheme::Storm;
+            case BossLootTheme::Brood: return ItemBaseTheme::Brood;
+        }
+        return ItemBaseTheme::None;
+    }
+
+    static void applyBase(Item& item, const ItemBaseDefinition& base) {
+        item.baseId = base.id;
+        item.baseName = base.name;
+        item.slot = base.slot;
+        item.implicitStats = base.implicitStats;
+        item.stats = item.implicitStats;
+    }
+
+    static const ItemBaseDefinition& randomBaseFor(EquipmentSlot slot) {
+        std::vector<const ItemBaseDefinition*> matching;
+        for (const auto& base : ItemBaseLibrary::all()) {
+            if (base.kind == ItemBaseKind::Normal && base.slot == slot) {
+                matching.push_back(&base);
+            }
+        }
+
+        if (matching.empty()) {
+            return ItemBaseLibrary::all().front();
+        }
+        return *matching[static_cast<std::size_t>(std::rand()) % matching.size()];
+    }
+
+    static float relativeMultiplier(float target, float base) {
+        return base <= 0.0f ? target : target / base;
+    }
+
+    static Stats damageContribution(float multiplier) {
+        Stats stats;
+        stats.damageMultiplier = multiplier;
+        return stats;
+    }
+
+    static Stats attackSpeedContribution(float multiplier) {
+        Stats stats;
+        stats.attackSpeedMultiplier = multiplier;
+        return stats;
+    }
+
+    static Stats projectileDamageContribution(float multiplier) {
+        Stats stats;
+        stats.projectileDamageMultiplier = multiplier;
+        return stats;
+    }
+
+    static Stats areaDamageContribution(float multiplier) {
+        Stats stats;
+        stats.areaDamageMultiplier = multiplier;
+        return stats;
+    }
+
+    static Stats areaRadiusContribution(float multiplier) {
+        Stats stats;
+        stats.areaRadiusMultiplier = multiplier;
+        return stats;
+    }
+
+    static void addBossAffix(Item& item, const std::string& name, int tier, const Stats& contribution) {
+        item.stats = combineStats(item.stats, contribution);
+        item.affixes.push_back({name, tier, contribution});
+    }
+
     static const std::vector<AffixDefinition>& affixPool() {
         static const std::vector<AffixDefinition> pool = buildAffixPool();
         return pool;
@@ -232,7 +315,8 @@ private:
         return 2;
     }
 
-    static void applyAffix(Stats& stats, const AffixDefinition& affix, int monsterLevel) {
+    static Stats affixStatsFor(const AffixDefinition& affix, int monsterLevel) {
+        Stats stats;
         const float value = affix.tiers[static_cast<std::size_t>(tierForLevel(monsterLevel))];
         switch (affix.stat) {
             case AffixStat::MaxHp:
@@ -263,15 +347,16 @@ private:
                 stats.armor += static_cast<int>(value);
                 break;
         }
+        return stats;
     }
 
-    static std::string makeName(EquipmentSlot slot,
+    static std::string makeName(const std::string& baseName,
         const std::vector<ItemAffix>& prefixes, const std::vector<ItemAffix>& suffixes) {
         std::string name;
         if (!prefixes.empty()) {
             name += prefixes.front().name + " ";
         }
-        name += slotName(slot);
+        name += baseName;
         if (!suffixes.empty()) {
             name += " " + suffixes.front().name;
         }
