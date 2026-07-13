@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`0594ebe Add composable map modifiers`
+玩法代码基线：`e058357 Add deterministic random service`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -84,6 +84,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 ```text
 [100%] Built target PlaneShooter
 [100%] Built target arpg_logic_tests
+[100%] Built target arpg_world_tests
 ```
 
 ### 3.3 测试
@@ -92,7 +93,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前纯逻辑测试基线：`920 passed / 0 failed`。
+当前测试基线：`arpg_logic_tests 920 passed / 0 failed`，`arpg_world_tests 7 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -111,6 +112,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 - `MapLayout.hpp`
 - `MapExploration.hpp`
 - `BossDefinition.hpp`
+- `RandomService.hpp`
 - `CombatMath.hpp`
 
 ### 3.4 运行
@@ -402,6 +404,12 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - 地图奖励生成。
 - 三个 MapTemplate 的三套布局变体、稳定布局 id、边界/事件交互空间和 Start-to-Boss BFS 可达性。
 
+`RandomService` 与真实 GameWorld 随机流程还由以下测试覆盖：
+
+- 同 seed/不同 seed、边界区间、权重选择、chance 和 seed 派生。
+- `EnemySpawner` 的显式 RNG 注入与同/不同 seed 行为。
+- 真实 `GameWorld` 敌人生成路径的同 seed 可复现，以及 `reset()` 的 seed 生命周期。
+
 尚无自动化覆盖：
 
 - SFML Renderer 布局。
@@ -441,8 +449,10 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 | `Stash.hpp` | 当前 run 的 24 格 Item 仓库 | 只在 MapComplete 由 GameWorld 编排移动，不负责输入或 UI |
 | `PassiveTree.hpp` | 20 节点数据、前置、命中查询、属性聚合 | SP 扣除仍由 Player 管理 |
 | `MapRewardLibrary.hpp` | 技能/Support/fallback 奖励生成 | GameWorld 只过滤、抽取、应用 |
+| `RandomService.hpp` | 单局 seed、确定性随机、边界与权重选择 | 玩法路径注入 `RandomService&`；兼容重载只能使用固定 legacy seed；Renderer 禁止调用 |
 | `Renderer.*` | 只读 GameWorld 并绘制世界和 UI | 禁止在 Renderer 中修改游戏状态或复制玩法公式 |
 | `tests/arpg_logic_tests.cpp` | 无 SFML 的纯逻辑回归测试 | 新数据化规则必须补断言 |
+| `tests/game_world_logic_tests.cpp` | 轻量真实 GameWorld 随机流程测试 | 只覆盖可稳定驱动的状态，不依赖窗口和渲染 |
 
 当前技术债务：`GameWorld.cpp` 约 1577 行，`Renderer.cpp` 约 1514 行。不要为了“清理”一次性重写它们。新增独立机制时优先抽取小型纯逻辑类型或数据 Library；只有存在明确边界和测试时才拆大文件。
 
@@ -600,7 +610,7 @@ Review 严重级别：
 8. 关键操作、伤害、危险预警、奖励和装备变化均有清晰反馈。
 9. 构建、纯逻辑测试和关键手动流程有可重复验收方法。
 
-当前已满足 1、2 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，7 尚未实现，8、9 部分完成。天赋 Keystone、异常抗性、装备 Base/implicit、词缀 tags/weights、地图/Boss 掉落偏置、选择式锻造和当前 run Stash 已经让构筑出现第一层真实取舍；存档和更深的地图布局仍未实现。
+当前已满足 1、2 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，7 尚未实现，8、9 部分完成。天赋 Keystone、异常抗性、装备 Base/implicit、词缀 tags/weights、地图/Boss 掉落偏置、选择式锻造、当前 run Stash 和可复现 RNG 已经让构筑出现第一层真实取舍；存档、运行时地图生成和更完整的端到端验收仍未实现。
 
 ## 12. 后续路线图
 
@@ -760,12 +770,13 @@ Milestone D 验收：连续三张地图在路线、遭遇、风险和奖励上�
 
 ### Milestone E：可持续运行与产品化
 
-任务 E1：Deterministic RNG Service
+任务 E1：Deterministic RNG Service（完成：`e058357`）
 
-- 替换散落的 `std::rand()`。
-- GameWorld 持有 run seed，地图、掉落、奖励使用明确 RNG 流。
-- 同 seed 的纯逻辑生成结果可复现。
-- 不在 Renderer 使用 RNG。
+- 已移除 gameplay 路径中的 `std::rand()` / `std::srand()`。
+- `GameWorld` 持有 run seed 和 run-owned `RandomService`；`reset()` 派生新 seed，`startNextMap()` 延续同一随机流。
+- LootGenerator、MapRewardLibrary、EnemySpawner 和 GameWorld 的掉落/遭遇/事件随机路径均支持显式 RNG 注入。
+- 同 seed 的纯逻辑和轻量 GameWorld 生成结果可复现；Renderer 不持有 RNG。
+- 旧纯逻辑调用方保留固定 legacy seed 重载，但新玩法代码不得依赖该兼容路径。
 
 任务 E2：Local Save v1
 
@@ -790,9 +801,9 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Deterministic RNG Service v1`。
+建议立即交给 hy3：`Local Save v1`。
 
-原因：地图布局、探索、组合词缀、掉落和奖励已经有可玩的闭环，但仍依赖散落的 `std::rand()`。先收敛随机数边界，才能可靠复现“同一 run seed 下的地图、掉落和奖励”，也能让后续存档、Bug report 和自动化端到端测试建立在稳定基础上。不要在这一轮同时做存档、商店或新技能。
+原因：确定性 RNG、当前 run Stash、地图奖励和成长状态已经有明确边界，存档是完成定义中最大的缺口。下一轮应只保存稳定的 run 检查点，不要同时加入商店、新技能、复杂序列化框架或跨运行经济。
 
 ### 13.1 已完成任务记录：Mana Resource v1
 
@@ -1039,36 +1050,63 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 已知约束：`LootBias` 目前最多承载两个标签，组合时按稳定顺序保留前两个有效标签；未来扩展更多标签前必须先扩展该数据结构和测试。地图选项仍来自固定模板池，不是随机地形生成器。
 
-### 13.11 hy3 实施任务：Deterministic RNG Service v1
+### 13.11 已完成任务记录：Deterministic RNG Service v1
 
-目标：将地图、掉落、奖励、敌人遭遇和事件奖励从散落的 `std::rand()` 收敛到可注入、可复现的单局随机服务，为后续存档和端到端测试提供稳定基础。本轮只做 RNG 边界，不新增玩法内容。
+目标：将地图、掉落、奖励、敌人遭遇和事件奖励从散落的随机调用收敛到可注入、可复现的单局随机服务，为存档、Bug report 和端到端测试提供稳定基础。
+
+实现结果：
+
+- 新增无 SFML 的 `RandomService`，提供 `nextInt`、`nextUInt64`、`nextFloat01`、`chance`、空安全的 `nextIndex`、按权重选择和 seed 派生。
+- `GameWorld` 构造函数接受 run seed；默认 seed 便于复现，`reset()` 派生新 seed，显式 `reset(seed)` 可恢复指定 run，`startNextMap()` 不重新播种。
+- `LootGenerator`、`MapRewardLibrary`、`EnemySpawner` 和 GameWorld 的掉落、词缀、事件、敌人类型、地图奖励路径均使用显式 RNG 引用。
+- 保留旧纯逻辑 API 的固定 legacy seed 重载，避免测试调用方被迫依赖全局状态；新增玩法代码必须使用 run-owned RNG。
+- Boss relic 当前仍走原有确定性生成路径，不能在下一轮存档中假设它已有 RNG 状态依赖。
+
+验收结果：
+
+- `arpg_logic_tests`：`920 passed / 0 failed`。
+- `arpg_world_tests`：`7 passed / 0 failed`，覆盖真实 GameWorld 敌人生成、同/不同 seed 和 reset 生命周期。
+- clean build、CTest `2/2` 和 3 秒启动 smoke test 通过；代码提交为 `e058357`，工作区干净。
+- `include/`、`src/`、`tests/` 中不再存在 `std::rand`、`std::srand` 或裸 `rand` 调用。
+
+已知约束：当前 RNG 默认 seed 是固定值，适合复现和测试；以后如需用户可配置 seed，应通过明确的 run 创建入口接入，不能在 Renderer 或每张地图内部按时间播种。`RandomService` 尚未提供可序列化的引擎内部状态，这正是下一项存档任务必须先补齐的边界。
+
+### 13.12 hy3 实施任务：Local Save v1
+
+目标：实现单机单文件、版本化、可恢复的当前 run 存档。玩家可以在稳定检查点退出，再次启动后继续同一 run；损坏或不兼容的文件必须安全降级，不得覆盖旧文件或吞掉当前内存中的物品。
 
 开始前必须阅读：
 
-- `src/GameWorld.cpp`：所有当前 `std::rand()` 调用及 reset/startNextMap/MapComplete 生命周期。
-- `include/LootGenerator.hpp`：掉落、词缀、Boss relic、weighted choice 的随机入口。
-- `include/MapModifier.hpp`、`include/MapLayout.hpp`、`include/MapRewardLibrary.hpp`：候选地图、布局和奖励是否依赖随机。
-- `include/EnemyDefinition.hpp`、`include/BossDefinition.hpp`：遭遇类型、Boss 技能和奖励选择的数据表。
-- `tests/arpg_logic_tests.cpp`：现有以 `std::srand` 验证确定性的测试，必须迁移而不是删除。
+- 本文第 3、4、6、7、11 节，尤其是 reset/startNextMap、输入上下文、Item 所有权和存档边界。
+- `include/GameWorld.hpp`、`src/GameWorld.cpp`：当前 run 状态、MapComplete 阶段、`reset()` / `startNextMap()` 生命周期。
+- `include/Player.hpp`、`src/Player.cpp`、`include/Stats.hpp`：经验、SP、Mana、药瓶、天赋和最终属性的来源；不要序列化派生属性后再叠加一次。
+- `include/Item.hpp`、`include/Inventory.hpp`、`include/Equipment.hpp`、`include/Stash.hpp`：完整 Item、词缀 contribution、装备替换和所有权转移。
+- `include/SkillBar.hpp`、`include/SupportLibrary.hpp`、`include/MapRewardLibrary.hpp`：技能/Support 解锁、当前槽位和奖励状态。
+- `include/RandomService.hpp`：seed 与引擎状态边界；先补状态快照/恢复 API，再设计存档字段。
+- `tests/arpg_logic_tests.cpp`、`tests/game_world_logic_tests.cpp`：测试风格和无 SFML 逻辑测试入口。
 
 必须实现：
 
-1. 新增无 SFML 的 `RandomService` 或等价小型类型，使用明确的 `uint32_t`/`uint64_t` seed，提供 `nextInt(min,max)`、`nextFloat01()`、`chance(percent)` 和按权重选择等最小接口；边界输入必须可预测且不会除零。
-2. `GameWorld` 持有本 run 的 seed 和 RNG 状态；`reset()` 生成/设置新 run seed，`startNextMap()` 继续同一 RNG 状态，不得按时间在每张地图重新播种。
-3. `LootGenerator` 的随机入口改为接收 RNG 引用或等价接口；普通掉落、Boss relic、affix/tier、map reward fallback 和遭遇类型不得继续直接调用 `std::rand()`。
-4. 迁移 GameWorld 中的敌人生成、掉落生成、事件奖励、Boss 技能随机分支和地图候选随机逻辑。若某些当前候选仍固定顺序，也要明确写测试证明“稳定固定”而不是伪随机。
-5. 保留现有行为边界：随机服务不改变装备所有权、Boss 保底掉落、地图词缀组合、Loaded Dice、Stash、锻造和输入上下文；Renderer 禁止持有或调用 RNG。
-6. 测试必须证明：同 seed 新 run 生成相同地图候选/掉落/遭遇序列；不同 seed 在足够长序列上存在差异；`min == max`、反向区间、0 权重、空权重和 100% chance 不崩溃；连续地图不重新播种；已有 LootBias 和 MapModifier 结果仍正确。
-7. 对外 API 保持小而明确；禁止把 `std::mt19937` 暴露到 Renderer 或在多个模块复制分布逻辑。需要兼容旧纯逻辑调用时，用明确的默认 seed 或重载，不要恢复全局 `std::rand()`。
+1. 新增小型 `SaveData` / `RunSave` 纯数据结构，保存格式必须带 magic、schema version 和明确的 payload 长度或等价完整性校验。不要让 `Renderer`、SFML 类型或 `GameWorld` 指针进入存档结构。
+2. 保存稳定的当前 run 状态：run seed 与 RNG 可恢复状态、地图等级/当前地图选项、玩家 level/EXP/SP/Mana/HP、天赋已分配节点、装备栏、Inventory、Stash、已解锁技能/Support、Future Item Quantity 等永久 run progression、MapComplete 选择阶段和必要的选中索引。
+3. 不保存瞬时战斗对象：Enemy、Projectile、Boss 火区、事件进行中的敌人列表和鼠标瞄准状态。加载后必须进入明确的安全状态：优先恢复到当前地图出生点并重建该地图的非战斗状态；若当前地图已完成则恢复到 MapComplete，不能把玩家放在半个 Boss 战中。
+4. 把 `Stats` 视为派生数据。加载装备、天赋和 progression 后调用现有重算路径，禁止同时加载并累加保存的最终 Stats，避免重复应用词缀/天赋。
+5. 提供明确的 `saveRun(path)` / `loadRun(path)` 或等价入口。保存只允许在稳定检查点触发：至少包括 MapComplete、显式 Pause/退出前；不要每帧写盘，也不要在战斗中异步修改 GameWorld。
+6. 文件写入必须使用临时文件加替换/重命名的原子策略。新文件写坏时保留旧存档；读取 magic、version、长度、校验失败时返回“无有效存档”，并让调用方安全创建新 run。禁止用半解析数据覆盖内存状态。
+7. 版本策略只实现 v1，但必须显式拒绝未知版本；对缺少文件、空文件、截断文件、随机字节和旧版本文件分别有测试。不要为了兼容未来版本而静默猜字段。
+8. 主流程只增加最小入口和反馈：在 Pause/启动路径显示 Save/Load 成功或失败状态；不要在本轮新增设置菜单、云存档、多个存档槽、加密、压缩、联网或跨运行共享仓库。
+9. `reset()` 必须清理当前 run 存档相关状态；`startNextMap()` 必须保留 run seed、RNG 状态、Stash、解锁和玩家成长。保存后立即加载的结果应与保存前的稳定检查点等价。
+10. 新增无 SFML 测试：完整 Item/词缀/装备/背包/Stash round-trip、天赋与解锁 round-trip、MapComplete 阶段 round-trip、RNG state round-trip、损坏/截断/未知版本拒绝、原子保存失败保护。至少补一个 GameWorld 级别的“保存 -> 改变 -> 加载”测试。
 
 明确不做：
 
-- 不实现存档、回放、联网同步、加密 seed 或完整随机地图生成。
-- 不顺手新增技能、Boss、装备槽、词缀、商店或 loot filter。
-- 不在 Renderer 中随机颜色/布局，不修改输入键位，不改变现有地图完成阶段。
-- 不提交代码；保持工作区未提交，交给主 review Agent 进行代码风格 review、行为修正、clean build、CTest、直接测试、3 秒启动 smoke test 后提交。
+- 不新增技能、Support、Boss、装备槽、词缀、地图 modifier、商店、loot filter 或新的经济资源。
+- 不保存 Enemy/Projectile/地面危险的实时状态，不做战斗回放和网络同步。
+- 不引入第三方序列化框架；优先使用当前 C++17 可维护的明确二进制/文本格式，字段顺序和大小端必须写在代码注释或格式说明中。
+- 不把保存逻辑塞进 `Renderer` 或让 UI 直接操作 Item 容器。
+- 不提交代码；保持工作区未提交，交给主 review Agent 进行完整 diff review、必要修正、clean build、CTest、直接测试、启动 smoke test 后提交。
 
-交付报告必须列出：改动文件、RNG API、seed 生命周期、所有迁移的随机入口、是否保持旧行为、测试数量、clean build、CTest、启动 smoke test、已知风险和 `git status --short`。
+交付报告必须列出：改动文件、存档格式和版本、保存字段、稳定检查点、加载后的地图状态、RNG 状态处理、损坏文件策略、测试数量、clean build、CTest、启动 smoke test、已知风险和 `git status --short`。若无法保证原子替换或 RNG round-trip，必须明确报告并停止扩展范围。
 
 ## 14. 项目进度看板
 
@@ -1083,8 +1121,8 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 装备掉落 | v1 完成 | base/implicit/affix/tier/rarity/relic/tags/weights/地图主题偏置/比较/满包安全已有 |
 | 地图选择 | v1 完成 | 三选图、风险收益、模板绑定、稳定布局变体和两词缀组合已有 |
 | 经济/锻造 | v1 完成 | 分解、Forge Fragments、三种选择式词缀加工和当前 run Stash 已有 |
-| 存档 | 未开始 | 完成定义中的最大缺口 |
+| 存档 | 规划中 | 下一项：Local Save v1；RNG 状态快照和稳定检查点必须先定义 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 920 条通过，缺 UI 和端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 920 条 + GameWorld RNG 7 条通过，仍缺 Renderer/UI 和完整端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
