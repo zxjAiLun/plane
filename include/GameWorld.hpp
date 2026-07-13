@@ -62,6 +62,7 @@ public:
     const std::vector<BossProjectile>& bossProjectiles() const;
     const std::vector<EnemyProjectile>& enemyProjectiles() const;
     const std::vector<Enemy>& enemies() const;
+    const std::vector<GroundHazard>& groundHazards() const;
     const std::vector<DroppedItem>& droppedItems() const;
     const Inventory& inventory() const;
     float inventoryFullPromptTimeRemaining() const;
@@ -141,6 +142,7 @@ private:
     void updatePlaying(float dt, Input& input);
     void movePlayerBy(const Vector2& delta);
     void updateObjects(float dt);
+    void updateGroundHazards(float dt);
     void updateBossSkills(float dt);
     int summonBossAdds(const Enemy& boss, const BossSkillDefinition& skill);
     void updateBossProjectiles(float dt);
@@ -216,6 +218,7 @@ private:
     std::vector<BossProjectile> bossProjectiles_;
     std::vector<EnemyProjectile> enemyProjectiles_;
     std::vector<Enemy> enemies_;
+    std::vector<GroundHazard> groundHazards_;
     std::vector<DroppedItem> droppedItems_;
     Inventory inventory_;
     LootGenerator lootGenerator_;

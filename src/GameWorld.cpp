@@ -151,6 +151,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     playerHitCooldown_ = std::max(0.0f, playerHitCooldown_ - dt);
     playerHitEffectTimer_ = std::max(0.0f, playerHitEffectTimer_ - dt);
     shrineBuffTimer_ = std::max(0.0f, shrineBuffTimer_ - dt);
+    updateGroundHazards(dt);
     if (lifeFlaskStatusTimer_ > 0.0f) {
         lifeFlaskStatusTimer_ = std::max(0.0f, lifeFlaskStatusTimer_ - dt);
         if (lifeFlaskStatusTimer_ == 0.0f) {
@@ -230,6 +231,7 @@ void GameWorld::reset() {
     bossProjectiles_.clear();
     enemyProjectiles_.clear();
     enemies_.clear();
+    groundHazards_.clear();
     droppedItems_.clear();
     inventory_.clear();
     spawner_.reset();
@@ -329,6 +331,7 @@ void GameWorld::startNextMap() {
     bossProjectiles_.clear();
     enemyProjectiles_.clear();
     enemies_.clear();
+    groundHazards_.clear();
     droppedItems_.clear();
     spawner_.reset();
     skillBar_.applyStats(player_.stats());
@@ -382,6 +385,27 @@ void GameWorld::updateObjects(float dt) {
     }
 }
 
+void GameWorld::updateGroundHazards(float dt) {
+    for (auto& hazard : groundHazards_) {
+        const int elapsedTicks = hazard.update(dt);
+        if (elapsedTicks <= 0 || !Collision::circleCircle(
+                player_.position(), player_.radius(),
+                hazard.position(), hazard.definition().radius
+            )) {
+            continue;
+        }
+
+        for (int tick = 0; tick < elapsedTicks; ++tick) {
+            damagePlayer(hazard.definition().damage, hazard.definition().source);
+        }
+    }
+
+    groundHazards_.erase(std::remove_if(
+        groundHazards_.begin(), groundHazards_.end(),
+        [](const GroundHazard& hazard) { return !hazard.isActive(); }
+    ), groundHazards_.end());
+}
+
 void GameWorld::updateBossSkills(float dt) {
     const Enemy* boss = activeBoss();
     if (!boss) {
@@ -410,6 +434,11 @@ void GameWorld::updateBossSkills(float dt) {
                         bossAoeCenter_, bossAoeSkill_.radius
                     )) {
                     damagePlayer(bossAoeSkill_.damage, bossAoeSkill_.name);
+                }
+                if (bossAoeSkill_.groundHazard.isValid()) {
+                    groundHazards_.emplace_back(
+                        bossAoeCenter_, bossAoeSkill_.groundHazard
+                    );
                 }
                 break;
             case BossSkillType::SummonAdds:
@@ -445,6 +474,11 @@ void GameWorld::updateBossSkills(float dt) {
             bossAoeCenter_ = player_.position();
             bossAoeSkill_ = skill;
             bossAoeSkill_.damage = bossSkillDamage(skill.damage);
+            if (bossAoeSkill_.groundHazard.isValid()) {
+                bossAoeSkill_.groundHazard.damage = bossSkillDamage(
+                    skill.groundHazard.damage
+                );
+            }
             bossAoeTelegraphTimer_ = skill.telegraphDuration;
             break;
         case BossSkillType::SummonAdds:
@@ -1459,6 +1493,7 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         map_.markBossDefeated();
         bossProjectiles_.clear();
         enemyProjectiles_.clear();
+        groundHazards_.clear();
         bossAoeTelegraphTimer_ = 0.0f;
         bossAoeEffectTimer_ = 0.0f;
         bossAoeSkill_ = BossSkillDefinition();
@@ -1650,6 +1685,7 @@ const std::vector<Projectile>& GameWorld::projectiles() const { return projectil
 const std::vector<BossProjectile>& GameWorld::bossProjectiles() const { return bossProjectiles_; }
 const std::vector<EnemyProjectile>& GameWorld::enemyProjectiles() const { return enemyProjectiles_; }
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
+const std::vector<GroundHazard>& GameWorld::groundHazards() const { return groundHazards_; }
 const std::vector<DroppedItem>& GameWorld::droppedItems() const { return droppedItems_; }
 const Inventory& GameWorld::inventory() const { return inventory_; }
 int GameWorld::lifeFlaskCharges() const { return lifeFlaskCharges_; }

@@ -417,6 +417,7 @@ void Renderer::render(const GameWorld& world) {
     window_.clear(sf::Color::Black);
 
     drawMap(world);
+    drawGroundHazards(world);
     drawNovaEffect(world);
     drawSecondarySkillEffect(world);
     drawDashImpactEffect(world);
@@ -581,6 +582,37 @@ void Renderer::drawMap(const GameWorld& world) {
     start.setOrigin({Config::StartSafeRadius, Config::StartSafeRadius});
     start.setPosition(startCenter);
     window_.draw(start);
+}
+
+void Renderer::drawGroundHazards(const GameWorld& world) {
+    for (const auto& hazard : world.groundHazards()) {
+        const auto& definition = hazard.definition();
+        const float tickProgress = definition.tickInterval > 0.0f
+            ? 1.0f - std::clamp(
+                hazard.tickTimeRemaining() / definition.tickInterval, 0.0f, 1.0f
+            )
+            : 0.0f;
+        const auto outlineAlpha = static_cast<std::uint8_t>(
+            150.0f + 90.0f * tickProgress
+        );
+        const sf::Vector2f screenPosition = worldToScreen(world, hazard.position());
+
+        sf::CircleShape shape(definition.radius);
+        shape.setFillColor(sf::Color(190, 45, 15, 55));
+        shape.setOutlineColor(sf::Color(255, 125, 35, outlineAlpha));
+        shape.setOutlineThickness(4.0f + 2.0f * tickProgress);
+        shape.setOrigin({definition.radius, definition.radius});
+        shape.setPosition(screenPosition);
+        window_.draw(shape);
+
+        drawCenteredText(
+            definition.source + " "
+                + std::to_string(static_cast<int>(std::ceil(hazard.timeRemaining()))) + "s",
+            {screenPosition.x, screenPosition.y - 8.0f},
+            11,
+            sf::Color(255, 205, 120)
+        );
+    }
 }
 
 void Renderer::drawPlayer(const GameWorld& world) {

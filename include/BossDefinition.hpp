@@ -6,6 +6,7 @@
 
 #include "Config.hpp"
 #include "EnemyType.hpp"
+#include "GroundHazard.hpp"
 
 enum class BossSkillType {
     CircularAoe,
@@ -31,6 +32,7 @@ struct BossSkillDefinition {
     float spreadAngle = 0.0f;
     EnemyType summonType = EnemyType::Normal;
     int summonCount = 0;
+    GroundHazardDefinition groundHazard;
 };
 
 struct BossDefinition {
@@ -111,7 +113,10 @@ private:
                         Config::BossAoeEffectDuration,
                         0.0f,
                         1,
-                        0.0f
+                        0.0f,
+                        EnemyType::Normal,
+                        0,
+                        {"Magma Pool", 105.0f, 5.0f, 0.75f, 1}
                     },
                     {
                         BossSkillType::Projectile,

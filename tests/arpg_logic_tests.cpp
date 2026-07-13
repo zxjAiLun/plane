@@ -14,6 +14,7 @@
 #include "Enemy.hpp"
 #include "EnemyDefinition.hpp"
 #include "Equipment.hpp"
+#include "GroundHazard.hpp"
 #include "Item.hpp"
 #include "LootGenerator.hpp"
 #include "MapModifier.hpp"
@@ -490,6 +491,49 @@ void testBossSummonDefinitions() {
         "summon count rejects invalid negative inputs");
 }
 
+// --- Persistent ground hazards ---
+void testGroundHazardLifecycle() {
+    section("Ground hazard data and tick lifecycle");
+
+    GroundHazardDefinition definition{"Test Fire", 80.0f, 2.0f, 0.5f, 2};
+    GroundHazard hazard({40.0f, 60.0f}, definition);
+    expect(hazard.isActive(), "valid ground hazard starts active");
+    expect(hazard.position().x == 40.0f && hazard.position().y == 60.0f,
+        "ground hazard preserves its world position");
+    expect(hazard.update(0.25f) == 0, "ground hazard waits for its first tick interval");
+    expect(hazard.update(0.25f) == 1, "ground hazard ticks at the configured interval");
+    expect(hazard.update(1.0f) == 2, "ground hazard reports every elapsed tick");
+    expect(hazard.update(0.5f) == 1, "ground hazard includes a tick at its expiry boundary");
+    expect(!hazard.isActive(), "ground hazard expires after its configured duration");
+    expect(hazard.update(1.0f) == 0, "expired ground hazard cannot tick again");
+
+    GroundHazard invalid({0.0f, 0.0f}, {});
+    expect(!invalid.isActive(), "empty ground hazard definition is inactive");
+    expect(invalid.update(1.0f) == 0, "invalid ground hazard does not enter a zero-interval loop");
+
+    const auto& brimstone = BossLibrary::forMapLevel(1);
+    const auto magmaIt = std::find_if(
+        brimstone.skills.begin(), brimstone.skills.end(),
+        [](const BossSkillDefinition& skill) { return skill.name == "Magma Slam"; }
+    );
+    expect(magmaIt != brimstone.skills.end(), "Brimstone defines Magma Slam");
+    if (magmaIt != brimstone.skills.end()) {
+        expect(magmaIt->groundHazard.isValid(), "Magma Slam leaves a valid ground hazard");
+        expect(magmaIt->groundHazard.source == "Magma Pool",
+            "Magma Slam hazard has a player-facing damage source");
+        expect(magmaIt->groundHazard.radius < magmaIt->radius,
+            "Magma Pool is smaller than the initial slam telegraph");
+    }
+
+    int configuredHazards = 0;
+    for (const auto& boss : BossLibrary::all()) {
+        for (const auto& skill : boss.skills) {
+            configuredHazards += skill.groundHazard.isValid() ? 1 : 0;
+        }
+    }
+    expect(configuredHazards == 1, "only Brimstone Magma Slam creates a v1 ground hazard");
+}
+
 // --- Map options ---
 void testMapOptionGeneration() {
     section("MapOptionLibrary distinct modifiers");
@@ -597,6 +641,7 @@ int main() {
     testChargerStateMachine();
     testFlaskChargeRewards();
     testBossSummonDefinitions();
+    testGroundHazardLifecycle();
     testMapOptionGeneration();
     testMapRewardGeneration();
     testPassiveAndEquipPipeline();
