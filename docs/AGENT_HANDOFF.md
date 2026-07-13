@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`1e959ee Add Brood Matriarch summon phases`
+玩法代码基线：`1a20767 Add persistent Brimstone ground hazards`
 
 接手文档提交：`7201c35 Document ARPG architecture and development roadmap`
 
@@ -92,7 +92,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前纯逻辑测试基线：`246 passed / 0 failed`。
+当前纯逻辑测试基线：`261 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -219,11 +219,13 @@ git status --short
 - 低血量 Enrage 阶段，改变技能顺序、间隔和伤害。
 - Brood Matriarch 普通阶段召唤近战幼体，Enrage 阶段加入远程幼体。
 - 召唤物按当前地图等级和 modifier 缩放，数量有上限；Boss 死亡时统一清理。
+- Brimstone Colossus 的 Magma Slam 留下持续火区，按间隔造成伤害。
+- 火区使用世界坐标，可同时存在多个，显示危险边界、tick 节奏和剩余时间。
 - Boss 名称、血条、技能预警、阶段信息。
 - 三种主题 Boss relic，分别偏 Weapon、Ring、Amulet 构筑。
 - Boss 死亡后进入 MapComplete，并生成奖励和下一图选项。
 
-当前 Brood 已具有召唤机制；Brimstone 和 Storm 仍主要依赖不同参数与技能顺序，缺少持续地面危险、位置变化和阶段转场。
+当前 Brood 具有召唤机制，Brimstone 具有持续区域控制；Storm 仍主要依赖不同参数与技能顺序，缺少位置变化和阶段转场。
 
 ### 5.5 玩家、生存与成长
 
@@ -362,6 +364,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - Elite modifier。
 - Charger 状态机。
 - Boss summon 数据、阶段顺序和数量上限。
+- GroundHazard 数据、tick 生命周期和 Brimstone 火区配置。
 - 药瓶充能奖励。
 - 地图选项差异和风险缩放。
 - 地图奖励生成。
@@ -385,6 +388,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 | `Enemy.*` | 单个敌人移动、攻击状态机、异常生命周期 | 不生成掉落、不直接修改地图奖励 |
 | `EnemyDefinition.hpp` | 怪物类型数据 | 新怪先加数据，通用行为再加状态机 |
 | `BossDefinition.hpp` | Boss、Boss 技能顺序和奖励主题数据 | Boss 差异优先数据化 |
+| `GroundHazard.hpp` | 持续地面危险定义、世界实例和 tick 生命周期 | 不直接修改 Player；伤害由 GameWorld 编排 |
 | `MapInstance.hpp` | 地图模板、障碍、区域、事件实例和移动解析 | 不处理玩家输入 |
 | `MapModifier.hpp` | 下一图选项和风险收益倍率 | 数值必须能在 GameWorld 中找到实际应用点 |
 | `SkillLibrary.hpp` | 主动技能定义 | 不直接实现命中循环 |
@@ -575,7 +579,7 @@ Review 严重级别：
 - 测试 Boss 数据、召唤数量和技能顺序。
 - 不新增寻路，不新增新 EnemyType。
 
-任务 A2：Persistent Hazard v1
+任务 A2：Persistent Hazard v1（完成：`1a20767`）
 
 - 新增数据化地面危险实例，包含位置、半径、持续时间、tick 间隔、伤害和来源。
 - Brimstone 的 Magma 技能留下持续火区。
@@ -709,18 +713,20 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Persistent Hazard v1`。
+建议立即交给 hy3：`Storm Mobility Pattern v1`。
 
-原因：Brood Matriarch 已通过 SummonAdds 获得独立机制，下一个最明显的 Boss 差异缺口是 Brimstone 的持续区域控制。数据化 Hazard 能同时验证世界对象生命周期、周期伤害、危险反馈和 Boss 结算清理，为后续地图词缀与技能地面效果提供可复用基础。
+原因：Brood 已有召唤，Brimstone 已有持续火区，Storm Herald 仍缺少独立空间机制。一次带前摇、锁定方向和落点反馈的短距离位移能让三个 Boss 的战斗目标明显分化，并完成 Milestone A 的验收条件。
 
-给 hy3 的任务必须直接引用本文件中“任务 A2”的范围和验收标准，并额外要求：
+给 hy3 的任务必须直接引用本文件中“任务 A3”的范围和验收标准，并额外要求：
 
-- 先阅读 `BossDefinition.hpp`、`GameWorld::updateBossSkills()`、`damagePlayer()`、`rewardEnemyKill()`、`Renderer::drawBossAoeEffect()`。
+- 先阅读 `BossDefinition.hpp`、`GameWorld::updateBossSkills()`、`Enemy::update()`、`MapInstance::resolveMovement()` 和现有 Charger 状态机。
 - 改动保持未提交。
 - 必须补纯逻辑测试。
-- 必须验证 Hazard 的 tick 间隔与玩家受击无敌时间不会形成逐帧伤害。
-- 必须证明 Boss 死亡、`startNextMap()` 和 `reset()` 都清空 Hazard。
-- 不顺手实现 Storm Dash、玩家技能持续地面效果、地图词缀 Hazard 或存档。
+- 位移目标必须在前摇开始时快照，不能每帧追踪玩家。
+- 位移路径和落点必须经过 `MapInstance` 边界/障碍解析。
+- 一次位移最多命中玩家一次，并继续走 `damagePlayer()`。
+- Boss 死亡、`startNextMap()` 和 `reset()` 必须清空待执行移动状态。
+- 不修改 Player Dash，不新增 EnemyType，不顺手实现 Mana、阶段转场或新地图词缀。
 
 ## 14. 项目进度看板
 
@@ -729,13 +735,13 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 主动战斗 | v1 完成 | 四槽技能、Support、异常、药瓶已形成基础构筑 |
 | 开放地图 | v1 完成 | 大地图、相机、障碍、事件和 Boss 路线已完成 |
 | 怪物生态 | 可玩 | 近战、远程、精英、冲锋均有，pack 协同仍弱 |
-| Boss | 可玩 | 三 Boss、技能顺序、Enrage、主题掉落和 Brood 召唤已完成，另外两者独特机制不足 |
+| Boss | 可玩 | Brood 召唤与 Brimstone 火区已完成，Storm 独立移动机制仍缺失 |
 | 天赋盘 | v1 完成 | 20 节点可用，缺 Keystone 级玩法变化 |
 | 装备掉落 | v1 完成 | affix/tier/rarity/relic/比较/满包安全已有，缺 base/implicit/权重 |
 | 地图选择 | v1 完成 | 三选图和风险收益已有，缺组合 modifier 和布局变体 |
 | 经济/锻造 | 原型 | 分解碎片和 +3 强化已有，缺有选择的 crafting |
 | 存档 | 未开始 | 完成定义中的最大缺口 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 246 条通过，缺 UI 和端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 261 条通过，缺 UI 和端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
