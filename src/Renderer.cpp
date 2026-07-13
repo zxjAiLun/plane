@@ -589,11 +589,12 @@ void Renderer::render(const GameWorld& world) {
     drawText("TIME " + std::to_string(static_cast<int>(world.survivalTime()))
         + "  SCORE " + std::to_string(world.score()),
         {16.0f, 60.0f}, 18, sf::Color::White);
-    drawText("MAP " + std::to_string(world.mapLevel()) + " " + world.map().definition().name
+    const std::string mapLine = "MAP " + std::to_string(world.mapLevel()) + " " + world.map().definition().name
         + "  LAYOUT " + std::to_string(world.map().layoutIndex() + 1) + "/"
             + std::to_string(MapLayoutLibrary::VariantCount)
         + "  AREA " + mapAreaName(world.currentMapArea())
-        + "  ENEMIES " + std::to_string(world.enemiesRemainingInWave()),
+        + "  ENEMIES " + std::to_string(world.enemiesRemainingInWave());
+    drawText(truncateText(mapLine, 60),
         {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));
     drawText("MODS " + truncateText(world.mapModifier().name, 36)
         + "  |  Threat: "
@@ -604,9 +605,9 @@ void Renderer::render(const GameWorld& world) {
         : world.map().bossTriggered()
             ? "Boss active: " + world.bossDefinition().name
             : world.bossDefinition().name + " distance " + std::to_string(static_cast<int>(world.distanceToBoss()));
-    drawText(bossLine,
+    drawText(truncateText(bossLine, 68),
         {16.0f, 174.0f}, 14, sf::Color(255, 190, 150));
-    drawText("Objective: " + world.mapObjective(),
+    drawText(truncateText("Objective: " + world.mapObjective(), 68),
         {16.0f, 196.0f}, 14, sf::Color(210, 255, 210));
     float hudY = 218.0f;
     // Persistent event progress (always visible while exploring the map).
@@ -615,11 +616,11 @@ void Renderer::render(const GameWorld& world) {
         {16.0f, hudY}, 14, sf::Color(210, 255, 210));
     hudY += 18.0f;
     if (!world.nearbyEventPrompt().empty()) {
-        drawText(world.nearbyEventPrompt(), {16.0f, hudY}, 14, sf::Color(255, 235, 150));
+        drawText(truncateText(world.nearbyEventPrompt(), 34), {16.0f, hudY}, 14, sf::Color(255, 235, 150));
         hudY += 18.0f;
     }
     if (!world.eventStatusMessage().empty() && world.eventStatusTimeRemaining() > 0.0f) {
-        drawText(world.eventStatusMessage(), {16.0f, hudY}, 14, sf::Color(255, 220, 120));
+        drawText(truncateText(world.eventStatusMessage(), 34), {16.0f, hudY}, 14, sf::Color(255, 220, 120));
         hudY += 18.0f;
     }
     if (world.activeEliteEventEnemiesRemaining() > 0) {
@@ -629,7 +630,7 @@ void Renderer::render(const GameWorld& world) {
         if (!modifierDescription.empty()) {
             elitePackLine += " | " + modifierDescription;
         }
-        drawText(truncateText(elitePackLine, 78), {16.0f, hudY}, 14, sf::Color(200, 140, 255));
+        drawText(truncateText(elitePackLine, 34), {16.0f, hudY}, 14, sf::Color(200, 140, 255));
         hudY += 18.0f;
     }
     if (const Enemy* focused = focusedEliteEnemy(world)) {
@@ -640,13 +641,13 @@ void Renderer::render(const GameWorld& world) {
         if (!modifierDescription.empty()) {
             focusLine += " | " + modifierDescription;
         }
-        drawText(truncateText(focusLine, 78), {16.0f, hudY}, 14, sf::Color(255, 215, 160));
+        drawText(truncateText(focusLine, 34), {16.0f, hudY}, 14, sf::Color(255, 215, 160));
         hudY += 18.0f;
     }
     const std::string pickupPrompt = world.pickupPrompt();
     if (!pickupPrompt.empty()) {
         const bool full = pickupPrompt.rfind("Inventory full", 0) == 0;
-        drawText(pickupPrompt, {16.0f, hudY}, 14,
+        drawText(truncateText(pickupPrompt, 34), {16.0f, hudY}, 14,
             full ? sf::Color(255, 90, 90) : sf::Color(180, 220, 255));
         hudY += 18.0f;
     } else if (world.inventoryFullPromptTimeRemaining() > 0.0f) {
@@ -661,16 +662,17 @@ void Renderer::render(const GameWorld& world) {
             {16.0f, hudY}, 14, sf::Color(100, 240, 240));
         hudY += 18.0f;
     }
-    drawText("Build: " + world.passiveBuildSummary() + "  |  P Passive Tree  |  K Skills",
+    drawText(truncateText("Build: " + world.passiveBuildSummary()
+            + "  |  P Passive Tree  |  K Skills", 70),
         {16.0f, 152.0f}, 14, sf::Color(210, 255, 210));
     const auto& stats = world.player().stats();
-    drawText("DMG +" + std::to_string(multiplierPercent(stats.damageMultiplier))
+    drawText(truncateText("DMG +" + std::to_string(multiplierPercent(stats.damageMultiplier))
         + "%  AS +" + std::to_string(multiplierPercent(stats.attackSpeedMultiplier))
         + "%  MS +" + std::to_string(multiplierPercent(stats.moveSpeedMultiplier))
         + "%  PDMG +" + std::to_string(multiplierPercent(stats.projectileDamageMultiplier))
         + "%  ADMG +" + std::to_string(multiplierPercent(stats.areaDamageMultiplier))
         + "%  AREA +" + std::to_string(multiplierPercent(stats.areaRadiusMultiplier))
-        + "%  ARM " + std::to_string(stats.armor),
+        + "%  ARM " + std::to_string(stats.armor), 72),
         {16.0f, 84.0f}, 14, sf::Color(210, 220, 255));
     drawSkillBar(world);
     drawEquipment(world);
@@ -1320,7 +1322,8 @@ void Renderer::drawEquipment(const GameWorld& world) {
         const auto& item = equipment.itemInSlot(slot);
         const std::string line = std::string(slotName(slot)) + ": "
             + (item ? itemSummary(*item) : "Empty");
-        drawText(line, {x, y}, 12, item ? rarityColor(item->rarity) : sf::Color(150, 150, 150));
+        drawText(truncateText(line, 36), {x, y}, 12,
+            item ? rarityColor(item->rarity) : sf::Color(150, 150, 150));
         y += 17.0f;
     }
 }
@@ -1386,7 +1389,7 @@ void Renderer::drawInventory(const GameWorld& world) {
         } else if (isHovered) {
             rowColor = sf::Color::White;
         }
-        drawText(line, {x, y}, 13, rowColor);
+        drawText(truncateText(line, 36), {x, y}, 13, rowColor);
         y += 16.0f;
 
         const auto& current = equipment.itemInSlot(item.slot);
@@ -1432,43 +1435,73 @@ void Renderer::drawInventory(const GameWorld& world) {
     }
 }
 
-void Renderer::drawItemDetailPanel(const GameWorld& world, const sf::Vector2f& panelPos, const Item& item, const std::optional<Item>& current, const std::string& statusLabel, const std::string& actionHint) {
-    const sf::Vector2f panelSize{500.0f, 280.0f};
+void Renderer::drawItemDetailPanel(const GameWorld& world,
+    const sf::Vector2f& panelPos,
+    const Item& item,
+    const std::optional<Item>& current,
+    const std::string& statusLabel,
+    const std::string& actionHint,
+    bool compact) {
+    const sf::Vector2f panelSize = compact
+        ? sf::Vector2f{300.0f, 240.0f}
+        : sf::Vector2f{500.0f, 250.0f};
     drawBox({panelPos.x + panelSize.x / 2.0f, panelPos.y + panelSize.y / 2.0f}, panelSize, sf::Color(18, 22, 30));
 
     const float x = panelPos.x + 14.0f;
     float y = panelPos.y + 12.0f;
 
-    drawText(item.name + "  [" + rarityName(item.rarity) + "]  " + statusLabel,
+    const std::size_t titleLimit = compact ? 39 : 56;
+    const std::size_t bodyLimit = compact ? 39 : 62;
+    const std::string title = item.name + "  [" + rarityName(item.rarity) + "]  " + statusLabel;
+    drawText(truncateText(title, titleLimit),
         {x, y}, 16, rarityColor(item.rarity));
     y += 20.0f;
 
-    drawText("Slot: " + std::string(slotName(item.slot)) + "   iLvl: " + std::to_string(item.itemLevel),
+    drawText(truncateText(
+            "Slot: " + std::string(slotName(item.slot)) + "   iLvl: " + std::to_string(item.itemLevel),
+            bodyLimit),
         {x, y}, 12, sf::Color(200, 210, 225));
     y += 18.0f;
 
-    drawText("Base: " + (item.baseName.empty() ? "Legacy item" : item.baseName),
-        {x, y}, 12, sf::Color(220, 205, 165));
-    y += 16.0f;
+    if (!compact) {
+        drawText(truncateText("Base: " + (item.baseName.empty() ? "Legacy item" : item.baseName), bodyLimit),
+            {x, y}, 12, sf::Color(220, 205, 165));
+        y += 16.0f;
 
-    const std::string implicitSummary = statsSummary(item.implicitStats);
-    drawText("Implicit: " + (implicitSummary.empty() ? "None" : implicitSummary),
-        {x, y}, 11, sf::Color(220, 205, 165));
-    y += 16.0f;
+        const std::string implicitSummary = statsSummary(item.implicitStats);
+        drawText(truncateText("Implicit: " + (implicitSummary.empty() ? "None" : implicitSummary), bodyLimit),
+            {x, y}, 11, sf::Color(220, 205, 165));
+        y += 16.0f;
+    }
 
-    for (const auto& affix : item.affixes) {
+    // Keep the full panel above the skill bar even for high-affix rare items.
+    // The detail summary still reports how many affixes were omitted.
+    const std::size_t maxVisibleAffixes = compact ? 2 : 3;
+    const std::size_t affixCount = std::min(item.affixes.size(), maxVisibleAffixes);
+    for (std::size_t index = 0; index < affixCount; ++index) {
+        const auto& affix = item.affixes[index];
         const std::string tags = affixTagsSummary(affix.tags);
-        drawText("- " + affix.name + " T" + std::to_string(affix.tier)
-                + (tags.empty() ? "" : " [" + tags + "]"),
+        drawText(truncateText(
+                "- " + affix.name + " T" + std::to_string(affix.tier)
+                    + (tags.empty() ? "" : " [" + tags + "]"),
+                bodyLimit),
             {x, y}, 11, sf::Color(160, 200, 255));
         y += 15.0f;
     }
+    if (item.affixes.size() > affixCount) {
+        drawText("+" + std::to_string(item.affixes.size() - affixCount) + " more affixes",
+            {x, y}, 10, sf::Color(150, 165, 185));
+        y += 14.0f;
+    }
 
-    drawText("Stats: " + statsSummary(item.stats), {x, y}, 11, sf::Color(210, 220, 235));
+    drawText(truncateText("Stats: " + statsSummary(item.stats), bodyLimit),
+        {x, y}, 11, sf::Color(210, 220, 235));
     y += 16.0f;
 
     if (current) {
-        drawText("Current: " + current->name + "  " + statsSummary(current->stats), {x, y}, 11, sf::Color(200, 200, 200));
+        drawText(truncateText("Current: " + current->name + "  " + statsSummary(current->stats),
+                bodyLimit),
+            {x, y}, 11, sf::Color(200, 200, 200));
     } else {
         drawText("Current: Empty", {x, y}, 11, sf::Color(150, 150, 150));
     }
@@ -1476,10 +1509,11 @@ void Renderer::drawItemDetailPanel(const GameWorld& world, const sf::Vector2f& p
 
     if (current) {
         const Stats delta = statsDelta(item.stats, current->stats);
-        drawText("Delta: " + statsDeltaSummary(delta), {x, y}, 11, deltaColor(delta));
+        drawText(truncateText("Delta: " + statsDeltaSummary(delta), bodyLimit),
+            {x, y}, 11, deltaColor(delta));
     } else {
         const std::string delta = statsSummary(item.stats);
-        drawText("Delta: " + (delta.empty() ? "No stat change" : delta),
+        drawText(truncateText("Delta: " + (delta.empty() ? "No stat change" : delta), bodyLimit),
             {x, y}, 11, deltaColor(item.stats));
     }
     y += 17.0f;
@@ -1491,7 +1525,7 @@ void Renderer::drawItemDetailPanel(const GameWorld& world, const sf::Vector2f& p
     const Stats after = combineStats(before,
         statsDelta(previewEquipmentStats(world.player().equipment(), item), world.player().equipment().combinedStats()));
     for (const auto& line : skillImpactDetailLines(before, after, world.skillBar())) {
-        drawText(line, {x, y}, 11, sf::Color(180, 210, 255));
+        drawText(truncateText(line, bodyLimit), {x, y}, 11, sf::Color(180, 210, 255));
         y += 15.0f;
     }
 
@@ -1501,7 +1535,7 @@ void Renderer::drawItemDetailPanel(const GameWorld& world, const sf::Vector2f& p
     const sf::Color hintColor = isFull ? sf::Color(255, 90, 90)
         : isPickup ? sf::Color(180, 220, 255)
         : sf::Color(200, 220, 240);
-    drawText(actionHint, {x, y}, 12, hintColor);
+    drawText(truncateText(actionHint, bodyLimit), {x, y}, 12, hintColor);
 }
 
 void Renderer::drawPassiveTree(const GameWorld& world) {
@@ -1646,23 +1680,21 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         SkillSlot::Movement
     };
 
-    float y = center.y - 164.0f;
-    drawText("Equipped", {center.x - 350.0f, y}, 16, sf::Color::White);
-    y += 22.0f;
+    const float leftColumn = center.x - 350.0f;
+    const float rightColumn = center.x + 20.0f;
+    const float equippedY = center.y - 188.0f;
+    drawText("Equipped", {leftColumn, equippedY}, 16, sf::Color::White);
     for (std::size_t i = 0; i < 4; ++i) {
         const auto slot = slots[i];
         const auto& skill = world.skillBar().definition(slot);
-        const float x = center.x - 350.0f + static_cast<float>(i % 2) * 370.0f;
-        if (i == 2) {
-            y += 20.0f;
-        }
+        const float x = i % 2 == 0 ? leftColumn : rightColumn;
+        const float y = equippedY + 22.0f + static_cast<float>(i / 2) * 18.0f;
         drawText(skillSlotName(slot) + ": " + skill.name,
             {x, y}, 13, sf::Color(180, 230, 255));
     }
 
-    y += 40.0f;
-    drawText("Skills", {center.x - 350.0f, y}, 16, sf::Color::White);
-    y += 24.0f;
+    const float skillsY = center.y - 122.0f;
+    drawText("Skills", {leftColumn, skillsY}, 16, sf::Color::White);
 
     const auto& skills = SkillLibrary::all();
     for (std::size_t i = 0; i < skills.size(); ++i) {
@@ -1674,8 +1706,8 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
             : sf::Color(220, 230, 240);
         const std::string state = equipped ? "Equipped" : unlocked ? "Available" : "Locked";
         const std::string marker = equipped ? "> " : "  ";
-        const float columnX = center.x - 350.0f + static_cast<float>(i % 2) * 370.0f;
-        const float rowY = y + static_cast<float>(i / 2) * 54.0f;
+        const float columnX = i % 2 == 0 ? leftColumn : rightColumn;
+        const float rowY = skillsY + 22.0f + static_cast<float>(i / 2) * 42.0f;
         drawText(marker + std::to_string(i + 1) + ". " + skill.name + " [" + state + "]",
             {columnX, rowY}, 14, color);
         drawText("     " + skillSlotName(skill.slot) + " / " + skillCastTypeName(skill.castType),
@@ -1689,7 +1721,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         if (!ailment.empty()) {
             summary += "  " + ailment;
         }
-        drawText("     " + summary,
+        drawText("     " + truncateText(summary, 48),
             {columnX, rowY + 32.0f}, 10,
             unlocked ? sf::Color(190, 205, 220) : sf::Color(105, 112, 122));
     }
@@ -1700,9 +1732,9 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         SkillSlot::Utility,
         SkillSlot::Movement
     };
-    const float supportY = center.y + 122.0f;
+    const float supportY = center.y + 74.0f;
     drawText("Supports  E equipped A available L locked  |  F1-F4 cycle  |  F5/F6 link",
-        {center.x - 350.0f, supportY}, 11, sf::Color::White);
+        {leftColumn, supportY}, 11, sf::Color::White);
     for (std::size_t i = 0; i < 4; ++i) {
         const auto slot = supportSlots[i];
         const auto supportLabel = [&](std::size_t link) {
@@ -1734,19 +1766,21 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
             pool += support.name + "(" + status + ")";
             firstPoolEntry = false;
         }
-        const float blockX = center.x - 350.0f + static_cast<float>(i % 2) * 370.0f;
-        const float blockY = supportY + 22.0f + static_cast<float>(i / 2) * 48.0f;
+        const float blockX = i % 2 == 0 ? leftColumn : rightColumn;
+        const float blockY = supportY + 20.0f + static_cast<float>(i / 2) * 70.0f;
         drawText(line,
             {blockX, blockY}, 11, sf::Color(150, 245, 175));
-        drawText(pool, {blockX, blockY + 15.0f}, 9, sf::Color(175, 190, 205));
+        drawText(truncateText(pool, 48), {blockX, blockY + 15.0f}, 9, sf::Color(175, 190, 205));
     }
 }
 
 void Renderer::drawMinimap(const GameWorld& world) {
     const sf::Vector2f size{150.0f, 112.0f};
+    // The top HUD and equipment occupy the upper band; keep the minimap in the
+    // lower-right gap above the skill bar so it cannot cover map text or loot UI.
     const sf::Vector2f origin{
         static_cast<float>(Config::WindowWidth) - size.x - 18.0f,
-        18.0f
+        static_cast<float>(Config::WindowHeight) - size.y - 58.0f
     };
     const auto& map = world.map();
     const auto& palette = map.definition().palette;
@@ -1875,8 +1909,10 @@ void Renderer::drawBossHealth(const GameWorld& world) {
         return;
     }
 
-    const sf::Vector2f position{16.0f, 258.0f};
-    const sf::Vector2f size{260.0f, 12.0f};
+    // Keep the boss panel out of the left event stack and the right inventory
+    // column in the 800px prototype window.
+    const sf::Vector2f position{270.0f, 258.0f};
+    const sf::Vector2f size{220.0f, 12.0f};
     const float ratio = std::clamp(
         static_cast<float>(std::max(0, boss->hp())) / static_cast<float>(boss->maxHp()),
         0.0f,
@@ -1886,12 +1922,12 @@ void Renderer::drawBossHealth(const GameWorld& world) {
     const std::string bossLabel = world.bossDefinition().name
         + (world.bossEnraged() ? "  ENRAGED" : "") + "  "
         + std::to_string(std::max(0, boss->hp())) + "/" + std::to_string(boss->maxHp());
-    drawText(bossLabel,
+    drawText(truncateText(bossLabel, 34),
         {position.x, position.y - 18.0f}, 13,
         world.bossEnraged() ? sf::Color(255, 150, 80) : sf::Color(255, 210, 160));
 
     float detailY = position.y + 18.0f;
-    drawText(world.bossPhaseSummary(), {position.x, detailY}, 12,
+    drawText(truncateText(world.bossPhaseSummary(), 34), {position.x, detailY}, 12,
         world.bossEnraged() ? sf::Color(255, 175, 95) : sf::Color(230, 210, 175));
     detailY += 17.0f;
 
@@ -1902,7 +1938,7 @@ void Renderer::drawBossHealth(const GameWorld& world) {
 
     const std::string castWarning = world.bossSkillWarning();
     if (!castWarning.empty()) {
-        drawText(castWarning, {position.x, detailY}, 13, sf::Color(255, 130, 90));
+        drawText(truncateText(castWarning, 34), {position.x, detailY}, 13, sf::Color(255, 130, 90));
     }
 
     sf::RectangleShape background(size);
@@ -1938,7 +1974,8 @@ void Renderer::drawGameOver(const GameWorld& /*world*/) {
 void Renderer::drawMapComplete(const GameWorld& world) {
     const float width = static_cast<float>(Config::WindowWidth);
     const float height = static_cast<float>(Config::WindowHeight);
-    const sf::Vector2f center{width / 2.0f, height / 2.0f};
+    const float centerColumnX = 430.0f;
+    const float leftColumnX = 16.0f;
 
     sf::RectangleShape overlay({width, height});
     overlay.setFillColor(sf::Color(0, 100, 0, 180));
@@ -1949,95 +1986,93 @@ void Renderer::drawMapComplete(const GameWorld& world) {
         : !world.nextMapOptionChosen()
             ? "PHASE: CHOOSE NEXT MAP"
             : "PHASE: PRESS E TO ENTER MAP " + std::to_string(world.mapLevel() + 1);
-    drawCenteredText(phaseText, {center.x, center.y - 160.0f}, 20, sf::Color(255, 240, 180));
+    drawCenteredText(truncateText(phaseText, 28), {centerColumnX, 24.0f}, 14,
+        sf::Color(255, 240, 180));
 
-    drawBox({center.x, center.y - 84.0f}, {360.0f, 90.0f}, sf::Color::Green);
-    drawCenteredText("BOSS DEFEATED: " + world.bossDefinition().name,
-        {center.x, center.y - 110.0f}, 22, sf::Color::White);
-    drawCenteredText("Kills " + std::to_string(world.mapKills())
+    drawBox({centerColumnX, 100.0f}, {190.0f, 100.0f}, sf::Color::Green);
+    drawText(truncateText("BOSS: " + world.bossDefinition().name, 27),
+        {centerColumnX - 90.0f, 58.0f}, 14, sf::Color::White);
+    drawText("Kills " + std::to_string(world.mapKills())
         + "  XP " + std::to_string(world.mapExperienceGained()),
-        {center.x, center.y - 76.0f}, 16, sf::Color::White);
-    drawCenteredText("Drops " + std::to_string(world.mapItemsDropped())
-        + "  Boss Drops " + std::to_string(world.mapBossItemsDropped())
-        + "  Picked " + std::to_string(world.mapItemsPickedUp()),
-        {center.x, center.y - 52.0f}, 16, sf::Color::White);
-    drawCenteredText("Boss relic: " + world.bossDefinition().lootRewardDescription,
-        {center.x, center.y - 30.0f}, 13, sf::Color(255, 225, 145));
+        {centerColumnX - 90.0f, 82.0f}, 12, sf::Color::White);
+    drawText("Drops " + std::to_string(world.mapItemsDropped())
+        + "  Boss " + std::to_string(world.mapBossItemsDropped())
+        + "  F " + std::to_string(world.mapItemsPickedUp()),
+        {centerColumnX - 90.0f, 100.0f}, 11, sf::Color::White);
+    drawText(truncateText("Relic: " + world.bossDefinition().lootRewardDescription, 27),
+        {centerColumnX - 90.0f, 118.0f}, 10, sf::Color(255, 225, 145));
 
     // Left-side pickup guidance (always available during MapComplete):
     // looting runs concurrently with reward / next-map selection, so the player
     // knows F still works and what it will target.
-    float pickupY = 360.0f;
-    drawText("F Pick up nearby drops", {20.0f, pickupY}, 14, sf::Color(180, 220, 255));
+    float pickupY = 320.0f;
+    drawText("F Pick up nearby drops", {leftColumnX, pickupY}, 13, sf::Color(180, 220, 255));
     pickupY += 20.0f;
     const int focusedLoot = world.focusedDroppedItemIndex();
-    if (focusedLoot >= 0) {
-        drawText("Focused: " + world.droppedItems()[static_cast<std::size_t>(focusedLoot)].item().name,
-            {20.0f, pickupY}, 14, sf::Color(255, 220, 120));
+    if (focusedLoot >= 0 && static_cast<std::size_t>(focusedLoot) < world.droppedItems().size()) {
+        drawText(truncateText("Focused: "
+                + world.droppedItems()[static_cast<std::size_t>(focusedLoot)].item().name, 38),
+            {leftColumnX, pickupY}, 13, sf::Color(255, 220, 120));
         pickupY += 20.0f;
     }
     if (world.inventory().isFull()) {
         const std::string fullPrompt = world.stashSelectionActive()
             ? "Inventory full - O Take selected Stash item"
             : "Inventory full - Tab select / Del drop an item";
-        drawText(fullPrompt, {20.0f, pickupY}, 14, sf::Color(255, 90, 90));
+        drawText(truncateText(fullPrompt, 38), {leftColumnX, pickupY}, 13, sf::Color(255, 90, 90));
     }
 
     const auto& mapOptions = world.nextMapOptions();
     if (!world.mapRewardChosen()) {
-        drawCenteredText("Choose Reward", {center.x, center.y - 2.0f}, 18, sf::Color::White);
+        drawText("Choose Reward", {centerColumnX - 90.0f, 168.0f}, 16, sf::Color::White);
         const auto& rewards = world.mapRewardOptions();
-        float optionY = center.y + 26.0f;
+        float optionY = 194.0f;
         for (std::size_t i = 0; i < rewards.size(); ++i) {
             const auto& reward = rewards[i];
-            drawText(std::to_string(i + 1) + ". " + reward.title,
-                {center.x - 235.0f, optionY}, 15, sf::Color(220, 245, 255));
-            drawText("     " + rewardDetailSummary(reward, world),
-                {center.x - 235.0f, optionY + 19.0f}, 12, sf::Color(230, 220, 170));
-            drawText("     " + rewardStatPreview(reward, world),
-                {center.x - 235.0f, optionY + 34.0f}, 11, sf::Color(200, 220, 245));
+            drawText(truncateText(std::to_string(i + 1) + ". " + reward.title, 27),
+                {centerColumnX - 90.0f, optionY}, 13, sf::Color(220, 245, 255));
+            drawText(truncateText("  " + rewardDetailSummary(reward, world), 27),
+                {centerColumnX - 90.0f, optionY + 17.0f}, 10, sf::Color(230, 220, 170));
+            drawText(truncateText("  " + rewardStatPreview(reward, world), 27),
+                {centerColumnX - 90.0f, optionY + 32.0f}, 10, sf::Color(200, 220, 245));
             optionY += 58.0f;
         }
     } else {
         const auto selectedReward = static_cast<std::size_t>(world.selectedMapRewardOption());
         const auto& reward = world.mapRewardOptions()[selectedReward];
-        drawCenteredText("Reward: " + reward.title,
-            {center.x, center.y - 4.0f}, 16, sf::Color(150, 255, 175));
-        drawCenteredText("Choose Next Map", {center.x, center.y + 22.0f}, 18, sf::Color::White);
-        float optionY = center.y + 48.0f;
+        drawText(truncateText("Reward: " + reward.title, 27),
+            {centerColumnX - 90.0f, 168.0f}, 13, sf::Color(150, 255, 175));
+        drawText("Choose Next Map", {centerColumnX - 90.0f, 188.0f}, 16, sf::Color::White);
+        float optionY = 214.0f;
         for (std::size_t i = 0; i < mapOptions.size(); ++i) {
             const bool selected = world.selectedNextMapOption() == static_cast<int>(i);
             const auto& option = mapOptions[i];
             const sf::Color color = selected ? sf::Color(140, 255, 160) : sf::Color(220, 240, 255);
             const std::string marker = selected ? "> " : "  ";
-            drawText(marker + std::to_string(i + 1) + ". "
-                    + truncateText(option.modifier.name, 34) + " - " + option.recommendedLevel,
-                {center.x - 235.0f, optionY}, 14, color);
-            drawText("     " + truncateText(
+            drawText(truncateText(marker + std::to_string(i + 1) + ". "
+                    + option.modifier.name + " " + option.recommendedLevel, 27),
+                {centerColumnX - 90.0f, optionY}, 12, color);
+            drawText(truncateText("  " +
                         MapTemplateLibrary::forIndex(option.templateIndex).name
-                            + " | " + option.modifier.description,
-                        68),
-                {center.x - 235.0f, optionY + 17.0f}, 12, sf::Color(230, 220, 170));
-            drawText("     " + truncateText(
-                        mapOptionSummary(option) + "  |  " + option.rewardDescription,
-                        72),
-                {center.x - 235.0f, optionY + 32.0f}, 12, sf::Color(200, 220, 245));
-            optionY += 50.0f;
+                            + " | " + option.modifier.description, 27),
+                {centerColumnX - 90.0f, optionY + 16.0f}, 10, sf::Color(230, 220, 170));
+            drawText(truncateText("  " + mapOptionSummary(option), 27),
+                {centerColumnX - 90.0f, optionY + 31.0f}, 10, sf::Color(200, 220, 245));
+            optionY += 48.0f;
         }
     }
 
-    drawBox({center.x, center.y + 198.0f}, {360.0f, 40.0f}, sf::Color::White);
+    drawBox({centerColumnX, 410.0f}, {190.0f, 36.0f}, sf::Color::White);
+    std::string footer;
     if (!world.mapRewardChosen()) {
-        drawCenteredText("Pick 1 / 2 / 3 reward first",
-            {center.x, center.y + 191.0f}, 16, sf::Color::Black);
+        footer = "Pick 1 / 2 / 3 reward";
     } else if (world.nextMapOptionChosen()) {
         const auto& selected = mapOptions[static_cast<std::size_t>(world.selectedNextMapOption())];
-        drawCenteredText("E Enter " + selected.modifier.name + " / R Restart",
-            {center.x, center.y + 191.0f}, 16, sf::Color::Black);
+        footer = "E Enter " + selected.modifier.name;
     } else {
-        drawCenteredText("Pick 1 / 2 / 3 next map first",
-            {center.x, center.y + 191.0f}, 16, sf::Color::Black);
+        footer = "Pick 1 / 2 / 3 next map";
     }
+    drawCenteredText(truncateText(footer, 25), {centerColumnX, 403.0f}, 12, sf::Color::Black);
 }
 
 void Renderer::drawMapCompleteInventoryPanel(const GameWorld& world) {
@@ -2084,7 +2119,7 @@ void Renderer::drawMapCompleteInventoryPanel(const GameWorld& world) {
         if (isSelected) {
             rowColor = sf::Color(255, 215, 90);
         }
-        drawText(line, {x, y}, 13, rowColor);
+        drawText(truncateText(line, 36), {x, y}, 13, rowColor);
         y += 16.0f;
 
         const auto& current = equipment.itemInSlot(item.slot);
@@ -2154,7 +2189,7 @@ void Renderer::drawMapCompleteLootDetail(const GameWorld& world) {
     // leaving the centered reward/map choice area and right-side inventory readable.
     const sf::Vector2f lootDetailPos{16.0f, 64.0f};
     drawItemDetailPanel(world, lootDetailPos, item, world.player().equipment().itemInSlot(item.slot),
-        "Boss Drop", actionHint);
+        "Boss Drop", actionHint, true);
 }
 
 void Renderer::drawBox(const sf::Vector2f& center, const sf::Vector2f& size, const sf::Color& color) {
