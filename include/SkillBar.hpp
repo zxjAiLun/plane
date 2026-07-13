@@ -21,13 +21,22 @@ public:
         }
     }
 
-    bool tryCast(SkillSlot slot) {
+    bool canCast(SkillSlot slot) const {
         const auto idx = slotIndex(slot);
-        if (elapsed_[idx] < actualCooldowns_[idx]) {
+        return elapsed_[idx] >= actualCooldowns_[idx];
+    }
+
+    void consumeCooldown(SkillSlot slot) {
+        const auto idx = slotIndex(slot);
+        elapsed_[idx] = 0.0f;
+    }
+
+    bool tryCast(SkillSlot slot) {
+        if (!canCast(slot)) {
             return false;
         }
 
-        elapsed_[idx] = 0.0f;
+        consumeCooldown(slot);
         return true;
     }
 

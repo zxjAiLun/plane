@@ -24,6 +24,8 @@ public:
 
     int takeDamage(int damage);
     int heal(int amount);
+    bool canSpendMana(float amount) const;
+    bool spendMana(float amount);
     bool isDead() const;
 
     void gainExp(int amount);
@@ -41,6 +43,9 @@ public:
     int exp() const;
     int expToNextLevel() const;
     int talentPoints() const;
+    float mana() const;
+    float maxMana() const;
+    float manaRegenPerSecond() const;
     const PlayerStats& stats() const;
     const Equipment& equipment() const;
     const PassiveTree& passiveTree() const;
@@ -55,6 +60,9 @@ private:
     float radius_;
     int hp_;
     int maxHp_;
+    float mana_;
+    float maxMana_;
+    float manaRegenPerSecond_;
 
     int level_;
     int exp_;

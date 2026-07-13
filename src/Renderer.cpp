@@ -280,7 +280,8 @@ std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& sta
         + "/" + formatFloat(skill.cooldown, 2)
         + "  Actual " + std::to_string(effectiveSkillDamage(skill, stats, support))
         + "/" + std::to_string(static_cast<int>(effectiveSkillRadius(skill, stats, support)))
-        + "/" + formatFloat(effectiveSkillCooldown(skill, stats, support), 2);
+        + "/" + formatFloat(effectiveSkillCooldown(skill, stats, support), 2)
+        + "  Mana " + formatFloat(skill.manaCost, 0);
 }
 
 // Combined equipment stats if `candidate` were equipped into its own slot,
@@ -445,7 +446,9 @@ void Renderer::render(const GameWorld& world) {
     }
     drawText("LV " + std::to_string(world.player().level())
         + "  EXP " + std::to_string(world.player().exp()) + "/" + std::to_string(world.player().expToNextLevel())
-        + "  SP " + std::to_string(world.player().talentPoints()),
+        + "  SP " + std::to_string(world.player().talentPoints())
+        + "  MANA " + std::to_string(static_cast<int>(std::ceil(world.player().mana())))
+        + "/" + std::to_string(static_cast<int>(std::ceil(world.player().maxMana()))),
         {16.0f, 36.0f}, 18, sf::Color::White);
     drawText("TIME " + std::to_string(static_cast<int>(world.survivalTime()))
         + "  SCORE " + std::to_string(world.score()),
@@ -1011,7 +1014,8 @@ void Renderer::drawSkillBar(const GameWorld& world) {
         const float progress = world.skillBar().cooldownProgress(slot);
         const sf::Color color = progress >= 1.0f ? sf::Color(130, 230, 150) : sf::Color(230, 180, 80);
         drawText(std::string(keys[i]) + " " + skill.name + " "
-            + std::to_string(static_cast<int>(progress * 100.0f)) + "%",
+            + std::to_string(static_cast<int>(progress * 100.0f)) + "%"
+            + " M" + formatFloat(skill.manaCost, 0),
             {x, y}, 13, color);
         x += 150.0f;
     }

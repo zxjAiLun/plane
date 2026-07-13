@@ -836,12 +836,15 @@ void GameWorld::removeDeadObjects() {
 }
 
 void GameWorld::tryCastMovementSkill(Input& input) {
-    if (!input.dash() || !skillBar_.tryCast(SkillSlot::Movement)) {
+    if (!input.dash()) {
         return;
     }
 
     Vector2 direction = (aimPosition_ - player_.position()).normalized();
     if (direction.lengthSquared() == 0.0f) {
+        return;
+    }
+    if (!tryStartPlayerSkill(SkillSlot::Movement)) {
         return;
     }
 
@@ -863,7 +866,7 @@ void GameWorld::tryCastMovementSkill(Input& input) {
 }
 
 void GameWorld::tryCastUtilitySkill(Input& input) {
-    if (!input.nova() || !skillBar_.tryCast(SkillSlot::Utility)) {
+    if (!input.nova() || !tryStartPlayerSkill(SkillSlot::Utility)) {
         return;
     }
 
@@ -879,7 +882,7 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
 }
 
 void GameWorld::tryCastSecondarySkill(Input& input) {
-    if (!input.secondarySkill() || !skillBar_.tryCast(SkillSlot::Secondary)) {
+    if (!input.secondarySkill() || !tryStartPlayerSkill(SkillSlot::Secondary)) {
         return;
     }
 
@@ -905,7 +908,7 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
         return;
     }
 
-    if (!skillBar_.tryCast(SkillSlot::Primary)) {
+    if (!tryStartPlayerSkill(SkillSlot::Primary)) {
         return;
     }
 
@@ -943,6 +946,22 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
             ailment
         ));
     }
+}
+
+bool GameWorld::tryStartPlayerSkill(SkillSlot slot) {
+    const auto& skill = skillBar_.definition(slot);
+    if (!skillBar_.canCast(slot) || !player_.canSpendMana(skill.manaCost)) {
+        return false;
+    }
+
+    // SkillBar has no Player dependency. Keep resource ownership in Player,
+    // but consume both gates here so insufficient Mana cannot start cooldown.
+    if (!player_.spendMana(skill.manaCost)) {
+        return false;
+    }
+
+    skillBar_.consumeCooldown(slot);
+    return true;
 }
 
 void GameWorld::tryUseLifeFlask(Input& input) {

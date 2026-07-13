@@ -164,6 +164,7 @@ private:
     void tryCastUtilitySkill(Input& input);
     void tryCastSecondarySkill(Input& input);
     void tryCastPrimarySkill(Input& input);
+    bool tryStartPlayerSkill(SkillSlot slot);
     void tryUseLifeFlask(Input& input);
     void restoreLifeFlaskCharges(int charges, const std::string& source);
     void dealAreaDamage(

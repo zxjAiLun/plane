@@ -12,6 +12,9 @@ Player::Player()
     , radius_(Config::PlayerRadius)
     , hp_(Config::PlayerHp)
     , maxHp_(Config::PlayerHp)
+    , mana_(Config::PlayerMaxMana)
+    , maxMana_(Config::PlayerMaxMana)
+    , manaRegenPerSecond_(Config::PlayerManaRegenPerSecond)
     , level_(1)
     , exp_(0)
     , expToNextLevel_(Config::BaseExpToLevel)
@@ -21,7 +24,12 @@ Player::Player()
     recalculateStats();
 }
 
-void Player::update(float /*dt*/) {
+void Player::update(float dt) {
+    if (dt <= 0.0f || mana_ >= maxMana_) {
+        return;
+    }
+
+    mana_ = std::min(maxMana_, mana_ + manaRegenPerSecond_ * dt);
 }
 
 void Player::moveLeft(float dt) {
@@ -76,6 +84,22 @@ int Player::heal(int amount) {
     const int hpBefore = hp_;
     hp_ = std::min(maxHp_, hp_ + amount);
     return hp_ - hpBefore;
+}
+
+bool Player::canSpendMana(float amount) const {
+    return amount <= 0.0f || mana_ >= amount;
+}
+
+bool Player::spendMana(float amount) {
+    if (amount <= 0.0f) {
+        return true;
+    }
+    if (!canSpendMana(amount)) {
+        return false;
+    }
+
+    mana_ = std::clamp(mana_ - amount, 0.0f, maxMana_);
+    return true;
 }
 
 bool Player::isDead() const {
@@ -170,6 +194,9 @@ int Player::level() const { return level_; }
 int Player::exp() const { return exp_; }
 int Player::expToNextLevel() const { return expToNextLevel_; }
 int Player::talentPoints() const { return talentPoints_; }
+float Player::mana() const { return mana_; }
+float Player::maxMana() const { return maxMana_; }
+float Player::manaRegenPerSecond() const { return manaRegenPerSecond_; }
 const PlayerStats& Player::stats() const { return stats_; }
 const Equipment& Player::equipment() const { return equipment_; }
 const PassiveTree& Player::passiveTree() const { return passiveTree_; }

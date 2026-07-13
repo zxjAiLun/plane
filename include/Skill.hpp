@@ -30,4 +30,5 @@ struct SkillDefinition {
     int projectileCount = 1;
     float spreadAngle = 0.0f;
     AilmentDefinition ailment;
+    float manaCost = 0.0f;
 };

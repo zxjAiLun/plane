@@ -131,6 +131,91 @@ void testSkillBarAssignSkillAndSupport() {
         "Quickcast remains (compatible with Nova)");
 }
 
+// --- Mana resource ---
+void testManaResourceAndSkillCastGates() {
+    section("Mana resource and skill cast gates");
+
+    Player player;
+    expect(std::abs(player.mana() - Config::PlayerMaxMana) < 0.0001f,
+        "player starts with full Mana");
+    expect(std::abs(player.maxMana() - Config::PlayerMaxMana) < 0.0001f,
+        "player max Mana uses the configured value");
+    expect(std::abs(player.manaRegenPerSecond() - Config::PlayerManaRegenPerSecond) < 0.0001f,
+        "player Mana regeneration uses the configured value");
+    expect(player.canSpendMana(0.0f), "zero-cost skill is always affordable");
+    expect(player.spendMana(25.0f), "player can spend affordable Mana");
+    expect(std::abs(player.mana() - 75.0f) < 0.0001f,
+        "spending Mana subtracts exactly the requested amount");
+    expect(!player.spendMana(100.0f), "insufficient Mana rejects the spend");
+    expect(std::abs(player.mana() - 75.0f) < 0.0001f,
+        "rejected Mana spend has no side effect");
+
+    player.update(-1.0f);
+    expect(std::abs(player.mana() - 75.0f) < 0.0001f,
+        "negative dt does not regenerate Mana");
+    player.update(0.0f);
+    expect(std::abs(player.mana() - 75.0f) < 0.0001f,
+        "zero dt does not regenerate Mana");
+    player.update(1.0f);
+    expect(std::abs(player.mana() - (75.0f + Config::PlayerManaRegenPerSecond)) < 0.0001f,
+        "positive dt regenerates Mana at the configured rate");
+    player.update(100.0f);
+    expect(std::abs(player.mana() - player.maxMana()) < 0.0001f,
+        "Mana regeneration clamps at max Mana");
+
+    const auto& skills = SkillLibrary::all();
+    expect(skills.size() == 8, "skill library exposes all eight Mana-aware skills");
+    const auto& primary = SkillLibrary::spreadShot();
+    const auto& secondary = SkillLibrary::meteor();
+    const auto& utility = SkillLibrary::pulse();
+    const auto& movement = SkillLibrary::dash();
+    expect(primary.manaCost > 0.0f && primary.manaCost < secondary.manaCost,
+        "Primary has a lower Mana cost than Meteor");
+    expect(secondary.manaCost > 0.0f && utility.manaCost > 0.0f,
+        "Secondary and Utility skills have positive Mana costs");
+    expect(movement.manaCost == 0.0f, "Dash has zero Mana cost");
+    expect(std::abs(SkillLibrary::flare().manaCost - Config::FlareManaCost) < 0.0001f,
+        "Flare exposes its configured Mana cost");
+    expect(std::abs(SkillLibrary::meteor().manaCost - Config::MeteorManaCost) < 0.0001f,
+        "Meteor exposes its configured Mana cost");
+    expect(std::abs(SkillLibrary::frostBomb().manaCost - Config::FrostBombManaCost) < 0.0001f,
+        "Frost Bomb exposes its configured Mana cost");
+    expect(std::abs(SkillLibrary::nova().manaCost - Config::NovaManaCost) < 0.0001f,
+        "Nova exposes its configured Mana cost");
+    expect(std::abs(SkillLibrary::pulse().manaCost - Config::PulseManaCost) < 0.0001f,
+        "Pulse exposes its configured Mana cost");
+    expect(std::abs(SkillLibrary::bladestorm().manaCost - Config::BladestormManaCost) < 0.0001f,
+        "Bladestorm exposes its configured Mana cost");
+    for (const auto& skill : skills) {
+        expect(skill.manaCost >= 0.0f,
+            skill.name + " has an explicit non-negative Mana cost");
+    }
+
+    SkillBar bar;
+    expect(bar.canCast(SkillSlot::Secondary),
+        "ready skill can be checked without consuming cooldown");
+    expect(player.spendMana(secondary.manaCost),
+        "affordable skill can spend its Mana before cooldown consumption");
+    bar.consumeCooldown(SkillSlot::Secondary);
+    expect(!bar.canCast(SkillSlot::Secondary),
+        "consumed skill cooldown becomes unavailable");
+    player.spendMana(player.mana());
+    expect(!player.spendMana(secondary.manaCost),
+        "a second cast is rejected after Mana is exhausted");
+    expect(!bar.canCast(SkillSlot::Secondary),
+        "Mana rejection does not make an already cooling skill ready");
+
+    SkillBar insufficientBar;
+    Player emptyPlayer;
+    emptyPlayer.spendMana(emptyPlayer.mana());
+    expect(insufficientBar.canCast(SkillSlot::Primary),
+        "insufficient-Mana test starts with a ready Primary cooldown");
+    expect(!emptyPlayer.spendMana(primary.manaCost),
+        "insufficient Mana rejects Primary before cooldown is consumed");
+    expect(insufficientBar.canCast(SkillSlot::Primary),
+        "insufficient Mana leaves the Primary cooldown ready");
+}
+
 // --- Combat math ---
 void testCombatMathDamageRadiusPierce() {
     section("CombatMath skillDamage / skillRadius / skillPierce");
@@ -701,6 +786,7 @@ int main() {
 
     testPassiveTreePrerequisitesAndStats();
     testSkillBarAssignSkillAndSupport();
+    testManaResourceAndSkillCastGates();
     testCombatMathDamageRadiusPierce();
     testSkillAilments();
     testPlayerArmorMitigation();

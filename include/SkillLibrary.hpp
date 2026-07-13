@@ -32,7 +32,9 @@ public:
             Config::ProjectileDamage,
             0.0f,
             Config::SpreadShotProjectileCount,
-            Config::SpreadShotSpreadAngle
+            Config::SpreadShotSpreadAngle,
+            {},
+            Config::PrimarySkillManaCost
         };
     }
 
@@ -47,7 +49,8 @@ public:
             Config::SecondarySkillEffectDuration,
             1,
             0.0f,
-            {AilmentType::Ignite, 2.5f, 0.50f}
+            {AilmentType::Ignite, 2.5f, 0.50f},
+            Config::FlareManaCost
         };
     }
 
@@ -62,7 +65,8 @@ public:
             Config::MeteorEffectDuration,
             1,
             0.0f,
-            {AilmentType::Ignite, 3.5f, 0.50f}
+            {AilmentType::Ignite, 3.5f, 0.50f},
+            Config::MeteorManaCost
         };
     }
 
@@ -77,7 +81,8 @@ public:
             0.20f,
             1,
             0.0f,
-            {AilmentType::Chill, 2.5f, 0.0f, 0.55f}
+            {AilmentType::Chill, 2.5f, 0.0f, 0.55f},
+            Config::FrostBombManaCost
         };
     }
 
@@ -89,7 +94,11 @@ public:
             Config::NovaCooldown,
             Config::NovaRadius,
             Config::NovaDamage,
-            Config::NovaEffectDuration
+            Config::NovaEffectDuration,
+            1,
+            0.0f,
+            {},
+            Config::NovaManaCost
         };
     }
 
@@ -101,7 +110,11 @@ public:
             Config::PulseCooldown,
             Config::PulseRadius,
             Config::PulseDamage,
-            Config::PulseEffectDuration
+            Config::PulseEffectDuration,
+            1,
+            0.0f,
+            {},
+            Config::PulseManaCost
         };
     }
 
@@ -113,7 +126,11 @@ public:
             1.0f,
             70.0f,
             1,
-            0.20f
+            0.20f,
+            1,
+            0.0f,
+            {},
+            Config::BladestormManaCost
         };
     }
 
@@ -125,7 +142,11 @@ public:
             Config::DashCooldown,
             0.0f,
             0,
-            0.0f
+            0.0f,
+            1,
+            0.0f,
+            {},
+            Config::DashManaCost
         };
     }
 
