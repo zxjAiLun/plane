@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`5a798dc Add combat hit feedback and Boss flow tests`
+玩法代码基线：`05ff74a Unify skill build math and previews`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -94,7 +94,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前测试基线：`arpg_logic_tests 930 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 101 passed / 0 failed`。
+当前测试基线：`arpg_logic_tests 948 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 111 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -1263,7 +1263,7 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 明确不做：新技能、新 Support、新 Boss、新地图事件、职业系统、装备新槽、掉落过滤、自动拾取、音频、美术资源、网络、跨运行存档和大型 GameWorld 重构。
 
-### 13.18 hy3 下一项实施任务：构筑数值一致性与战斗回归基准 v1
+### 13.18 已完成任务记录：构筑数值一致性与战斗回归基准 v1
 
 目标：在继续增加技能、Support、Boss 或经济内容前，证明“天赋/装备/Support/Shrine -> 技能实际伤害与范围/冷却 -> 命中反馈 -> 装备预览”的数值链路只有一套真相。重点是消除 Renderer 预览、CombatMath、GameWorld 施法三者之间的漂移，让玩家能相信面板上看到的数值。
 
@@ -1277,7 +1277,7 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 实施范围：
 
-1. 先做公式审计，列出每个技能槽位最终使用的伤害、半径、冷却、投射物数量、散射角、穿透和异常快照来源。优先复用 `CombatMath` 与 `SkillBar::supportDefinitions()`；如果发现 Renderer 中存在与 `CombatMath` 重复的公式，应抽成无 SFML 的纯 helper 或直接改为调用现有 helper，不能复制第三套计算。
+1. 先做公式审计，列出每个技能槽位最终使用的伤害、半径、冷却、投射物数量、散射角、穿透和异常快照来源。优先复用 `CombatMath` 与 `SkillBar::supportDefinitionsFor()`；如果发现 Renderer 中存在与 `CombatMath` 重复的公式，应抽成无 SFML 的纯 helper 或直接改为调用现有 helper，不能复制第三套计算。
 2. 增加纯逻辑构筑矩阵测试，至少覆盖以下固定场景：
    - Projectile：Projectile 天赋/装备专精 + 两个合法 Support + Shrine 开启时，Primary 实际命中伤害与 `skillDamage()` 一致；Area 专精不能额外放大该伤害。
    - Area：Area 天赋/装备专精 + 两个合法 Support + Shrine 开启时，Secondary/Utility 的伤害和实际判定半径与 `skillDamage()`/`skillRadius()` 一致；Projectile 专精不能额外放大 Area 技能。
@@ -1304,12 +1304,73 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 完成定义：所有已有技能的面板预览、装备替换预览和真实施法都调用同一套计算路径；至少一条 Projectile 和一条 Area 真实命中测试证明反馈伤害等于目标 HP 的实际变化；三套测试和启动 smoke 通过；主 review Agent 提交后才更新进度看板。
 
+实现结果：
+
+- 新增 `CombatMath::skillCooldown()`，将 Support 冷却倍率和 Primary 攻速规则集中到纯计算 helper；`SkillBar` 的冷却刷新、Renderer 预览和现有技能栏数据现在使用同一套公式。
+- 新增 `SkillBar::supportDefinitionsFor()`，按候选技能的 `SkillCastType`/Support 兼容性过滤当前 Link。Skill Panel、装备替换详情和 GameWorld 的伤害、范围、投射物、散射、穿透、异常计算均不会再把当前槽位的非法 Support 错误带入候选技能预览或实际施法。
+- Shrine 持续时间和 `+35%` 伤害倍率收敛到 `Config`，HUD、事件提示、Dash 和玩家技能伤害读取同一数据源；Shrine 仍是临时伤害乘区，不修改永久属性、范围或冷却。
+- 新增纯逻辑构筑矩阵：Projectile/Area 专精隔离、双 Support 聚合、Primary 攻速冷却、Secondary 冷却不受攻速影响、Shrine 不污染 `Stats`，并覆盖候选技能 Support 预览与实际切换清理。
+- 新增真实 GameWorld 回归：通过合法 `SaveData` fixture 恢复双 Link 构筑，真实移动进入 Boss Arena，使用真实左键 Projectile 和右键 Area 命中 Boss，验证 CombatFeedback 伤害、Boss HP 变化和 Area 半径与 `CombatMath` 一致。
+- 主 review 发现并修正了 `SkillBar::applyStats()` 仍读取未过滤 Support 列表的潜在路径分叉，最终代码提交为 `05ff74a Unify skill build math and previews`。
+
+验收结果：
+
+- `arpg_logic_tests`：`948 passed / 0 failed`。
+- `arpg_save_tests`：`11 passed / 0 failed`。
+- `arpg_world_tests`：`111 passed / 0 failed`。
+- MSVC `--clean-first` 构建、CTest `3/3`、三套测试直接运行和 `PlaneShooter.exe` 3 秒启动 smoke 全部通过。
+
+已知约束：本轮仍没有 Renderer/UI 像素级自动测试；直接命中已有伤害数字，但 Ignite 周期伤害尚未产生单独、可区分的每 tick 反馈。后续异常反馈必须继续复用 `CombatMath`，不能在 Renderer 复制伤害公式。
+
 后续路线（不属于本轮实施范围）：
 
-1. 状态异常反馈 v2：为 Ignite tick 提供有界、可区分的伤害反馈，并测试 DOT 过量伤害、Boss 抗性和死亡奖励不重复。
+1. 状态异常反馈与死亡奖励一致性 v2：为 Ignite tick 提供有界、可区分的伤害反馈，并测试 DOT 过量伤害、Boss 抗性和死亡奖励不重复。
 2. 敌群与精英可读性 v2：补精英包角色、词缀风险和掉落价值反馈，保持现有 AI 与地图路线。
 3. 构筑内容扩展 v2：在数值基准稳定后再增加少量技能/Support，并要求每个新增数据定义同时提供兼容性、预览和自动测试。
 4. 运行完成度 v2：补结算统计、失败/重试节奏和更完整的 UI 视觉验收；不以新增系统数量代替可玩性验证。
+
+### 13.19 hy3 下一项实施任务：状态异常反馈与死亡奖励一致性 v2
+
+目标：把 Ignite 的周期伤害纳入与直接命中相同的可读反馈和死亡结算链路，证明“异常 tick -> 实际 HP 变化 -> 反馈数字 -> 一次性经验/掉落/地图统计”没有重复或漂移。只处理现有 Ignite/Chill 和现有敌人，不借机扩展内容。
+
+开始前必须阅读：
+
+- 本文档第 2、4、5、7、11、13.17、13.18 节，并先运行三套测试记录当前基线 `948/11/111`。
+- `include/Enemy.hpp`、`src/Enemy.cpp` 或 Enemy 异常生命周期实现、`Enemy::updateAilments()`、`Enemy::applyIgnite()`、`Enemy::takeDamage()`、`Enemy::claimKillReward()`。
+- `include/CombatMath.hpp` 中 Ignite/Chill 抗性、穿透、tick damage 和 duration helper；`include/EnemyDefinition.hpp`、`include/BossDefinition.hpp` 中现有抗性数据。
+- `GameWorld::updateObjects()`、`handleCollisions()`、`rewardEnemyKill()`、`addCombatFeedback()` 以及 `src/Renderer.cpp` 的 CombatFeedback 绘制和 HUD。
+- `tests/arpg_logic_tests.cpp`、`tests/game_world_logic_tests.cpp`、`tests/save_logic_tests.cpp`；理解现有“实际伤害而非原始伤害”和“死亡奖励 claim 一次”的测试写法。
+
+实施范围：
+
+1. 让 Enemy 异常更新返回实际 tick 结果：优先返回一个小型纯数据结果，例如 `{actualDamage, expired, killed}`，或等价的 `std::optional` 结果。Enemy 不得依赖 GameWorld、Renderer 或存档；tick damage 必须沿用现有快照的 Ignite 数据、抗性和穿透计算。
+2. 在 GameWorld 接收 tick 结果后写入 `CombatFeedback`，来源固定为稳定文本（建议 `Ignite` 或 `Ignite: <skill>`），位置使用敌人当前位置，伤害使用 Enemy 实际扣除 HP 的值。反馈必须经过现有 `MaxCombatFeedback`/`CombatFeedbackDuration` 上限，不允许新增无界队列。
+3. 统一 DOT 死亡处理：Ignite tick 将敌人 HP 降到 0 时，必须复用现有 `takeDamage()`/`claimKillReward()` 语义；经验、`mapKills`、掉落、ElitePack 完成和 Boss `MapComplete` 最多结算一次。过量 tick 不得产生负 HP 或超过实际 HP 的反馈数字。
+4. 保持现有规则：Chill 不产生伤害 tick；Boss/Elite/Normal 的抗性来自定义数据；Support 的 Ignite damage、duration 和 penetration 仍由施法时快照决定；异常刷新/覆盖规则不能被改成按名称硬编码。
+5. Renderer 只增加最小可读性：让 Ignite 反馈与直接命中可区分（颜色或稳定 source 文本即可），不得复制 tick 计算、修改 GameWorld 状态或重做 HUD/结算面板。若当前 `CombatFeedback` 已足够显示来源，只需补颜色/文案测试，不要增加复杂动画。
+6. 补测试，至少包括：
+   - 纯逻辑：Ignite tick 经过抗性和穿透后的实际伤害；tick 伤害在 HP 不足时 clamp；Chill 始终无 tick；duration 到期后不再 tick。
+   - 纯逻辑：死亡敌人不能再次受到 tick 或重复 claim reward。
+   - GameWorld：通过现有合法 `SaveData` fixture 或公开行为触发一个 Ignite 敌人，验证产生 `Ignite` feedback、反馈伤害等于 HP 变化，并验证死亡后奖励/MapComplete 只发生一次。禁止暴露强制击杀或测试专用生产 API。
+
+强制约束：
+
+- 不新增技能、Support、Boss、敌人类型、地图事件、装备槽、货币、商店、存档字段或输入键。
+- 不修改 Ignite/Chill 基础数值、Boss HP、敌人生成密度、地图 modifier、掉率和奖励数值；发现平衡问题只记录，不在本任务修平衡。
+- 不在 Renderer 或测试中复制 `CombatMath` 公式；生产路径和测试必须调用现有 helper。
+- 不以技能名称写 GameWorld 分支；异常类型和数据使用现有 `AilmentDefinition`/`SkillCastType`/定义字段表达。
+- 不暴露 GameWorld 私有敌人容器的可写访问，不新增强制伤害/跳图/debug 输入。只允许稳定业务只读的 feedback 或 Boss 信息。
+- 保持现有 F 最近拾取、Tab/Delete 背包管理、P 天赋盘、K 技能面板、MapComplete 奖励/地图选择和 Pause 输入上下文不变。
+- 实现 Agent 不提交代码，不修改本手册；完成后保持工作区未提交，交付完整 diff、测试数量、clean build、CTest、启动 smoke、未修复风险。
+
+必须验证：
+
+- 三套测试全部通过，并报告精确数量；新增测试数量必须相对 `948/11/111` 增长。
+- 必须执行 MSVC `cmake --build build --clean-first`、CTest `3/3`、三套测试直接运行和 `PlaneShooter.exe` 启动 3 秒 smoke。
+- 至少一条真实 Ignite tick 路径验证：CombatFeedback 实际伤害 = 敌人 HP 实际减少量；若 tick 击杀敌人，经验/掉落/地图统计/MapComplete 不重复。
+- 交付报告列出：改动文件、Enemy tick API、GameWorld 接入点、feedback source/color、过量伤害处理、奖励 claim 证据、测试场景与数量、构建结果、未修复风险和 `git status --short`。
+
+完成定义：Ignite tick 使用现有数值真相，真实反馈可见且有上限，HP/反馈/死亡奖励一致，现有三套测试和启动 smoke 通过；主 review Agent 完成 diff review、必要修正并提交后，才把本任务标记为完成。
 
 ## 14. 项目进度看板
 
@@ -1328,6 +1389,6 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
 | 连续刷图验收 | v1 完成 | 五次 MapComplete -> 选奖励 -> 选地图 -> E 推进、成长保留和非法阶段保护已有 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 930 条、存档 11 条、GameWorld 101 条通过；已有真实移动进 Boss Arena、技能命中、Boss 击杀和保底掉落测试，仍缺 Renderer/UI 像素级验收 |
+| 自动化测试 | 原型 | 纯逻辑 948 条、存档 11 条、GameWorld 111 条通过；已覆盖真实移动进 Boss Arena、Projectile/Area 技能命中、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
