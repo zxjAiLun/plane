@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`05ff74a Unify skill build math and previews`
+玩法代码基线：`700a760 Add Ignite combat feedback`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -94,7 +94,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前测试基线：`arpg_logic_tests 948 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 111 passed / 0 failed`。
+当前测试基线：`arpg_logic_tests 953 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 119 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -1324,18 +1324,17 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 后续路线（不属于本轮实施范围）：
 
-1. 状态异常反馈与死亡奖励一致性 v2：为 Ignite tick 提供有界、可区分的伤害反馈，并测试 DOT 过量伤害、Boss 抗性和死亡奖励不重复。
-2. 敌群与精英可读性 v2：补精英包角色、词缀风险和掉落价值反馈，保持现有 AI 与地图路线。
-3. 构筑内容扩展 v2：在数值基准稳定后再增加少量技能/Support，并要求每个新增数据定义同时提供兼容性、预览和自动测试。
-4. 运行完成度 v2：补结算统计、失败/重试节奏和更完整的 UI 视觉验收；不以新增系统数量代替可玩性验证。
+1. 敌群与精英可读性 v2：补精英包角色、词缀风险和掉落价值反馈，保持现有 AI 与地图路线。
+2. 构筑内容扩展 v2：在数值基准稳定后再增加少量技能/Support，并要求每个新增数据定义同时提供兼容性、预览和自动测试。
+3. 运行完成度 v2：补结算统计、失败/重试节奏和更完整的 UI 视觉验收；不以新增系统数量代替可玩性验证。
 
-### 13.19 hy3 下一项实施任务：状态异常反馈与死亡奖励一致性 v2
+### 13.19 已完成任务记录：状态异常反馈与死亡奖励一致性 v2
 
 目标：把 Ignite 的周期伤害纳入与直接命中相同的可读反馈和死亡结算链路，证明“异常 tick -> 实际 HP 变化 -> 反馈数字 -> 一次性经验/掉落/地图统计”没有重复或漂移。只处理现有 Ignite/Chill 和现有敌人，不借机扩展内容。
 
 开始前必须阅读：
 
-- 本文档第 2、4、5、7、11、13.17、13.18 节，并先运行三套测试记录当前基线 `948/11/111`。
+- 本文档第 2、4、5、7、11、13.17、13.18 节；本任务开始时基线为 `948/11/111`。
 - `include/Enemy.hpp`、`src/Enemy.cpp` 或 Enemy 异常生命周期实现、`Enemy::updateAilments()`、`Enemy::applyIgnite()`、`Enemy::takeDamage()`、`Enemy::claimKillReward()`。
 - `include/CombatMath.hpp` 中 Ignite/Chill 抗性、穿透、tick damage 和 duration helper；`include/EnemyDefinition.hpp`、`include/BossDefinition.hpp` 中现有抗性数据。
 - `GameWorld::updateObjects()`、`handleCollisions()`、`rewardEnemyKill()`、`addCombatFeedback()` 以及 `src/Renderer.cpp` 的 CombatFeedback 绘制和 HUD。
@@ -1372,6 +1371,67 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 完成定义：Ignite tick 使用现有数值真相，真实反馈可见且有上限，HP/反馈/死亡奖励一致，现有三套测试和启动 smoke 通过；主 review Agent 完成 diff review、必要修正并提交后，才把本任务标记为完成。
 
+实现结果：
+
+- `Enemy::updateAilments()` 现在返回纯 `AilmentTickResult`，包含异常类型、聚合后的实际伤害、tick 数和是否击杀；Enemy 不依赖 GameWorld、Renderer 或存档。
+- Ignite tick 继续使用现有快照伤害、抗性和穿透结果，并通过 `takeDamage()` 返回实际扣血；过量伤害自动限制到剩余 HP，死亡后不再产生 tick。
+- `GameWorld::updateObjects()` 接收 tick 结果，使用现有 `addCombatFeedback()` 写入有界 `Ignite` 反馈，再复用 `rewardEnemyKill()`/`claimKillReward()`，因此经验、地图击杀、掉落、ElitePack 完成和 Boss 结算不会重复。
+- Renderer 对 `Ignite` 来源使用暖色数字；直接命中继续使用原有颜色，反馈仍受 `MaxCombatFeedback` 和 `CombatFeedbackDuration` 限制。
+- 新增纯逻辑覆盖实际 tick、过量 clamp、死亡后禁止 tick、Chill 无伤害和 Ignite 到期；新增真实 GameWorld 测试，通过合法 SaveData fixture、真实 Secondary 施法和真实高等级 Normal/Ranged 目标验证 Ignite 反馈、HP 变化和一次性击杀奖励。
+- 主 review 发现并修正了随机目标导致的 DOT 击杀测试不稳定，最终提交为 `700a760 Add Ignite combat feedback`。
+
+验收结果：
+
+- `arpg_logic_tests`：`953 passed / 0 failed`。
+- `arpg_save_tests`：`11 passed / 0 failed`。
+- `arpg_world_tests`：`119 passed / 0 failed`。
+- MSVC `--clean-first` 构建、CTest `3/3`、三套测试直接运行和 `PlaneShooter.exe` 3 秒启动 smoke 全部通过。
+
+已知约束：同一帧内多个 Ignite tick 会聚合为一条反馈；反馈没有携带敌人 ID，当前需求只要求来源和实际总伤害可读。Renderer/UI 仍没有自动像素测试；后续 UI 任务必须保留 800x600 可读性检查。
+
+### 13.20 hy3 下一项实施任务：敌群与精英可读性 v2
+
+目标：让玩家在开放地图中能快速判断精英/精英包的危险、当前状态和潜在收益，形成“看见风险 -> 决定是否处理 -> 拾取价值”的 ARPG 反馈闭环。只增强现有 EnemyDefinition、EliteModifier、ElitePack 事件和 HUD/敌人标签，不新增敌人 AI、敌人类型或地图生成。
+
+开始前必须阅读：
+
+- 本文档第 2、4、5、7、11、13.18、13.19 节；先运行三套测试，记录当前基线 `953/11/119`。
+- `include/EnemyDefinition.hpp`、`include/EliteModifier.hpp`、`include/Enemy.hpp`、`src/Enemy.cpp`；确认名称、HP/速度/爆炸数据和 `isElite()` 的现有来源。
+- `GameWorld::spawnEnemies()`、`triggerElitePackEvent()`、`noteElitePackEnemyDefeated()`、`rewardEnemyKill()`、`activeEliteEventEnemiesRemaining()`。
+- `src/Renderer.cpp` 的 `drawEnemies()`、HUD Events 区、小地图和 `drawCombatFeedback()`；确认当前颜色/标签和世界坐标到屏幕坐标规则。
+- `tests/arpg_logic_tests.cpp`、`tests/game_world_logic_tests.cpp`、`tests/save_logic_tests.cpp`；先找现有 EliteModifier、ElitePack、掉落和地图事件断言，禁止复制已有测试。
+
+实施范围：
+
+1. 数据化精英说明：为现有 `EliteModifierDefinition` 增加短 `description` 或等价的显示字段，覆盖 Hardened、Swift、Volatile；None 仍为空。说明必须从数据表读取，不能在 Renderer 通过 modifier 名称写一套 switch。数值字段和现有平衡保持不变。
+2. 统一精英展示文本：Renderer 继续使用 `EnemyDefinition`/`EliteModifierDefinition` 生成名称，并在精英标签或附近 HUD 展示一行风险摘要，例如 Hardened 的生命风险、Swift 的速度风险、Volatile 的死亡爆炸风险。实际数值格式化集中在一个小 helper，不能在多个绘制点复制字符串拼接。
+3. 增加当前精英焦点信息：在 Playing 状态下从现有 `world.enemies()` 只读选择距离玩家最近且在可读范围内的 Elite/Boss，HUD 显示名称、当前 HP/max HP、modifier 摘要和必要的掉落/奖励提示。没有合适目标时不显示；不得新增可写敌人容器或目标锁定输入。
+4. 强化 ElitePack 反馈：保留现有自动触发和 `Events X/Y`，在事件进行中同时显示当前剩余数量和已生成精英的 modifier 摘要；事件完成后显示一次短提示，不改变事件完成条件、生成数量、掉落数量和奖励倍率。
+5. 地面奖励可读性：只复用现有 `mapItemsDropped`、稀有度颜色和最近拾取目标，在 Elite/ElitePack 的掉落提示中显示“来源为 Elite Pack”或等价稳定文案；不添加 loot filter、自动拾取、稀有度重排或新的掉落池。
+6. 补测试，至少包括：
+   - 纯逻辑：三个现有 EliteModifier 都有非空描述；None 不产生风险摘要；描述与对应数值字段一致，不能出现 Volatile 文案但爆炸数据为零等错配。
+   - 纯逻辑：EnemyDefinition 和 EliteModifier 的 HP/速度/爆炸聚合公式保持当前值，普通敌人不会错误显示精英 modifier。
+   - GameWorld：真实 ElitePack 事件生成 1 Elite + 4 Normal，事件完成数量只在全部死亡后增加；至少一条现有掉落/奖励断言保持通过。
+   - 回归：Boss 标签、Ignite/Chill 反馈、最近拾取、高亮、MapComplete 背包和三选图输入不回归。
+
+强制约束：
+
+- 不新增技能、Support、Boss、敌人类型、地图事件类型、装备槽、货币、商店、存档字段或输入键。
+- 不修改 EliteModifier、EnemyDefinition、地图 modifier、Boss HP、生成数量、掉率、经验和奖励倍率；本任务只增加可读数据和显示，任何平衡改动另开任务。
+- 不在 Renderer 复制敌人/掉落/奖励计算；数值仍来自现有定义和 GameWorld 只读接口。不得按 modifier 名称散落写逻辑分支。
+- 不暴露 GameWorld 私有容器的可写访问，不引入目标锁定、自动拾取、loot filter 或 UI 大重构。
+- 保持 WASD、左键/右键/Q/Space、F 最近拾取、Tab/Delete、P/K、Pause 和 MapComplete 输入上下文不变。
+- 实现 Agent 不提交代码，不修改本手册；完成后保持工作区未提交，交付完整 diff、测试数量、clean build、CTest、启动 smoke、未修复风险。
+
+必须验证：
+
+- 三套测试全部通过，且测试数量相对 `953/11/119` 增长或至少新增明确的精英/事件断言。
+- 必须执行 MSVC `cmake --build build --clean-first`、CTest `3/3`、三套测试直接运行和 `PlaneShooter.exe` 启动 3 秒 smoke。
+- 手动检查 800x600：普通敌人、Elite、Volatile 标签、Boss 血条、Events 区、Ignite 数字和最近掉落提示不互相覆盖。
+- 交付报告列出：新增数据字段、文本来源、焦点选择规则、ElitePack 状态变化、掉落来源文案、输入回归、测试场景与数量、构建结果、未修复风险和 `git status --short`。
+
+完成定义：精英风险和事件进度在真实地图中可读，展示使用数据定义而非名称分支，ElitePack 状态/奖励不改变且测试与启动 smoke 通过；主 review Agent 完成 diff review、必要修正并提交后，才把本任务标记为完成。
+
 ## 14. 项目进度看板
 
 | 领域 | 状态 | 说明 |
@@ -1381,7 +1441,7 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 怪物生态 | 可玩 | 近战、远程、精英、冲锋均有，pack 协同仍弱 |
 | Boss | v1 完成 | Brood 召唤、Brimstone 火区、Storm 锁定突进形成三种独立机制 |
 | 天赋盘 | v1 完成 | 20 节点、四个 Keystone、前置和 HUD/hover 反馈已完成 |
-| 状态异常 | 可玩 | Ignite/Chill、Enemy/Boss 抗性和 Support 穿透已有，异常种类仍少 |
+| 状态异常 | 可玩 | Ignite/Chill、Enemy/Boss 抗性、Support 穿透和 Ignite tick 反馈已有，异常种类仍少 |
 | 装备掉落 | v1 完成 | base/implicit/affix/tier/rarity/relic/tags/weights/地图主题偏置/比较/满包安全已有 |
 | 地图选择 | v1 完成 | 三选图、风险收益、模板绑定、稳定布局变体和两词缀组合已有 |
 | 经济/锻造 | v1 完成 | 分解、Forge Fragments、三种选择式词缀加工和当前 run Stash 已有 |
@@ -1389,6 +1449,6 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
 | 连续刷图验收 | v1 完成 | 五次 MapComplete -> 选奖励 -> 选地图 -> E 推进、成长保留和非法阶段保护已有 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 948 条、存档 11 条、GameWorld 111 条通过；已覆盖真实移动进 Boss Arena、Projectile/Area 技能命中、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
+| 自动化测试 | 原型 | 纯逻辑 953 条、存档 11 条、GameWorld 119 条通过；已覆盖真实移动进 Boss Arena、Projectile/Area 命中、Ignite tick、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
