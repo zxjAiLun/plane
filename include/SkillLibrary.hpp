@@ -38,6 +38,22 @@ public:
         };
     }
 
+    static SkillDefinition arcBolt() {
+        return {
+            SkillSlot::Primary,
+            SkillCastType::Projectile,
+            "Arc Bolt",
+            0.65f,
+            0.0f,
+            3,
+            0.0f,
+            1,
+            0.0f,
+            {},
+            2.0f
+        };
+    }
+
     static SkillDefinition flare() {
         return {
             SkillSlot::Secondary,
@@ -134,6 +150,22 @@ public:
         };
     }
 
+    static SkillDefinition shockwave() {
+        return {
+            SkillSlot::Utility,
+            SkillCastType::SelfCenteredArea,
+            "Shockwave",
+            1.50f,
+            120.0f,
+            3,
+            0.20f,
+            1,
+            0.0f,
+            {},
+            6.0f
+        };
+    }
+
     static SkillDefinition dash() {
         return {
             SkillSlot::Movement,
@@ -154,12 +186,14 @@ private:
     static std::vector<SkillDefinition> buildSkills() {
         return {
             spreadShot(),
+            arcBolt(),
             flare(),
             meteor(),
             frostBomb(),
             nova(),
             pulse(),
             bladestorm(),
+            shockwave(),
             dash()
         };
     }

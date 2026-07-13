@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <set>
 #include <string>
@@ -345,6 +346,20 @@ void testSkillBarAssignSkillAndSupport() {
     invalid.supports[static_cast<std::size_t>(SkillSlot::Movement)][1] = "Trailblazer";
     expect(!restored.restoreState(invalid),
         "SkillBar rejects a second Movement support link");
+
+    SkillBar expansionBar;
+    expect(expansionBar.assignSkill(SkillSlot::Primary, "Arc Bolt"),
+        "assign Arc Bolt to Primary");
+    expect(expansionBar.assignSupport(SkillSlot::Primary, "Barrage"),
+        "Barrage attaches to Arc Bolt");
+    expect(!expansionBar.assignSupport(SkillSlot::Secondary, "Barrage"),
+        "Barrage rejects non-Projectile skills");
+    expect(!expansionBar.assignSupport(SkillSlot::Primary, "Concentration", 1),
+        "Concentration rejects Projectile skills");
+    expect(expansionBar.assignSkill(SkillSlot::Utility, "Shockwave"),
+        "assign Shockwave to Utility");
+    expect(expansionBar.assignSupport(SkillSlot::Utility, "Concentration"),
+        "Concentration attaches to Shockwave");
 }
 
 // --- Mana resource ---
@@ -380,16 +395,21 @@ void testManaResourceAndSkillCastGates() {
         "Mana regeneration clamps at max Mana");
 
     const auto& skills = SkillLibrary::all();
-    expect(skills.size() == 8, "skill library exposes all eight Mana-aware skills");
+    expect(skills.size() == 10, "skill library exposes all ten Mana-aware skills");
     const auto& primary = SkillLibrary::spreadShot();
     const auto& secondary = SkillLibrary::meteor();
     const auto& utility = SkillLibrary::pulse();
     const auto& movement = SkillLibrary::dash();
+    const auto& arcBolt = SkillLibrary::arcBolt();
+    const auto& shockwave = SkillLibrary::shockwave();
     expect(primary.manaCost > 0.0f && primary.manaCost < secondary.manaCost,
         "Primary has a lower Mana cost than Meteor");
     expect(secondary.manaCost > 0.0f && utility.manaCost > 0.0f,
         "Secondary and Utility skills have positive Mana costs");
     expect(movement.manaCost == 0.0f, "Dash has zero Mana cost");
+    expect(std::abs(arcBolt.manaCost - 2.0f) < 0.0001f
+            && std::abs(shockwave.manaCost - 6.0f) < 0.0001f,
+        "Arc Bolt and Shockwave expose their fixed Mana costs");
     expect(std::abs(SkillLibrary::flare().manaCost - Config::FlareManaCost) < 0.0001f,
         "Flare exposes its configured Mana cost");
     expect(std::abs(SkillLibrary::meteor().manaCost - Config::MeteorManaCost) < 0.0001f,
@@ -445,10 +465,13 @@ void testCombatMathDamageRadiusPierce() {
     const SupportDefinition* trailblazer = SupportLibrary::find("Trailblazer");
     const SupportDefinition* combustion = SupportLibrary::find("Combustion");
     const SupportDefinition* deepChill = SupportLibrary::find("Deep Chill");
+    const SupportDefinition* barrage = SupportLibrary::find("Barrage");
+    const SupportDefinition* concentration = SupportLibrary::find("Concentration");
     expect(pierce != nullptr && amplify != nullptr && quickcast != nullptr
             && volley != nullptr && trailblazer != nullptr
-            && combustion != nullptr && deepChill != nullptr,
-        "supports exist in library");
+            && combustion != nullptr && deepChill != nullptr
+            && barrage != nullptr && concentration != nullptr,
+        "existing and expanded supports exist in library");
 
     Stats stats;
     stats.damageMultiplier = 1.0f;
@@ -483,6 +506,56 @@ void testCombatMathDamageRadiusPierce() {
     const float projRadius = skillRadius(projectile, stats, amplify);
     expect(std::abs(projRadius - projectile.radius) < 0.001f,
         "projectile skillRadius ignores area radius multipliers");
+
+    const SkillDefinition arcBolt = SkillLibrary::arcBolt();
+    const SkillDefinition shockwave = SkillLibrary::shockwave();
+    expect(arcBolt.slot == SkillSlot::Primary
+            && arcBolt.castType == SkillCastType::Projectile
+            && arcBolt.baseDamage == 3
+            && std::abs(arcBolt.cooldown - 0.65f) < 0.0001f,
+        "Arc Bolt exposes its fixed Projectile definition");
+    expect(shockwave.slot == SkillSlot::Utility
+            && shockwave.castType == SkillCastType::SelfCenteredArea
+            && shockwave.baseDamage == 3
+            && std::abs(shockwave.radius - 120.0f) < 0.0001f,
+        "Shockwave exposes its fixed Area definition");
+    Stats areaSpecializationOnly;
+    areaSpecializationOnly.areaDamageMultiplier = 1.60f;
+    Stats projectileSpecializationOnly;
+    projectileSpecializationOnly.projectileDamageMultiplier = 1.40f;
+    expect(skillDamage(arcBolt, stats, nullptr) > skillDamage(arcBolt, Stats{}, nullptr)
+            && skillDamage(arcBolt, areaSpecializationOnly, nullptr)
+                == skillDamage(arcBolt, Stats{}, nullptr),
+        "Arc Bolt uses Projectile specialization only");
+    expect(skillDamage(shockwave, stats, nullptr) > skillDamage(shockwave, Stats{}, nullptr)
+            && skillDamage(shockwave, projectileSpecializationOnly, nullptr)
+                == skillDamage(shockwave, Stats{}, nullptr),
+        "Shockwave uses Area specialization only");
+    SkillDefinition barrageProbe = arcBolt;
+    barrageProbe.baseDamage = 10;
+    expect(skillProjectileCount(arcBolt, barrage) == arcBolt.projectileCount + 1
+            && skillSpreadAngle(arcBolt, barrage) > arcBolt.spreadAngle
+            && skillDamage(barrageProbe, Stats{}, barrage)
+                < skillDamage(barrageProbe, Stats{}, nullptr),
+        "Barrage adds Projectile spread and trades hit damage");
+    expect(skillDamage(shockwave, Stats{}, concentration)
+                > skillDamage(shockwave, Stats{}, nullptr)
+            && skillRadius(shockwave, Stats{}, concentration) < shockwave.radius
+            && skillCooldown(shockwave, Stats{}, concentration) > shockwave.cooldown,
+        "Concentration trades Area radius for damage and cooldown");
+    expect(std::abs(barrage->damageMultiplier - 0.88f) < 0.0001f
+            && barrage->extraProjectileCount == 1
+            && std::abs(barrage->extraSpreadAngle - 12.0f) < 0.0001f
+            && std::abs(concentration->damageMultiplier - 1.22f) < 0.0001f
+            && std::abs(concentration->radiusMultiplier - 0.78f) < 0.0001f
+            && std::abs(concentration->cooldownMultiplier - 1.12f) < 0.0001f,
+        "expanded Support definitions preserve their fixed values");
+    expect(SupportLibrary::supportsSkill(*barrage, arcBolt)
+            && !SupportLibrary::supportsSkill(*barrage, shockwave)
+            && SupportLibrary::supportsSkill(*concentration, shockwave)
+            && SupportLibrary::supportsSkill(*concentration, SkillLibrary::meteor())
+            && !SupportLibrary::supportsSkill(*concentration, SkillLibrary::dash()),
+        "expanded Supports expose only their intended CastType compatibility");
 
     expect(skillPierceCount(nullptr) == 0, "no support => 0 pierce");
     expect(skillPierceCount(pierce) == 1, "Pierce support => 1 pierce");
@@ -1696,6 +1769,71 @@ void testMapRewardGeneration() {
         }
     }
     expect(skillUnlocks >= 1, "at least one reward unlocks a new skill while skills remain locked");
+
+    const std::string arcBoltName = SkillLibrary::arcBolt().name;
+    const std::string shockwaveName = SkillLibrary::shockwave().name;
+    expect(unlockedSkills.count(arcBoltName) == 0 && unlockedSkills.count(shockwaveName) == 0,
+        "expanded skills start locked in a fresh run");
+
+    bool sawArcBolt = false;
+    bool sawShockwave = false;
+    for (std::uint64_t seed = 0; seed < 128 && (!sawArcBolt || !sawShockwave); ++seed) {
+        RandomService rewardSeed(seed);
+        const auto options = MapRewardLibrary::generateOptions(
+            unlockedSkills, unlockedSupports, rewardSeed
+        );
+        for (const auto& option : options) {
+            sawArcBolt = sawArcBolt || option.skillName == arcBoltName;
+            sawShockwave = sawShockwave || option.skillName == shockwaveName;
+        }
+    }
+    expect(sawArcBolt, "MapRewardLibrary can generate Arc Bolt unlock reward");
+    expect(sawShockwave, "MapRewardLibrary can generate Shockwave unlock reward");
+
+    std::set<std::string> allSkills;
+    for (const auto& skill : SkillLibrary::all()) {
+        allSkills.insert(skill.name);
+    }
+    std::set<std::string> allSupports;
+    for (const auto& support : SupportLibrary::all()) {
+        allSupports.insert(support.name);
+    }
+    std::set<std::string> onlyExpandedSupports = allSupports;
+    onlyExpandedSupports.erase("Barrage");
+    onlyExpandedSupports.erase("Concentration");
+    RandomService expandedSupportRandom(99);
+    const auto expandedSupportRewards = MapRewardLibrary::generateOptions(
+        allSkills, onlyExpandedSupports, expandedSupportRandom
+    );
+    bool sawBarrage = false;
+    bool sawConcentration = false;
+    for (const auto& option : expandedSupportRewards) {
+        sawBarrage = sawBarrage || option.supportName == "Barrage";
+        sawConcentration = sawConcentration || option.supportName == "Concentration";
+    }
+    expect(sawBarrage && sawConcentration,
+        "MapRewardLibrary generates both expanded Support unlock rewards");
+
+    std::set<std::string> allSkillsExceptArc = allSkills;
+    allSkillsExceptArc.erase(arcBoltName);
+    RandomService arcUnlockRandom(100);
+    const auto arcUnlockRewards = MapRewardLibrary::generateOptions(
+        allSkillsExceptArc, allSupports, arcUnlockRandom
+    );
+    expect(std::any_of(arcUnlockRewards.begin(), arcUnlockRewards.end(),
+            [&arcBoltName](const MapRewardDefinition& option) {
+                return option.skillName == arcBoltName;
+            }),
+        "locked Arc Bolt remains eligible for an unlock reward");
+    RandomService noRepeatRandom(101);
+    const auto noRepeatRewards = MapRewardLibrary::generateOptions(
+        allSkills, allSupports, noRepeatRandom
+    );
+    expect(std::none_of(noRepeatRewards.begin(), noRepeatRewards.end(),
+            [&arcBoltName](const MapRewardDefinition& option) {
+                return option.skillName == arcBoltName;
+            }),
+        "unlocked Arc Bolt is not offered again after it is obtained");
 
     auto rewardSignature = [](const std::array<MapRewardDefinition, 3>& options) {
         std::string signature;

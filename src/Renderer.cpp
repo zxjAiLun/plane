@@ -1670,7 +1670,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
 
     drawBox({center.x, center.y}, {760.0f, 560.0f}, sf::Color(24, 30, 40));
     drawCenteredText("Skill Panel", {center.x, center.y - 248.0f}, 24, sf::Color::White);
-    drawCenteredText("1-8 assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
+    drawCenteredText("1-10 assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
         {center.x, center.y - 220.0f}, 14, sf::Color(210, 230, 255));
 
     const SkillSlot slots[] = {
@@ -1693,7 +1693,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
             {x, y}, 13, sf::Color(180, 230, 255));
     }
 
-    const float skillsY = center.y - 122.0f;
+    const float skillsY = center.y - 132.0f;
     drawText("Skills", {leftColumn, skillsY}, 16, sf::Color::White);
 
     const auto& skills = SkillLibrary::all();
@@ -1707,7 +1707,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         const std::string state = equipped ? "Equipped" : unlocked ? "Available" : "Locked";
         const std::string marker = equipped ? "> " : "  ";
         const float columnX = i % 2 == 0 ? leftColumn : rightColumn;
-        const float rowY = skillsY + 22.0f + static_cast<float>(i / 2) * 42.0f;
+        const float rowY = skillsY + 22.0f + static_cast<float>(i / 2) * 44.0f;
         drawText(marker + std::to_string(i + 1) + ". " + skill.name + " [" + state + "]",
             {columnX, rowY}, 14, color);
         drawText("     " + skillSlotName(skill.slot) + " / " + skillCastTypeName(skill.castType),
@@ -1732,7 +1732,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         SkillSlot::Utility,
         SkillSlot::Movement
     };
-    const float supportY = center.y + 74.0f;
+    const float supportY = center.y + 110.0f;
     drawText("Supports  E equipped A available L locked  |  F1-F4 cycle  |  F5/F6 link",
         {leftColumn, supportY}, 11, sf::Color::White);
     for (std::size_t i = 0; i < 4; ++i) {
@@ -1767,7 +1767,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
             firstPoolEntry = false;
         }
         const float blockX = i % 2 == 0 ? leftColumn : rightColumn;
-        const float blockY = supportY + 20.0f + static_cast<float>(i / 2) * 70.0f;
+        const float blockY = supportY + 20.0f + static_cast<float>(i / 2) * 58.0f;
         drawText(line,
             {blockX, blockY}, 11, sf::Color(150, 245, 175));
         drawText(truncateText(pool, 48), {blockX, blockY + 15.0f}, 9, sf::Color(175, 190, 205));

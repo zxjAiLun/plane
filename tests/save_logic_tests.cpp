@@ -47,13 +47,20 @@ SaveData sampleData() {
     data.currentMapOption = MapOptionLibrary::generateOptions(2)[1];
     data.nextMapOptions = MapOptionLibrary::generateOptions(3);
     data.unlockedSkills.insert("Spread Shot");
+    data.unlockedSkills.insert("Arc Bolt");
     data.unlockedSupports.insert("Pierce");
     data.unlockedSkills.insert("Meteor");
     data.unlockedSkills.insert("Pulse");
+    data.unlockedSkills.insert("Shockwave");
     data.unlockedSkills.insert("Dash");
+    data.unlockedSupports.insert("Barrage");
+    data.unlockedSupports.insert("Concentration");
     data.skillBar = SkillBar().saveState();
+    data.skillBar.skills[0] = "Arc Bolt";
+    data.skillBar.skills[2] = "Shockwave";
     data.skillBar.supports[0][0] = "Pierce";
-    data.skillBar.supports[0][1] = "Volley";
+    data.skillBar.supports[0][1] = "Barrage";
+    data.skillBar.supports[2][0] = "Concentration";
     data.unlockedSupports.insert("Volley");
     data.skillBar.elapsed[0] = 0.17f;
 
@@ -122,8 +129,11 @@ void testFileValidation(const std::filesystem::path& path) {
             && restored.exploredCells == data.exploredCells
             && restored.player.equipment[0]->affixes[0].id
                 == "projectile_damage_t2"
+            && restored.skillBar.skills[0] == "Arc Bolt"
+            && restored.skillBar.skills[2] == "Shockwave"
             && restored.skillBar.supports[0][0] == "Pierce"
-            && restored.skillBar.supports[0][1] == "Volley"
+            && restored.skillBar.supports[0][1] == "Barrage"
+            && restored.skillBar.supports[2][0] == "Concentration"
             && restored.inventory.size() == 1
             && restored.stash.size() == 1
             && restored.droppedItems.size() == 1,

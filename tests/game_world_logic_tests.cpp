@@ -963,6 +963,168 @@ void testBuildMathMatchesWorldHits() {
     std::filesystem::remove(path);
 }
 
+void testExpandedSkillWorldHits() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_expanded_skill_world_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(20001);
+    expect(!world.isSkillUnlocked("Arc Bolt")
+            && !world.isSkillUnlocked("Shockwave")
+            && !world.isSupportUnlocked("Barrage")
+            && !world.isSupportUnlocked("Concentration"),
+        "expanded skills and Supports start locked");
+
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "expanded skill fixture starts from a valid run save");
+
+    const auto primaryIndex = static_cast<std::size_t>(SkillSlot::Primary);
+    const auto utilityIndex = static_cast<std::size_t>(SkillSlot::Utility);
+    data.unlockedSkills.insert("Arc Bolt");
+    data.unlockedSkills.insert("Shockwave");
+    data.unlockedSupports.insert("Barrage");
+    data.unlockedSupports.insert("Concentration");
+    data.skillBar.skills[primaryIndex] = "Arc Bolt";
+    data.skillBar.skills[utilityIndex] = "Shockwave";
+    data.skillBar.supports[primaryIndex] = {"Barrage", ""};
+    data.skillBar.supports[utilityIndex] = {"Concentration", ""};
+    data.player.hp = 10000;
+    data.player.upgradeStats.maxHp = 10000;
+    data.player.upgradeStats.moveSpeedMultiplier = 8.0f;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.player.upgradeStats.projectileDamageMultiplier = 2.0f;
+    data.player.upgradeStats.areaDamageMultiplier = 2.0f;
+    data.player.upgradeStats.areaRadiusMultiplier = 2.0f;
+    data.player.mana = Config::PlayerMaxMana;
+    data.state = SavedRunState::Playing;
+    data.mapRewardChosen = false;
+    data.nextMapOptionChosen = false;
+    data.selectedMapRewardOption = -1;
+    data.selectedNextMapOption = -1;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "expanded skill fixture restores unlocks and links");
+    expect(world.skillBar().definition(SkillSlot::Primary).name == "Arc Bolt"
+            && world.skillBar().definition(SkillSlot::Utility).name == "Shockwave"
+            && world.skillBar().supportAt(SkillSlot::Primary, 0) != nullptr
+            && world.skillBar().supportAt(SkillSlot::Primary, 0)->name == "Barrage"
+            && world.skillBar().supportAt(SkillSlot::Utility, 0) != nullptr
+            && world.skillBar().supportAt(SkillSlot::Utility, 0)->name == "Concentration",
+        "expanded skill fixture restores the active skills and Support links");
+
+    Input input;
+    expect(moveToBoss(world, input),
+        "expanded skill fixture reaches the Boss for real casts");
+    if (!world.map().bossTriggered()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const auto findBoss = [&world]() {
+        return std::find_if(
+            world.enemies().begin(),
+            world.enemies().end(),
+            [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+        );
+    };
+    const auto worldToScreen = [&world](const Vector2& position) {
+        const Vector2 camera = world.cameraTopLeft();
+        return sf::Vector2i(
+            static_cast<int>(std::lround(position.x - camera.x)),
+            static_cast<int>(std::lround(position.y - camera.y))
+        );
+    };
+
+    auto boss = findBoss();
+    expect(boss != world.enemies().end(),
+        "expanded skill fixture exposes the active Boss");
+    if (boss == world.enemies().end()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const auto& projectileSkill = world.skillBar().definition(SkillSlot::Primary);
+    const auto projectileSupports = world.skillBar().supportDefinitionsFor(projectileSkill);
+    const int expectedProjectileDamage = skillDamage(
+        projectileSkill, world.player().stats(), projectileSupports
+    );
+    const int bossHpBeforeProjectile = boss->hp();
+    const std::size_t projectileFeedbackStart = world.combatFeedback().size();
+    const sf::Vector2i bossScreen = worldToScreen(boss->position());
+    input.handleMousePressed(sf::Mouse::Button::Left, bossScreen);
+    for (int frame = 0; frame < 40
+            && world.combatFeedback().size() == projectileFeedbackStart; ++frame) {
+        world.update(0.05f, input);
+    }
+    input.handleMouseReleased(sf::Mouse::Button::Left, bossScreen);
+
+    int projectileFeedbackDamage = 0;
+    bool projectileFeedbackMatches = true;
+    for (std::size_t index = projectileFeedbackStart;
+        index < world.combatFeedback().size(); ++index) {
+        const auto& feedback = world.combatFeedback()[index];
+        if (feedback.source == projectileSkill.name) {
+            projectileFeedbackDamage += feedback.damage;
+            projectileFeedbackMatches = projectileFeedbackMatches
+                && feedback.damage == expectedProjectileDamage;
+        }
+    }
+    boss = findBoss();
+    const int bossHpAfterProjectile = boss == world.enemies().end() ? 0 : boss->hp();
+    expect(projectileFeedbackDamage > 0 && projectileFeedbackMatches,
+        "Arc Bolt real feedback uses CombatMath damage");
+    expect(bossHpBeforeProjectile - bossHpAfterProjectile == projectileFeedbackDamage,
+        "Arc Bolt feedback equals the Boss HP delta");
+
+    input.update();
+    for (int frame = 0; frame < 120 && !world.projectiles().empty(); ++frame) {
+        world.update(0.05f, input);
+    }
+    boss = findBoss();
+    if (boss == world.enemies().end()) {
+        expect(false, "Boss remains alive before the Shockwave cast");
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const auto& areaSkill = world.skillBar().definition(SkillSlot::Utility);
+    const auto areaSupports = world.skillBar().supportDefinitionsFor(areaSkill);
+    const int expectedAreaDamage = skillDamage(
+        areaSkill, world.player().stats(), areaSupports
+    );
+    const float expectedAreaRadius = skillRadius(
+        areaSkill, world.player().stats(), areaSupports
+    );
+    const int bossHpBeforeArea = boss->hp();
+    const std::size_t areaFeedbackStart = world.combatFeedback().size();
+    input.handleKeyPressed(sf::Keyboard::Key::Q);
+    world.update(0.05f, input);
+
+    int areaFeedbackDamage = 0;
+    bool areaFeedbackMatches = true;
+    for (std::size_t index = areaFeedbackStart;
+        index < world.combatFeedback().size(); ++index) {
+        const auto& feedback = world.combatFeedback()[index];
+        if (feedback.source == areaSkill.name) {
+            areaFeedbackDamage += feedback.damage;
+            areaFeedbackMatches = areaFeedbackMatches
+                && feedback.damage == expectedAreaDamage;
+        }
+    }
+    boss = findBoss();
+    const int bossHpAfterArea = boss == world.enemies().end() ? 0 : boss->hp();
+    expect(areaFeedbackDamage > 0 && areaFeedbackMatches,
+        "Shockwave real feedback uses CombatMath damage");
+    expect(bossHpBeforeArea - bossHpAfterArea == areaFeedbackDamage,
+        "Shockwave feedback equals the Boss HP delta");
+    expect(std::abs(world.novaEffectRadius() - expectedAreaRadius) < 0.001f,
+        "Shockwave real radius matches CombatMath");
+    input.handleKeyReleased(sf::Keyboard::Key::Q);
+
+    std::filesystem::remove(path);
+}
+
 void testBossCombatFlow() {
     const auto path = std::filesystem::temp_directory_path() / "plane_fight_boss_combat_test.bin";
     std::filesystem::remove(path);
@@ -1218,6 +1380,7 @@ int main() {
     testCombatFeedbackAndDeathClaim();
     testIgniteFeedbackMatchesWorldDamage();
     testBuildMathMatchesWorldHits();
+    testExpandedSkillWorldHits();
     testBossCombatFlow();
     testElitePackEventFlow();
 
