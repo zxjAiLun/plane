@@ -56,6 +56,8 @@ struct BossDefinition {
     std::vector<BossSkillDefinition> skills;
     std::vector<std::size_t> normalSkillOrder;
     std::vector<std::size_t> enragedSkillOrder;
+    int igniteResistance = 0;
+    int chillResistance = 0;
 
     const BossSkillDefinition& skillForCast(std::size_t castIndex, bool enraged) const {
         static const BossSkillDefinition fallback;
@@ -134,7 +136,9 @@ private:
                     },
                 },
                 {0, 1},
-                {0, 0, 1}
+                {0, 0, 1},
+                35,
+                20
             },
             {
                 "Storm Herald",
@@ -171,7 +175,9 @@ private:
                     },
                 },
                 {0, 2, 0, 1},
-                {2, 0, 0, 2, 1}
+                {2, 0, 0, 2, 1},
+                20,
+                35
             },
             {
                 "Brood Matriarch",
@@ -219,7 +225,9 @@ private:
                     },
                 },
                 {0, 2, 1, 0},
-                {0, 3, 0, 2, 1}
+                {0, 3, 0, 2, 1},
+                30,
+                30
             },
         };
     }

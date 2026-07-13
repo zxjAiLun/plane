@@ -144,6 +144,8 @@ inline AilmentDefinition skillAilment(
     }
 
     ailment.duration *= support->ailmentDurationMultiplier;
+    ailment.ignitePenetration = support->ignitePenetration;
+    ailment.chillPenetration = support->chillPenetration;
     switch (ailment.type) {
         case AilmentType::Ignite:
             ailment.damageMultiplier *= support->ailmentDamageMultiplier;
@@ -170,4 +172,40 @@ inline int ailmentTickDamage(const AilmentDefinition& ailment, int hitDamage) {
     return std::max(1, static_cast<int>(std::ceil(
         static_cast<float>(hitDamage) * ailment.damageMultiplier
     )));
+}
+
+inline int effectiveAilmentResistance(int resistance, int penetration) {
+    const int clampedResistance = std::clamp(resistance, 0, 100);
+    return std::max(0, clampedResistance - std::max(0, penetration));
+}
+
+inline int ailmentTickDamageAfterResistance(
+    int damagePerTick,
+    int resistance,
+    int penetration
+) {
+    if (damagePerTick <= 0) {
+        return 0;
+    }
+
+    const int effectiveResistance = effectiveAilmentResistance(resistance, penetration);
+    const float multiplier = 1.0f - static_cast<float>(effectiveResistance) / 100.0f;
+    return std::clamp(static_cast<int>(std::floor(
+        static_cast<float>(damagePerTick) * multiplier
+    )), 0, damagePerTick);
+}
+
+inline float chillSpeedMultiplierAfterResistance(
+    float speedMultiplier,
+    int resistance,
+    int penetration
+) {
+    const float clampedSpeed = std::clamp(speedMultiplier, 0.20f, 1.0f);
+    const int effectiveResistance = effectiveAilmentResistance(resistance, penetration);
+    const float remainingSlow = 1.0f - static_cast<float>(effectiveResistance) / 100.0f;
+    return std::clamp(
+        1.0f - (1.0f - clampedSpeed) * remainingSlow,
+        0.20f,
+        1.0f
+    );
 }

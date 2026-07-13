@@ -1035,12 +1035,34 @@ void GameWorld::applySkillAilment(
     const AilmentDefinition& ailment,
     int hitDamage
 ) {
+    const auto& enemyDefinition = EnemyLibrary::forType(enemy.type());
+    int igniteResistance = enemyDefinition.igniteResistance;
+    int chillResistance = enemyDefinition.chillResistance;
+    if (enemy.isBoss()) {
+        igniteResistance = bossDefinition_->igniteResistance;
+        chillResistance = bossDefinition_->chillResistance;
+    }
+
     switch (ailment.type) {
         case AilmentType::Ignite:
-            enemy.applyIgnite(ailmentTickDamage(ailment, hitDamage), ailment.duration);
+            enemy.applyIgnite(
+                ailmentTickDamageAfterResistance(
+                    ailmentTickDamage(ailment, hitDamage),
+                    igniteResistance,
+                    ailment.ignitePenetration
+                ),
+                ailment.duration
+            );
             break;
         case AilmentType::Chill:
-            enemy.applyChill(ailment.speedMultiplier, ailment.duration);
+            enemy.applyChill(
+                chillSpeedMultiplierAfterResistance(
+                    ailment.speedMultiplier,
+                    chillResistance,
+                    ailment.chillPenetration
+                ),
+                ailment.duration
+            );
             break;
         case AilmentType::None:
             break;

@@ -303,10 +303,16 @@ float effectiveSkillCooldown(const SkillDefinition& skill, const Stats& stats, c
 std::string ailmentSummary(const AilmentDefinition& ailment) {
     switch (ailment.type) {
         case AilmentType::Ignite:
-            return "Ignite " + formatFloat(ailment.duration, 1) + "s";
+            return "Ignite " + formatFloat(ailment.duration, 1) + "s"
+                + (ailment.ignitePenetration > 0
+                    ? " Pen " + std::to_string(ailment.ignitePenetration) + "%"
+                    : "");
         case AilmentType::Chill:
             return "Chill " + formatFloat(ailment.duration, 1) + "s "
-                + std::to_string(static_cast<int>((1.0f - ailment.speedMultiplier) * 100.0f)) + "% slow";
+                + std::to_string(static_cast<int>((1.0f - ailment.speedMultiplier) * 100.0f)) + "% slow"
+                + (ailment.chillPenetration > 0
+                    ? " Pen " + std::to_string(ailment.chillPenetration) + "%"
+                    : "");
         case AilmentType::None:
             return "";
     }
@@ -1576,6 +1582,11 @@ void Renderer::drawBossHealth(const GameWorld& world) {
     drawText(world.bossPhaseSummary(), {position.x, detailY}, 12,
         world.bossEnraged() ? sf::Color(255, 175, 95) : sf::Color(230, 210, 175));
     detailY += 17.0f;
+
+    drawText("Ignite Res " + std::to_string(world.bossDefinition().igniteResistance)
+        + "%  Chill Res " + std::to_string(world.bossDefinition().chillResistance) + "%",
+        {position.x, detailY}, 11, sf::Color(220, 195, 175));
+    detailY += 16.0f;
 
     const std::string castWarning = world.bossSkillWarning();
     if (!castWarning.empty()) {

@@ -434,6 +434,93 @@ void testSkillAilments() {
         "movement speed returns to normal after Chill expires");
 }
 
+// --- Ailment resistances and penetration ---
+void testAilmentResistances() {
+    section("Ailment resistances and penetration");
+
+    const auto& normal = EnemyLibrary::forType(EnemyType::Normal);
+    const auto& ranged = EnemyLibrary::forType(EnemyType::Ranged);
+    const auto& elite = EnemyLibrary::forType(EnemyType::Elite);
+    const auto& charger = EnemyLibrary::forType(EnemyType::Charger);
+    expect(normal.igniteResistance == 0 && normal.chillResistance == 0,
+        "Normal enemies have no ailment resistance");
+    expect(ranged.igniteResistance == 10 && ranged.chillResistance == 10,
+        "Ranged enemies use the low ailment resistance baseline");
+    expect(elite.igniteResistance == 15 && elite.chillResistance == 15,
+        "Elite enemies use the elevated ailment resistance baseline");
+    expect(charger.igniteResistance == 15 && charger.chillResistance == 10,
+        "Charger enemies use the data-driven ailment resistance baseline");
+
+    const auto& bosses = BossLibrary::all();
+    expect(bosses[0].igniteResistance == 35 && bosses[0].chillResistance == 20,
+        "Brimstone exposes its Ignite-heavy resistance profile");
+    expect(bosses[1].igniteResistance == 20 && bosses[1].chillResistance == 35,
+        "Storm exposes its Chill-heavy resistance profile");
+    expect(bosses[2].igniteResistance == 30 && bosses[2].chillResistance == 30,
+        "Brood exposes its balanced resistance profile");
+    for (const auto& boss : bosses) {
+        expect(boss.igniteResistance >= 0 && boss.igniteResistance <= 100
+                && boss.chillResistance >= 0 && boss.chillResistance <= 100,
+            boss.name + " has clamped boss ailment resistance data");
+    }
+
+    expect(effectiveAilmentResistance(40, 20) == 20,
+        "penetration reduces resistance before ailment scaling");
+    expect(effectiveAilmentResistance(-10, 0) == 0,
+        "negative resistance input clamps to zero");
+    expect(effectiveAilmentResistance(150, -10) == 100,
+        "resistance and penetration inputs are safely clamped");
+    expect(effectiveAilmentResistance(40, 60) == 0,
+        "penetration cannot create negative effective resistance");
+
+    expect(ailmentTickDamageAfterResistance(10, 0, 0) == 10,
+        "Ignite damage is unchanged with zero resistance");
+    expect(ailmentTickDamageAfterResistance(10, 50, 0) == 5,
+        "Ignite damage is reduced by resistance");
+    expect(ailmentTickDamageAfterResistance(10, 50, 20) == 7,
+        "Ignite penetration restores part of the resisted damage");
+    expect(ailmentTickDamageAfterResistance(10, 100, 0) == 0,
+        "full Ignite resistance prevents positive damage over time");
+
+    expect(std::abs(chillSpeedMultiplierAfterResistance(0.55f, 0, 0) - 0.55f) < 0.0001f,
+        "Chill is unchanged with zero resistance");
+    expect(chillSpeedMultiplierAfterResistance(0.55f, 50, 0) > 0.55f,
+        "Chill slow is reduced by resistance");
+    expect(chillSpeedMultiplierAfterResistance(0.55f, 50, 20)
+            < chillSpeedMultiplierAfterResistance(0.55f, 50, 0),
+        "Chill penetration restores part of the slow effect");
+    expect(std::abs(chillSpeedMultiplierAfterResistance(0.55f, 100, 0) - 1.0f) < 0.0001f,
+        "full Chill resistance prevents the slow effect");
+    expect(chillSpeedMultiplierAfterResistance(0.05f, 0, 0) >= 0.20f,
+        "Chill resistance scaling preserves the minimum speed safety bound");
+
+    const auto* combustion = SupportLibrary::find("Combustion");
+    const auto* deepChill = SupportLibrary::find("Deep Chill");
+    const AilmentDefinition igniteSnapshot = skillAilment(SkillLibrary::meteor(), combustion);
+    const AilmentDefinition chillSnapshot = skillAilment(SkillLibrary::frostBomb(), deepChill);
+    expect(igniteSnapshot.ignitePenetration == 0,
+        "Combustion keeps its existing damage role without penetration");
+    expect(chillSnapshot.chillPenetration == 20,
+        "Deep Chill snapshots its data-driven Chill penetration");
+
+    Enemy rangedEnemy({0.0f, 0.0f}, 20, 1, EnemyType::Ranged);
+    rangedEnemy.applyIgnite(
+        ailmentTickDamageAfterResistance(10, ranged.igniteResistance, 0),
+        2.0f
+    );
+    rangedEnemy.updateAilments(Config::AilmentTickInterval);
+    expect(rangedEnemy.hp() == 11,
+        "Enemy ailment lifecycle consumes the resistance-adjusted Ignite tick");
+
+    Enemy chargerEnemy({0.0f, 0.0f}, 10, 1, EnemyType::Charger);
+    chargerEnemy.applyChill(
+        chillSpeedMultiplierAfterResistance(0.55f, charger.chillResistance, 0),
+        2.0f
+    );
+    expect(chargerEnemy.movementSpeedMultiplier() > 0.55f,
+        "Enemy ailment lifecycle uses the resistance-adjusted Chill speed");
+}
+
 // --- Armor mitigation via Player (shipped path) ---
 void testPlayerArmorMitigation() {
     section("Player armor damage mitigation");
@@ -887,6 +974,7 @@ int main() {
     testManaResourceAndSkillCastGates();
     testCombatMathDamageRadiusPierce();
     testSkillAilments();
+    testAilmentResistances();
     testPlayerArmorMitigation();
     testEquipmentChangesCombatStats();
     testLootGeneration();

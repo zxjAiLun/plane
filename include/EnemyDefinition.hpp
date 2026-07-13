@@ -43,6 +43,8 @@ struct EnemyDefinition {
     float outlineThickness = 0.0f;
     float chargeSpeedMultiplier = 1.0f;
     float chargeDuration = 0.0f;
+    int igniteResistance = 0;
+    int chillResistance = 0;
 };
 
 class EnemyLibrary {
@@ -94,7 +96,11 @@ public:
                 7.0f,
                 {75, 205, 130},
                 {25, 80, 55},
-                1.5f
+                1.5f,
+                1.0f,
+                0.0f,
+                10,
+                10
             },
             {
                 EnemyType::Elite,
@@ -115,7 +121,11 @@ public:
                 0.0f,
                 {180, 60, 255},
                 {255, 220, 120},
-                3.0f
+                3.0f,
+                1.0f,
+                0.0f,
+                15,
+                15
             },
             {
                 EnemyType::Boss,
@@ -159,7 +169,9 @@ public:
                 {255, 215, 100},
                 2.0f,
                 4.80f,
-                0.42f
+                0.42f,
+                15,
+                10
             },
         }};
 
