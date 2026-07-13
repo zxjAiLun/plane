@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "Config.hpp"
+#include "MapExploration.hpp"
 #include "MapLayout.hpp"
 #include "Vector2.hpp"
 
@@ -117,6 +118,7 @@ public:
         : size_(Config::MapWidth, Config::MapHeight)
         , playerStart_(220.0f, Config::MapHeight - 220.0f)
         , bossCenter_(Config::MapWidth - 320.0f, 300.0f)
+        , exploration_(size_)
         , templateIndex_(templateIndex >= 0
             ? MapLayoutLibrary::normalizeTemplateIndex(templateIndex)
             : MapLayoutLibrary::normalizeTemplateIndex(std::max(1, mapLevel) - 1))
@@ -129,6 +131,7 @@ public:
         , bossDefeated_(false) {
         generateObstacles();
         generateEvents();
+        exploration_.revealAround(playerStart_);
     }
 
     const Vector2& size() const { return size_; }
@@ -144,6 +147,12 @@ public:
     const std::vector<MapEventInstance>& events() const { return events_; }
     std::vector<MapEventInstance>& eventsForMutation() { return events_; }
     const std::vector<MapObstacle>& obstacles() const { return obstacles_; }
+    const MapExploration& exploration() const { return exploration_; }
+    void revealAround(const Vector2& position) { exploration_.revealAround(position); }
+    void resetExploration() {
+        exploration_.reset();
+        exploration_.revealAround(playerStart_);
+    }
 
     bool geometryIsValid(float playerRadius = Config::PlayerRadius) const {
         for (const auto& obstacle : obstacles_) {
@@ -368,6 +377,7 @@ private:
     Vector2 size_;
     Vector2 playerStart_;
     Vector2 bossCenter_;
+    MapExploration exploration_;
     int templateIndex_;
     int layoutIndex_;
     const MapTemplateDefinition* templateDefinition_;

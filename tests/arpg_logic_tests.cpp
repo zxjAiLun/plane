@@ -23,6 +23,7 @@
 #include "Inventory.hpp"
 #include "Item.hpp"
 #include "LootGenerator.hpp"
+#include "MapExploration.hpp"
 #include "MapModifier.hpp"
 #include "MapInstance.hpp"
 #include "MapRewardLibrary.hpp"
@@ -1302,6 +1303,63 @@ void testMapLayoutVariants() {
         "layout movement resolution still respects bounds and obstacles");
 }
 
+// --- Map exploration ---
+void testMapExploration() {
+    section("MapExploration reveal lifecycle");
+
+    MapInstance map(1, 0, 0);
+    const auto& exploration = map.exploration();
+    const int initialCells = exploration.exploredCellCount();
+    expect(initialCells > 0 && initialCells < exploration.totalCellCount(),
+        "new maps reveal a finite area around the player start");
+    expect(exploration.isExplored(map.playerStart()),
+        "player start is initially explored");
+    expect(!exploration.isFullyExplored(),
+        "new maps do not reveal the whole minimap");
+
+    bool hiddenEventFound = false;
+    for (const auto& event : map.events()) {
+        if (!exploration.isExplored(event.position)) {
+            hiddenEventFound = true;
+        }
+    }
+    expect(hiddenEventFound, "events outside the starting area remain hidden");
+
+    const Vector2 eventPosition = map.events().front().position;
+    map.revealAround(eventPosition);
+    const int afterEventReveal = map.exploration().exploredCellCount();
+    expect(afterEventReveal > initialCells
+            && map.exploration().isExplored(eventPosition),
+        "moving into an event area reveals it and nearby cells");
+
+    map.revealAround(eventPosition);
+    expect(map.exploration().exploredCellCount() == afterEventReveal,
+        "revisiting an explored area does not increase the explored count");
+
+    const int beforeInvalidReveal = map.exploration().exploredCellCount();
+    map.revealAround({-100.0f, -100.0f});
+    expect(map.exploration().exploredCellCount() == beforeInvalidReveal,
+        "out-of-bounds reveal requests do not reveal map edges");
+
+    map.revealAround(map.bossCenter());
+    expect(map.exploration().isExplored(map.bossCenter()),
+        "approaching the Boss reveals the Boss area");
+    expect(map.exploration().exploredCellCount() >= afterEventReveal,
+        "exploration is monotonic while the player moves");
+
+    map.resetExploration();
+    expect(map.exploration().exploredCellCount() == initialCells
+            && map.exploration().isExplored(map.playerStart())
+            && !map.exploration().isExplored(map.bossCenter()),
+        "reset restores only the starting area");
+
+    MapInstance nextMap(2, 1, 1);
+    expect(nextMap.exploration().exploredCellCount() == initialCells
+            && nextMap.exploration().isExplored(nextMap.playerStart())
+            && !nextMap.exploration().isExplored(nextMap.bossCenter()),
+        "a new map starts with a fresh exploration state");
+}
+
 // --- Map rewards ---
 void testMapRewardGeneration() {
     section("MapRewardLibrary unlock skill/support options");
@@ -1437,6 +1495,7 @@ int main() {
     testBossDashStateAndStormPattern();
     testMapOptionGeneration();
     testMapLayoutVariants();
+    testMapExploration();
     testMapRewardGeneration();
     testPassiveAndEquipPipeline();
     testItemContainers();

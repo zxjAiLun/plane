@@ -1574,6 +1574,8 @@ void Renderer::drawMinimap(const GameWorld& world) {
     const auto& map = world.map();
     const auto& palette = map.definition().palette;
     const Vector2 mapSize = map.size();
+    const auto& exploration = map.exploration();
+    const bool showAll = world.state() == GameState::MapComplete;
     const float scaleX = size.x / mapSize.x;
     const float scaleY = size.y / mapSize.y;
 
@@ -1591,6 +1593,27 @@ void Renderer::drawMinimap(const GameWorld& world) {
     background.setOutlineThickness(1.0f);
     window_.draw(background);
 
+    if (!showAll) {
+        for (int row = 0; row < exploration.rows(); ++row) {
+            for (int column = 0; column < exploration.columns(); ++column) {
+                if (exploration.isCellRevealed(column, row)) {
+                    continue;
+                }
+
+                sf::RectangleShape hidden({
+                    exploration.cellSize() * scaleX + 0.5f,
+                    exploration.cellSize() * scaleY + 0.5f
+                });
+                hidden.setPosition({
+                    origin.x + static_cast<float>(column) * exploration.cellSize() * scaleX,
+                    origin.y + static_cast<float>(row) * exploration.cellSize() * scaleY
+                });
+                hidden.setFillColor(sf::Color(8, 10, 14, 235));
+                window_.draw(hidden);
+            }
+        }
+    }
+
     auto drawMapCircle = [&](const Vector2& center, float worldRadius, sf::Color color, float outline = 1.0f) {
         const float radius = std::max(2.0f, worldRadius * std::min(scaleX, scaleY));
         sf::CircleShape shape(radius);
@@ -1603,10 +1626,19 @@ void Renderer::drawMinimap(const GameWorld& world) {
     };
 
     drawMapCircle(map.playerStart(), Config::StartSafeRadius, sf::Color(80, 210, 120));
-    drawMapCircle(map.bossCenter(), Config::BossGateRadius, sf::Color(255, 190, 90));
-    drawMapCircle(map.bossCenter(), Config::BossArenaRadius, sf::Color(255, 80, 60), 1.5f);
+    const bool bossAreaRevealed = showAll || exploration.isExplored(map.bossCenter());
+    if (bossAreaRevealed) {
+        drawMapCircle(map.bossCenter(), Config::BossGateRadius, sf::Color(255, 190, 90));
+        drawMapCircle(map.bossCenter(), Config::BossArenaRadius, sf::Color(255, 80, 60), 1.5f);
+    } else {
+        drawMapCircle(map.bossCenter(), 12.0f, sf::Color(255, 190, 90));
+    }
 
     for (const auto& obstacle : map.obstacles()) {
+        if (!showAll && !exploration.isExplored(obstacle.center)) {
+            continue;
+        }
+
         sf::RectangleShape shape({obstacle.halfExtents.x * 2.0f * scaleX,
             obstacle.halfExtents.y * 2.0f * scaleY});
         shape.setFillColor(mapColor(palette.obstacle, 220));
@@ -1618,6 +1650,10 @@ void Renderer::drawMinimap(const GameWorld& world) {
     }
 
     for (const auto& event : map.events()) {
+        if (!showAll && !exploration.isExplored(event.position)) {
+            continue;
+        }
+
         sf::CircleShape eventDot(3.0f);
         eventDot.setOrigin({3.0f, 3.0f});
         eventDot.setPosition(toMinimap(event.position));
@@ -1628,7 +1664,9 @@ void Renderer::drawMinimap(const GameWorld& world) {
     sf::CircleShape bossDot(3.5f);
     bossDot.setOrigin({3.5f, 3.5f});
     bossDot.setPosition(toMinimap(map.bossCenter()));
-    bossDot.setFillColor(map.bossDefeated() ? sf::Color(120, 120, 120) : sf::Color(255, 80, 60));
+    bossDot.setFillColor(!bossAreaRevealed
+        ? sf::Color(255, 190, 90)
+        : map.bossDefeated() ? sf::Color(120, 120, 120) : sf::Color(255, 80, 60));
     window_.draw(bossDot);
 
     sf::CircleShape playerDot(3.0f);
@@ -1637,7 +1675,13 @@ void Renderer::drawMinimap(const GameWorld& world) {
     playerDot.setFillColor(sf::Color(90, 180, 255));
     window_.draw(playerDot);
 
-    drawText(map.definition().name + "  " + std::to_string(static_cast<int>(map.progressToBoss(world.player().position()) * 100.0f)) + "%",
+    const int exploredPercent = exploration.totalCellCount() > 0
+        ? static_cast<int>(100.0f * static_cast<float>(exploration.exploredCellCount())
+            / static_cast<float>(exploration.totalCellCount()))
+        : 0;
+    drawText("L" + std::to_string(map.layoutIndex() + 1) + "/"
+            + std::to_string(MapLayoutLibrary::VariantCount)
+            + "  EXP " + std::to_string(exploredPercent) + "%",
         {origin.x, origin.y + size.y + 5.0f}, 11, sf::Color(210, 220, 230));
 }
 

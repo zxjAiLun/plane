@@ -278,6 +278,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
 
 void GameWorld::movePlayerBy(const Vector2& delta) {
     player_.setPosition(map_.resolveMovement(player_.position(), player_.radius(), delta));
+    map_.revealAround(player_.position());
 }
 
 void GameWorld::reset() {
