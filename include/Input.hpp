@@ -36,7 +36,8 @@ public:
     bool inventorySelectNext() const;
     bool inventoryDropSelected() const;
     bool inventorySalvageSelected() const;
-    bool inventoryUpgradeSelected() const;
+    bool craftingToggle() const;
+    bool cancel() const;
     sf::Vector2i mousePosition() const;
 
 private:
@@ -61,6 +62,7 @@ private:
     bool inventorySelectNext_ = false;
     bool inventoryDropSelected_ = false;
     bool inventorySalvageSelected_ = false;
-    bool inventoryUpgradeSelected_ = false;
+    bool craftingToggle_ = false;
+    bool cancel_ = false;
     sf::Vector2i mousePosition_{0, 0};
 };

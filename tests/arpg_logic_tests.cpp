@@ -14,6 +14,7 @@
 #include "BossDefinition.hpp"
 #include "CombatMath.hpp"
 #include "Config.hpp"
+#include "Crafting.hpp"
 #include "EliteModifier.hpp"
 #include "Enemy.hpp"
 #include "EnemyDefinition.hpp"
@@ -738,9 +739,12 @@ void testAffixTagsAndWeights() {
 
     const auto& affixes = LootGenerator::affixDefinitions();
     expect(!affixes.empty(), "affix library exposes data-driven definitions");
+    std::set<std::string> affixIds;
     for (const auto& affix : affixes) {
         expect(!affix.tags.empty() && affix.weight > 0,
             affix.name + " has tags and a positive weight");
+        expect(!affix.id.empty() && affixIds.insert(affix.id).second,
+            affix.name + " has a unique stable id");
 
         const auto hasTag = [&](AffixTag tag) {
             return std::find(affix.tags.begin(), affix.tags.end(), tag) != affix.tags.end();
@@ -855,6 +859,97 @@ void testAffixTagsAndWeights() {
             expect(!affix.tags.empty(), "rolled affix preserves its tags on the Item");
         }
     }
+}
+
+// --- Crafting choice operations ---
+void testCraftingChoiceOperations() {
+    section("Crafting choice operations");
+
+    std::srand(2468);
+    LootGenerator generator;
+    Item item;
+    for (int roll = 0; roll < 64; ++roll) {
+        item = generator.generate(3);
+        if (item.affixes.size() >= 2) {
+            break;
+        }
+    }
+
+    expect(item.affixes.size() >= 2, "crafting fixture has at least two affixes");
+    if (item.affixes.size() < 2) {
+        return;
+    }
+
+    const std::string baseId = item.baseId;
+    const std::string baseName = item.baseName;
+    const Stats implicit = item.implicitStats;
+    const ItemAffix originalTarget = item.affixes[0];
+    const ItemAffix originalOther = item.affixes[1];
+
+    item.affixes[0].tier = 1;
+    item.affixes[0].stats = LootGenerator::contributionFor(item.affixes[0].id, item.itemLevel, 1);
+    LootGenerator::rebuildStats(item);
+    const Stats beforeImprove = item.affixes[0].stats;
+    expect(LootGenerator::improveAffix(item, 0) == CraftingResult::Success,
+        "ImproveAffix changes a craftable affix");
+    expect(item.affixes[0].stats.damageMultiplier != beforeImprove.damageMultiplier
+            || item.affixes[0].stats.attackSpeedMultiplier != beforeImprove.attackSpeedMultiplier
+            || item.affixes[0].stats.moveSpeedMultiplier != beforeImprove.moveSpeedMultiplier
+            || item.affixes[0].stats.maxHp != beforeImprove.maxHp
+            || item.affixes[0].stats.armor != beforeImprove.armor
+            || item.affixes[0].stats.projectileDamageMultiplier != beforeImprove.projectileDamageMultiplier
+            || item.affixes[0].stats.areaDamageMultiplier != beforeImprove.areaDamageMultiplier
+            || item.affixes[0].stats.areaRadiusMultiplier != beforeImprove.areaRadiusMultiplier
+            || item.affixes[0].stats.pickupRangeMultiplier != beforeImprove.pickupRangeMultiplier,
+        "ImproveAffix changes only the target contribution");
+    expect(item.baseId == baseId && item.baseName == baseName
+            && statsEqual(item.implicitStats, implicit)
+            && item.affixes[1].id == originalOther.id,
+        "ImproveAffix preserves Base, implicit and other affixes");
+
+    Stats expected = item.implicitStats;
+    for (const auto& affix : item.affixes) {
+        expected = combineStats(expected, affix.stats);
+    }
+    expect(statsEqual(item.stats, expected),
+        "ImproveAffix rebuilds final Item stats from implicit and contributions");
+
+    item.affixes[0].tier = 1;
+    item.affixes[0].stats = LootGenerator::contributionFor(item.affixes[0].id, item.itemLevel, 1);
+    LootGenerator::rebuildStats(item);
+    expect(LootGenerator::raiseAffixTier(item, 0) == CraftingResult::Success,
+        "RaiseAffixTier raises a lower-tier affix");
+    expect(item.affixes[0].tier == 2
+            && statsEqual(item.affixes[0].stats,
+                LootGenerator::contributionFor(item.affixes[0].id, item.itemLevel, 2)),
+        "RaiseAffixTier recomputes the contribution for the new tier");
+    expect(LootGenerator::raiseAffixTier(item, 0) == CraftingResult::AlreadyMaxTier,
+        "RaiseAffixTier rejects the item-level maximum tier");
+
+    const std::string targetIdBeforeReroll = item.affixes[0].id;
+    const ItemAffix otherBeforeReroll = item.affixes[1];
+    std::srand(97531);
+    expect(LootGenerator::rerollAffix(item, 0) == CraftingResult::Success,
+        "RerollAffix selects a legal replacement");
+    expect(item.affixes[0].id != targetIdBeforeReroll
+            && item.affixes[0].isPrefix == originalTarget.isPrefix
+            && item.affixes[1].id == otherBeforeReroll.id,
+        "RerollAffix changes only the selected affix and preserves its affix group");
+    expect(item.baseId == baseId && statsEqual(item.implicitStats, implicit),
+        "RerollAffix preserves Base and implicit stats");
+
+    expected = item.implicitStats;
+    for (const auto& affix : item.affixes) {
+        expected = combineStats(expected, affix.stats);
+    }
+    expect(statsEqual(item.stats, expected),
+        "RerollAffix rebuilds final Item stats");
+
+    expect(LootGenerator::improveAffix(item, item.affixes.size()) == CraftingResult::InvalidTarget,
+        "Crafting rejects an out-of-range affix index");
+    Item relic = generator.generateBossReward(5, BossLootTheme::Storm);
+    expect(LootGenerator::rerollAffix(relic, 0) == CraftingResult::InvalidTarget,
+        "Boss relic marker affix is not rerollable");
 }
 
 // --- Elite modifiers ---
@@ -1207,6 +1302,7 @@ int main() {
     testLootGeneration();
     testItemBaseTypes();
     testAffixTagsAndWeights();
+    testCraftingChoiceOperations();
     testEliteModifierDefinitions();
     testChargerStateMachine();
     testFlaskChargeRewards();

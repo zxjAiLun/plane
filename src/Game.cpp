@@ -27,7 +27,7 @@ void Game::processInput() {
         }
         if (const auto* key = event->getIf<sf::Event::KeyPressed>()) {
             input_.handleKeyPressed(key->code);
-            if (key->code == sf::Keyboard::Key::Escape) {
+            if (key->code == sf::Keyboard::Key::Escape && !world_.craftingPanelOpen()) {
                 window_.close();
             }
         }

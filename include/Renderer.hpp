@@ -31,6 +31,7 @@ private:
     void drawSkillBar(const GameWorld& world);
     void drawEquipment(const GameWorld& world);
     void drawInventory(const GameWorld& world);
+    void drawCraftingPanel(const GameWorld& world);
     void drawItemDetailPanel(const GameWorld& world, const sf::Vector2f& panelPos, const Item& item, const std::optional<Item>& current, const std::string& statusLabel, const std::string& actionHint);
     void drawPassiveTree(const GameWorld& world);
     void drawSkillPanel(const GameWorld& world);

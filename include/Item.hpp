@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "Affix.hpp"
 #include "EquipmentSlot.hpp"
 #include "ItemBase.hpp"
 #include "LootBias.hpp"
@@ -19,6 +20,9 @@ struct ItemAffix {
     int tier = 1;
     Stats stats;
     std::vector<AffixTag> tags;
+    std::string id;
+    AffixStat stat = AffixStat::None;
+    bool isPrefix = false;
 };
 
 struct Item {
@@ -27,7 +31,6 @@ struct Item {
     Rarity rarity = Rarity::Normal;
     Stats stats;
     int itemLevel = 1;
-    int upgradeLevel = 0;
     std::vector<ItemAffix> affixes;
     std::string baseId;
     std::string baseName;

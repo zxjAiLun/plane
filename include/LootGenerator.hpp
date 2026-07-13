@@ -10,19 +10,9 @@
 #include <vector>
 
 #include "BossDefinition.hpp"
+#include "Affix.hpp"
+#include "Crafting.hpp"
 #include "Item.hpp"
-
-enum class AffixStat {
-    MaxHp,
-    DamageMultiplier,
-    AttackSpeedMultiplier,
-    MoveSpeedMultiplier,
-    PickupRangeMultiplier,
-    ProjectileDamageMultiplier,
-    AreaDamageMultiplier,
-    AreaRadiusMultiplier,
-    Armor
-};
 
 struct AffixDefinition {
     std::string name;
@@ -32,6 +22,7 @@ struct AffixDefinition {
     std::array<float, 3> tiers;
     std::vector<AffixTag> tags;
     int weight = 100;
+    std::string id;
 };
 
 class LootGenerator {
@@ -53,7 +44,9 @@ public:
             const AffixDefinition& affix = randomAffixFor(item.slot, usedIndices, usedStats, bias);
             const Stats contribution = affixStatsFor(affix, monsterLevel);
             item.stats = combineStats(item.stats, contribution);
-            const ItemAffix itemAffix{affix.name, tier, contribution, affix.tags};
+            const ItemAffix itemAffix{
+                affix.name, tier, contribution, affix.tags, affix.id, affix.stat, affix.isPrefix
+            };
             if (affix.isPrefix) {
                 prefixes.push_back(itemAffix);
             } else {
@@ -74,7 +67,7 @@ public:
         item.itemLevel = monsterLevel;
         item.rarity = Rarity::Rare;
         applyBase(item, ItemBaseLibrary::forBossTheme(toBaseTheme(theme)));
-        item.affixes.push_back({"Boss relic", tier + 1, {}, {}});
+        item.affixes.push_back({"Boss relic", tier + 1, {}, {}, "", AffixStat::None, false});
 
         switch (theme) {
             case BossLootTheme::Brimstone:
@@ -132,6 +125,120 @@ public:
 
     static const std::vector<AffixDefinition>& affixDefinitions() {
         return affixPool();
+    }
+
+    static const AffixDefinition* definitionFor(const std::string& id) {
+        const auto& pool = affixPool();
+        const auto it = std::find_if(pool.begin(), pool.end(), [&](const AffixDefinition& affix) {
+            return affix.id == id;
+        });
+        return it == pool.end() ? nullptr : &*it;
+    }
+
+    static int maxTierForLevel(int itemLevel) {
+        return tierForLevel(itemLevel) + 1;
+    }
+
+    static Stats contributionFor(const std::string& id, int itemLevel, int tier) {
+        const AffixDefinition* definition = definitionFor(id);
+        return definition == nullptr ? Stats() : affixStatsForTier(*definition, itemLevel, tier);
+    }
+
+    static void rebuildStats(Item& item) {
+        item.stats = item.implicitStats;
+        for (const auto& affix : item.affixes) {
+            item.stats = combineStats(item.stats, affix.stats);
+        }
+    }
+
+    static CraftingResult improveAffix(Item& item, std::size_t affixIndex) {
+        if (affixIndex >= item.affixes.size()) {
+            return CraftingResult::InvalidTarget;
+        }
+
+        ItemAffix& itemAffix = item.affixes[affixIndex];
+        const AffixDefinition* definition = definitionFor(itemAffix.id);
+        if (definition == nullptr) {
+            return CraftingResult::InvalidTarget;
+        }
+
+        const Stats cap = affixStatsForTier(
+            *definition,
+            item.itemLevel,
+            std::min(3, itemAffix.tier + 1)
+        );
+        const Stats improved = improvedContribution(itemAffix.stats, cap, definition->stat);
+        if (statsEqual(improved, itemAffix.stats)) {
+            return CraftingResult::NoImprovement;
+        }
+
+        itemAffix.stats = improved;
+        rebuildStats(item);
+        return CraftingResult::Success;
+    }
+
+    static CraftingResult raiseAffixTier(Item& item, std::size_t affixIndex) {
+        if (affixIndex >= item.affixes.size()) {
+            return CraftingResult::InvalidTarget;
+        }
+
+        ItemAffix& itemAffix = item.affixes[affixIndex];
+        const AffixDefinition* definition = definitionFor(itemAffix.id);
+        if (definition == nullptr) {
+            return CraftingResult::InvalidTarget;
+        }
+        if (itemAffix.tier >= maxTierForLevel(item.itemLevel)) {
+            return CraftingResult::AlreadyMaxTier;
+        }
+
+        ++itemAffix.tier;
+        itemAffix.stats = affixStatsForTier(*definition, item.itemLevel, itemAffix.tier);
+        rebuildStats(item);
+        return CraftingResult::Success;
+    }
+
+    static CraftingResult rerollAffix(
+        Item& item,
+        std::size_t affixIndex,
+        const LootBias& bias = {}
+    ) {
+        if (affixIndex >= item.affixes.size()) {
+            return CraftingResult::InvalidTarget;
+        }
+
+        const ItemAffix& target = item.affixes[affixIndex];
+        const AffixDefinition* currentDefinition = definitionFor(target.id);
+        if (currentDefinition == nullptr) {
+            return CraftingResult::InvalidTarget;
+        }
+
+        const auto candidates = rerollCandidateIndices(item, affixIndex);
+        if (candidates.empty()) {
+            return CraftingResult::NoCandidates;
+        }
+
+        std::vector<int> weights;
+        weights.reserve(candidates.size());
+        for (const std::size_t index : candidates) {
+            weights.push_back(weightFor(affixPool()[index], bias));
+        }
+        const std::size_t selected = candidates[
+            weightedChoiceIndex(weights, std::rand())
+        ];
+        const AffixDefinition& replacement = affixPool()[selected];
+        ItemAffix replacementAffix{
+            replacement.name,
+            target.tier,
+            affixStatsForTier(replacement, item.itemLevel, target.tier),
+            replacement.tags,
+            replacement.id,
+            replacement.stat,
+            replacement.isPrefix
+        };
+        item.affixes[affixIndex] = std::move(replacementAffix);
+        rebuildStats(item);
+        refreshGeneratedName(item);
+        return CraftingResult::Success;
     }
 
     static int weightFor(const AffixDefinition& affix, const LootBias& bias) {
@@ -250,7 +357,7 @@ private:
         std::vector<AffixTag> tags
     ) {
         item.stats = combineStats(item.stats, contribution);
-        item.affixes.push_back({name, tier, contribution, std::move(tags)});
+        item.affixes.push_back({name, tier, contribution, std::move(tags), "", AffixStat::None, false});
     }
 
     static const std::vector<AffixDefinition>& affixPool() {
@@ -319,6 +426,10 @@ private:
         for (auto& affix : pool) {
             affix.tags = tagsForStat(affix.stat);
             affix.weight = defaultWeightFor(affix);
+        }
+        for (std::size_t index = 0; index < pool.size(); ++index) {
+            // Pool position is a stable data identity; display names are not IDs.
+            pool[index].id = "affix_" + std::to_string(index);
         }
         return pool;
     }
@@ -431,6 +542,50 @@ private:
         return pool[index];
     }
 
+    static std::vector<std::size_t> rerollCandidateIndices(
+        const Item& item,
+        std::size_t targetIndex
+    ) {
+        if (targetIndex >= item.affixes.size()) {
+            return {};
+        }
+
+        const ItemAffix& target = item.affixes[targetIndex];
+        const AffixDefinition* targetDefinition = definitionFor(target.id);
+        if (targetDefinition == nullptr) {
+            return {};
+        }
+
+        std::set<AffixStat> usedStats;
+        std::set<std::string> usedIds;
+        for (std::size_t index = 0; index < item.affixes.size(); ++index) {
+            if (index == targetIndex) {
+                continue;
+            }
+            if (item.affixes[index].stat != AffixStat::None) {
+                usedStats.insert(item.affixes[index].stat);
+            }
+            if (!item.affixes[index].id.empty()) {
+                usedIds.insert(item.affixes[index].id);
+            }
+        }
+
+        std::vector<std::size_t> candidates;
+        const auto& pool = affixPool();
+        for (std::size_t index = 0; index < pool.size(); ++index) {
+            const auto& candidate = pool[index];
+            if (candidate.slot != item.slot
+                || candidate.isPrefix != targetDefinition->isPrefix
+                || candidate.id == target.id
+                || usedStats.find(candidate.stat) != usedStats.end()
+                || usedIds.find(candidate.id) != usedIds.end()) {
+                continue;
+            }
+            candidates.push_back(index);
+        }
+        return candidates;
+    }
+
     static int tierForLevel(int monsterLevel) {
         if (monsterLevel <= 2) {
             return 0;
@@ -442,8 +597,13 @@ private:
     }
 
     static Stats affixStatsFor(const AffixDefinition& affix, int monsterLevel) {
+        return affixStatsForTier(affix, monsterLevel, tierForLevel(monsterLevel) + 1);
+    }
+
+    static Stats affixStatsForTier(const AffixDefinition& affix, int monsterLevel, int tier) {
         Stats stats;
-        const float value = affix.tiers[static_cast<std::size_t>(tierForLevel(monsterLevel))];
+        const int clampedTier = std::clamp(tier, 1, static_cast<int>(affix.tiers.size()));
+        const float value = affix.tiers[static_cast<std::size_t>(clampedTier - 1)];
         switch (affix.stat) {
             case AffixStat::MaxHp:
                 stats.maxHp += static_cast<int>(value);
@@ -474,6 +634,92 @@ private:
                 break;
         }
         return stats;
+    }
+
+    static Stats improvedContribution(const Stats& current, const Stats& cap, AffixStat stat) {
+        constexpr float improvementMultiplier = 1.15f;
+        Stats improved = current;
+        switch (stat) {
+            case AffixStat::MaxHp:
+                improved.maxHp = std::min(cap.maxHp,
+                    std::max(current.maxHp + 1,
+                        static_cast<int>(std::ceil(current.maxHp * improvementMultiplier))));
+                break;
+            case AffixStat::DamageMultiplier:
+                improved.damageMultiplier = std::min(cap.damageMultiplier,
+                    1.0f + (current.damageMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::AttackSpeedMultiplier:
+                improved.attackSpeedMultiplier = std::min(cap.attackSpeedMultiplier,
+                    1.0f + (current.attackSpeedMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::MoveSpeedMultiplier:
+                improved.moveSpeedMultiplier = std::min(cap.moveSpeedMultiplier,
+                    1.0f + (current.moveSpeedMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::PickupRangeMultiplier:
+                improved.pickupRangeMultiplier = std::min(cap.pickupRangeMultiplier,
+                    1.0f + (current.pickupRangeMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::ProjectileDamageMultiplier:
+                improved.projectileDamageMultiplier = std::min(cap.projectileDamageMultiplier,
+                    1.0f + (current.projectileDamageMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::AreaDamageMultiplier:
+                improved.areaDamageMultiplier = std::min(cap.areaDamageMultiplier,
+                    1.0f + (current.areaDamageMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::AreaRadiusMultiplier:
+                improved.areaRadiusMultiplier = std::min(cap.areaRadiusMultiplier,
+                    1.0f + (current.areaRadiusMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::Armor:
+                improved.armor = std::min(cap.armor,
+                    std::max(current.armor + 1,
+                        static_cast<int>(std::ceil(current.armor * improvementMultiplier))));
+                break;
+            case AffixStat::None:
+                break;
+        }
+        return improved;
+    }
+
+    static bool statsEqual(const Stats& left, const Stats& right) {
+        return left.maxHp == right.maxHp
+            && left.moveSpeedMultiplier == right.moveSpeedMultiplier
+            && left.damageMultiplier == right.damageMultiplier
+            && left.attackSpeedMultiplier == right.attackSpeedMultiplier
+            && left.pickupRangeMultiplier == right.pickupRangeMultiplier
+            && left.projectileDamageMultiplier == right.projectileDamageMultiplier
+            && left.areaDamageMultiplier == right.areaDamageMultiplier
+            && left.areaRadiusMultiplier == right.areaRadiusMultiplier
+            && left.armor == right.armor
+            && left.projectileCountBonus == right.projectileCountBonus
+            && left.lifeFlaskEffectMultiplier == right.lifeFlaskEffectMultiplier
+            && left.itemQuantityMultiplier == right.itemQuantityMultiplier
+            && left.incomingDamageMultiplier == right.incomingDamageMultiplier;
+    }
+
+    static void refreshGeneratedName(Item& item) {
+        if (item.baseName.empty()) {
+            return;
+        }
+        std::string prefix;
+        std::string suffix;
+        for (const auto& affix : item.affixes) {
+            if (affix.id.empty()) {
+                return;
+            }
+            if (affix.isPrefix && prefix.empty()) {
+                prefix = affix.name;
+            } else if (!affix.isPrefix && suffix.empty()) {
+                suffix = affix.name;
+            }
+        }
+        item.name = prefix.empty() ? item.baseName : prefix + " " + item.baseName;
+        if (!suffix.empty()) {
+            item.name += " " + suffix;
+        }
     }
 
     static std::string makeName(const std::string& baseName,

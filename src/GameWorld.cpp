@@ -87,6 +87,7 @@ GameWorld::GameWorld()
     , nextMapOptionChosen_(false)
     , passiveTreeOpen_(false)
     , skillPanelOpen_(false)
+    , craftingState_()
     , hoveredPassiveNode_(-1)
     , nearbyEventPrompt_()
     , shrineBuffTimer_(0.0f)
@@ -111,6 +112,12 @@ void GameWorld::update(float dt, Input& input) {
         camera.y + static_cast<float>(input.mousePosition().y)
     );
     inventoryFullTimer_ = std::max(0.0f, inventoryFullTimer_ - dt);
+    if (eventStatusTimer_ > 0.0f) {
+        eventStatusTimer_ = std::max(0.0f, eventStatusTimer_ - dt);
+        if (eventStatusTimer_ == 0.0f) {
+            eventStatusMessage_.clear();
+        }
+    }
 
     switch (state_) {
         case GameState::Playing:
@@ -123,7 +130,18 @@ void GameWorld::update(float dt, Input& input) {
             }
             break;
 
-        case GameState::MapComplete:
+        case GameState::MapComplete: {
+            const bool craftingContext = craftingState_.open || input.craftingToggle();
+            tryToggleCraftingPanel(input);
+            if (craftingContext) {
+                tryCraftSelectedItem(input);
+                removeDeadObjects();
+                if (input.restart()) {
+                    reset();
+                }
+                break;
+            }
+
             // F still loots Boss drops. Number keys still only drive reward / next-map
             // choice (handled below). Tab/Del let the player free bag space so F can
             // pick up more drops. tryEquipInventoryItem is intentionally NOT called so
@@ -132,7 +150,6 @@ void GameWorld::update(float dt, Input& input) {
             trySelectInventoryItem(input);
             tryDropSelectedInventoryItem(input);
             trySalvageSelectedInventoryItem(input);
-            tryUpgradeSelectedInventoryItem(input);
             removeDeadObjects();
             if (!mapRewardChosen_) {
                 tryChooseMapReward(input);
@@ -145,20 +162,24 @@ void GameWorld::update(float dt, Input& input) {
                 reset();
             }
             break;
+        }
     }
 
     input.update();
 }
 
 void GameWorld::updatePlaying(float dt, Input& input) {
-    if (input.passiveTreeToggle()) {
+    const bool craftingContext = craftingState_.open || input.craftingToggle();
+    tryToggleCraftingPanel(input);
+
+    if (!craftingContext && input.passiveTreeToggle()) {
         passiveTreeOpen_ = !passiveTreeOpen_;
         if (passiveTreeOpen_) {
             skillPanelOpen_ = false;
         }
     }
 
-    if (input.skillPanelToggle()) {
+    if (!craftingContext && input.skillPanelToggle()) {
         skillPanelOpen_ = !skillPanelOpen_;
         if (skillPanelOpen_) {
             passiveTreeOpen_ = false;
@@ -193,16 +214,14 @@ void GameWorld::updatePlaying(float dt, Input& input) {
             lifeFlaskStatusMessage_.clear();
         }
     }
-    if (eventStatusTimer_ > 0.0f) {
-        eventStatusTimer_ = std::max(0.0f, eventStatusTimer_ - dt);
-        if (eventStatusTimer_ == 0.0f) {
-            eventStatusMessage_.clear();
-        }
-    }
     nearbyEventPrompt_.clear();
     mapEventInteractionConsumed_ = false;
 
-    if (passiveTreeOpen_) {
+    if (craftingState_.open || craftingContext) {
+        if (craftingState_.open) {
+            tryCraftSelectedItem(input);
+        }
+    } else if (passiveTreeOpen_) {
         updatePassiveTreeHover(input);
         trySpendPassivePoint(input);
     } else if (skillPanelOpen_) {
@@ -216,17 +235,18 @@ void GameWorld::updatePlaying(float dt, Input& input) {
         tryCastSecondarySkill(input);
     }
 
-    updateMapEvents(dt, input);
-    if (!mapEventInteractionConsumed_) {
-        tryPickupDroppedItem(input);
+    if (!craftingState_.open && !craftingContext) {
+        updateMapEvents(dt, input);
+        if (!mapEventInteractionConsumed_) {
+            tryPickupDroppedItem(input);
+        }
     }
 
-    if (!passiveTreeOpen_ && !skillPanelOpen_) {
+    if (!passiveTreeOpen_ && !skillPanelOpen_ && !craftingState_.open && !craftingContext) {
         tryUseLifeFlask(input);
         trySelectInventoryItem(input);
         tryDropSelectedInventoryItem(input);
         trySalvageSelectedInventoryItem(input);
-        tryUpgradeSelectedInventoryItem(input);
         tryEquipInventoryItem(input);
         tryCastPrimarySkill(input);
     }
@@ -315,6 +335,7 @@ void GameWorld::reset() {
     mapModifier_ = currentMapOption_.modifier;
     passiveTreeOpen_ = false;
     skillPanelOpen_ = false;
+    craftingState_ = CraftingState();
     hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
@@ -387,6 +408,7 @@ void GameWorld::startNextMap() {
     mapModifier_.itemQuantityMultiplier *= progression_.itemQuantityRewardMultiplier;
     passiveTreeOpen_ = false;
     skillPanelOpen_ = false;
+    craftingState_ = CraftingState();
     hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
@@ -1490,37 +1512,144 @@ void GameWorld::trySalvageSelectedInventoryItem(Input& input) {
             case Rarity::Rare: value = 4; break;
             case Rarity::Normal: break;
         }
-        progression_.forgeFragments += value + item->upgradeLevel;
+        progression_.forgeFragments += value;
     }
     updateSelectedInventoryIndex();
 }
 
-void GameWorld::tryUpgradeSelectedInventoryItem(Input& input) {
-    if (!input.inventoryUpgradeSelected()
-        || progression_.forgeFragments < Config::ForgeUpgradeCost
-        || selectedInventoryIndex_ < 0) {
+void GameWorld::tryToggleCraftingPanel(Input& input) {
+    if (!input.craftingToggle()) {
         return;
     }
 
-    Item* item = inventory_.itemAt(static_cast<std::size_t>(selectedInventoryIndex_));
-    if (!item || item->upgradeLevel >= Config::MaxItemUpgradeLevel) {
+    if (craftingState_.open) {
+        closeCraftingPanel();
         return;
     }
 
-    const auto improveMultiplier = [](float multiplier) {
-        return 1.0f + (multiplier - 1.0f) * 1.15f;
-    };
-    item->stats.maxHp = static_cast<int>(std::ceil(item->stats.maxHp * 1.15f));
-    item->stats.moveSpeedMultiplier = improveMultiplier(item->stats.moveSpeedMultiplier);
-    item->stats.damageMultiplier = improveMultiplier(item->stats.damageMultiplier);
-    item->stats.attackSpeedMultiplier = improveMultiplier(item->stats.attackSpeedMultiplier);
-    item->stats.pickupRangeMultiplier = improveMultiplier(item->stats.pickupRangeMultiplier);
-    item->stats.projectileDamageMultiplier = improveMultiplier(item->stats.projectileDamageMultiplier);
-    item->stats.areaDamageMultiplier = improveMultiplier(item->stats.areaDamageMultiplier);
-    item->stats.areaRadiusMultiplier = improveMultiplier(item->stats.areaRadiusMultiplier);
-    item->stats.armor = static_cast<int>(std::ceil(item->stats.armor * 1.15f));
-    ++item->upgradeLevel;
+    if (selectedInventoryIndex_ < 0
+        || static_cast<std::size_t>(selectedInventoryIndex_) >= inventory_.size()) {
+        eventStatusMessage_ = "Select an inventory item first";
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+
+    passiveTreeOpen_ = false;
+    skillPanelOpen_ = false;
+    hoveredPassiveNode_ = -1;
+    craftingState_ = CraftingState();
+    craftingState_.open = true;
+}
+
+void GameWorld::tryCraftSelectedItem(Input& input) {
+    if (!craftingState_.open) {
+        return;
+    }
+
+    if (input.cancel()) {
+        closeCraftingPanel();
+        return;
+    }
+
+    const int operationChoice = input.numberChoice();
+    if (operationChoice >= 1 && operationChoice <= 3) {
+        craftingState_.operation = static_cast<CraftingOperation>(operationChoice);
+        craftingState_.affixIndex = -1;
+        return;
+    }
+
+    const int affixChoice = input.functionChoice();
+    if (affixChoice >= 1 && affixChoice <= 3
+        && craftingState_.operation != CraftingOperation::None) {
+        craftingState_.affixIndex = affixChoice - 1;
+        applyCraftingOperation();
+        craftingState_.affixIndex = -1;
+    }
+}
+
+void GameWorld::applyCraftingOperation() {
+    if (selectedInventoryIndex_ < 0
+        || static_cast<std::size_t>(selectedInventoryIndex_) >= inventory_.size()
+        || craftingState_.affixIndex < 0) {
+        eventStatusMessage_ = "Select a valid affix";
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+    if (progression_.forgeFragments < Config::ForgeUpgradeCost) {
+        eventStatusMessage_ = "Need " + std::to_string(Config::ForgeUpgradeCost)
+            + " Forge Fragments";
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+
+    const std::size_t itemIndex = static_cast<std::size_t>(selectedInventoryIndex_);
+    Item* item = inventory_.itemAt(itemIndex);
+    if (item == nullptr) {
+        eventStatusMessage_ = "Select a valid item";
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+
+    Item candidate = *item;
+    CraftingResult result = CraftingResult::InvalidTarget;
+    switch (craftingState_.operation) {
+        case CraftingOperation::ImproveAffix:
+            result = LootGenerator::improveAffix(candidate,
+                static_cast<std::size_t>(craftingState_.affixIndex));
+            break;
+        case CraftingOperation::RerollAffix:
+            result = LootGenerator::rerollAffix(candidate,
+                static_cast<std::size_t>(craftingState_.affixIndex), mapModifier_.lootBias());
+            break;
+        case CraftingOperation::RaiseAffixTier:
+            result = LootGenerator::raiseAffixTier(candidate,
+                static_cast<std::size_t>(craftingState_.affixIndex));
+            break;
+        case CraftingOperation::None:
+            return;
+    }
+
+    if (result != CraftingResult::Success) {
+        switch (result) {
+            case CraftingResult::NoCandidates:
+                eventStatusMessage_ = "No legal reroll candidates";
+                break;
+            case CraftingResult::AlreadyMaxTier:
+                eventStatusMessage_ = "Affix already at max tier";
+                break;
+            case CraftingResult::NoImprovement:
+                eventStatusMessage_ = "Affix cannot improve further";
+                break;
+            case CraftingResult::InvalidTarget:
+                eventStatusMessage_ = "Affix is not craftable";
+                break;
+            case CraftingResult::Success:
+                break;
+        }
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+
+    *item = std::move(candidate);
     progression_.forgeFragments -= Config::ForgeUpgradeCost;
+    switch (craftingState_.operation) {
+        case CraftingOperation::ImproveAffix:
+            eventStatusMessage_ = "Affix improved";
+            break;
+        case CraftingOperation::RerollAffix:
+            eventStatusMessage_ = "Affix rerolled";
+            break;
+        case CraftingOperation::RaiseAffixTier:
+            eventStatusMessage_ = "Affix tier raised";
+            break;
+        case CraftingOperation::None:
+            break;
+    }
+    eventStatusTimer_ = 2.0f;
+}
+
+void GameWorld::closeCraftingPanel() {
+    craftingState_ = CraftingState();
 }
 
 void GameWorld::updateSelectedInventoryIndex() {
@@ -2017,6 +2146,9 @@ std::string GameWorld::pickupPrompt() const {
 }
 
 int GameWorld::selectedInventoryIndex() const { return selectedInventoryIndex_; }
+bool GameWorld::craftingPanelOpen() const { return craftingState_.open; }
+CraftingOperation GameWorld::craftingOperation() const { return craftingState_.operation; }
+int GameWorld::craftingAffixIndex() const { return craftingState_.affixIndex; }
 int GameWorld::forgeFragments() const { return progression_.forgeFragments; }
 int GameWorld::mapEventsCompleted() const {
     return static_cast<int>(std::count_if(map_.events().begin(), map_.events().end(),

@@ -5,6 +5,7 @@
 #include <set>
 #include <string>
 #include "BossDefinition.hpp"
+#include "Crafting.hpp"
 #include "Player.hpp"
 #include "Projectile.hpp"
 #include "Enemy.hpp"
@@ -67,6 +68,9 @@ public:
     const Inventory& inventory() const;
     float inventoryFullPromptTimeRemaining() const;
     int selectedInventoryIndex() const;
+    bool craftingPanelOpen() const;
+    CraftingOperation craftingOperation() const;
+    int craftingAffixIndex() const;
     int forgeFragments() const;
     int lifeFlaskCharges() const;
     int lifeFlaskMaxCharges() const;
@@ -195,7 +199,10 @@ private:
     void trySelectInventoryItem(Input& input);
     void tryDropSelectedInventoryItem(Input& input);
     void trySalvageSelectedInventoryItem(Input& input);
-    void tryUpgradeSelectedInventoryItem(Input& input);
+    void tryToggleCraftingPanel(Input& input);
+    void tryCraftSelectedItem(Input& input);
+    void applyCraftingOperation();
+    void closeCraftingPanel();
     void updateSelectedInventoryIndex();
     void tryChooseMapReward(Input& input);
     void applyMapReward(const MapRewardDefinition& reward);
@@ -285,6 +292,7 @@ private:
     bool nextMapOptionChosen_;
     bool passiveTreeOpen_;
     bool skillPanelOpen_;
+    CraftingState craftingState_;
     int hoveredPassiveNode_;
     std::string nearbyEventPrompt_;
     float shrineBuffTimer_;
