@@ -9,9 +9,6 @@
 #include <utility>
 
 namespace {
-constexpr float ShrineBuffDuration = 20.0f;
-constexpr float ShrineDamageMultiplier = 1.35f;
-
 LootBias bossLootBias(BossLootTheme theme) {
     switch (theme) {
         case BossLootTheme::Brimstone:
@@ -1435,7 +1432,8 @@ void GameWorld::tryCastMovementSkill(Input& input) {
     movePlayerBy(direction * Config::DashDistance);
 
     if (support && support->dashBaseDamage > 0 && support->dashRadius > 0.0f) {
-        const float shrineMultiplier = shrineBuffTimer_ > 0.0f ? ShrineDamageMultiplier : 1.0f;
+        const float shrineMultiplier = shrineBuffTimer_ > 0.0f
+            ? Config::ShrineDamageMultiplier : 1.0f;
         dashImpactPosition_ = player_.position();
         dashImpactRadius_ = supportAreaRadius(*support, player_.stats());
         dashImpactDuration_ = support->effectDuration;
@@ -1799,8 +1797,10 @@ void GameWorld::openLootCacheEvent(MapEventInstance& event) {
 void GameWorld::activateShrineEvent(MapEventInstance& event) {
     event.triggered = true;
     event.completed = true;
-    shrineBuffTimer_ = ShrineBuffDuration;
-    eventStatusMessage_ = "Shrine activated: +35% damage";
+    shrineBuffTimer_ = Config::ShrineBuffDuration;
+    eventStatusMessage_ = "Shrine activated: +"
+        + std::to_string(Config::ShrineDamageBonusPercent)
+        + "% damage";
     eventStatusTimer_ = 2.0f;
 }
 
@@ -1829,28 +1829,33 @@ int GameWorld::dropItemsAround(
 }
 
 int GameWorld::damageForPlayerSkill(const SkillDefinition& skill) const {
-    const float shrineMultiplier = shrineBuffTimer_ > 0.0f ? ShrineDamageMultiplier : 1.0f;
-    return skillDamage(skill, player_.stats(), skillBar_.supportDefinitions(skill.slot), shrineMultiplier);
+    const float shrineMultiplier = shrineBuffTimer_ > 0.0f
+        ? Config::ShrineDamageMultiplier : 1.0f;
+    return skillDamage(
+        skill, player_.stats(), skillBar_.supportDefinitionsFor(skill), shrineMultiplier
+    );
 }
 
 float GameWorld::radiusForPlayerSkill(const SkillDefinition& skill) const {
-    return skillRadius(skill, player_.stats(), skillBar_.supportDefinitions(skill.slot));
+    return skillRadius(skill, player_.stats(), skillBar_.supportDefinitionsFor(skill));
 }
 
 int GameWorld::pierceCountForPlayerSkill(const SkillDefinition& skill) const {
-    return skillPierceCount(skillBar_.supportDefinitions(skill.slot));
+    return skillPierceCount(skillBar_.supportDefinitionsFor(skill));
 }
 
 int GameWorld::projectileCountForPlayerSkill(const SkillDefinition& skill) const {
-    return skillProjectileCount(skill, skillBar_.supportDefinitions(skill.slot), player_.stats());
+    return skillProjectileCount(
+        skill, skillBar_.supportDefinitionsFor(skill), player_.stats()
+    );
 }
 
 float GameWorld::spreadAngleForPlayerSkill(const SkillDefinition& skill) const {
-    return skillSpreadAngle(skill, skillBar_.supportDefinitions(skill.slot));
+    return skillSpreadAngle(skill, skillBar_.supportDefinitionsFor(skill));
 }
 
 AilmentDefinition GameWorld::ailmentForPlayerSkill(const SkillDefinition& skill) const {
-    return skillAilment(skill, skillBar_.supportDefinitions(skill.slot));
+    return skillAilment(skill, skillBar_.supportDefinitionsFor(skill));
 }
 
 void GameWorld::noteElitePackEnemyDefeated(const Enemy& enemy) {

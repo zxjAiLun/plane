@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 
+#include "CombatMath.hpp"
 #include "Config.hpp"
 #include "PlayerStats.hpp"
 #include "Skill.hpp"
@@ -51,18 +52,9 @@ public:
     void applyStats(const PlayerStats& stats) {
         for (std::size_t i = 0; i < definitions_.size(); ++i) {
             const auto slot = static_cast<SkillSlot>(i);
-            float cooldown = definitions_[i].cooldown;
-            for (const auto* support : supportDefinitions(slot)) {
-                if (support == nullptr) {
-                    continue;
-                }
-                cooldown *= support->cooldownMultiplier;
-            }
-            if (slot == SkillSlot::Primary) {
-                actualCooldowns_[i] = cooldown / stats.attackSpeedMultiplier;
-            } else {
-                actualCooldowns_[i] = cooldown;
-            }
+            actualCooldowns_[i] = skillCooldown(
+                definitions_[i], stats, supportDefinitionsFor(definitions_[i])
+            );
         }
     }
 
@@ -193,6 +185,17 @@ public:
         SupportList result{};
         for (std::size_t link = 0; link < supportLinkCount(slot); ++link) {
             result[link] = supportAt(slot, link);
+        }
+        return result;
+    }
+
+    SupportList supportDefinitionsFor(const SkillDefinition& skill) const {
+        SupportList result{};
+        for (std::size_t link = 0; link < supportLinkCount(skill.slot); ++link) {
+            const auto* support = supportAt(skill.slot, link);
+            if (support != nullptr && SupportLibrary::supportsSkill(*support, skill)) {
+                result[link] = support;
+            }
         }
         return result;
     }

@@ -76,6 +76,10 @@ namespace Config {
     constexpr float EnemySpawnMaxDistance = 760.0f;
     constexpr float VolatileExplosionEffectDuration = 0.35f;
     constexpr float AilmentTickInterval = 1.0f;
+    constexpr float ShrineBuffDuration = 20.0f;
+    constexpr int ShrineDamageBonusPercent = 35;
+    constexpr float ShrineDamageMultiplier = 1.0f
+        + static_cast<float>(ShrineDamageBonusPercent) / 100.0f;
     constexpr float CombatFeedbackDuration = 0.8f;
     constexpr int MaxCombatFeedback = 32;
 

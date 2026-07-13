@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdint>
 #include <cmath>
 #include <filesystem>
@@ -6,11 +7,13 @@
 #include <string>
 
 #include "Config.hpp"
+#include "CombatMath.hpp"
 #include "GameWorld.hpp"
 #include "Input.hpp"
 #include "LootGenerator.hpp"
 #include "MapRewardLibrary.hpp"
 #include "SaveService.hpp"
+#include "SkillLibrary.hpp"
 
 namespace {
 
@@ -368,6 +371,169 @@ void testCombatFeedbackAndDeathClaim() {
         "expired combat feedback is removed from the world");
 }
 
+void testBuildMathMatchesWorldHits() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_build_math_world_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(19001);
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "build math fixture starts from a valid run save");
+
+    const auto primaryIndex = static_cast<std::size_t>(SkillSlot::Primary);
+    const auto secondaryIndex = static_cast<std::size_t>(SkillSlot::Secondary);
+    data.unlockedSupports.insert("Pierce");
+    data.unlockedSupports.insert("Volley");
+    data.unlockedSupports.insert("Amplify");
+    data.unlockedSupports.insert("Quickcast");
+    data.skillBar.supports[primaryIndex] = {"Pierce", "Volley"};
+    data.skillBar.supports[secondaryIndex] = {"Amplify", "Quickcast"};
+    data.player.hp = 1000;
+    data.player.upgradeStats.maxHp = 1000;
+    data.player.upgradeStats.moveSpeedMultiplier = 8.0f;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.player.upgradeStats.projectileDamageMultiplier = 1.40f;
+    data.player.upgradeStats.areaDamageMultiplier = 1.60f;
+    data.player.upgradeStats.areaRadiusMultiplier = 1.25f;
+    data.player.upgradeStats.attackSpeedMultiplier = 2.0f;
+    data.player.mana = Config::PlayerMaxMana;
+    data.state = SavedRunState::Playing;
+    data.mapRewardChosen = false;
+    data.nextMapOptionChosen = false;
+    data.selectedMapRewardOption = -1;
+    data.selectedNextMapOption = -1;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "build math fixture restores stats and two Support Links");
+
+    Input input;
+    const Vector2 bossCenter = world.map().bossCenter();
+    for (int frame = 0; frame < 180 && !world.map().bossTriggered(); ++frame) {
+        const Vector2 delta = bossCenter - world.player().position();
+        if (delta.x > 25.0f) {
+            input.handleKeyPressed(sf::Keyboard::Key::D);
+        } else {
+            input.handleKeyReleased(sf::Keyboard::Key::D);
+        }
+        if (delta.y < -25.0f) {
+            input.handleKeyPressed(sf::Keyboard::Key::W);
+        } else {
+            input.handleKeyReleased(sf::Keyboard::Key::W);
+        }
+        world.update(0.05f, input);
+    }
+    input.handleKeyReleased(sf::Keyboard::Key::D);
+    input.handleKeyReleased(sf::Keyboard::Key::W);
+
+    expect(world.map().bossTriggered(),
+        "build math fixture reaches a Boss for real skill casts");
+    if (!world.map().bossTriggered()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const auto findBoss = [&world]() {
+        return std::find_if(
+            world.enemies().begin(),
+            world.enemies().end(),
+            [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+        );
+    };
+    const auto worldToScreen = [&world](const Vector2& position) {
+        const Vector2 camera = world.cameraTopLeft();
+        return sf::Vector2i(
+            static_cast<int>(std::lround(position.x - camera.x)),
+            static_cast<int>(std::lround(position.y - camera.y))
+        );
+    };
+
+    auto boss = findBoss();
+    expect(boss != world.enemies().end(),
+        "build math fixture exposes the active Boss");
+    if (boss == world.enemies().end()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const auto& primary = world.skillBar().definition(SkillSlot::Primary);
+    const auto primarySupports = world.skillBar().supportDefinitionsFor(primary);
+    const int expectedProjectileDamage = skillDamage(
+        primary, world.player().stats(), primarySupports
+    );
+    const int bossHpBeforeProjectile = boss->hp();
+    const std::size_t projectileFeedbackStart = world.combatFeedback().size();
+    input.handleMousePressed(sf::Mouse::Button::Left, worldToScreen(boss->position()));
+    for (int frame = 0; frame < 30
+            && world.combatFeedback().size() == projectileFeedbackStart; ++frame) {
+        world.update(0.05f, input);
+    }
+    input.handleMouseReleased(sf::Mouse::Button::Left, worldToScreen(bossCenter));
+
+    int projectileFeedbackDamage = 0;
+    bool projectileFeedbackMatches = true;
+    for (std::size_t i = projectileFeedbackStart; i < world.combatFeedback().size(); ++i) {
+        const auto& feedback = world.combatFeedback()[i];
+        if (feedback.source == primary.name) {
+            projectileFeedbackDamage += feedback.damage;
+            projectileFeedbackMatches = projectileFeedbackMatches
+                && feedback.damage == expectedProjectileDamage;
+        }
+    }
+    boss = findBoss();
+    const int bossHpAfterProjectile = boss == world.enemies().end() ? 0 : boss->hp();
+    expect(projectileFeedbackDamage > 0 && projectileFeedbackMatches,
+        "real Projectile feedback uses the CombatMath damage value");
+    expect(bossHpBeforeProjectile - bossHpAfterProjectile == projectileFeedbackDamage,
+        "real Projectile feedback equals the Boss HP delta");
+
+    input.update();
+    for (int frame = 0; frame < 120 && !world.projectiles().empty(); ++frame) {
+        world.update(0.05f, input);
+    }
+    expect(world.projectiles().empty(),
+        "old Projectile hits are drained before the Area comparison cast");
+    boss = findBoss();
+    if (boss == world.enemies().end()) {
+        expect(false, "Boss remains alive for the real Area comparison cast");
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const auto& secondary = world.skillBar().definition(SkillSlot::Secondary);
+    const auto secondarySupports = world.skillBar().supportDefinitionsFor(secondary);
+    const int expectedAreaDamage = skillDamage(
+        secondary, world.player().stats(), secondarySupports
+    );
+    const float expectedAreaRadius = skillRadius(
+        secondary, world.player().stats(), secondarySupports
+    );
+    const int bossHpBeforeArea = boss->hp();
+    const std::size_t areaFeedbackStart = world.combatFeedback().size();
+    input.handleMousePressed(sf::Mouse::Button::Right, worldToScreen(boss->position()));
+    world.update(0.05f, input);
+
+    int areaFeedbackDamage = 0;
+    bool areaFeedbackMatches = true;
+    for (std::size_t i = areaFeedbackStart; i < world.combatFeedback().size(); ++i) {
+        const auto& feedback = world.combatFeedback()[i];
+        if (feedback.source == secondary.name) {
+            areaFeedbackDamage += feedback.damage;
+            areaFeedbackMatches = areaFeedbackMatches && feedback.damage == expectedAreaDamage;
+        }
+    }
+    boss = findBoss();
+    const int bossHpAfterArea = boss == world.enemies().end() ? 0 : boss->hp();
+    expect(areaFeedbackDamage > 0 && areaFeedbackMatches,
+        "real Area feedback uses the CombatMath damage value");
+    expect(bossHpBeforeArea - bossHpAfterArea == areaFeedbackDamage,
+        "real Area feedback equals the Boss HP delta");
+    expect(std::abs(world.secondarySkillEffectRadius() - expectedAreaRadius) < 0.001f,
+        "real Area effect radius matches the CombatMath radius value");
+
+    std::filesystem::remove(path);
+}
+
 void testBossCombatFlow() {
     const auto path = std::filesystem::temp_directory_path() / "plane_fight_boss_combat_test.bin";
     std::filesystem::remove(path);
@@ -510,6 +676,7 @@ int main() {
     testContinuousMapProgression();
     testInvalidProgressionSaveDoesNotMutate();
     testCombatFeedbackAndDeathClaim();
+    testBuildMathMatchesWorldHits();
     testBossCombatFlow();
 
     std::cout << "Passed: " << (checks - failures)

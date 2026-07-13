@@ -116,6 +116,33 @@ inline float skillRadius(
     return skillRadius(skill, stats, SupportList{support, nullptr});
 }
 
+inline float skillCooldown(
+    const SkillDefinition& skill,
+    const Stats& stats,
+    const SupportList& supports
+) {
+    float cooldown = skill.cooldown;
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            cooldown *= support->cooldownMultiplier;
+        }
+    }
+
+    if (skill.slot == SkillSlot::Primary) {
+        return cooldown / std::max(0.0001f, stats.attackSpeedMultiplier);
+    }
+
+    return cooldown;
+}
+
+inline float skillCooldown(
+    const SkillDefinition& skill,
+    const Stats& stats,
+    const SupportDefinition* support
+) {
+    return skillCooldown(skill, stats, SupportList{support, nullptr});
+}
+
 inline int skillPierceCount(const SupportList& supports) {
     int pierceCount = 0;
     for (const auto* support : supports) {

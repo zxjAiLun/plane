@@ -530,6 +530,124 @@ void testCombatMathDamageRadiusPierce() {
     expect(refilledFlaskCharges(1, 3, -1) == 1, "negative flask refill does not remove charges");
 }
 
+void testSkillPreviewSupportCompatibility() {
+    section("Skill preview filters incompatible supports");
+
+    SkillBar skillBar;
+    const SkillDefinition meteor = SkillLibrary::meteor();
+    const SkillDefinition frostBomb = SkillLibrary::frostBomb();
+    const auto* combustion = SupportLibrary::find("Combustion");
+    const auto* deepChill = SupportLibrary::find("Deep Chill");
+    expect(combustion != nullptr && deepChill != nullptr,
+        "preview compatibility fixture finds ailment supports");
+    if (combustion == nullptr || deepChill == nullptr) {
+        return;
+    }
+
+    expect(skillBar.assignSkill(SkillSlot::Secondary, meteor.name),
+        "preview compatibility fixture assigns Meteor");
+    expect(skillBar.assignSupport(SkillSlot::Secondary, combustion->name, 0),
+        "preview compatibility fixture assigns Combustion to Meteor");
+    const auto meteorSupports = skillBar.supportDefinitionsFor(meteor);
+    expect(meteorSupports[0] != nullptr && meteorSupports[0]->name == combustion->name,
+        "current skill preview retains its compatible Support");
+
+    const auto frostSupports = skillBar.supportDefinitionsFor(frostBomb);
+    expect(frostSupports[0] == nullptr,
+        "candidate skill preview filters the current skill's incompatible Support");
+
+    expect(skillBar.assignSkill(SkillSlot::Secondary, frostBomb.name),
+        "preview compatibility fixture switches to Frost Bomb");
+    expect(skillBar.supportAt(SkillSlot::Secondary, 0) == nullptr,
+        "switching skills clears the incompatible current Support");
+    expect(skillBar.assignSupport(SkillSlot::Secondary, deepChill->name, 0),
+        "preview compatibility fixture assigns Deep Chill to Frost Bomb");
+    const auto frostWithChill = skillBar.supportDefinitionsFor(frostBomb);
+    expect(frostWithChill[0] != nullptr && frostWithChill[0]->name == deepChill->name,
+        "candidate skill preview retains a compatible Support");
+}
+
+void testSkillBuildMathMatrix() {
+    section("Skill build math matrix and temporary Shrine multiplier");
+
+    const auto* pierce = SupportLibrary::find("Pierce");
+    const auto* volley = SupportLibrary::find("Volley");
+    const auto* amplify = SupportLibrary::find("Amplify");
+    const auto* quickcast = SupportLibrary::find("Quickcast");
+    expect(pierce != nullptr && volley != nullptr && amplify != nullptr && quickcast != nullptr,
+        "build matrix fixture finds two Projectile and two Area Supports");
+    if (pierce == nullptr || volley == nullptr || amplify == nullptr || quickcast == nullptr) {
+        return;
+    }
+
+    Stats projectileStats;
+    projectileStats.projectileDamageMultiplier = 2.40f;
+    projectileStats.areaDamageMultiplier = 1.0f;
+    projectileStats.areaRadiusMultiplier = 1.0f;
+    projectileStats.attackSpeedMultiplier = 2.0f;
+    const SupportList projectileSupports{pierce, volley};
+    const int projectileDamage = skillDamage(
+        SkillLibrary::spreadShot(), projectileStats, projectileSupports
+    );
+    const int projectileWithShrine = skillDamage(
+        SkillLibrary::spreadShot(), projectileStats, projectileSupports,
+        Config::ShrineDamageMultiplier
+    );
+    expect(projectileWithShrine > projectileDamage,
+        "Shrine temporarily increases Projectile skill damage");
+    Stats areaOnlyStats;
+    areaOnlyStats.areaDamageMultiplier = 1.60f;
+    expect(skillDamage(
+            SkillLibrary::spreadShot(), areaOnlyStats, projectileSupports
+        ) == skillDamage(SkillLibrary::spreadShot(), Stats{}, projectileSupports),
+        "Area specialization does not affect Projectile damage");
+
+    Stats areaStats;
+    areaStats.projectileDamageMultiplier = 1.0f;
+    areaStats.areaDamageMultiplier = 1.60f;
+    areaStats.areaRadiusMultiplier = 1.25f;
+    areaStats.attackSpeedMultiplier = 2.0f;
+    const SupportList areaSupports{amplify, quickcast};
+    const int areaDamage = skillDamage(SkillLibrary::meteor(), areaStats, areaSupports);
+    const float areaRadius = skillRadius(SkillLibrary::meteor(), areaStats, areaSupports);
+    expect(areaDamage == skillDamage(
+            SkillLibrary::meteor(), areaStats, areaSupports, 1.0f
+        ),
+        "Area damage uses the same Support and specialization path without Shrine");
+    expect(areaRadius > SkillLibrary::meteor().radius,
+        "Area specialization and Amplify increase the real Area radius");
+    Stats projectileOnlyStats;
+    projectileOnlyStats.projectileDamageMultiplier = 1.40f;
+    expect(skillDamage(
+            SkillLibrary::meteor(), projectileOnlyStats, areaSupports
+        ) == skillDamage(SkillLibrary::meteor(), Stats{}, areaSupports),
+        "Projectile specialization does not affect Area damage");
+
+    const float primaryBaseCooldown = skillCooldown(
+        SkillLibrary::spreadShot(), Stats{}, projectileSupports
+    );
+    const float primaryFastCooldown = skillCooldown(
+        SkillLibrary::spreadShot(), projectileStats, projectileSupports
+    );
+    expect(std::abs(primaryFastCooldown - primaryBaseCooldown / 2.0f) < 0.0001f,
+        "Primary attack speed changes only the Primary cooldown");
+
+    const float areaBaseCooldown = skillCooldown(
+        SkillLibrary::meteor(), Stats{}, areaSupports
+    );
+    const float areaFastCooldown = skillCooldown(
+        SkillLibrary::meteor(), areaStats, areaSupports
+    );
+    expect(std::abs(areaFastCooldown - areaBaseCooldown) < 0.0001f,
+        "Secondary cooldown ignores Primary attack speed");
+
+    const Stats beforeShrine = areaStats;
+    skillDamage(SkillLibrary::meteor(), areaStats, areaSupports, Config::ShrineDamageMultiplier);
+    expect(std::abs(areaStats.areaDamageMultiplier - beforeShrine.areaDamageMultiplier) < 0.0001f
+            && std::abs(areaStats.areaRadiusMultiplier - beforeShrine.areaRadiusMultiplier) < 0.0001f,
+        "Shrine damage calculation does not mutate permanent Stats");
+}
+
 // --- Ailments ---
 void testSkillAilments() {
     section("Skill ailments and enemy lifecycle");
@@ -1653,6 +1771,8 @@ int main() {
     testSkillBarAssignSkillAndSupport();
     testManaResourceAndSkillCastGates();
     testCombatMathDamageRadiusPierce();
+    testSkillPreviewSupportCompatibility();
+    testSkillBuildMathMatrix();
     testSkillAilments();
     testAilmentResistances();
     testPlayerArmorMitigation();

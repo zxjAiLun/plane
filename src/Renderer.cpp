@@ -299,17 +299,7 @@ float effectiveSkillRadius(const SkillDefinition& skill, const Stats& stats, con
 }
 
 float effectiveSkillCooldown(const SkillDefinition& skill, const Stats& stats, const SupportList& supports) {
-    float cooldown = skill.cooldown;
-    for (const auto* support : supports) {
-        if (support != nullptr) {
-            cooldown *= support->cooldownMultiplier;
-        }
-    }
-    if (skill.slot == SkillSlot::Primary) {
-        return cooldown / stats.attackSpeedMultiplier;
-    }
-
-    return cooldown;
+    return skillCooldown(skill, stats, supports);
 }
 
 float effectiveSkillCooldown(const SkillDefinition& skill, const Stats& stats, const SupportDefinition* support = nullptr) {
@@ -382,7 +372,7 @@ Stats previewEquipmentStats(const Equipment& equipment, const Item& candidate) {
 std::vector<std::string> skillImpactDetailLines(const Stats& before, const Stats& after, const SkillBar& skillBar) {
     std::vector<std::string> lines;
     const auto detail = [&](const char* label, const SkillDefinition& skill, bool showRadius) {
-        const auto supports = skillBar.supportDefinitions(skill.slot);
+        const auto supports = skillBar.supportDefinitionsFor(skill);
         std::string line = std::string(label) + ": DMG "
             + std::to_string(effectiveSkillDamage(skill, before, supports)) + " -> "
             + std::to_string(effectiveSkillDamage(skill, after, supports));
@@ -573,7 +563,9 @@ void Renderer::render(const GameWorld& world) {
         hudY += 18.0f;
     }
     if (world.shrineBuffTimeRemaining() > 0.0f) {
-        drawText("Shrine Damage +35%  "
+        drawText("Shrine Damage +"
+            + std::to_string(Config::ShrineDamageBonusPercent)
+            + "%  "
             + std::to_string(static_cast<int>(world.shrineBuffTimeRemaining() + 0.99f)) + "s",
             {16.0f, hudY}, 14, sf::Color(100, 240, 240));
         hudY += 18.0f;
@@ -1597,11 +1589,10 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         drawText("     " + skillSlotName(skill.slot) + " / " + skillCastTypeName(skill.castType),
             {columnX, rowY + 17.0f}, 11,
             unlocked ? sf::Color(190, 205, 220) : sf::Color(105, 112, 122));
-        std::string summary = skillEffectiveSummary(
-            skill, world.player().stats(), world.skillBar().supportDefinitions(skill.slot)
-        );
+        const auto supports = world.skillBar().supportDefinitionsFor(skill);
+        std::string summary = skillEffectiveSummary(skill, world.player().stats(), supports);
         const std::string ailment = ailmentSummary(
-            skillAilment(skill, world.skillBar().supportDefinitions(skill.slot))
+            skillAilment(skill, supports)
         );
         if (!ailment.empty()) {
             summary += "  " + ailment;
