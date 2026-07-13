@@ -1,8 +1,8 @@
 # Mini ARPG 项目接手与开发手册
 
-更新日期：2026-07-13
+更新日期：2026-07-14
 
-玩法代码基线：`e310894 Improve 800px ARPG HUD readability`
+玩法代码基线：`32f240c Add Arc Bolt and expanded Support content`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -94,7 +94,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前测试基线：`arpg_logic_tests 958 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 254 passed / 0 failed`。
+当前测试基线：`arpg_logic_tests 981 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 265 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -1498,13 +1498,13 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 已知约束：Renderer/UI 仍没有像素级自动测试；当前验证是代码坐标审计、clean build、现有业务回归和启动 smoke。后续若再调整布局，必须保留 800x600 安全列和 MapComplete 三阶段检查。
 
-### 13.23 hy3 下一项实施任务：构筑内容扩展 v3（2 技能 + 2 Support）
+### 13.23 已完成任务记录：构筑内容扩展 v3（2 技能 + 2 Support）
 
 目标：在现有“技能解锁奖励 -> Skill Panel 分配 -> 双 Support Link -> CombatMath 实际施法”闭环稳定后，增加少量可验证内容，让玩家的 Projectile/Area 构筑出现新的选择。此任务只增加数据和通用计算覆盖，不扩展技能槽、输入系统、地图系统或存档格式。
 
 开始前必须阅读：
 
-- 本文档第 2、3、7、11、13.16、13.18、13.21、13.22 节；代码基线为 `e310894`，测试基线为 `958/11/254`。
+- 本文档第 2、3、7、11、13.16、13.18、13.21、13.22 节；任务开始基线为 `e310894`，测试基线为 `958/11/254`。
 - `include/Skill.hpp`、`include/SkillLibrary.hpp`、`include/SupportLibrary.hpp`、`include/SkillBar.hpp`、`include/CombatMath.hpp`；确认现有 `SkillCastType`、双 Link、兼容性和预览路径。
 - `include/MapRewardLibrary.hpp`、`GameWorld` 的 `RunProgression`/解锁校验、`SaveData` 的技能和 Support 集合；奖励必须自动看到新定义，不能另写名称列表。
 - `src/GameWorld.cpp` 的 Primary/Secondary/Utility 通用施法路径与 `src/Renderer.cpp` 的 Skill Panel/装备详情预览；新增内容不能依赖 Renderer 分支。
@@ -1540,12 +1540,72 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 完成定义：2 个主动技能和 2 个 Support 完全由现有数据/CombatMath/奖励/解锁/预览路径接入，纯逻辑、真实施法和存档边界有覆盖；主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
 
+验收结果：
+
+- 新增 `Arc Bolt`、`Shockwave`、`Barrage`、`Concentration`；没有新增 CastType、技能槽、输入键、地图系统或存档字段。
+- 新内容自动进入 SkillLibrary、SupportLibrary、MapRewardLibrary、SkillBar、CombatMath、Skill Panel 和存档校验路径；新技能与 Support 初始锁定。
+- 主 review 修正了 Barrage 低伤害测试因整数取整而无法观测减伤的问题，并重新排布 10 技能 Skill Panel 行距，避免 800x600 面板底部溢出。
+- 代码提交：`32f240c Add Arc Bolt and expanded Support content`。
+- MSVC `cmake --build build --clean-first`：通过。
+- CTest：`3/3` 通过。
+- 直接测试：`arpg_logic_tests 981/0`、`arpg_save_tests 11/0`、`arpg_world_tests 265/0`。
+- `PlaneShooter.exe` 启动 3 秒 smoke：通过。
+
+已知约束：当前仍没有 Renderer/UI 像素级自动测试；新技能的实际视觉效果仍依赖现有几何渲染。后续改 UI 必须继续保留 800x600 安全列，并用业务测试加启动 smoke 做回归。
+
+### 13.24 hy3 下一项实施任务：装备基底与等级需求 v1
+
+目标：把“掉落装备 -> 比较 -> 装备”推进到最小 ARPG 物品约束闭环。装备仍然由地面掉落和 F 拾取，不新增货币、商店或复杂属性系统；本轮只让不同 Item Base 有明确等级门槛，并保证失败装备不会丢失。
+
+开始前必须阅读：
+
+- 本文档第 2、3、7、8、11、13.21、13.22、13.23 节；代码基线为 `32f240c`，测试基线为 `981/11/265`。
+- `include/Item.hpp`、`include/ItemBaseLibrary.hpp`、`include/Equipment.hpp`、`include/Player.hpp`、`include/Inventory.hpp`；确认 Item 的 `baseId`、隐式属性、槽位和完整所有权传递路径。
+- `src/GameWorld.cpp` 的 `tryEquipInventoryItem()`、装备替换/回背包/掉落兜底逻辑，以及 `src/Renderer.cpp` 的背包、装备详情和 Skill impact 预览。
+- `include/SaveData.hpp`、存档校验和 `tests/arpg_logic_tests.cpp`、`tests/game_world_logic_tests.cpp`、`tests/save_logic_tests.cpp`；需求数据应由 Item Base 静态定义提供，不能破坏旧存档格式。
+
+固定实现范围：
+
+1. `ItemBaseDefinition` 增加 `requiredLevel`，由 Item Base 数据表提供；保留现有 baseId、槽位、隐式属性和物品等级计算。不要为每一件 Item 冗余保存同一需求值。
+2. 为现有四类装备设置少量明确需求：至少保留一件 `requiredLevel == 1` 的起始装备，并让至少两种高阶 Base 在等级 2 或 3 才可装备。不得修改现有 affix tier、掉率、物品等级或装备槽规则。
+3. `Equipment`/`Player` 提供只读合法性查询，装备入口在真正替换前检查 `player.level()`；需求不足时 Inventory 原物保持原索引和完整字段，不发生替换、不消耗、不生成重复掉落。
+4. `GameWorld::tryEquipInventoryItem()` 只负责把失败原因转成短提示，例如 `Requires level N`；不得在 Renderer 或输入层复制装备合法性判断。成功装备仍复用现有旧装备回背包和 `weapon_.applyStats()` 刷新路径。
+5. 装备详情/背包摘要显示 `Req Lv N`；当前等级满足时使用普通颜色，不满足时使用红色。保持现有面板宽度和截断 helper，不新增鼠标装备、分页或 tooltip 系统。
+6. 新需求只影响装备行为，不影响地面掉落生成、F 拾取、MapComplete 背包管理、技能计算、天赋、地图推进和 Boss 流程。新建/加载旧存档不增加版本字段；非法/未知 `baseId` 仍按现有规则拒绝。
+
+强制实现约束：
+
+- hy3 不提交代码、不修改本手册；工作区保持未提交，交付完整 diff、测试数量、clean build、CTest、三套直接测试、启动 smoke 和未修复风险。
+- 优先只修改 Item Base/Equipment/Player/GameWorld/Renderer 及对应测试；不得顺手重构 Skill、Map、Boss、LootGenerator 或 SaveService。
+- 不新增属性点、力量/敏捷/智力系统、货币、商店、分解规则、装备锁定、自动过滤或新的输入键。
+- 不在 `GameWorld` 按 `baseId` 写大段分支；需求值必须从 Item Base 数据表查询。装备校验只能有一个权威入口。
+- 失败装备必须保持所有权：测试需要验证 Inventory 数量、物品 baseId/affixes/stats 和选中索引均不被破坏；成功替换才允许旧装备回 Inventory。
+- Renderer 只读现有 getter，不直接访问或修改 Player/Inventory；不能用字符串文本反推需求或合法性。
+
+必须验证：
+
+- 纯逻辑：所有 Item Base 的 `requiredLevel` 合法；起始 Base 可在 level 1 装备；高阶 Base 在需求不足时被拒绝、达到需求时被接受。
+- 纯逻辑：同一 Item 的 `baseId`、implicit、affixes、stats 在失败装备后完全保留；未知/无效 baseId 继续被拒绝。
+- GameWorld：低等级按 1-9 装备失败时不吞物品、不改变当前装备，并产生一次明确提示；达到等级后成功装备，旧装备回到 Inventory，合并属性和技能预览更新。
+- 存档：不改变现有 schema；旧样例和新物品完整字段 round-trip，非法装备状态/非法 baseId 不污染当前运行。
+- 回归：F 拾取最近物品、Tab/Delete、MapComplete 背包管理、技能面板、天赋盘、Boss、地图三选和五张连续地图流程保持通过。
+- MSVC `cmake --build build --clean-first`、CTest `3/3`、三套直接测试、`PlaneShooter.exe` 启动 3 秒 smoke 全部通过；测试数量必须高于 `981/11/265`。
+
+完成定义：装备等级门槛由数据表驱动，失败装备不丢失，成功装备替换和 UI 反馈可验证，存档格式不变，主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
+
+后续里程碑方向（暂不作为本轮任务）：
+
+- 13.25：装备基底扩展与属性主题，让不同 Base 形成武器伤害、护甲、生命、技能专精的选择；先做数据表和测试，不加新槽位。
+- 13.26：战斗反馈 v2，增加受击数字、技能冷却/资源失败原因和 Boss 机制 telegraph 的统一来源；先解决可读性，再增加伤害类型。
+- 13.27：地图内容 v2，在现有三种事件和三种 Boss 上增加少量可组合 encounter，不引入随机生成器或寻路大重构。
+- 13.28：运行稳定性与发布闭环，补 UI 截图/像素级 smoke、资源打包、崩溃边界和用户可重复的 Release 构建命令。
+
 ## 14. 项目进度看板
 
 | 领域 | 状态 | 说明 |
 |---|---|---|
 | 主动战斗 | v1 完成 | 四槽技能、Support、异常、药瓶已形成基础构筑 |
-| 构筑内容扩展 | 原型 | 8 个技能、7 个 Support、双 Link 和解锁奖励已可玩；下一步固定增加 2 技能 + 2 Support |
+| 构筑内容扩展 | 可玩 | 10 个技能、9 个 Support、双 Link、技能/Support 解锁奖励和 CombatMath 实际构筑差异已接通；下一步做装备等级需求 |
 | 开放地图 | v1 完成 | 大地图、相机、预制布局、探索小地图、事件和 Boss 路线已完成 |
 | 怪物生态 | v1 完成 | 近战、远程、精英、冲锋、ElitePack 均有，精英风险和事件进度已有数据化可读反馈 |
 | Boss | v1 完成 | Brood 召唤、Brimstone 火区、Storm 锁定突进形成三种独立机制 |
@@ -1558,6 +1618,6 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
 | 连续刷图验收 | v1 完成 | 五张真实 Boss -> 拾取/管理掉落 -> 选奖励/地图 -> E 推进，且死亡/暂停/中间存档边界已有自动保护 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 958 条、存档 11 条、GameWorld 254 条通过；已覆盖五张连续真实 Boss 流程、GameOver/Restart、MapComplete/Paused 存档、Projectile/Area 命中、Ignite tick、ElitePack、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
+| 自动化测试 | 原型 | 纯逻辑 981 条、存档 11 条、GameWorld 265 条通过；已覆盖五张连续真实 Boss 流程、GameOver/Restart、MapComplete/Paused 存档、Projectile/Area 命中、扩展技能/Support、Ignite tick、ElitePack、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
