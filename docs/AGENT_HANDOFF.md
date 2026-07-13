@@ -2,7 +2,7 @@
 
 更新日期：2026-07-14
 
-玩法代码基线：`ed1f7d9 Add data-driven map encounters`
+玩法代码基线：`ea8a997 Stabilize map difficulty scaling`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -94,7 +94,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前测试基线：`arpg_logic_tests 1013 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 316 passed / 0 failed`。
+当前测试基线：`arpg_logic_tests 1148 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 342 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -112,6 +112,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 - `MapInstance.hpp`
 - `MapLayout.hpp`
 - `MapExploration.hpp`
+- `MapScaling.hpp`
 - `BossDefinition.hpp`
 - `RandomService.hpp`
 - `CombatMath.hpp`
@@ -239,6 +240,7 @@ git status --short
 - Storm Herald 的 Tempest Rush 在前摇开始时锁定目标，显示完整路径和落点后短距离突进。
 - Tempest Rush 经过地图边界/障碍解析，每次施放最多命中一次；Chill 只降低其移动速度，不缩短前摇。
 - Boss 名称、血条、技能预警、阶段信息。
+- Boss HP/接触伤害和普通怪 HP/伤害统一经过 `MapScaling`，同一地图选项下 map level 1-5 不回退。
 - 三种主题 Boss relic，分别偏 Weapon、Ring、Amulet 构筑。
 - Boss 死亡后进入 MapComplete，并生成奖励和下一图选项。
 
@@ -446,6 +448,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 | `GroundHazard.hpp` | 持续地面危险定义、世界实例和 tick 生命周期 | 不直接修改 Player；伤害由 GameWorld 编排 |
 | `MapInstance.hpp` | 地图模板、障碍、区域、事件实例和移动解析 | 不处理玩家输入 |
 | `MapExploration.hpp` | 世界坐标到固定网格的探索揭示状态 | 只保存纯逻辑状态，不依赖 SFML 或 Renderer |
+| `MapScaling.hpp` | 普通怪、Boss、掉落等级的无状态地图等级计算 | GameWorld 和测试共用，不放 UI 公式 |
 | `MapModifier.hpp` | 下一图选项和风险收益倍率 | 数值必须能在 GameWorld 中找到实际应用点 |
 | `SkillLibrary.hpp` | 主动技能定义 | 不直接实现命中循环 |
 | `SupportLibrary.hpp` | Support 数据和兼容性 | 新 Support 必须有可观察行为和测试 |
@@ -792,6 +795,15 @@ Milestone C 验收：玩家会因为 base、implicit、affix、tier 和构筑方
 
 验收结果：clean build、CTest `3/3`、直接测试 `1013/0`、`11/0`、`316/0` 和 3 秒启动 smoke 全部通过。主 review 另外修正了组合遭遇 HUD 在普通 Elite Pack 进行时错误显示 `Enemies remaining` 的状态判断。
 
+任务 D5：难度曲线与真实 Boss 生成验收 v1（完成：`ea8a997`）
+
+- 新增无状态 `MapScaling` helper，统一普通怪 HP、接触伤害、掉落 item level、Boss HP 和 Boss 接触伤害的计算；GameWorld 不再维护重复公式。
+- 纯逻辑测试覆盖三个地图选项、map level 1-5，以及三个 Boss 定义的等级单调性。
+- GameWorld 测试通过合法 SaveData fixture 真实加载 map 1-5、移动到 Boss 区域并读取运行时 Boss `maxHp/contactDamage`，确认与共享 helper 一致且不回退。
+- 审计发现 Storm/Brood 基础 HP 倍率会导致 map 5 相对 map 4 回退，已将两者统一到与 Brimstone 相同的基础生命档位；Boss 的技能、伤害主题、掉落主题和机制保持差异。
+
+验收结果：`arpg_logic_tests 1148/0`、`arpg_save_tests 11/0`、`arpg_world_tests 342/0`、CTest `3/3`、clean build 和启动 smoke 全部通过。
+
 Milestone D 验收：连续三张地图在路线、遭遇、风险和奖励上有明显变化。
 
 ### Milestone E：可持续运行与产品化
@@ -835,45 +847,44 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议交给 hy3：`可玩性验收与难度曲线 v1`。当前阶段禁止继续添加技能、Support、Boss 或地图事件；先证明已有系统能连续工作并且难度有可解释的上升。
+建议交给 hy3：`运行稳定性与可重复发布验收 v1`。当前玩法核心已经足够继续试玩，下一步先把“能稳定运行、能复现问题、能交付构建”补齐，不新增战斗内容。
 
-### 13.0 当前交付任务：可玩性验收与难度曲线 v1（待实现）
+### 13.0 当前交付任务：运行稳定性与可重复发布验收 v1（待实现）
 
 #### 目标
 
-把“出生点 -> 探索事件 -> 到达 Boss -> 击杀 Boss -> 结算奖励 -> 进入下一图”固化为至少 5 张连续地图的可重复流程。重点是发现数值失控、状态残留、事件阻塞和 UI 文案误导，不是增加内容数量。
+为现有 Mini ARPG 建立一套可重复的开发/验收闭环：固定 seed 下验证 Playing、Pause、Passive Tree、Skill Panel、Crafting、MapComplete、Inventory/Stash 的状态边界；补齐 800x600 主要界面布局检查；提供普通 PowerShell 可执行的构建与测试入口。
 
 #### 开始前必须阅读并记录基线
 
-- 先执行 `git status --short`，必须以干净工作区和当前 HEAD `ed1f7d9` 为基线；若工作区不干净，报告文件列表并停止，不要覆盖其它 Agent 的改动。
-- 阅读 `MapInstance.hpp`、`MapLayout.hpp`、`MapModifier.hpp`、`MapEncounterLibrary`、`EnemyDefinition.hpp`、`BossDefinition.hpp`、`GameWorld::startNextMap()`、`triggerBossIfNeeded()`、`rewardEnemyKill()`、`updateMapEvents()`。
-- 阅读 `tests/arpg_logic_tests.cpp`、`tests/arpg_world_logic_tests.cpp`（实际文件名为 `tests/game_world_logic_tests.cpp`）和 `tests/save_logic_tests.cpp`，先运行三套测试并报告精确数量。
-- 必须确认当前基线：`1013/0`、`11/0`、`316/0`、CTest `3/3`。
+- 先执行 `git status --short`，必须以干净工作区和当前 HEAD `ea8a997` 为基线；若工作区不干净，报告文件列表并停止，不要覆盖其它 Agent 的改动。
+- 阅读 `Game.cpp`、`Input.cpp`、`GameWorld::update()`、`handleEscape()`、`Renderer::render()`、`Renderer::drawMapComplete()`、`Renderer::drawInventory()`、`Renderer::drawPassiveTree()`、`Renderer::drawSkillPanel()` 和 `Renderer::drawCraftingPanel()`。
+- 阅读 `docs/AGENT_HANDOFF.md` 第 3、4、5、7、8、11、13.0 节；确认当前输入上下文和状态切换规则不能被 UI 修正绕过。
+- 先运行三套测试并记录当前基线：`1148/0`、`11/0`、`342/0`、CTest `3/3`。
 
 #### 允许修改范围
 
-1. 只允许调整已有数据表中的数值和必要的纯逻辑测试：地图 modifier、地图遭遇权重、Enemy/Boss 缩放、掉落数量/等级、事件奖励倍率。优先改 `Config.hpp`、`EnemyDefinition.hpp`、`BossDefinition.hpp`、`MapModifier.hpp`、`MapInstance.hpp` 的数据字段；不要把平衡数字散落到 `GameWorld.cpp`。
-2. 为至少 5 张地图增加一个确定性 progression fixture，覆盖真实 `GameWorld` 输入路径：移动到事件、处理或绕过事件、进入 Boss Arena、击杀 Boss、拾取/整理掉落、选择奖励、选择下一图、按 `E` 进入下一图。
-3. 测试每张地图的可验收指标：地图等级递增；普通怪、精英、Boss 的 HP/伤害不会下降；地图掉落等级/数量不会反常下降；每张地图至少可以到达 Boss；组合遭遇不会在未到达时提前触发；事件敌人完成后不重生；Boss 触发后未完成事件不会阻塞结算。
-4. 增加或补强数据单调性测试：对 `mapLevel = 1..5` 和至少三种下一图 modifier，断言实际应用后的怪物 HP、Boss HP/伤害、掉落 item level 与设计方向一致。测试必须调用生产 helper 或真实 GameWorld 公开行为，不得复制一套公式到测试里。
-5. 只在测试暴露出确定的 UI 文案/溢出问题时改 `Renderer.cpp`；修复必须保持 800x600 及当前默认窗口可读，不得借机重做布局。
+1. 新增一个可审查的 PowerShell 验收入口，例如 `tools/verify.ps1`，统一执行 MSVC wrapper clean build、CTest、三套直接测试、3 秒启动 smoke，并在失败时返回非零退出码。脚本不得删除 build、save 或用户文件，不得依赖 Developer PowerShell。
+2. 在现有 `tests/game_world_logic_tests.cpp` 补齐输入上下文矩阵：Playing 数字键装备、Passive Tree 数字键/F 键点天赋、Skill Panel 数字键换技能、Crafting 选择操作、MapComplete 数字键分阶段选择、Pause/子面板 Esc 优先级。测试只使用公开业务接口和真实 Input 边沿。
+3. 对 Renderer 做最小布局审计：默认 `800x600` 下检查 MapComplete 的奖励/地图选择、Inventory/Stash、地面掉落详情、Passive Tree、Skill Panel、Crafting 面板的坐标和文本截断。优先把共享布局常量集中到 Renderer 内部，不复制 gameplay 规则。
+4. 如果需要自动化截图，只允许使用现有窗口启动路径和测试工具，不新增生产 debug 按钮、不改变输入语义、不把截图判断写成唯一通过条件。无法自动截图的部分必须在报告中明确列为手动检查项。
+5. 对异常退出、坏存档、暂停中保存/加载和 MapComplete 中断恢复补充失败保护测试；不得修改 SaveData schema，不能清空现有用户存档来“修复”测试。
 
 #### 强制不做
 
-- 不新增技能、Support、Boss、敌人类型、地图事件类型、装备槽、货币、商店、loot filter、自动拾取、输入键、存档字段或随机地图生成。
-- 不重构 `GameWorld`、`Enemy`、`SkillBar`、`SaveService`；不把平衡值硬编码进 Renderer，不改变存档 schema。
-- 不为了通过测试降低现有 Boss/地图难度；如果发现某个值需要产品决策，记录为 `open question`，不要擅自改变其它系统。
-- 不提交代码。完成后保持工作区未提交，交由主 review Agent 修正、验证和提交。
+- 不新增技能、Support、Boss、敌人类型、地图事件、装备槽、货币、商店、loot filter、自动拾取、输入键或存档字段。
+- 不重构 `GameWorld`、`Renderer`、`Input` 或 `SaveService`；只做边界测试、共享布局常量和必要的验证脚本。
+- 不使用 `git reset --hard`、删除 `build/`、删除 `.workbuddy/` 或覆盖用户 save；测试临时文件必须放在系统临时目录并清理。
+- 不提交代码。完成后保持工作区未提交，由主 review Agent 审查、修正、clean build 后提交。
 
 #### 必须验证与交付报告
 
-- `git diff --check` 无错误。
-- MSVC `cmake --build build --clean-first` 成功；CTest `3/3` 成功；直接运行三套测试并报告精确通过数；`PlaneShooter.exe` 启动 3 秒 smoke 成功。
-- 报告 5 张地图每张的：地图模板/布局/组合遭遇、普通怪与 Boss 的关键倍率、是否到达 Boss、事件完成数、掉落数、是否成功进入下一图。
-- 报告任何数值异常、UI 风险、未自动化覆盖和保留的产品问题；不要只写“构建通过”。
-- 交付文件列表和 `git status --short` 必须写在回复中；代码保持未提交。
+- `git diff --check` 无错误；`tools/verify.ps1` 在普通 PowerShell 中成功执行并返回 0。
+- 报告三套测试精确数量、CTest 结果、启动 smoke 结果，以及每个输入上下文矩阵的结果。
+- 报告 800x600 下各面板的已检查坐标、文本溢出/遮挡风险和未覆盖的手动项目；不能只写“构建通过”。
+- 报告实际改动文件、脚本是否修改/保留 save 文件、`git status --short`；代码保持未提交。
 
-完成定义：在固定 seed 下，真实 GameWorld 流程连续完成至少 5 张地图，核心风险/奖励随地图等级有单调且可解释的变化，所有现有测试不回归。主 review Agent 验收并提交后，才把该任务写入已完成记录。
+完成定义：新 Agent 在普通 PowerShell 执行一个命令即可完成 clean build、CTest、直接测试和启动 smoke；输入上下文和存档边界有自动回归；现有玩法行为不回归。主 review Agent 验收并提交后，才将该任务写入已完成记录。
 
 ### 13.1 已完成任务记录：Mana Resource v1
 
@@ -1848,8 +1859,8 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 经济/锻造 | v1 完成 | 分解、Forge Fragments、三种选择式词缀加工和当前 run Stash 已有 |
 | 存档 | v1 完成 | 单文件版本化存档、RNG 恢复、坏档保护、MapComplete/安全出生点恢复已有 |
 | 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
-| 连续刷图验收 | v1 完成 | 五张真实 Boss -> 拾取/管理掉落 -> 选奖励/地图 -> E 推进，且死亡/暂停/中间存档边界已有自动保护 |
+| 连续刷图验收 | v1 完成 | 五张真实 Boss -> 拾取/管理掉落 -> 选奖励/地图 -> E 推进，难度曲线和运行时 Boss 生成已做单调性验收，死亡/暂停/中间存档边界已有自动保护 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 1013 条、存档 11 条、GameWorld 316 条通过；已覆盖五张连续真实 Boss 流程、GameOver/Restart、MapComplete/Paused 存档、Projectile/Area 命中、扩展技能/Support、装备等级需求与非法 Base/隐式校验、Item Base 构筑主题、Ignite tick、ElitePack、三种组合遭遇、Boss 击杀和保底掉落、Damage/PlayerHit/SkillRejected/Telegraph，仍缺 Renderer/UI 像素级验收 |
+| 自动化测试 | 原型 | 纯逻辑 1148 条、存档 11 条、GameWorld 342 条通过；已覆盖五张连续真实 Boss 流程、难度曲线和运行时 Boss 缩放、GameOver/Restart、MapComplete/Paused 存档、Projectile/Area 命中、扩展技能/Support、装备等级需求与非法 Base/隐式校验、Item Base 构筑主题、Ignite tick、ElitePack、三种组合遭遇、Boss 击杀和保底掉落、Damage/PlayerHit/SkillRejected/Telegraph，仍缺 Renderer/UI 像素级验收 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
