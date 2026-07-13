@@ -130,6 +130,7 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , runSeed_(runSeed)
     , random_(runSeed)
     , state_(GameState::Playing)
+    , resumeState_(GameState::Playing)
     , score_(0)
     , survivalTime_(0.0f)
     , aimPosition_(Config::WindowWidth / 2.0f, Config::WindowHeight / 2.0f)
@@ -192,7 +193,21 @@ void GameWorld::update(float dt, Input& input) {
         camera.y + static_cast<float>(input.mousePosition().y)
     );
 
-    const bool saveLoadContext = !passiveTreeOpen_
+    if (input.escapePressed()) {
+        handleEscape();
+        input.update();
+        return;
+    }
+
+    if (state_ == GameState::Paused) {
+        updatePaused(input);
+        input.update();
+        return;
+    }
+
+    const bool saveLoadContext = (state_ == GameState::Playing
+        || state_ == GameState::MapComplete)
+        && !passiveTreeOpen_
         && !skillPanelOpen_
         && !craftingState_.open;
     if (saveLoadContext && input.loadRun()) {
@@ -206,11 +221,13 @@ void GameWorld::update(float dt, Input& input) {
         eventStatusTimer_ = 2.0f;
     }
 
-    inventoryFullTimer_ = std::max(0.0f, inventoryFullTimer_ - dt);
-    if (eventStatusTimer_ > 0.0f) {
-        eventStatusTimer_ = std::max(0.0f, eventStatusTimer_ - dt);
-        if (eventStatusTimer_ == 0.0f) {
-            eventStatusMessage_.clear();
+    if (state_ != GameState::Paused) {
+        inventoryFullTimer_ = std::max(0.0f, inventoryFullTimer_ - dt);
+        if (eventStatusTimer_ > 0.0f) {
+            eventStatusTimer_ = std::max(0.0f, eventStatusTimer_ - dt);
+            if (eventStatusTimer_ == 0.0f) {
+                eventStatusMessage_.clear();
+            }
         }
     }
 
@@ -260,9 +277,67 @@ void GameWorld::update(float dt, Input& input) {
             }
             break;
         }
+
+        case GameState::Paused:
+            // Paused is handled before the simulation switch. Keep this case
+            // for exhaustiveness if a caller changes state during an update.
+            break;
     }
 
     input.update();
+}
+
+void GameWorld::handleEscape() {
+    if (state_ == GameState::GameOver) {
+        return;
+    }
+
+    if (state_ == GameState::Paused) {
+        state_ = resumeState_;
+        return;
+    }
+
+    if (craftingState_.open) {
+        closeCraftingPanel();
+        return;
+    }
+
+    if (passiveTreeOpen_) {
+        passiveTreeOpen_ = false;
+        hoveredPassiveNode_ = -1;
+        return;
+    }
+
+    if (skillPanelOpen_) {
+        skillPanelOpen_ = false;
+        return;
+    }
+
+    resumeState_ = state_;
+    state_ = GameState::Paused;
+}
+
+void GameWorld::updatePaused(Input& input) {
+    if (input.saveRun()) {
+        const bool saved = saveRun(Config::SaveFileName);
+        eventStatusMessage_ = saved ? "Run saved" : "Run save failed";
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+
+    if (input.loadRun()) {
+        loadRun(Config::SaveFileName);
+        return;
+    }
+
+    if (input.restart()) {
+        reset();
+        return;
+    }
+
+    if (input.quit()) {
+        quitRequested_ = true;
+    }
 }
 
 bool GameWorld::saveRun(const std::filesystem::path& path) const {
@@ -286,7 +361,8 @@ bool GameWorld::loadRun(const std::filesystem::path& path) {
 
 SaveData GameWorld::captureSaveData() const {
     SaveData data;
-    data.state = state_ == GameState::MapComplete
+    const GameState savedState = state_ == GameState::Paused ? resumeState_ : state_;
+    data.state = savedState == GameState::MapComplete
         ? SavedRunState::MapComplete
         : SavedRunState::Playing;
     data.runSeed = runSeed_;
@@ -514,6 +590,8 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     state_ = data.state == SavedRunState::MapComplete
         ? GameState::MapComplete
         : GameState::Playing;
+    resumeState_ = state_;
+    quitRequested_ = false;
 
     projectiles_.clear();
     bossProjectiles_.clear();
@@ -697,6 +775,8 @@ void GameWorld::reset(std::uint64_t runSeed) {
     initializeRunProgression();
     skillBar_.applyStats(player_.stats());
     state_ = GameState::Playing;
+    resumeState_ = GameState::Playing;
+    quitRequested_ = false;
     score_ = 0;
     survivalTime_ = 0.0f;
     novaEffectTimer_ = 0.0f;
@@ -803,6 +883,8 @@ void GameWorld::startNextMap() {
     spawner_.reset();
     skillBar_.applyStats(player_.stats());
     state_ = GameState::Playing;
+    resumeState_ = GameState::Playing;
+    quitRequested_ = false;
     mapKills_ = 0;
     mapExperienceGained_ = 0;
     mapItemsDropped_ = 0;
@@ -2662,6 +2744,7 @@ bool GameWorld::isSupportUnlocked(const std::string& name) const {
     return progression_.unlockedSupports.find(name) != progression_.unlockedSupports.end();
 }
 GameState GameWorld::state() const { return state_; }
+bool GameWorld::quitRequested() const { return quitRequested_; }
 int GameWorld::score() const { return score_; }
 float GameWorld::survivalTime() const { return survivalTime_; }
 int GameWorld::mapLevel() const { return mapLevel_; }

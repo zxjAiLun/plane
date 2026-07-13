@@ -38,6 +38,7 @@ private:
     void drawMinimap(const GameWorld& world);
     void drawBossHealth(const GameWorld& world);
     void drawGameOver(const GameWorld& world);
+    void drawPause(const GameWorld& world);
     void drawMapComplete(const GameWorld& world);
     void drawMapCompleteInventoryPanel(const GameWorld& world);
     void drawMapCompleteStashPanel(const GameWorld& world);

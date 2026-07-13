@@ -28,7 +28,8 @@
 enum class GameState {
     Playing,
     GameOver,
-    MapComplete
+    MapComplete,
+    Paused
 };
 
 struct BossProjectile {
@@ -65,6 +66,7 @@ public:
     void reset(std::uint64_t runSeed);
     bool saveRun(const std::filesystem::path& path) const;
     bool loadRun(const std::filesystem::path& path);
+    bool quitRequested() const;
 
     const Player& player() const;
     const std::vector<Projectile>& projectiles() const;
@@ -163,6 +165,8 @@ public:
 private:
     void startNextMap();
     void updatePlaying(float dt, Input& input);
+    void updatePaused(Input& input);
+    void handleEscape();
     SaveData captureSaveData() const;
     bool restoreFromSaveData(const SaveData& data);
     void movePlayerBy(const Vector2& delta);
@@ -264,6 +268,8 @@ private:
     RandomService random_;
 
     GameState state_;
+    GameState resumeState_;
+    bool quitRequested_ = false;
     int score_;
     float survivalTime_;
     Vector2 aimPosition_;

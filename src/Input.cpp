@@ -20,6 +20,8 @@ void Input::update() {
     saveRun_ = false;
     loadRun_ = false;
     cancel_ = false;
+    quit_ = false;
+    escapePressed_ = false;
     numberChoice_ = 0;
     functionChoice_ = 0;
 }
@@ -35,14 +37,14 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::S:
         case sf::Keyboard::Key::Down:  moveDown_ = true; break;
         case sf::Keyboard::Key::Space: dash_ = true; break;
-        case sf::Keyboard::Key::Q:     nova_ = true; break;
+        case sf::Keyboard::Key::Q:     nova_ = true; quit_ = true; break;
         case sf::Keyboard::Key::G:     useLifeFlask_ = true; break;
         case sf::Keyboard::Key::F:     pickup_ = true; break;
         case sf::Keyboard::Key::P:     passiveTreeToggle_ = true; break;
         case sf::Keyboard::Key::K:     skillPanelToggle_ = true; break;
         case sf::Keyboard::Key::E:     nextMap_ = true; break;
         case sf::Keyboard::Key::R:     restart_ = true; break;
-        case sf::Keyboard::Key::Escape: quit_ = true; cancel_ = true; break;
+        case sf::Keyboard::Key::Escape: escapePressed_ = true; cancel_ = true; break;
         case sf::Keyboard::Key::Tab: inventorySelectNext_ = true; break;
         case sf::Keyboard::Key::Delete: inventoryDropSelected_ = true; break;
         case sf::Keyboard::Key::C: inventorySalvageSelected_ = true; break;
@@ -94,7 +96,6 @@ void Input::handleKeyReleased(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::S:
         case sf::Keyboard::Key::Down:  moveDown_ = false; break;
         case sf::Keyboard::Key::R:     restart_ = false; break;
-        case sf::Keyboard::Key::Escape: quit_ = false; break;
         default: break;
     }
 }
@@ -144,6 +145,7 @@ bool Input::skillPanelToggle() const { return skillPanelToggle_; }
 bool Input::nextMap() const { return nextMap_; }
 bool Input::restart() const { return restart_; }
 bool Input::quit() const { return quit_; }
+bool Input::escapePressed() const { return escapePressed_; }
 int Input::numberChoice() const { return numberChoice_; }
 int Input::functionChoice() const { return functionChoice_; }
 bool Input::inventorySelectNext() const { return inventorySelectNext_; }

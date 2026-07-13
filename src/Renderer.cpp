@@ -1,4 +1,5 @@
 #include "Renderer.hpp"
+#include "InputBinding.hpp"
 #include "CombatMath.hpp"
 #include "Config.hpp"
 #include "EnemyDefinition.hpp"
@@ -615,9 +616,42 @@ void Renderer::render(const GameWorld& world) {
         case GameState::Playing:
             drawCraftingPanel(world);
             break;
+        case GameState::Paused:
+            drawPause(world);
+            break;
     }
 
     window_.display();
+}
+
+void Renderer::drawPause(const GameWorld& world) {
+    const float width = static_cast<float>(Config::WindowWidth);
+    const float height = static_cast<float>(Config::WindowHeight);
+    const sf::Vector2f center{width / 2.0f, height / 2.0f};
+
+    sf::RectangleShape overlay({width, height});
+    overlay.setFillColor(sf::Color(0, 0, 0, 165));
+    window_.draw(overlay);
+
+    drawBox(center, {440.0f, 530.0f}, sf::Color(15, 20, 30));
+    drawCenteredText("PAUSED", {center.x, 54.0f}, 28, sf::Color::White);
+
+    float y = 94.0f;
+    for (const auto& action : InputBindingLibrary::pauseActions()) {
+        drawText(std::string(action.key) + "  " + action.action,
+            {center.x - 170.0f, y}, 17, sf::Color(225, 235, 250));
+        y += 24.0f;
+    }
+
+    drawText("INPUT HELP", {center.x - 170.0f, y + 6.0f}, 14, sf::Color(255, 220, 150));
+    y += 28.0f;
+    for (const auto& action : InputBindingLibrary::gameplayActions()) {
+        drawText(std::string(action.key) + "  " + action.action,
+            {center.x - 170.0f, y}, 12, sf::Color(185, 200, 220));
+        y += 18.0f;
+    }
+
+    drawCenteredText("Simulation frozen", {center.x, height - 34.0f}, 13, sf::Color(170, 190, 210));
 }
 
 void Renderer::drawCraftingPanel(const GameWorld& world) {

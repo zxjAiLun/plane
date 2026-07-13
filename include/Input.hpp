@@ -31,6 +31,7 @@ public:
     bool nextMap() const;
     bool restart() const;
     bool quit() const;
+    bool escapePressed() const;
     int numberChoice() const;
     int functionChoice() const;
     bool inventorySelectNext() const;
@@ -61,6 +62,7 @@ private:
     bool nextMap_ = false;
     bool restart_ = false;
     bool quit_ = false;
+    bool escapePressed_ = false;
     int numberChoice_ = 0;
     int functionChoice_ = 0;
     bool inventorySelectNext_ = false;

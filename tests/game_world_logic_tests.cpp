@@ -1,9 +1,11 @@
 #include <cstdint>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
 
+#include "Config.hpp"
 #include "GameWorld.hpp"
 #include "Input.hpp"
 #include "SaveService.hpp"
@@ -45,6 +47,78 @@ void settleEnemies(GameWorld& world, Input& input) {
     for (int frame = 0; frame < 35; ++frame) {
         world.update(0.05f, input);
     }
+}
+
+void pressKey(GameWorld& world, Input& input, sf::Keyboard::Key key) {
+    input.handleKeyPressed(key);
+    world.update(0.05f, input);
+    input.handleKeyReleased(key);
+}
+
+void testPauseContextsAndFreeze() {
+    GameWorld panelWorld(12001);
+    Input panelInput;
+    pressKey(panelWorld, panelInput, sf::Keyboard::Key::P);
+    expect(panelWorld.state() == GameState::Playing && panelWorld.passiveTreeOpen(),
+        "opening Passive Tree keeps the world in Playing");
+    pressKey(panelWorld, panelInput, sf::Keyboard::Key::Escape);
+    expect(panelWorld.state() == GameState::Playing && !panelWorld.passiveTreeOpen(),
+        "Escape closes Passive Tree before pausing");
+    pressKey(panelWorld, panelInput, sf::Keyboard::Key::Escape);
+    expect(panelWorld.state() == GameState::Paused,
+        "second Escape opens Pause");
+    pressKey(panelWorld, panelInput, sf::Keyboard::Key::Escape);
+    expect(panelWorld.state() == GameState::Playing,
+        "Escape resumes the state that was paused");
+
+    GameWorld frozenWorld(13001);
+    Input frozenInput;
+    advanceIntoTheField(frozenWorld, frozenInput);
+    frozenInput.handleKeyPressed(sf::Keyboard::Key::Q);
+    frozenWorld.update(0.05f, frozenInput);
+    const std::string beforePauseEnemies = enemySignature(frozenWorld);
+    const float beforePauseMana = frozenWorld.player().mana();
+    pressKey(frozenWorld, frozenInput, sf::Keyboard::Key::Escape);
+    const std::string pausedEnemies = enemySignature(frozenWorld);
+    const float pausedMana = frozenWorld.player().mana();
+    const float pausedTime = frozenWorld.survivalTime();
+    frozenWorld.update(2.0f, frozenInput);
+    expect(frozenWorld.state() == GameState::Paused
+            && beforePauseEnemies == pausedEnemies
+            && pausedEnemies == enemySignature(frozenWorld),
+        "Pause freezes enemy simulation");
+    expect(std::abs(frozenWorld.player().mana() - pausedMana) < 0.001f
+            && std::abs(frozenWorld.survivalTime() - pausedTime) < 0.001f
+            && pausedMana <= beforePauseMana,
+        "Pause freezes mana regeneration and survival time");
+    pressKey(frozenWorld, frozenInput, sf::Keyboard::Key::Escape);
+    expect(frozenWorld.state() == GameState::Playing,
+        "paused simulation resumes with Escape");
+
+    const auto savePath = std::filesystem::absolute(Config::SaveFileName);
+    std::filesystem::remove(savePath);
+    GameWorld menuWorld(14001);
+    Input menuInput;
+    pressKey(menuWorld, menuInput, sf::Keyboard::Key::Escape);
+    const std::uint64_t savedSeed = menuWorld.runSeed();
+    pressKey(menuWorld, menuInput, sf::Keyboard::Key::F5);
+    expect(std::filesystem::exists(savePath)
+            && menuWorld.eventStatusMessage() == "Run saved",
+        "Pause Save Run writes the current run");
+    pressKey(menuWorld, menuInput, sf::Keyboard::Key::F9);
+    expect(menuWorld.state() == GameState::Playing && menuWorld.runSeed() == savedSeed,
+        "Pause Load Run restores without entering gameplay input");
+    pressKey(menuWorld, menuInput, sf::Keyboard::Key::Escape);
+    pressKey(menuWorld, menuInput, sf::Keyboard::Key::R);
+    expect(menuWorld.state() == GameState::Playing && menuWorld.runSeed() != savedSeed,
+        "Pause Restart Run resets the run");
+    pressKey(menuWorld, menuInput, sf::Keyboard::Key::Escape);
+    pressKey(menuWorld, menuInput, sf::Keyboard::Key::Q);
+    expect(menuWorld.quitRequested(),
+        "Pause Quit raises a game-level quit request");
+    menuWorld.reset(14002);
+    expect(!menuWorld.quitRequested(), "reset clears a pending quit request");
+    std::filesystem::remove(savePath);
 }
 
 void testSaveLoadRoundTrip() {
@@ -109,6 +183,13 @@ void testMapCompleteLoad() {
             && target.map().bossDefeated()
             && target.mapObjective() == "Choose Reward",
         "MapComplete load restores the boss-defeated settlement phase");
+    Input input;
+    pressKey(target, input, sf::Keyboard::Key::Escape);
+    expect(target.state() == GameState::Paused,
+        "MapComplete can be paused without mutating settlement state");
+    pressKey(target, input, sf::Keyboard::Key::Escape);
+    expect(target.state() == GameState::MapComplete,
+        "MapComplete resumes after Pause");
     std::filesystem::remove(path);
 }
 
@@ -154,8 +235,9 @@ int main() {
     testSaveLoadRoundTrip();
     testCorruptLoadDoesNotMutate();
     testMapCompleteLoad();
+    testPauseContextsAndFreeze();
 
-    std::cout << "Passed: " << (failures == 0 ? 20 : 20 - failures)
+    std::cout << "Passed: " << (failures == 0 ? 34 : 34 - failures)
         << "  Failed: " << failures << '\n';
     return failures == 0 ? 0 : 1;
 }

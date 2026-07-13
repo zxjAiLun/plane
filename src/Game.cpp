@@ -27,9 +27,6 @@ void Game::processInput() {
         }
         if (const auto* key = event->getIf<sf::Event::KeyPressed>()) {
             input_.handleKeyPressed(key->code);
-            if (key->code == sf::Keyboard::Key::Escape && !world_.craftingPanelOpen()) {
-                window_.close();
-            }
         }
         if (const auto* key = event->getIf<sf::Event::KeyReleased>()) {
             input_.handleKeyReleased(key->code);
@@ -48,6 +45,9 @@ void Game::processInput() {
 
 void Game::update(float dt) {
     world_.update(dt, input_);
+    if (world_.quitRequested()) {
+        window_.close();
+    }
 }
 
 void Game::render() {
