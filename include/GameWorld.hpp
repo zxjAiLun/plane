@@ -88,6 +88,13 @@ public:
     float bossAoeRadius() const;
     float bossAoeTelegraphProgress() const;
     float bossAoeEffectProgress() const;
+    const Vector2& bossDashStart() const;
+    const Vector2& bossDashTarget() const;
+    float bossDashTelegraphProgress() const;
+    bool bossDashMoving() const;
+    const Vector2& bossDashEffectPosition() const;
+    float bossDashEffectProgress() const;
+    float bossDashRadius() const;
     const Vector2& volatileExplosionCenter() const;
     float volatileExplosionRadius() const;
     float volatileExplosionProgress() const;
@@ -144,6 +151,7 @@ private:
     void updateObjects(float dt);
     void updateGroundHazards(float dt);
     void updateBossSkills(float dt);
+    void updateBossDash(float dt, Enemy& boss);
     int summonBossAdds(const Enemy& boss, const BossSkillDefinition& skill);
     void updateBossProjectiles(float dt);
     void updateEnemyProjectiles(float dt);
@@ -196,7 +204,8 @@ private:
     void initializeRunProgression();
     void rewardEnemyKill(const Enemy& enemy);
     void damagePlayer(int damage, const std::string& source);
-    const Enemy* activeBoss() const;
+    Enemy* activeBoss();
+    void resetBossDash();
     float bossSkillInterval() const;
     int bossSkillDamage(int baseDamage) const;
     void advanceWaveIfComplete();
@@ -245,6 +254,10 @@ private:
     float volatileExplosionTimer_ = 0.0f;
     float volatileExplosionRadius_ = 0.0f;
     BossSkillDefinition bossAoeSkill_;
+    BossDashState bossDashState_;
+    BossSkillDefinition bossDashSkill_;
+    Vector2 bossDashEffectPosition_;
+    float bossDashEffectTimer_ = 0.0f;
     float bossSkillTimer_;
     int bossSkillIndex_;
     bool bossEnraged_ = false;

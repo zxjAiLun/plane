@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "BossDash.hpp"
 #include "Config.hpp"
 #include "EnemyType.hpp"
 #include "GroundHazard.hpp"
@@ -11,7 +12,8 @@
 enum class BossSkillType {
     CircularAoe,
     Projectile,
-    SummonAdds
+    SummonAdds,
+    Dash
 };
 
 enum class BossLootTheme {
@@ -33,6 +35,7 @@ struct BossSkillDefinition {
     EnemyType summonType = EnemyType::Normal;
     int summonCount = 0;
     GroundHazardDefinition groundHazard;
+    BossDashDefinition dash;
 };
 
 struct BossDefinition {
@@ -146,14 +149,29 @@ private:
                 0.45f,
                 0.65f,
                 1.10f,
-                "Lightning spear pressure",
-                "Rapid lightning spear barrage",
+                "Lightning spears and a telegraphed tempest rush",
+                "Rapid spear pressure with repeated tempest rushes",
                 {
                     {BossSkillType::Projectile, "Lightning Spear", Config::BossProjectileRadius, 2, 0.0f, 0.0f, 520.0f, 1, 0.0f},
                     {BossSkillType::CircularAoe, "Thundercall", 150.0f, 3, 0.50f, 0.25f, 0.0f, 1, 0.0f},
+                    {
+                        BossSkillType::Dash,
+                        "Tempest Rush",
+                        52.0f,
+                        2,
+                        0.60f,
+                        0.30f,
+                        0.0f,
+                        1,
+                        0.0f,
+                        EnemyType::Normal,
+                        0,
+                        {},
+                        {340.0f, 680.0f}
+                    },
                 },
-                {0, 0, 1},
-                {0, 0, 0, 1}
+                {0, 2, 0, 1},
+                {2, 0, 0, 2, 1}
             },
             {
                 "Brood Matriarch",

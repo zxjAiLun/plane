@@ -13,6 +13,7 @@ public:
         EliteModifier eliteModifier = EliteModifier::None);
 
     void update(float dt, const Vector2& targetPosition, const MapInstance& map);
+    void moveBy(const Vector2& delta, const MapInstance& map);
     void updateAilments(float dt);
 
     void takeDamage(int damage);

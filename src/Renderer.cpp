@@ -422,6 +422,7 @@ void Renderer::render(const GameWorld& world) {
     drawSecondarySkillEffect(world);
     drawDashImpactEffect(world);
     drawBossAoeEffect(world);
+    drawBossDashEffect(world);
     drawVolatileExplosionEffect(world);
     drawPlayer(world);
     drawAimIndicator(world);
@@ -728,6 +729,48 @@ void Renderer::drawBossAoeEffect(const GameWorld& world) {
     shape.setOrigin({radius, radius});
     shape.setPosition(worldToScreen(world, world.bossAoeCenter()));
     window_.draw(shape);
+}
+
+void Renderer::drawBossDashEffect(const GameWorld& world) {
+    const float telegraphProgress = world.bossDashTelegraphProgress();
+    if (telegraphProgress > 0.0f || world.bossDashMoving()) {
+        const sf::Vector2f start = worldToScreen(world, world.bossDashStart());
+        const sf::Vector2f target = worldToScreen(world, world.bossDashTarget());
+        const auto alpha = static_cast<std::uint8_t>(world.bossDashMoving()
+            ? 130.0f
+            : 90.0f + 150.0f * (1.0f - telegraphProgress));
+
+        sf::VertexArray line(sf::PrimitiveType::Lines, 2);
+        line[0].position = start;
+        line[0].color = sf::Color(120, 220, 255, alpha);
+        line[1].position = target;
+        line[1].color = sf::Color(235, 250, 255, alpha);
+        window_.draw(line);
+
+        const float radius = world.bossDashRadius();
+        sf::CircleShape landing(radius);
+        landing.setFillColor(sf::Color(80, 185, 255, alpha / 7));
+        landing.setOutlineColor(sf::Color(155, 235, 255, alpha));
+        landing.setOutlineThickness(world.bossDashMoving() ? 2.0f : 4.0f);
+        landing.setOrigin({radius, radius});
+        landing.setPosition(target);
+        window_.draw(landing);
+    }
+
+    const float effectProgress = world.bossDashEffectProgress();
+    if (effectProgress <= 0.0f) {
+        return;
+    }
+
+    const float radius = world.bossDashRadius() * (1.0f + (1.0f - effectProgress) * 0.20f);
+    const auto alpha = static_cast<std::uint8_t>(220.0f * effectProgress);
+    sf::CircleShape impact(radius);
+    impact.setFillColor(sf::Color(95, 200, 255, alpha / 5));
+    impact.setOutlineColor(sf::Color(205, 245, 255, alpha));
+    impact.setOutlineThickness(4.0f);
+    impact.setOrigin({radius, radius});
+    impact.setPosition(worldToScreen(world, world.bossDashEffectPosition()));
+    window_.draw(impact);
 }
 
 void Renderer::drawVolatileExplosionEffect(const GameWorld& world) {

@@ -20,6 +20,7 @@ private:
     void drawSecondarySkillEffect(const GameWorld& world);
     void drawDashImpactEffect(const GameWorld& world);
     void drawBossAoeEffect(const GameWorld& world);
+    void drawBossDashEffect(const GameWorld& world);
     void drawVolatileExplosionEffect(const GameWorld& world);
     void drawAimIndicator(const GameWorld& world);
     void drawProjectiles(const GameWorld& world);

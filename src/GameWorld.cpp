@@ -147,6 +147,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     secondarySkillEffectTimer_ = std::max(0.0f, secondarySkillEffectTimer_ - dt);
     dashImpactTimer_ = std::max(0.0f, dashImpactTimer_ - dt);
     bossAoeEffectTimer_ = std::max(0.0f, bossAoeEffectTimer_ - dt);
+    bossDashEffectTimer_ = std::max(0.0f, bossDashEffectTimer_ - dt);
     volatileExplosionTimer_ = std::max(0.0f, volatileExplosionTimer_ - dt);
     playerHitCooldown_ = std::max(0.0f, playerHitCooldown_ - dt);
     playerHitEffectTimer_ = std::max(0.0f, playerHitEffectTimer_ - dt);
@@ -254,6 +255,7 @@ void GameWorld::reset() {
     volatileExplosionTimer_ = 0.0f;
     volatileExplosionRadius_ = 0.0f;
     bossAoeSkill_ = BossSkillDefinition();
+    resetBossDash();
     bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
     bossEnraged_ = false;
@@ -319,6 +321,7 @@ void GameWorld::startNextMap() {
     volatileExplosionTimer_ = 0.0f;
     volatileExplosionRadius_ = 0.0f;
     bossAoeSkill_ = BossSkillDefinition();
+    resetBossDash();
     bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
     bossEnraged_ = false;
@@ -381,7 +384,9 @@ void GameWorld::updateObjects(float dt) {
             rewardEnemyKill(enemy);
             continue;
         }
-        enemy.update(dt, player_.position(), map_);
+        if (!enemy.isBoss() || !bossDashState_.isActive()) {
+            enemy.update(dt, player_.position(), map_);
+        }
     }
 }
 
@@ -407,9 +412,10 @@ void GameWorld::updateGroundHazards(float dt) {
 }
 
 void GameWorld::updateBossSkills(float dt) {
-    const Enemy* boss = activeBoss();
+    Enemy* boss = activeBoss();
     if (!boss) {
         bossAoeTelegraphTimer_ = 0.0f;
+        bossDashState_.reset();
         bossSkillTimer_ = bossDefinition_->skillInterval;
         return;
     }
@@ -422,6 +428,11 @@ void GameWorld::updateBossSkills(float dt) {
         eventStatusMessage_ = "Boss enraged: " + bossDefinition_->name;
         eventStatusTimer_ = 2.0f;
         bossSkillTimer_ = std::min(bossSkillTimer_, bossSkillInterval());
+    }
+
+    if (bossDashState_.isActive()) {
+        updateBossDash(dt, *boss);
+        return;
     }
 
     const float telegraphBefore = bossAoeTelegraphTimer_;
@@ -445,6 +456,7 @@ void GameWorld::updateBossSkills(float dt) {
                 summonBossAdds(*boss, bossAoeSkill_);
                 break;
             case BossSkillType::Projectile:
+            case BossSkillType::Dash:
                 break;
         }
         bossAoeEffectTimer_ = bossAoeSkill_.effectDuration;
@@ -486,6 +498,22 @@ void GameWorld::updateBossSkills(float dt) {
             bossAoeSkill_ = skill;
             bossAoeTelegraphTimer_ = skill.telegraphDuration;
             break;
+        case BossSkillType::Dash: {
+            const Vector2 direction = (player_.position() - boss->position()).normalized();
+            if (direction.lengthSquared() <= 0.0f || !skill.dash.isValid()) {
+                break;
+            }
+
+            const Vector2 target = map_.resolveMovement(
+                boss->position(), boss->radius(), direction * skill.dash.distance
+            );
+            bossDashSkill_ = skill;
+            bossDashSkill_.damage = bossSkillDamage(skill.damage);
+            bossDashState_.begin(
+                boss->position(), target, skill.telegraphDuration, skill.dash.speed
+            );
+            break;
+        }
         case BossSkillType::Projectile: {
             const Vector2 direction = (player_.position() - boss->position()).normalized();
             if (direction.lengthSquared() <= 0.0f) {
@@ -524,6 +552,31 @@ void GameWorld::updateBossSkills(float dt) {
 
     ++bossSkillIndex_;
     bossSkillTimer_ = bossSkillInterval();
+}
+
+void GameWorld::updateBossDash(float dt, Enemy& boss) {
+    const bool wasMoving = bossDashState_.isMoving();
+    const float movementTime = bossDashState_.isMoving()
+        ? dt * boss.movementSpeedMultiplier()
+        : dt;
+    const Vector2 movement = bossDashState_.update(movementTime, boss.position());
+    if (movement.lengthSquared() > 0.0f) {
+        boss.moveBy(movement, map_);
+    }
+
+    if (wasMoving && Collision::circleCircle(
+            player_.position(), player_.radius(),
+            boss.position(), bossDashSkill_.radius
+        ) && bossDashState_.consumeHit()) {
+        damagePlayer(bossDashSkill_.damage, bossDashSkill_.name);
+    }
+
+    if (bossDashState_.consumeCompletion()) {
+        bossDashEffectPosition_ = boss.position();
+        bossDashEffectTimer_ = bossDashSkill_.effectDuration;
+        eventStatusMessage_ = bossDashSkill_.name + " impact";
+        eventStatusTimer_ = 1.0f;
+    }
 }
 
 int GameWorld::summonBossAdds(const Enemy& boss, const BossSkillDefinition& skill) {
@@ -1497,6 +1550,7 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         bossAoeTelegraphTimer_ = 0.0f;
         bossAoeEffectTimer_ = 0.0f;
         bossAoeSkill_ = BossSkillDefinition();
+        resetBossDash();
         bossEnraged_ = false;
         eventStatusMessage_ = "Boss defeated: " + bossDefinition_->name;
         eventStatusTimer_ = 2.0f;
@@ -1560,14 +1614,21 @@ void GameWorld::damagePlayer(int damage, const std::string& source) {
     playerHitCooldown_ = Config::PlayerHitCooldown;
 }
 
-const Enemy* GameWorld::activeBoss() const {
-    for (const auto& enemy : enemies_) {
+Enemy* GameWorld::activeBoss() {
+    for (auto& enemy : enemies_) {
         if (enemy.isBoss() && !enemy.isDead()) {
             return &enemy;
         }
     }
 
     return nullptr;
+}
+
+void GameWorld::resetBossDash() {
+    bossDashState_.reset();
+    bossDashSkill_ = BossSkillDefinition();
+    bossDashEffectPosition_ = {};
+    bossDashEffectTimer_ = 0.0f;
 }
 
 float GameWorld::bossSkillInterval() const {
@@ -1664,6 +1725,7 @@ void GameWorld::triggerBossIfNeeded() {
     volatileExplosionTimer_ = 0.0f;
     volatileExplosionRadius_ = 0.0f;
     bossAoeSkill_ = BossSkillDefinition();
+    resetBossDash();
     bossSkillTimer_ = bossDefinition_->skillInterval * 0.5f;
     bossSkillIndex_ = 0;
     bossEnraged_ = false;
@@ -1734,6 +1796,17 @@ float GameWorld::bossAoeEffectProgress() const {
         ? bossAoeEffectTimer_ / bossAoeSkill_.effectDuration
         : 0.0f;
 }
+const Vector2& GameWorld::bossDashStart() const { return bossDashState_.start(); }
+const Vector2& GameWorld::bossDashTarget() const { return bossDashState_.target(); }
+float GameWorld::bossDashTelegraphProgress() const { return bossDashState_.telegraphProgress(); }
+bool GameWorld::bossDashMoving() const { return bossDashState_.isMoving(); }
+const Vector2& GameWorld::bossDashEffectPosition() const { return bossDashEffectPosition_; }
+float GameWorld::bossDashEffectProgress() const {
+    return bossDashSkill_.effectDuration > 0.0f
+        ? bossDashEffectTimer_ / bossDashSkill_.effectDuration
+        : 0.0f;
+}
+float GameWorld::bossDashRadius() const { return bossDashSkill_.radius; }
 const Vector2& GameWorld::volatileExplosionCenter() const { return volatileExplosionCenter_; }
 float GameWorld::volatileExplosionRadius() const { return volatileExplosionRadius_; }
 float GameWorld::volatileExplosionProgress() const {
@@ -1817,6 +1890,9 @@ std::string GameWorld::eventStatusMessage() const { return eventStatusMessage_; 
 float GameWorld::eventStatusTimeRemaining() const { return eventStatusTimer_; }
 int GameWorld::activeEliteEventEnemiesRemaining() const { return eliteEventEnemiesRemaining_; }
 std::string GameWorld::bossSkillWarning() const {
+    if (bossDashState_.isTelegraphing() && !bossDashSkill_.name.empty()) {
+        return "Boss casting: " + bossDashSkill_.name;
+    }
     if (bossAoeTelegraphTimer_ <= 0.0f || bossAoeSkill_.name.empty()) {
         return "";
     }

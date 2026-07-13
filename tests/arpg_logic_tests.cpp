@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 
+#include "BossDash.hpp"
 #include "BossDefinition.hpp"
 #include "CombatMath.hpp"
 #include "Config.hpp"
@@ -534,6 +535,74 @@ void testGroundHazardLifecycle() {
     expect(configuredHazards == 1, "only Brimstone Magma Slam creates a v1 ground hazard");
 }
 
+// --- Boss mobility skills ---
+void testBossDashStateAndStormPattern() {
+    section("Boss dash state and Storm Herald pattern");
+
+    BossDashState dash;
+    dash.begin({0.0f, 0.0f}, {200.0f, 0.0f}, 0.5f, 400.0f);
+    expect(dash.isTelegraphing(), "boss dash starts in telegraph phase");
+    expect(dash.target().x == 200.0f && dash.target().y == 0.0f,
+        "boss dash snapshots its target position");
+    expect(dash.update(0.25f, {0.0f, 0.0f}).lengthSquared() == 0.0f,
+        "boss dash does not move during telegraph");
+    expect(std::abs(dash.telegraphProgress() - 0.5f) < 0.0001f,
+        "boss dash reports remaining telegraph progress");
+    expect(dash.update(0.25f, {0.0f, 0.0f}).lengthSquared() == 0.0f,
+        "boss dash transition frame does not move early");
+    expect(dash.isMoving(), "boss dash enters moving phase after telegraph");
+
+    const Vector2 firstStep = dash.update(0.25f, {0.0f, 0.0f});
+    expect(std::abs(firstStep.x - 100.0f) < 0.0001f && firstStep.y == 0.0f,
+        "boss dash movement uses configured speed");
+    expect(dash.consumeHit(), "boss dash exposes its first collision hit");
+    expect(!dash.consumeHit(), "boss dash cannot hit twice during one movement");
+
+    const Vector2 finalStep = dash.update(0.25f, {100.0f, 0.0f});
+    expect(std::abs(finalStep.x - 100.0f) < 0.0001f,
+        "boss dash reaches its locked target without overshoot");
+    expect(dash.phase() == BossDashPhase::Impact, "boss dash enters impact phase at target");
+    expect(dash.consumeCompletion(), "boss dash completion is consumed once");
+    expect(!dash.consumeCompletion() && !dash.isActive(),
+        "completed boss dash returns to idle");
+
+    BossDashState invalidDash;
+    invalidDash.begin({5.0f, 5.0f}, {5.0f, 5.0f}, 0.5f, 400.0f);
+    expect(!invalidDash.isActive(), "boss dash rejects a zero-distance target");
+
+    const auto& storm = BossLibrary::forMapLevel(2);
+    const auto dashIt = std::find_if(
+        storm.skills.begin(), storm.skills.end(),
+        [](const BossSkillDefinition& skill) { return skill.type == BossSkillType::Dash; }
+    );
+    expect(dashIt != storm.skills.end(), "Storm Herald defines a dash skill");
+    if (dashIt != storm.skills.end()) {
+        expect(dashIt->dash.isValid(), "Storm dash has valid distance and speed data");
+        expect(dashIt->telegraphDuration > 0.0f, "Storm dash has a warning window");
+        expect(dashIt->damage > 0 && dashIt->radius > 0.0f,
+            "Storm dash has collision damage and radius");
+    }
+
+    int normalDashes = 0;
+    for (std::size_t i = 0; i < storm.normalSkillOrder.size(); ++i) {
+        normalDashes += storm.skillForCast(i, false).type == BossSkillType::Dash ? 1 : 0;
+    }
+    int enragedDashes = 0;
+    for (std::size_t i = 0; i < storm.enragedSkillOrder.size(); ++i) {
+        enragedDashes += storm.skillForCast(i, true).type == BossSkillType::Dash ? 1 : 0;
+    }
+    expect(normalDashes >= 1, "Storm normal pattern schedules Tempest Rush");
+    expect(enragedDashes > normalDashes, "Storm enrage pattern increases dash pressure");
+
+    MapInstance map(1, 0);
+    Enemy movingBoss(map.playerStart(), 10, 1, EnemyType::Boss);
+    movingBoss.moveBy({10000.0f, 0.0f}, map);
+    expect(movingBoss.position().x <= map.size().x - movingBoss.radius(),
+        "boss movement remains inside map bounds");
+    expect(!map.intersectsObstacle(movingBoss.position(), movingBoss.radius()),
+        "boss movement resolves around map obstacles");
+}
+
 // --- Map options ---
 void testMapOptionGeneration() {
     section("MapOptionLibrary distinct modifiers");
@@ -642,6 +711,7 @@ int main() {
     testFlaskChargeRewards();
     testBossSummonDefinitions();
     testGroundHazardLifecycle();
+    testBossDashStateAndStormPattern();
     testMapOptionGeneration();
     testMapRewardGeneration();
     testPassiveAndEquipPipeline();

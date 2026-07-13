@@ -88,6 +88,10 @@ void Enemy::update(float dt, const Vector2& targetPosition, const MapInstance& m
     position_ = map.resolveMovement(position_, radius_, direction * Config::EnemySpeed * speedMultiplier * dt);
 }
 
+void Enemy::moveBy(const Vector2& delta, const MapInstance& map) {
+    position_ = map.resolveMovement(position_, radius_, delta);
+}
+
 void Enemy::updateAilments(float dt) {
     if (igniteTimer_ > 0.0f) {
         const float activeTime = std::min(dt, igniteTimer_);
