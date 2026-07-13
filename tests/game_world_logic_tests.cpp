@@ -1,11 +1,12 @@
 #include <algorithm>
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "Config.hpp"
 #include "CombatMath.hpp"
@@ -15,6 +16,7 @@
 #include "MapRewardLibrary.hpp"
 #include "SaveService.hpp"
 #include "SkillLibrary.hpp"
+#include "SupportLibrary.hpp"
 
 namespace {
 
@@ -61,6 +63,108 @@ void pressKey(GameWorld& world, Input& input, sf::Keyboard::Key key) {
     input.handleKeyPressed(key);
     world.update(0.05f, input);
     input.handleKeyReleased(key);
+}
+
+void releaseMovement(Input& input) {
+    input.handleKeyReleased(sf::Keyboard::Key::A);
+    input.handleKeyReleased(sf::Keyboard::Key::D);
+    input.handleKeyReleased(sf::Keyboard::Key::W);
+    input.handleKeyReleased(sf::Keyboard::Key::S);
+}
+
+bool moveAxisTo(GameWorld& world, Input& input, bool horizontal, float target) {
+    constexpr float arrivalDistance = 100.0f;
+    constexpr int maxFrames = 240;
+    for (int frame = 0; frame < maxFrames && world.state() == GameState::Playing; ++frame) {
+        const float current = horizontal
+            ? world.player().position().x : world.player().position().y;
+        const float delta = target - current;
+        if (std::abs(delta) <= arrivalDistance) {
+            releaseMovement(input);
+            return true;
+        }
+
+        const bool positive = delta > 0.0f;
+        const auto key = horizontal
+            ? (positive ? sf::Keyboard::Key::D : sf::Keyboard::Key::A)
+            : (positive ? sf::Keyboard::Key::S : sf::Keyboard::Key::W);
+        const auto opposite = horizontal
+            ? (positive ? sf::Keyboard::Key::A : sf::Keyboard::Key::D)
+            : (positive ? sf::Keyboard::Key::W : sf::Keyboard::Key::S);
+        input.handleKeyPressed(key);
+        input.handleKeyReleased(opposite);
+        if (horizontal) {
+            input.handleKeyReleased(sf::Keyboard::Key::W);
+            input.handleKeyReleased(sf::Keyboard::Key::S);
+        } else {
+            input.handleKeyReleased(sf::Keyboard::Key::A);
+            input.handleKeyReleased(sf::Keyboard::Key::D);
+        }
+        world.update(0.05f, input);
+    }
+
+    releaseMovement(input);
+    return world.state() == GameState::Playing
+        && std::abs((horizontal ? world.player().position().x : world.player().position().y) - target)
+            <= arrivalDistance;
+}
+
+bool moveToBoss(GameWorld& world, Input& input) {
+    const Vector2 bossCenter = world.map().bossCenter();
+    if (!moveAxisTo(world, input, true, bossCenter.x)) {
+        return false;
+    }
+    if (world.map().bossTriggered()) {
+        return true;
+    }
+    return moveAxisTo(world, input, false, bossCenter.y) && world.map().bossTriggered();
+}
+
+sf::Vector2i worldToScreen(const GameWorld& world, const Vector2& position) {
+    const Vector2 camera = world.cameraTopLeft();
+    return {
+        static_cast<int>(std::lround(position.x - camera.x)),
+        static_cast<int>(std::lround(position.y - camera.y))
+    };
+}
+
+bool defeatBossWithAreaSkill(GameWorld& world, Input& input) {
+    for (int attempt = 0; attempt < 12 && world.state() == GameState::Playing; ++attempt) {
+        const auto bossIt = std::find_if(
+            world.enemies().begin(),
+            world.enemies().end(),
+            [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+        );
+        if (bossIt == world.enemies().end()) {
+            world.update(0.05f, input);
+            continue;
+        }
+
+        input.handleMousePressed(sf::Mouse::Button::Right, worldToScreen(world, bossIt->position()));
+        world.update(0.05f, input);
+        if (world.state() != GameState::Playing) {
+            break;
+        }
+        world.update(1.5f, input);
+    }
+
+    return world.state() == GameState::MapComplete && world.map().bossDefeated();
+}
+
+bool statsEqual(const Stats& first, const Stats& second) {
+    return first.maxHp == second.maxHp
+        && std::abs(first.moveSpeedMultiplier - second.moveSpeedMultiplier) < 0.0001f
+        && std::abs(first.damageMultiplier - second.damageMultiplier) < 0.0001f
+        && std::abs(first.attackSpeedMultiplier - second.attackSpeedMultiplier) < 0.0001f
+        && std::abs(first.pickupRangeMultiplier - second.pickupRangeMultiplier) < 0.0001f
+        && std::abs(first.projectileDamageMultiplier - second.projectileDamageMultiplier) < 0.0001f
+        && std::abs(first.areaDamageMultiplier - second.areaDamageMultiplier) < 0.0001f
+        && std::abs(first.areaRadiusMultiplier - second.areaRadiusMultiplier) < 0.0001f
+        && first.armor == second.armor
+        && first.projectileCountBonus == second.projectileCountBonus
+        && std::abs(first.lifeFlaskEffectMultiplier - second.lifeFlaskEffectMultiplier) < 0.0001f
+        && std::abs(first.itemQuantityMultiplier - second.itemQuantityMultiplier) < 0.0001f
+        && std::abs(first.incomingDamageMultiplier - second.incomingDamageMultiplier) < 0.0001f;
 }
 
 void testPauseContextsAndFreeze() {
@@ -173,6 +277,13 @@ void testCorruptLoadDoesNotMutate() {
     std::filesystem::remove(path);
 }
 
+bool saveAsMapCompleteFixture(
+    const std::filesystem::path& path,
+    GameWorld& world,
+    int sequence,
+    bool addGroundDrop
+);
+
 void testMapCompleteLoad() {
     const auto path = std::filesystem::temp_directory_path() / "plane_fight_map_complete_save_test.bin";
     std::filesystem::remove(path);
@@ -195,9 +306,47 @@ void testMapCompleteLoad() {
     pressKey(target, input, sf::Keyboard::Key::Escape);
     expect(target.state() == GameState::Paused,
         "MapComplete can be paused without mutating settlement state");
+    expect(target.saveRun(path),
+        "paused MapComplete saves its settlement resume context");
+    GameWorld pausedLoadTarget(9103);
+    expect(pausedLoadTarget.loadRun(path)
+            && pausedLoadTarget.state() == GameState::MapComplete
+            && pausedLoadTarget.mapObjective() == "Choose Reward",
+        "loading a paused MapComplete resumes the settlement phase");
     pressKey(target, input, sf::Keyboard::Key::Escape);
     expect(target.state() == GameState::MapComplete,
         "MapComplete resumes after Pause");
+
+    const auto partialPath = std::filesystem::temp_directory_path()
+        / "plane_fight_partial_settlement_save_test.bin";
+    std::filesystem::remove(partialPath);
+    GameWorld partial(9104);
+    Input partialInput;
+    expect(saveAsMapCompleteFixture(partialPath, partial, 0, false),
+        "partial settlement fixture reaches MapComplete");
+    pressKey(partial, partialInput, sf::Keyboard::Key::Num1);
+    expect(partial.mapRewardChosen() && !partial.nextMapOptionChosen(),
+        "partial settlement records only the reward choice");
+    expect(partial.saveRun(partialPath),
+        "partial settlement saves between reward and map choice");
+    GameWorld partialLoadTarget(9105);
+    expect(partialLoadTarget.loadRun(partialPath)
+            && partialLoadTarget.mapRewardChosen()
+            && !partialLoadTarget.nextMapOptionChosen()
+            && partialLoadTarget.mapLevel() == 1,
+        "partial settlement load preserves its choice stage");
+    const int partialLevel = partialLoadTarget.mapLevel();
+    Input partialLoadInput;
+    pressKey(partialLoadTarget, partialLoadInput, sf::Keyboard::Key::E);
+    expect(partialLoadTarget.state() == GameState::MapComplete
+            && partialLoadTarget.mapLevel() == partialLevel,
+        "partial settlement still blocks E before map choice");
+    pressKey(partialLoadTarget, partialLoadInput, sf::Keyboard::Key::Num1);
+    pressKey(partialLoadTarget, partialLoadInput, sf::Keyboard::Key::E);
+    expect(partialLoadTarget.state() == GameState::Playing
+            && partialLoadTarget.mapLevel() == partialLevel + 1,
+        "partial settlement can finish map selection after load");
+    std::filesystem::remove(partialPath);
     std::filesystem::remove(path);
 }
 
@@ -292,6 +441,196 @@ void testContinuousMapProgression() {
     }
 
     expect(world.mapLevel() == 6, "five transitions reach map level 6");
+    std::filesystem::remove(path);
+}
+
+void testFiveMapRealBossProgression() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_five_map_real_progression_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(15501);
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "real progression fixture starts from a valid run save");
+
+    LootGenerator lootGenerator;
+    RandomService lootRandom(15502);
+    data.inventory.push_back(lootGenerator.generate(1, lootRandom));
+    data.stash.push_back(lootGenerator.generate(1, lootRandom));
+    data.unlockedSupports.insert("Pierce");
+    data.skillBar.supports[static_cast<std::size_t>(SkillSlot::Primary)][0] = "Pierce";
+    data.player.hp = 10000;
+    data.player.upgradeStats.maxHp = 10000;
+    data.player.upgradeStats.moveSpeedMultiplier = 6.0f;
+    data.player.upgradeStats.damageMultiplier = 100.0f;
+    data.player.upgradeStats.projectileDamageMultiplier = 100.0f;
+    data.player.upgradeStats.areaDamageMultiplier = 1000.0f;
+    data.player.upgradeStats.areaRadiusMultiplier = 2.0f;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.player.mana = Config::PlayerMaxMana;
+    data.state = SavedRunState::Playing;
+    data.mapRewardChosen = false;
+    data.nextMapOptionChosen = false;
+    data.selectedMapRewardOption = -1;
+    data.selectedNextMapOption = -1;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "real progression fixture restores durable inventory and combat tolerance");
+
+    const std::size_t initialOwnedItems = world.inventory().size() + world.stash().size();
+    const int initialLevel = world.player().level();
+    const Stats initialEquipmentStats = world.player().equipment().combinedStats();
+    const auto initialPassives = world.player().passiveTree().allocatedNodes();
+    const auto* initialPrimarySupport = world.skillBar().supportAt(SkillSlot::Primary, 0);
+    const std::string initialPrimarySupportName = initialPrimarySupport
+        ? initialPrimarySupport->name : "";
+    std::vector<bool> unlockedSkills;
+    for (const auto& skill : SkillLibrary::all()) {
+        unlockedSkills.push_back(world.isSkillUnlocked(skill.name));
+    }
+    std::vector<bool> unlockedSupports;
+    for (const auto& support : SupportLibrary::all()) {
+        unlockedSupports.push_back(world.isSupportUnlocked(support.name));
+    }
+
+    Input input;
+    for (int mapIndex = 0; mapIndex < 5; ++mapIndex) {
+        const int expectedMapLevel = mapIndex + 1;
+        expect(world.state() == GameState::Playing
+                && world.mapLevel() == expectedMapLevel,
+            "real progression starts map " + std::to_string(expectedMapLevel));
+        expect(world.mapEventsCompleted() == 0 && world.droppedItems().empty(),
+            "map " + std::to_string(expectedMapLevel) + " starts without transient map state");
+
+        expect(moveToBoss(world, input),
+            "real movement reaches Boss Arena on map " + std::to_string(expectedMapLevel));
+        if (world.state() != GameState::Playing || !world.map().bossTriggered()) {
+            break;
+        }
+
+        expect(defeatBossWithAreaSkill(world, input),
+            "real Area skill defeats Boss on map " + std::to_string(expectedMapLevel));
+        expect(world.state() == GameState::MapComplete
+                && world.map().bossDefeated()
+                && !world.droppedItems().empty(),
+            "map " + std::to_string(expectedMapLevel)
+                + " enters settlement with Boss loot on the ground");
+        if (world.state() != GameState::MapComplete) {
+            break;
+        }
+
+        const int pickedUpBefore = world.mapItemsPickedUp();
+        pressKey(world, input, sf::Keyboard::Key::F);
+        expect(world.mapItemsPickedUp() == pickedUpBefore + 1,
+            "settlement picks up one nearest Boss drop on map "
+                + std::to_string(expectedMapLevel));
+        const std::size_t ownedAfterPickup = world.inventory().size() + world.stash().size();
+        expect(ownedAfterPickup == initialOwnedItems + static_cast<std::size_t>(mapIndex + 1),
+            "Boss loot becomes durable inventory ownership on map "
+                + std::to_string(expectedMapLevel));
+
+        pressKey(world, input, sf::Keyboard::Key::Tab);
+        const std::size_t stashBeforeMove = world.stash().size();
+        pressKey(world, input, sf::Keyboard::Key::I);
+        expect(world.stash().size() == stashBeforeMove + 1,
+            "settlement can move selected Boss loot into Stash on map "
+                + std::to_string(expectedMapLevel));
+
+        pressKey(world, input, sf::Keyboard::Key::Num1);
+        expect(world.mapRewardChosen(),
+            "Boss settlement reward is chosen on map " + std::to_string(expectedMapLevel));
+        pressKey(world, input, sf::Keyboard::Key::Num1);
+        expect(world.nextMapOptionChosen(),
+            "next map option is chosen on map " + std::to_string(expectedMapLevel));
+        pressKey(world, input, sf::Keyboard::Key::E);
+        expect(world.state() == GameState::Playing
+                && world.mapLevel() == expectedMapLevel + 1,
+            "E enters map " + std::to_string(expectedMapLevel + 1)
+                + " after real Boss settlement");
+        expect(world.droppedItems().empty() && world.mapEventsCompleted() == 0
+                && world.mapEventsTotal() == 3,
+            "map " + std::to_string(expectedMapLevel + 1)
+                + " resets ground drops and map events");
+        expect(world.inventory().size() + world.stash().size()
+                == initialOwnedItems + static_cast<std::size_t>(mapIndex + 1),
+            "map transition preserves owned Inventory/Stash items");
+        expect(world.player().level() >= initialLevel
+                && statsEqual(world.player().equipment().combinedStats(), initialEquipmentStats)
+                && world.player().passiveTree().allocatedNodes() == initialPassives,
+            "map transition preserves level, equipment, and passive allocation");
+        for (std::size_t index = 0; index < unlockedSkills.size(); ++index) {
+            if (!unlockedSkills[index]) {
+                continue;
+            }
+            expect(world.isSkillUnlocked(SkillLibrary::all()[index].name),
+                "map transition preserves unlocked skills");
+        }
+        for (std::size_t index = 0; index < unlockedSupports.size(); ++index) {
+            if (!unlockedSupports[index]) {
+                continue;
+            }
+            expect(world.isSupportUnlocked(SupportLibrary::all()[index].name),
+                "map transition preserves unlocked supports");
+        }
+        const auto* primarySupport = world.skillBar().supportAt(SkillSlot::Primary, 0);
+        expect(primarySupport != nullptr && primarySupport->name == initialPrimarySupportName,
+            "map transition preserves equipped support links");
+        for (std::size_t index = 0; index < unlockedSkills.size(); ++index) {
+            unlockedSkills[index] = world.isSkillUnlocked(SkillLibrary::all()[index].name);
+        }
+        for (std::size_t index = 0; index < unlockedSupports.size(); ++index) {
+            unlockedSupports[index] = world.isSupportUnlocked(SupportLibrary::all()[index].name);
+        }
+    }
+
+    expect(world.mapLevel() == 6,
+        "real Boss progression completes five maps");
+    std::filesystem::remove(path);
+}
+
+void testGameOverRestartBoundary() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_game_over_restart_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(16501);
+    expect(world.saveRun(path), "GameOver fixture saves an initial run");
+    SaveData data;
+    std::string error;
+    expect(SaveService::load(path, data, &error),
+        "GameOver fixture loads its initial save");
+    data.player.hp = 1;
+    data.player.upgradeStats.incomingDamageMultiplier = 100.0f;
+    data.player.upgradeStats.moveSpeedMultiplier = 6.0f;
+    data.state = SavedRunState::Playing;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "GameOver fixture restores a fragile player");
+
+    Input input;
+    input.handleKeyPressed(sf::Keyboard::Key::D);
+    for (int frame = 0; frame < 240 && world.state() == GameState::Playing; ++frame) {
+        world.update(0.05f, input);
+    }
+    input.handleKeyReleased(sf::Keyboard::Key::D);
+    expect(world.state() == GameState::GameOver,
+        "real combat damage reaches GameOver");
+
+    const std::uint64_t defeatedRunSeed = world.runSeed();
+    pressKey(world, input, sf::Keyboard::Key::D);
+    expect(world.state() == GameState::GameOver,
+        "GameOver ignores gameplay movement input");
+    pressKey(world, input, sf::Keyboard::Key::R);
+    expect(world.state() == GameState::Playing
+            && world.runSeed() != defeatedRunSeed
+            && world.mapLevel() == 1
+            && world.inventory().size() == 0
+            && world.stash().size() == 0
+            && world.droppedItems().empty()
+            && world.mapEventsCompleted() == 0
+            && world.mapEventsTotal() == 3
+            && world.player().level() == 1,
+        "Restart creates a clean new run after GameOver");
     std::filesystem::remove(path);
 }
 
@@ -873,6 +1212,8 @@ int main() {
     testMapCompleteLoad();
     testPauseContextsAndFreeze();
     testContinuousMapProgression();
+    testFiveMapRealBossProgression();
+    testGameOverRestartBoundary();
     testInvalidProgressionSaveDoesNotMutate();
     testCombatFeedbackAndDeathClaim();
     testIgniteFeedbackMatchesWorldDamage();
