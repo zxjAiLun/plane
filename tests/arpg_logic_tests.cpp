@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdlib>
 #include <iostream>
 #include <set>
 #include <string>
@@ -18,6 +17,7 @@
 #include "EliteModifier.hpp"
 #include "Enemy.hpp"
 #include "EnemyDefinition.hpp"
+#include "EnemySpawner.hpp"
 #include "Equipment.hpp"
 #include "GroundHazard.hpp"
 #include "Inventory.hpp"
@@ -29,6 +29,7 @@
 #include "MapRewardLibrary.hpp"
 #include "PassiveTree.hpp"
 #include "Player.hpp"
+#include "RandomService.hpp"
 #include "SkillBar.hpp"
 #include "SkillLibrary.hpp"
 #include "Stash.hpp"
@@ -47,6 +48,81 @@ void expect(bool condition, const std::string& label) {
     } else {
         ++g_failures;
         std::cout << "  FAIL  " << label << '\n';
+    }
+}
+
+void section(const std::string& title);
+
+void testRandomService() {
+    section("RandomService determinism and boundaries");
+
+    RandomService first(123456);
+    RandomService second(123456);
+    RandomService different(123457);
+    bool sameSequence = true;
+    bool differentSequence = false;
+    for (int index = 0; index < 24; ++index) {
+        const int firstValue = first.nextInt(-1000, 1000);
+        const int secondValue = second.nextInt(-1000, 1000);
+        const int differentValue = different.nextInt(-1000, 1000);
+        sameSequence = sameSequence && firstValue == secondValue;
+        differentSequence = differentSequence || firstValue != differentValue;
+    }
+    expect(sameSequence, "same seed reproduces the integer sequence");
+    expect(differentSequence, "different seeds produce a different sequence");
+
+    RandomService boundary(9);
+    expect(boundary.nextInt(7, 7) == 7, "equal integer bounds return the bound");
+    const int reversed = boundary.nextInt(10, 1);
+    expect(reversed >= 1 && reversed <= 10, "reversed integer bounds are normalized");
+    expect(boundary.nextUInt64(4, 4) == 4, "equal uint64 bounds return the bound");
+    expect(boundary.nextIndex(0) == 0, "empty index range returns zero safely");
+    const float unitValue = boundary.nextFloat01();
+    expect(unitValue >= 0.0f && unitValue < 1.0f,
+        "float generation stays inside the unit interval");
+    expect(!boundary.chance(0) && boundary.chance(100),
+        "chance handles deterministic zero and one hundred percent bounds");
+
+    const std::vector<int> weights{0, 3, 7};
+    const std::size_t weightedIndex = boundary.weightedChoiceIndex(weights);
+    expect(weightedIndex >= 1 && weightedIndex < weights.size(),
+        "weighted choice skips zero-weight buckets");
+    expect(boundary.weightedChoiceIndex({}) == 0,
+        "weighted choice handles an empty vector");
+    expect(boundary.weightedChoiceIndex({1, 2, 3}) < 3,
+        "weighted choice returns an in-range bucket");
+    expect(RandomService::deriveSeed(1, 0) != RandomService::deriveSeed(1, 1),
+        "derived run streams use distinct seeds");
+}
+
+void testEnemySpawnerRandomness() {
+    section("EnemySpawner injected randomness");
+
+    EnemySpawner firstSpawner;
+    EnemySpawner secondSpawner;
+    EnemySpawner differentSpawner;
+    firstSpawner.update(Config::EnemySpawnInterval);
+    secondSpawner.update(Config::EnemySpawnInterval);
+    differentSpawner.update(Config::EnemySpawnInterval);
+    RandomService firstRandom(3001);
+    RandomService secondRandom(3001);
+    RandomService differentRandom(3002);
+
+    const auto first = firstSpawner.trySpawn(10, 1, EnemyType::Normal,
+        EliteModifier::None, firstRandom);
+    const auto second = secondSpawner.trySpawn(10, 1, EnemyType::Normal,
+        EliteModifier::None, secondRandom);
+    const auto different = differentSpawner.trySpawn(10, 1, EnemyType::Normal,
+        EliteModifier::None, differentRandom);
+    expect(first.has_value() && second.has_value() && different.has_value(),
+        "spawner produces an enemy after its interval");
+    if (first && second && different) {
+        expect(first->position().x == second->position().x
+                && first->position().y == second->position().y,
+            "same spawner seed reproduces the spawn position");
+        expect(first->position().x != different->position().x
+                || first->position().y != different->position().y,
+            "different spawner seeds change the spawn position");
     }
 }
 
@@ -600,7 +676,7 @@ void testEquipmentChangesCombatStats() {
 void testLootGeneration() {
     section("LootGenerator rarity/slot/affixes");
 
-    std::srand(42);
+    RandomService random(42);
     LootGenerator gen;
 
     bool sawAffix = false;
@@ -609,7 +685,7 @@ void testLootGeneration() {
     bool sawName = true;
 
     for (int i = 0; i < 24; ++i) {
-        Item item = gen.generate(3);
+        Item item = gen.generate(3, random);
         if (item.name.empty()) {
             sawName = false;
         }
@@ -677,10 +753,10 @@ void testItemBaseTypes() {
             std::string(slotName(slot)) + " has at least three normal base types");
     }
 
-    std::srand(17);
+    RandomService random(17);
     LootGenerator generator;
     for (int roll = 0; roll < 16; ++roll) {
-        const Item item = generator.generate(3);
+        const Item item = generator.generate(3, random);
         const auto* base = ItemBaseLibrary::find(item.baseId);
         expect(base != nullptr, "generated item resolves its base id");
         if (!base) {
@@ -826,11 +902,11 @@ void testAffixTagsAndWeights() {
         "map options expose explicit loot bias tags");
 
     auto generateSignatures = [](unsigned int seed, const LootBias& bias) {
-        std::srand(seed);
+        RandomService random(seed);
         LootGenerator generator;
         std::vector<std::string> signatures;
         for (int index = 0; index < 10; ++index) {
-            const Item item = generator.generate(3, bias);
+            const Item item = generator.generate(3, random, bias);
             std::string signature = item.baseId + "|" + item.name;
             for (const auto& affix : item.affixes) {
                 signature += "|" + affix.name + ":" + std::to_string(affix.tier);
@@ -843,10 +919,10 @@ void testAffixTagsAndWeights() {
     expect(generateSignatures(91, areaBias) == generateSignatures(91, areaBias),
         "fixed seed reproduces weighted item selection");
 
-    std::srand(123);
+    RandomService random(123);
     LootGenerator generator;
     for (int index = 0; index < 18; ++index) {
-        const Item item = generator.generate(5, areaBias);
+        const Item item = generator.generate(5, random, areaBias);
         std::set<AffixStat> rolledStats;
         for (const auto& affix : item.affixes) {
             const auto definition = std::find_if(
@@ -868,11 +944,11 @@ void testAffixTagsAndWeights() {
 void testCraftingChoiceOperations() {
     section("Crafting choice operations");
 
-    std::srand(2468);
+    RandomService random(2468);
     LootGenerator generator;
     Item item;
     for (int roll = 0; roll < 64; ++roll) {
-        item = generator.generate(3);
+        item = generator.generate(3, random);
         if (item.affixes.size() >= 2) {
             break;
         }
@@ -931,8 +1007,8 @@ void testCraftingChoiceOperations() {
 
     const std::string targetIdBeforeReroll = item.affixes[0].id;
     const ItemAffix otherBeforeReroll = item.affixes[1];
-    std::srand(97531);
-    expect(LootGenerator::rerollAffix(item, 0) == CraftingResult::Success,
+    RandomService rerollRandom(97531);
+    expect(LootGenerator::rerollAffix(item, 0, rerollRandom) == CraftingResult::Success,
         "RerollAffix selects a legal replacement");
     expect(item.affixes[0].id != targetIdBeforeReroll
             && item.affixes[0].isPrefix == originalTarget.isPrefix
@@ -1409,8 +1485,12 @@ void testMapRewardGeneration() {
     };
     std::set<std::string> unlockedSupports;
 
-    std::srand(7);
-    const auto rewards = MapRewardLibrary::generateOptions(unlockedSkills, unlockedSupports);
+    RandomService random(7);
+    const auto rewards = MapRewardLibrary::generateOptions(
+        unlockedSkills,
+        unlockedSupports,
+        random
+    );
     expect(rewards.size() == 3, "map rewards yield three options");
 
     int skillUnlocks = 0;
@@ -1423,6 +1503,30 @@ void testMapRewardGeneration() {
         }
     }
     expect(skillUnlocks >= 1, "at least one reward unlocks a new skill while skills remain locked");
+
+    auto rewardSignature = [](const std::array<MapRewardDefinition, 3>& options) {
+        std::string signature;
+        for (const auto& option : options) {
+            signature += option.title + "|" + option.skillName + "|" + option.supportName + ";";
+        }
+        return signature;
+    };
+    RandomService repeatedRandom(7);
+    RandomService differentRandom(8);
+    const auto repeatedRewards = MapRewardLibrary::generateOptions(
+        unlockedSkills,
+        unlockedSupports,
+        repeatedRandom
+    );
+    const auto differentRewards = MapRewardLibrary::generateOptions(
+        unlockedSkills,
+        unlockedSupports,
+        differentRandom
+    );
+    expect(rewardSignature(rewards) == rewardSignature(repeatedRewards),
+        "same reward seed reproduces the reward options");
+    expect(rewardSignature(rewards) != rewardSignature(differentRewards),
+        "different reward seeds change the reward options");
 }
 
 // --- Passive + equip pipeline matches Player.recalculateStats ---
@@ -1511,6 +1615,8 @@ void testItemContainers() {
 int main() {
     std::cout << "ARPG pure-logic tests (shipped headers)\n";
 
+    testRandomService();
+    testEnemySpawnerRandomness();
     testPassiveTreePrerequisitesAndStats();
     testPassiveKeystones();
     testSkillBarAssignSkillAndSupport();

@@ -16,6 +16,7 @@
 #include "MapInstance.hpp"
 #include "MapModifier.hpp"
 #include "MapRewardLibrary.hpp"
+#include "RandomService.hpp"
 #include "SkillBar.hpp"
 #include "Stash.hpp"
 #include "Upgrade.hpp"
@@ -54,10 +55,11 @@ struct RunProgression {
 
 class GameWorld {
 public:
-    GameWorld();
+    explicit GameWorld(std::uint64_t runSeed = RandomService::DefaultSeed);
 
     void update(float dt, Input& input);
     void reset();
+    void reset(std::uint64_t runSeed);
 
     const Player& player() const;
     const std::vector<Projectile>& projectiles() const;
@@ -124,6 +126,7 @@ public:
     int score() const;
     float survivalTime() const;
     int mapLevel() const;
+    std::uint64_t runSeed() const;
     int currentWave() const;
     int enemiesRemainingInWave() const;
     const MapModifier& mapModifier() const;
@@ -228,8 +231,8 @@ private:
     int enemyHpForMap() const;
     int enemyDamageForMap() const;
     int itemLevelForMap() const;
-    EnemyType nextMapEnemyType() const;
-    EliteModifier randomEliteModifier() const;
+    EnemyType nextMapEnemyType();
+    EliteModifier randomEliteModifier();
     bool shouldSpawnBoss() const;
     void triggerBossIfNeeded();
 
@@ -250,6 +253,8 @@ private:
     SkillBar skillBar_;
     MapInstance map_;
     RunProgression progression_;
+    std::uint64_t runSeed_;
+    RandomService random_;
 
     GameState state_;
     int score_;

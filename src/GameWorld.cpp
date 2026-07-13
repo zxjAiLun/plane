@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
 #include <utility>
 
 namespace {
@@ -48,9 +47,11 @@ void mergeLootBias(LootBias& target, const LootBias& extra) {
 }
 }
 
-GameWorld::GameWorld()
+GameWorld::GameWorld(std::uint64_t runSeed)
     : map_()
     , progression_()
+    , runSeed_(runSeed)
+    , random_(runSeed)
     , state_(GameState::Playing)
     , score_(0)
     , survivalTime_(0.0f)
@@ -282,6 +283,12 @@ void GameWorld::movePlayerBy(const Vector2& delta) {
 }
 
 void GameWorld::reset() {
+    reset(RandomService::deriveSeed(runSeed_, 1));
+}
+
+void GameWorld::reset(std::uint64_t runSeed) {
+    runSeed_ = runSeed;
+    random_.reseed(runSeed_);
     player_ = Player();
     map_ = MapInstance(1, 0);
     bossDefinition_ = &BossLibrary::forMapLevel(1);
@@ -756,7 +763,7 @@ void GameWorld::spawnEnemies(float dt) {
     const int damage = enemyDamageForMap() + definition.damageBonus + modifierDefinition.damageBonus;
 
     if (auto enemy = spawner_.trySpawnNear(
-            player_.position(), map_.size(), map_, hp, damage, type, modifier
+            player_.position(), map_.size(), map_, hp, damage, type, modifier, random_
         )) {
         enemies_.push_back(*enemy);
         ++enemiesSpawnedInWave_;
@@ -1261,7 +1268,7 @@ int GameWorld::dropItemsAround(
         const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
         droppedItems_.push_back(DroppedItem(
             center + offset,
-            lootGenerator_.generate(itemLevelForMap(), mapModifier_.lootBias())
+            lootGenerator_.generate(itemLevelForMap(), random_, mapModifier_.lootBias())
         ));
         ++mapItemsDropped_;
     }
@@ -1742,7 +1749,7 @@ void GameWorld::applyCraftingOperation() {
             break;
         case CraftingOperation::RerollAffix:
             result = LootGenerator::rerollAffix(candidate,
-                static_cast<std::size_t>(craftingState_.affixIndex), mapModifier_.lootBias());
+                static_cast<std::size_t>(craftingState_.affixIndex), random_, mapModifier_.lootBias());
             break;
         case CraftingOperation::RaiseAffixTier:
             result = LootGenerator::raiseAffixTier(candidate,
@@ -1884,7 +1891,9 @@ void GameWorld::applyMapReward(const MapRewardDefinition& reward) {
 
 void GameWorld::generateMapRewardOptions() {
     mapRewardOptions_ = MapRewardLibrary::generateOptions(
-        progression_.unlockedSkills, progression_.unlockedSupports
+        progression_.unlockedSkills,
+        progression_.unlockedSupports,
+        random_
     );
     selectedMapRewardOption_ = -1;
     mapRewardChosen_ = false;
@@ -1944,8 +1953,7 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
     mapExperienceGained_ += exp;
 
     const bool restoresFlask = definition.flaskChargeAmount > 0
-        && (definition.flaskChargeChancePercent >= 100
-            || (std::rand() % 100) < definition.flaskChargeChancePercent);
+        && random_.chance(definition.flaskChargeChancePercent);
     if (restoresFlask) {
         restoreLifeFlaskCharges(
             definition.flaskChargeAmount,
@@ -1961,7 +1969,7 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         player_.stats()
     );
 
-    int dropsToCreate = (std::rand() % 100) < dropChance ? 1 : 0;
+    int dropsToCreate = random_.chance(dropChance) ? 1 : 0;
     if (enemy.isBoss()) {
         const int guaranteedDrops = bossDefinition_->guaranteedDrops + mapModifier_.bossDropBonus;
         const int scaledGuaranteedDrops = std::max(guaranteedDrops, static_cast<int>(std::ceil(
@@ -1980,7 +1988,7 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         }
         Item item = enemy.isBoss() && i == 0
             ? lootGenerator_.generateBossReward(itemLevelForMap(), bossDefinition_->lootTheme)
-            : lootGenerator_.generate(itemLevelForMap(), dropBias);
+            : lootGenerator_.generate(itemLevelForMap(), random_, dropBias);
         droppedItems_.push_back(DroppedItem(enemy.position() + offset, std::move(item)));
         ++mapItemsDropped_;
         if (enemy.isBoss()) {
@@ -2060,12 +2068,15 @@ int GameWorld::itemLevelForMap() const {
     return std::max(1, mapLevel_ + mapModifier_.itemLevelBonus);
 }
 
-EliteModifier GameWorld::randomEliteModifier() const {
+EliteModifier GameWorld::randomEliteModifier() {
     const int modifierCount = static_cast<int>(EliteModifierLibrary::all().size()) - 1;
-    return static_cast<EliteModifier>(1 + std::rand() % modifierCount);
+    if (modifierCount <= 0) {
+        return EliteModifier::None;
+    }
+    return static_cast<EliteModifier>(random_.nextInt(1, modifierCount));
 }
 
-EnemyType GameWorld::nextMapEnemyType() const {
+EnemyType GameWorld::nextMapEnemyType() {
     const auto& encounter = map_.definition().encounter;
     const int eliteWeight = std::min(
         45, encounter.eliteWeight + mapLevel_ * 2 + mapModifier_.eliteWeightBonus
@@ -2077,7 +2088,7 @@ EnemyType GameWorld::nextMapEnemyType() const {
         encounter.chargerWeight + mapModifier_.chargerWeightBonus
     );
     const int totalWeight = normalWeight + rangedWeight + chargerWeight + eliteWeight;
-    const int roll = std::rand() % totalWeight;
+    const int roll = random_.nextInt(0, totalWeight - 1);
 
     if (roll < eliteWeight) {
         return EnemyType::Elite;
@@ -2264,6 +2275,7 @@ GameState GameWorld::state() const { return state_; }
 int GameWorld::score() const { return score_; }
 float GameWorld::survivalTime() const { return survivalTime_; }
 int GameWorld::mapLevel() const { return mapLevel_; }
+std::uint64_t GameWorld::runSeed() const { return runSeed_; }
 int GameWorld::currentWave() const {
     return 0;
 }

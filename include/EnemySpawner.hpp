@@ -2,6 +2,7 @@
 
 #include <optional>
 #include "Enemy.hpp"
+#include "RandomService.hpp"
 #include "Timer.hpp"
 #include "Vector2.hpp"
 
@@ -14,6 +15,13 @@ public:
     void update(float dt);
     std::optional<Enemy> trySpawn(int hp, int contactDamage, EnemyType type = EnemyType::Normal,
         EliteModifier eliteModifier = EliteModifier::None);
+    std::optional<Enemy> trySpawn(
+        int hp,
+        int contactDamage,
+        EnemyType type,
+        EliteModifier eliteModifier,
+        RandomService& random
+    );
     std::optional<Enemy> trySpawnNear(
         const Vector2& playerPosition,
         const Vector2& worldSize,
@@ -22,6 +30,16 @@ public:
         int contactDamage,
         EnemyType type = EnemyType::Normal,
         EliteModifier eliteModifier = EliteModifier::None
+    );
+    std::optional<Enemy> trySpawnNear(
+        const Vector2& playerPosition,
+        const Vector2& worldSize,
+        const MapInstance& map,
+        int hp,
+        int contactDamage,
+        EnemyType type,
+        EliteModifier eliteModifier,
+        RandomService& random
     );
 
     void setSpawnInterval(float interval);

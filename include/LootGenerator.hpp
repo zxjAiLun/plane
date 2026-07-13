@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdlib>
 #include <set>
 #include <string>
 #include <utility>
@@ -13,6 +12,7 @@
 #include "Affix.hpp"
 #include "Crafting.hpp"
 #include "Item.hpp"
+#include "RandomService.hpp"
 
 struct AffixDefinition {
     std::string name;
@@ -28,11 +28,19 @@ struct AffixDefinition {
 class LootGenerator {
 public:
     Item generate(int monsterLevel, const LootBias& bias = {}) const {
+        return generate(monsterLevel, RandomService::legacy(), bias);
+    }
+
+    Item generate(
+        int monsterLevel,
+        RandomService& random,
+        const LootBias& bias = {}
+    ) const {
         Item item;
         item.itemLevel = monsterLevel;
-        item.slot = randomSlot();
-        item.rarity = randomRarity(monsterLevel);
-        applyBase(item, randomBaseFor(item.slot));
+        item.slot = randomSlot(random);
+        item.rarity = randomRarity(monsterLevel, random);
+        applyBase(item, randomBaseFor(item.slot, random));
 
         const int affixCount = affixCountFor(item.rarity);
         const int tier = tierForLevel(monsterLevel) + 1;
@@ -41,7 +49,9 @@ public:
         std::set<std::size_t> usedIndices;
         std::set<AffixStat> usedStats;
         for (int i = 0; i < affixCount; ++i) {
-            const AffixDefinition& affix = randomAffixFor(item.slot, usedIndices, usedStats, bias);
+            const AffixDefinition& affix = randomAffixFor(
+                item.slot, usedIndices, usedStats, bias, random
+            );
             const Stats contribution = affixStatsFor(affix, monsterLevel);
             item.stats = combineStats(item.stats, contribution);
             const ItemAffix itemAffix{
@@ -202,6 +212,15 @@ public:
         std::size_t affixIndex,
         const LootBias& bias = {}
     ) {
+        return rerollAffix(item, affixIndex, RandomService::legacy(), bias);
+    }
+
+    static CraftingResult rerollAffix(
+        Item& item,
+        std::size_t affixIndex,
+        RandomService& random,
+        const LootBias& bias = {}
+    ) {
         if (affixIndex >= item.affixes.size()) {
             return CraftingResult::InvalidTarget;
         }
@@ -223,7 +242,7 @@ public:
             weights.push_back(weightFor(affixPool()[index], bias));
         }
         const std::size_t selected = candidates[
-            weightedChoiceIndex(weights, std::rand())
+            weightedChoiceIndex(weights, random)
         ];
         const AffixDefinition& replacement = affixPool()[selected];
         ItemAffix replacementAffix{
@@ -283,6 +302,13 @@ public:
         return weights.size() - 1;
     }
 
+    static std::size_t weightedChoiceIndex(
+        const std::vector<int>& weights,
+        RandomService& random
+    ) {
+        return random.weightedChoiceIndex(weights);
+    }
+
 private:
     static ItemBaseTheme toBaseTheme(BossLootTheme theme) {
         switch (theme) {
@@ -301,7 +327,7 @@ private:
         item.stats = item.implicitStats;
     }
 
-    static const ItemBaseDefinition& randomBaseFor(EquipmentSlot slot) {
+    static const ItemBaseDefinition& randomBaseFor(EquipmentSlot slot, RandomService& random) {
         std::vector<const ItemBaseDefinition*> matching;
         for (const auto& base : ItemBaseLibrary::all()) {
             if (base.kind == ItemBaseKind::Normal && base.slot == slot) {
@@ -312,7 +338,7 @@ private:
         if (matching.empty()) {
             return ItemBaseLibrary::all().front();
         }
-        return *matching[static_cast<std::size_t>(std::rand()) % matching.size()];
+        return *matching[random.nextIndex(matching.size())];
     }
 
     static float relativeMultiplier(float target, float base) {
@@ -473,8 +499,8 @@ private:
         return affix.isPrefix ? weight + 10 : weight;
     }
 
-    static EquipmentSlot randomSlot() {
-        switch (std::rand() % 4) {
+    static EquipmentSlot randomSlot(RandomService& random) {
+        switch (random.nextInt(0, 3)) {
             case 0: return EquipmentSlot::Weapon;
             case 1: return EquipmentSlot::Armor;
             case 2: return EquipmentSlot::Ring;
@@ -482,8 +508,8 @@ private:
         }
     }
 
-    static Rarity randomRarity(int monsterLevel) {
-        return rarityForRoll(monsterLevel, std::rand() % 100);
+    static Rarity randomRarity(int monsterLevel, RandomService& random) {
+        return rarityForRoll(monsterLevel, random.nextInt(0, 99));
     }
 
     static int affixCountFor(Rarity rarity) {
@@ -499,7 +525,8 @@ private:
         EquipmentSlot slot,
         std::set<std::size_t>& usedIndices,
         std::set<AffixStat>& usedStats,
-        const LootBias& bias
+        const LootBias& bias,
+        RandomService& random
     ) {
         const auto& pool = affixPool();
         std::vector<std::size_t> matching;
@@ -533,7 +560,7 @@ private:
             weights.push_back(weightFor(pool[index], bias));
         }
 
-        const std::size_t matchingIndex = weightedChoiceIndex(weights, std::rand());
+        const std::size_t matchingIndex = weightedChoiceIndex(weights, random);
         const std::size_t index = matching.empty() ? 0 : matching[matchingIndex];
         usedIndices.insert(index);
         if (index < pool.size()) {

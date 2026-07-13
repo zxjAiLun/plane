@@ -1,11 +1,11 @@
 #pragma once
 
 #include <array>
-#include <cstdlib>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "RandomService.hpp"
 #include "SkillLibrary.hpp"
 #include "SupportLibrary.hpp"
 
@@ -85,7 +85,8 @@ public:
 
     static std::array<MapRewardDefinition, 3> generateOptions(
         const std::set<std::string>& unlockedSkills,
-        const std::set<std::string>& unlockedSupports
+        const std::set<std::string>& unlockedSupports,
+        RandomService& random
     ) {
         std::vector<const SkillDefinition*> lockedSkills;
         for (const auto& skill : SkillLibrary::all()) {
@@ -98,7 +99,7 @@ public:
         std::array<MapRewardDefinition, 3> rewards{};
         std::size_t rewardIndex = 0;
         while (rewardIndex < rewards.size() && !lockedSkills.empty()) {
-            const auto randomIndex = static_cast<std::size_t>(std::rand()) % lockedSkills.size();
+            const auto randomIndex = random.nextIndex(lockedSkills.size());
             rewards[rewardIndex] = skillUnlockReward(*lockedSkills[randomIndex]);
             lockedSkills.erase(lockedSkills.begin() + randomIndex);
             ++rewardIndex;
@@ -113,7 +114,7 @@ public:
             }
 
             while (rewardIndex < rewards.size() && !lockedSupports.empty()) {
-                const auto randomIndex = static_cast<std::size_t>(std::rand()) % lockedSupports.size();
+                const auto randomIndex = random.nextIndex(lockedSupports.size());
                 rewards[rewardIndex] = supportUnlockReward(*lockedSupports[randomIndex]);
                 lockedSupports.erase(lockedSupports.begin() + randomIndex);
                 ++rewardIndex;
@@ -129,6 +130,13 @@ public:
         }
 
         return rewards;
+    }
+
+    static std::array<MapRewardDefinition, 3> generateOptions(
+        const std::set<std::string>& unlockedSkills,
+        const std::set<std::string>& unlockedSupports
+    ) {
+        return generateOptions(unlockedSkills, unlockedSupports, RandomService::legacy());
     }
 
 private:

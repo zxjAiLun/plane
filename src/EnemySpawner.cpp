@@ -3,7 +3,6 @@
 #include "MapInstance.hpp"
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
 
 EnemySpawner::EnemySpawner()
     : defaultInterval_(Config::EnemySpawnInterval)
@@ -19,29 +18,39 @@ void EnemySpawner::setSpawnInterval(float interval) {
 }
 
 std::optional<Enemy> EnemySpawner::trySpawn(int hp, int contactDamage, EnemyType type, EliteModifier eliteModifier) {
+    return trySpawn(hp, contactDamage, type, eliteModifier, RandomService::legacy());
+}
+
+std::optional<Enemy> EnemySpawner::trySpawn(
+    int hp,
+    int contactDamage,
+    EnemyType type,
+    EliteModifier eliteModifier,
+    RandomService& random
+) {
     if (spawnTimer_.isReady()) {
         spawnTimer_.reset();
 
         float x = 0.0f;
         float y = 0.0f;
 
-        int edge = std::rand() % 4;
+        const int edge = random.nextInt(0, 3);
         switch (edge) {
             case 0: // top
-                x = static_cast<float>(std::rand() % Config::WindowWidth);
+                x = static_cast<float>(random.nextInt(0, Config::WindowWidth - 1));
                 y = -Config::EnemyRadius;
                 break;
             case 1: // bottom
-                x = static_cast<float>(std::rand() % Config::WindowWidth);
+                x = static_cast<float>(random.nextInt(0, Config::WindowWidth - 1));
                 y = Config::WindowHeight + Config::EnemyRadius;
                 break;
             case 2: // left
                 x = -Config::EnemyRadius;
-                y = static_cast<float>(std::rand() % Config::WindowHeight);
+                y = static_cast<float>(random.nextInt(0, Config::WindowHeight - 1));
                 break;
             case 3: // right
                 x = Config::WindowWidth + Config::EnemyRadius;
-                y = static_cast<float>(std::rand() % Config::WindowHeight);
+                y = static_cast<float>(random.nextInt(0, Config::WindowHeight - 1));
                 break;
         }
 
@@ -61,6 +70,28 @@ std::optional<Enemy> EnemySpawner::trySpawnNear(
     EnemyType type,
     EliteModifier eliteModifier
 ) {
+    return trySpawnNear(
+        playerPosition,
+        worldSize,
+        map,
+        hp,
+        contactDamage,
+        type,
+        eliteModifier,
+        RandomService::legacy()
+    );
+}
+
+std::optional<Enemy> EnemySpawner::trySpawnNear(
+    const Vector2& playerPosition,
+    const Vector2& worldSize,
+    const MapInstance& map,
+    int hp,
+    int contactDamage,
+    EnemyType type,
+    EliteModifier eliteModifier,
+    RandomService& random
+) {
     if (!spawnTimer_.isReady()) {
         return std::nullopt;
     }
@@ -69,9 +100,12 @@ std::optional<Enemy> EnemySpawner::trySpawnNear(
 
     constexpr float twoPi = 6.28318530718f;
     for (int attempt = 0; attempt < 8; ++attempt) {
-        const float angle = (static_cast<float>(std::rand() % 6283) / 6283.0f) * twoPi;
+        const float angle = random.nextFloat01() * twoPi;
+        const int distanceRange = static_cast<int>(
+            Config::EnemySpawnMaxDistance - Config::EnemySpawnMinDistance
+        );
         const float distance = Config::EnemySpawnMinDistance
-            + static_cast<float>(std::rand() % static_cast<int>(Config::EnemySpawnMaxDistance - Config::EnemySpawnMinDistance));
+            + static_cast<float>(random.nextInt(0, std::max(0, distanceRange - 1)));
         const Vector2 offset(std::cos(angle) * distance, std::sin(angle) * distance);
         Vector2 position = playerPosition + offset;
 
