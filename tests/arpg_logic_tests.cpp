@@ -1019,11 +1019,17 @@ void testItemBaseTypes() {
         slotValue < static_cast<int>(EquipmentSlot::Count); ++slotValue) {
         const auto slot = static_cast<EquipmentSlot>(slotValue);
         int normalBaseCount = 0;
+        std::set<int> normalBuildThemes;
         for (const auto& base : bases) {
-            normalBaseCount += base.kind == ItemBaseKind::Normal && base.slot == slot ? 1 : 0;
+            if (base.kind == ItemBaseKind::Normal && base.slot == slot) {
+                ++normalBaseCount;
+                normalBuildThemes.insert(static_cast<int>(base.buildTheme));
+            }
         }
         expect(normalBaseCount >= 3,
             std::string(slotName(slot)) + " has at least three normal base types");
+        expect(normalBuildThemes.size() >= 2,
+            std::string(slotName(slot)) + " offers at least two build themes");
     }
 
     const auto requiredLevel = [&bases](const std::string& id) {
@@ -1041,6 +1047,19 @@ void testItemBaseTypes() {
             && requiredLevel("weapon.warhammer") == 3
             && requiredLevel("ring.scavenger-loop") == 3,
         "starter and high-tier Item Base requirements are data-driven");
+
+    const auto* hunterBow = ItemBaseLibrary::find("weapon.hunter-bow");
+    const auto* warhammer = ItemBaseLibrary::find("weapon.warhammer");
+    const auto* windweave = ItemBaseLibrary::find("armor.windweave");
+    expect(hunterBow != nullptr && hunterBow->buildTheme == ItemBuildTheme::Projectile
+            && hunterBow->implicitStats.projectileDamageMultiplier > 1.0f,
+        "Projectile Item Base theme carries projectile implicit scaling");
+    expect(warhammer != nullptr && warhammer->buildTheme == ItemBuildTheme::Area
+            && warhammer->implicitStats.areaDamageMultiplier > 1.0f,
+        "Area Item Base theme carries area implicit scaling");
+    expect(windweave != nullptr && windweave->buildTheme == ItemBuildTheme::Loot
+            && windweave->implicitStats.itemQuantityMultiplier > 1.0f,
+        "Loot Item Base theme carries item quantity implicit scaling");
 
     RandomService random(17);
     LootGenerator generator;
@@ -1066,6 +1085,16 @@ void testItemBaseTypes() {
         expect(statsEqual(item.stats, expected),
             "generated item stats equal implicit plus affix contributions");
     }
+
+    bool lowLevelCanDropHigherRequirementBase = false;
+    for (int seed = 0; seed < 256 && !lowLevelCanDropHigherRequirementBase; ++seed) {
+        RandomService lowLevelRandom(seed);
+        const Item item = generator.generate(1, lowLevelRandom);
+        const auto* base = ItemBaseLibrary::find(item.baseId);
+        lowLevelCanDropHigherRequirementBase = base != nullptr && base->requiredLevel > 1;
+    }
+    expect(lowLevelCanDropHigherRequirementBase,
+        "low-level maps can drop higher-requirement bases for meaningful upgrades");
 
     const std::array<std::pair<BossLootTheme, std::string>, 3> bossThemes{{
         {BossLootTheme::Brimstone, "boss.brimstone-brand"},

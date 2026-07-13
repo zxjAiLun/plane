@@ -1489,7 +1489,13 @@ void Renderer::drawItemDetailPanel(const GameWorld& world,
     y += 18.0f;
 
     if (!compact) {
-        drawText(truncateText("Base: " + (item.baseName.empty() ? "Legacy item" : item.baseName), bodyLimit),
+        const auto* base = ItemBaseLibrary::find(item.baseId);
+        const std::string baseSummary = base == nullptr
+            ? "Base: " + (item.baseName.empty() ? "Unknown" : item.baseName)
+                + "  Theme: Unknown"
+            : "Base: " + base->name + "  Theme: "
+                + itemBuildThemeName(base->buildTheme);
+        drawText(truncateText(baseSummary, bodyLimit),
             {x, y}, 12, sf::Color(220, 205, 165));
         y += 16.0f;
 
@@ -1524,8 +1530,12 @@ void Renderer::drawItemDetailPanel(const GameWorld& world,
     y += 16.0f;
 
     if (current) {
-        drawText(truncateText("Current: " + current->name + "  " + statsSummary(current->stats),
-                bodyLimit),
+        const auto* currentBase = ItemBaseLibrary::find(current->baseId);
+        const std::string currentTheme = currentBase == nullptr
+            ? "Unknown"
+            : itemBuildThemeName(currentBase->buildTheme);
+        drawText(truncateText("Current: " + current->name + " [" + currentTheme + "]  "
+                + statsSummary(current->stats), bodyLimit),
             {x, y}, 11, sf::Color(200, 200, 200));
     } else {
         drawText("Current: Empty", {x, y}, 11, sf::Color(150, 150, 150));

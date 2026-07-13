@@ -60,6 +60,25 @@ bool validStatsForRestore(const Stats& stats) {
         && positiveFinite(stats.incomingDamageMultiplier);
 }
 
+bool statsMatchForRestore(const Stats& left, const Stats& right) {
+    const auto close = [](float lhs, float rhs) {
+        return std::abs(lhs - rhs) <= 0.0001f;
+    };
+    return left.maxHp == right.maxHp
+        && close(left.moveSpeedMultiplier, right.moveSpeedMultiplier)
+        && close(left.damageMultiplier, right.damageMultiplier)
+        && close(left.attackSpeedMultiplier, right.attackSpeedMultiplier)
+        && close(left.pickupRangeMultiplier, right.pickupRangeMultiplier)
+        && close(left.projectileDamageMultiplier, right.projectileDamageMultiplier)
+        && close(left.areaDamageMultiplier, right.areaDamageMultiplier)
+        && close(left.areaRadiusMultiplier, right.areaRadiusMultiplier)
+        && left.armor == right.armor
+        && left.projectileCountBonus == right.projectileCountBonus
+        && close(left.lifeFlaskEffectMultiplier, right.lifeFlaskEffectMultiplier)
+        && close(left.itemQuantityMultiplier, right.itemQuantityMultiplier)
+        && close(left.incomingDamageMultiplier, right.incomingDamageMultiplier);
+}
+
 bool validItemForRestore(const Item& item) {
     const auto* base = ItemBaseLibrary::find(item.baseId);
     if (static_cast<int>(item.slot) < 0
@@ -69,6 +88,7 @@ bool validItemForRestore(const Item& item) {
         || item.itemLevel < 1
         || base == nullptr
         || base->slot != item.slot
+        || !statsMatchForRestore(item.implicitStats, base->implicitStats)
         || !validStatsForRestore(item.stats)
         || !validStatsForRestore(item.implicitStats)) {
         return false;
@@ -88,7 +108,12 @@ bool validItemForRestore(const Item& item) {
             }
         }
     }
-    return true;
+
+    Stats expected = item.implicitStats;
+    for (const auto& affix : item.affixes) {
+        expected = combineStats(expected, affix.stats);
+    }
+    return statsMatchForRestore(item.stats, expected);
 }
 
 bool validModifierEffectForRestore(const MapModifierEffect& effect) {

@@ -517,6 +517,11 @@ void testItemBaseLevelRequirementWorldFlow() {
             && world.inventory().size() == 1
             && world.inventory().items().front().baseId == "weapon.rustbound-blade",
         "at-level equip succeeds and returns the old weapon to Inventory");
+    const auto* gatedBase = ItemBaseLibrary::find("weapon.warhammer");
+    expect(gatedBase != nullptr && gatedBase->buildTheme == ItemBuildTheme::Area
+            && std::abs(world.player().stats().areaDamageMultiplier
+                - gatedBase->implicitStats.areaDamageMultiplier) < 0.0001f,
+        "equipped Base theme and implicit stats affect the real Player build");
 
     expect(world.saveRun(path) && SaveService::load(path, data, &error),
         "item requirement fixture saves a valid equipped state");
@@ -528,6 +533,19 @@ void testItemBaseLevelRequirementWorldFlow() {
             && world.inventory().size() == 1
             && world.inventory().items().front().baseId == "weapon.rustbound-blade",
         "rejected invalid Item Base leaves the current run untouched");
+
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "item requirement fixture reloads before implicit validation");
+    data.inventory.front().implicitStats.damageMultiplier = 1.99f;
+    expect(SaveService::save(path, data, &error) && !world.loadRun(path),
+        "implicit stats that disagree with the Base are rejected");
+    const auto& preservedAfterImplicitFailure = world.player().equipment().itemInSlot(
+        EquipmentSlot::Weapon);
+    expect(preservedAfterImplicitFailure
+            && preservedAfterImplicitFailure->baseId == "weapon.warhammer"
+            && world.inventory().size() == 1
+            && world.inventory().items().front().baseId == "weapon.rustbound-blade",
+        "rejected implicit stats leave the current run untouched");
 
     std::filesystem::remove(path);
 }

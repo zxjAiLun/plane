@@ -82,6 +82,7 @@ SaveData sampleData() {
         AffixStat::ProjectileDamageMultiplier,
         true
     });
+    weapon.stats = combineStats(weapon.implicitStats, weapon.affixes.front().stats);
     data.player = Player().saveState();
     data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Weapon)] = weapon;
     data.inventory.push_back(weapon);
