@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`601b279 Harden continuous map progression tests`
+玩法代码基线：`e310894 Improve 800px ARPG HUD readability`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -1472,50 +1472,80 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 - 直接测试：`arpg_logic_tests 958/0`、`arpg_save_tests 11/0`、`arpg_world_tests 254/0`。
 - `PlaneShooter.exe` 启动 3 秒 smoke：通过。
 
-已知约束：本轮未修改 Renderer，尚未完成带截图的 800x600 全面 UI 人工验收；当前无 Renderer/UI 像素级自动测试。下一项任务专门处理这项可读性门禁，不应借机扩展玩法内容。
+已知约束：本轮连续流程测试没有提供 Renderer 截图；13.22 已补上固定坐标审计和启动 smoke，但当前仍无 Renderer/UI 像素级自动测试。
 
-### 13.22 hy3 下一项实施任务：800x600 UI 可读性与流程提示 v1
+### 13.22 已完成任务记录：800x600 UI 可读性与流程提示 v1
 
-目标：在现有玩法不变的前提下，人工验收并修复小窗口下的关键 HUD/面板遮挡，让玩家能完成“探索 -> Boss -> 掉落 -> 结算 -> 下一图”的流程。此任务只做可读性和布局修正，不新增系统。
+目标：在不改变玩法状态机、输入语义和数值的前提下，让 `800x600` 原型窗口中的探索、Boss、掉落、结算和构筑面板保持可读。
+
+实现与 review 结果：
+
+- Playing HUD 的地图、Boss、目标、事件、拾取和 Build 文案统一做宽度限制；事件提示限制在 Boss 面板左侧安全列，避免动态文本穿透 Boss 血条。
+- 装备和背包列表统一截断；普通装备详情面板收敛到 `500x250`，最多展示 3 条词缀并报告剩余数量，避免压到底部技能栏；MapComplete 地面掉落详情使用 `300x240` 紧凑面板。
+- Skill Panel 改为两列 Equipped/Skills/Supports 布局，技能和 Support 池文本有界，第二行 Support 仍位于面板底部安全区。
+- Boss 血条移到中间安全列并缩短附加文本；小地图移到右下角、技能栏上方，避免遮住顶部地图/装备信息。
+- MapComplete 改为左侧拾取与掉落详情、中间 Boss/奖励/地图选择、右侧背包与 Stash 的三列布局，保留奖励选择、地图选择、E 进入、F 拾取和 Tab/Delete 管理。
+- 仅修改 `include/Renderer.hpp` 与 `src/Renderer.cpp`，没有新增玩法、输入、存档字段或测试专用接口。
+
+验收结果：
+
+- 代码提交：`e310894 Improve 800px ARPG HUD readability`。
+- MSVC `cmake --build build --clean-first`：通过；随后增量构建也通过。
+- CTest：`3/3` 通过。
+- 直接测试：`arpg_logic_tests 958/0`、`arpg_save_tests 11/0`、`arpg_world_tests 254/0`。
+- `PlaneShooter.exe` 启动 3 秒 smoke：通过，且清理了本轮启动产生的残留进程。
+- 主 review 做了固定坐标/文本宽度审计和运行 smoke；当前环境没有截图/像素级 UI 测试，因此不宣称完成自动像素验收。
+
+已知约束：Renderer/UI 仍没有像素级自动测试；当前验证是代码坐标审计、clean build、现有业务回归和启动 smoke。后续若再调整布局，必须保留 800x600 安全列和 MapComplete 三阶段检查。
+
+### 13.23 hy3 下一项实施任务：构筑内容扩展 v3（2 技能 + 2 Support）
+
+目标：在现有“技能解锁奖励 -> Skill Panel 分配 -> 双 Support Link -> CombatMath 实际施法”闭环稳定后，增加少量可验证内容，让玩家的 Projectile/Area 构筑出现新的选择。此任务只增加数据和通用计算覆盖，不扩展技能槽、输入系统、地图系统或存档格式。
 
 开始前必须阅读：
 
-- 本文档第 2、3、5、7、11、13.18、13.19、13.20、13.21 节；代码基线为 `601b279`，测试基线为 `958/11/254`。
-- `src/Renderer.cpp` 的 `render()`、Playing HUD、MapComplete、Pause、GameOver、Inventory/Stash、Passive Tree、Skill Panel、Crafting Panel 绘制函数。
-- `include/Renderer.hpp` 的现有 helper 与 `Config.hpp` 的窗口尺寸；先理解当前固定坐标，不要另起 UI 框架。
-- `GameWorld` 的 `mapObjective()`、`nearbyEventPrompt()`、`pickupPrompt()`、`eventStatusMessage()`、`skillPanelOpen()`、`passiveTreeOpen()` 和结算 getter；文案必须读取业务状态，不得在 Renderer 猜测复杂状态。
+- 本文档第 2、3、7、11、13.16、13.18、13.21、13.22 节；代码基线为 `e310894`，测试基线为 `958/11/254`。
+- `include/Skill.hpp`、`include/SkillLibrary.hpp`、`include/SupportLibrary.hpp`、`include/SkillBar.hpp`、`include/CombatMath.hpp`；确认现有 `SkillCastType`、双 Link、兼容性和预览路径。
+- `include/MapRewardLibrary.hpp`、`GameWorld` 的 `RunProgression`/解锁校验、`SaveData` 的技能和 Support 集合；奖励必须自动看到新定义，不能另写名称列表。
+- `src/GameWorld.cpp` 的 Primary/Secondary/Utility 通用施法路径与 `src/Renderer.cpp` 的 Skill Panel/装备详情预览；新增内容不能依赖 Renderer 分支。
+- `tests/arpg_logic_tests.cpp`、`tests/game_world_logic_tests.cpp`、`tests/save_logic_tests.cpp`；先运行并记录 `958/11/254`，不得复制已有测试。
 
-实施范围：
+固定内容范围：
 
-1. 用现有 `PlaneShooter.exe` 实际打开并检查至少两种窗口：`800x600` 和当前默认尺寸。若程序没有运行时改尺寸入口，允许在测试分支临时通过现有窗口配置启动验证，但不得把测试专用开关带入生产代码。
-2. 逐项检查 Playing：HP/Mana、Level/SP、地图名/词缀、目标、Events、Boss HUD、pickup/event toast、Build/SkillBar、Inventory/Stash 是否互相覆盖或出界。
-3. 逐项检查 MapComplete：阶段文案、三项奖励、三张地图候选、E 提示、地面掉落详情、Inventory/Stash 管理、F/Tab/Delete 文案是否仍可读；禁止因为遮挡而删除已有功能。
-4. 检查 Passive Tree、Skill Panel、Crafting Panel、Pause、GameOver 的打开/关闭优先级和最小窗口边界；修正时优先使用统一 panel origin、行高或可用区域计算，避免散落 magic number。
-5. 若发现文案超出容器，优先缩短稳定文案或换行；不得通过负字距、全局缩放字体或隐藏信息掩盖问题。不得修改战斗数值、掉率、奖励、地图生成、输入语义或存档格式。
-6. 每个实际修正至少补一个可自动断言的稳定业务 getter/布局相关纯函数测试；如果问题只能人工判断，必须在交付报告中给出窗口尺寸、触发状态、修正坐标和复验结果。
+1. 新增主动技能 `Arc Bolt`：`Primary`、`Projectile`，单投射物、无散射、基础伤害 `3`、冷却 `0.65s`、Mana `2`；不得新增新的 CastType 或 GameWorld 技能名称分支。
+2. 新增主动技能 `Shockwave`：`Utility`、`SelfCenteredArea`，半径 `120`、基础伤害 `3`、冷却 `1.50s`、Mana `6`；使用现有 Area 专精、Support、Shrine 和半径计算路径。
+3. 新增 Support `Barrage`：仅兼容 Projectile；`extraProjectileCount=1`、`extraSpreadAngle=12°`、`damageMultiplier=0.88`，不新增独立计算公式。
+4. 新增 Support `Concentration`：仅兼容 MouseTargetedArea/SelfCenteredArea；`damageMultiplier=1.22`、`radiusMultiplier=0.78`、`cooldownMultiplier=1.12`，不影响 Projectile 或 Dash。
+5. 新技能初始保持锁定；新 Support 初始保持锁定。`MapRewardLibrary` 必须从 `SkillLibrary::all()`/`SupportLibrary::all()` 自动过滤并生成奖励，不允许在 `GameWorld` 或 Renderer 写新名称白名单。
+6. Skill Panel、MapComplete 奖励预览、装备详情预览应通过现有数据驱动路径自动显示新条目；不要新增 UI 特例。
 
-强制约束：
+强制实现约束：
 
-- 只允许修改 `Renderer.hpp/cpp`、必要的 `Config.hpp` 窗口常量和与布局纯函数直接相关的测试；不改 `GameWorld` 的玩法状态机。
-- 不新增技能、Support、Boss、敌人、地图事件、装备槽、货币、商店、loot filter、输入键、存档字段或 UI 页面。
-- 不引入纹理、美术资源、第三方 UI 库、像素级截图依赖或平台特定 API。
-- 不复制 GameWorld 的伤害、掉落、地图或奖励公式到 Renderer；Renderer 只读 getter 和现有 CombatMath/显示 helper。
-- hy3 不提交代码、不修改本手册；保持工作区未提交，报告完整 diff、800x600 与默认尺寸检查、测试数量、clean build、CTest、直接测试、启动 smoke 和未修复风险。
+- 优先只改 `SkillLibrary.hpp`、`SupportLibrary.hpp` 及必要的通用测试；若必须扩展 enum，只允许增加对应 `SupportKind` 并让 `SupportLibrary::supportsSkill()` 表达兼容性。
+- 不新增技能槽、输入键、地图事件、Boss、敌人类型、装备槽、货币、商店、loot filter、自动拾取、跨运行存档或存档字段。
+- 不修改已有技能/Support/天赋/装备/地图的数值；新数据的数值只能使用本任务固定值。
+- 不在 `GameWorld` 按技能名称写 if/switch；实际伤害、半径、冷却、投射物和 Support 兼容性必须走现有 `CombatMath`/`SkillBar` 聚合。
+- 不绕过解锁校验：数字键只能分配已解锁技能，F 键/Support 路径只能使用已解锁 Support；非法槽位、重复 Support、非法存档字段继续拒绝。
+- 不修改 Renderer 的固定布局；若新名称导致文本超宽，只使用现有 `truncateText`/摘要 helper，不重做 UI。
+- hy3 不提交代码、不修改本手册；工作区保持未提交，交付完整 diff、测试数量、clean build、CTest、直接测试、启动 smoke 和未修复风险。
 
 必须验证：
 
-- MSVC `cmake --build build --clean-first`、CTest `3/3`、三套测试直接运行、`PlaneShooter.exe` 启动 3 秒 smoke。
-- Playing、MapComplete、Pause、GameOver、Passive Tree、Skill Panel、Crafting Panel 各至少检查一次；MapComplete 必须检查“只选奖励/只选地图/两者都选”三个阶段。
-- 800x600 下不能出现关键文本出界、面板互相覆盖到无法操作、Boss 血条/拾取目标/结算选项不可读。
-- 交付中明确列出每个改动的文件、原因、前后坐标/行高、是否新增测试，以及 `git status --short`。
+- 纯逻辑：`SkillLibrary::all()` 包含 10 个技能；Arc Bolt/Shockwave 的槽位、CastType、数值准确；Barrage/Concentration 的兼容性只覆盖目标 CastType。
+- 纯逻辑：Arc Bolt 受 Projectile 专精和 Projectile Support 影响，Area 专精不影响；Shockwave 受 Area 伤害/半径和 Area Support 影响，Projectile 专精不影响；Concentration 的伤害/半径/冷却聚合准确。
+- 纯逻辑：新增技能/Support 初始未解锁，MapRewardLibrary 能在未解锁时生成对应奖励，解锁后不再重复生成；非法分配仍被拒绝。
+- GameWorld：至少一条真实 `Arc Bolt` Projectile 施法和一条真实 `Shockwave` Area 施法，反馈伤害等于目标实际 HP 变化；至少一条 Support Link 组合通过 Skill Panel/SkillBar 数据路径生效。
+- 存档：解锁新技能、新 Support 和装备 Link 后保存/加载，集合和 Link 顺序保留；损坏/非法字段不污染当前运行。
+- MSVC `cmake --build build --clean-first`、CTest `3/3`、三套直接测试、`PlaneShooter.exe` 启动 3 秒 smoke 全部通过；测试数量必须高于 `958/11/254`。
 
-完成定义：默认窗口和 800x600 的核心战斗/结算/面板流程可读且可操作，现有 958/11/254 回归不退化；主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
+完成定义：2 个主动技能和 2 个 Support 完全由现有数据/CombatMath/奖励/解锁/预览路径接入，纯逻辑、真实施法和存档边界有覆盖；主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
 
 ## 14. 项目进度看板
 
 | 领域 | 状态 | 说明 |
 |---|---|---|
 | 主动战斗 | v1 完成 | 四槽技能、Support、异常、药瓶已形成基础构筑 |
+| 构筑内容扩展 | 原型 | 8 个技能、7 个 Support、双 Link 和解锁奖励已可玩；下一步固定增加 2 技能 + 2 Support |
 | 开放地图 | v1 完成 | 大地图、相机、预制布局、探索小地图、事件和 Boss 路线已完成 |
 | 怪物生态 | v1 完成 | 近战、远程、精英、冲锋、ElitePack 均有，精英风险和事件进度已有数据化可读反馈 |
 | Boss | v1 完成 | Brood 召唤、Brimstone 火区、Storm 锁定突进形成三种独立机制 |
