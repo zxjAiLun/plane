@@ -4,6 +4,7 @@
 #include <array>
 #include <set>
 #include <string>
+#include <filesystem>
 #include "BossDefinition.hpp"
 #include "Crafting.hpp"
 #include "Player.hpp"
@@ -17,6 +18,8 @@
 #include "MapModifier.hpp"
 #include "MapRewardLibrary.hpp"
 #include "RandomService.hpp"
+#include "SaveData.hpp"
+#include "SaveService.hpp"
 #include "SkillBar.hpp"
 #include "Stash.hpp"
 #include "Upgrade.hpp"
@@ -60,6 +63,8 @@ public:
     void update(float dt, Input& input);
     void reset();
     void reset(std::uint64_t runSeed);
+    bool saveRun(const std::filesystem::path& path) const;
+    bool loadRun(const std::filesystem::path& path);
 
     const Player& player() const;
     const std::vector<Projectile>& projectiles() const;
@@ -158,6 +163,8 @@ public:
 private:
     void startNextMap();
     void updatePlaying(float dt, Input& input);
+    SaveData captureSaveData() const;
+    bool restoreFromSaveData(const SaveData& data);
     void movePlayerBy(const Vector2& delta);
     void updateObjects(float dt);
     void updateGroundHazards(float dt);

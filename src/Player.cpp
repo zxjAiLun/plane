@@ -3,6 +3,7 @@
 #include "Config.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 Player::Player()
@@ -174,6 +175,66 @@ std::optional<Item> Player::equipItem(Item item) {
     }
 
     return replaced;
+}
+
+PlayerSaveState Player::saveState() const {
+    return {
+        position_,
+        hp_,
+        mana_,
+        level_,
+        exp_,
+        expToNextLevel_,
+        talentPoints_,
+        upgradeStats_,
+        passiveTree_.allocatedNodes(),
+        equipment_.items()
+    };
+}
+
+bool Player::restoreState(const PlayerSaveState& state, const Vector2& bounds) {
+    const auto validPositiveMultiplier = [](float value) {
+        return std::isfinite(value) && value > 0.0f;
+    };
+    if (!std::isfinite(state.position.x) || !std::isfinite(state.position.y)
+        || state.level < 1 || state.exp < 0 || state.expToNextLevel < 1
+        || state.talentPoints < 0 || state.hp < 0
+        || !std::isfinite(state.mana) || state.mana < 0.0f || state.mana > maxMana_
+        || !validPositiveMultiplier(state.upgradeStats.moveSpeedMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.damageMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.attackSpeedMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.pickupRangeMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.projectileDamageMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.areaDamageMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.areaRadiusMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.lifeFlaskEffectMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.itemQuantityMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.incomingDamageMultiplier)) {
+        return false;
+    }
+
+    Player restored = *this;
+    restored.bounds_ = bounds;
+    if (!restored.passiveTree_.restoreAllocatedNodes(state.allocatedPassiveNodes)
+        || !restored.equipment_.restoreItems(state.equipment)) {
+        return false;
+    }
+
+    restored.position_ = state.position;
+    restored.upgradeStats_ = state.upgradeStats;
+    restored.level_ = state.level;
+    restored.exp_ = state.exp;
+    restored.expToNextLevel_ = state.expToNextLevel;
+    restored.talentPoints_ = state.talentPoints;
+    restored.mana_ = std::clamp(state.mana, 0.0f, restored.maxMana_);
+    restored.recalculateStats();
+    if (state.hp > restored.maxHp_) {
+        return false;
+    }
+    restored.hp_ = state.hp;
+    restored.setPosition(state.position);
+    *this = std::move(restored);
+    return true;
 }
 
 void Player::recalculateStats() {

@@ -110,6 +110,34 @@ public:
         return nodes_;
     }
 
+    std::array<bool, 20> allocatedNodes() const {
+        std::array<bool, 20> result{};
+        for (std::size_t index = 0; index < nodes_.size(); ++index) {
+            result[index] = nodes_[index].allocated;
+        }
+        return result;
+    }
+
+    bool restoreAllocatedNodes(const std::array<bool, 20>& allocated) {
+        for (std::size_t index = 0; index < nodes_.size(); ++index) {
+            if (!allocated[index]) {
+                continue;
+            }
+
+            const int prerequisite = nodes_[index].prerequisite;
+            if (prerequisite >= 0
+                && (static_cast<std::size_t>(prerequisite) >= allocated.size()
+                    || !allocated[static_cast<std::size_t>(prerequisite)])) {
+                return false;
+            }
+        }
+
+        for (std::size_t index = 0; index < nodes_.size(); ++index) {
+            nodes_[index].allocated = allocated[index];
+        }
+        return true;
+    }
+
     int nodeAtPosition(const Vector2& treePosition, float radius) const {
         int bestIndex = -1;
         float bestDistance = 1000000000.0f;

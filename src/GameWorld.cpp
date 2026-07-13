@@ -45,6 +45,83 @@ void mergeLootBias(LootBias& target, const LootBias& extra) {
     add(extra.primaryTag, extra.primaryWeightMultiplier);
     add(extra.secondaryTag, extra.secondaryWeightMultiplier);
 }
+
+bool positiveFinite(float value) {
+    return std::isfinite(value) && value > 0.0f;
+}
+
+bool validStatsForRestore(const Stats& stats) {
+    return positiveFinite(stats.moveSpeedMultiplier)
+        && positiveFinite(stats.damageMultiplier)
+        && positiveFinite(stats.attackSpeedMultiplier)
+        && positiveFinite(stats.pickupRangeMultiplier)
+        && positiveFinite(stats.projectileDamageMultiplier)
+        && positiveFinite(stats.areaDamageMultiplier)
+        && positiveFinite(stats.areaRadiusMultiplier)
+        && positiveFinite(stats.lifeFlaskEffectMultiplier)
+        && positiveFinite(stats.itemQuantityMultiplier)
+        && positiveFinite(stats.incomingDamageMultiplier);
+}
+
+bool validItemForRestore(const Item& item) {
+    if (static_cast<int>(item.slot) < 0
+        || static_cast<int>(item.slot) >= static_cast<int>(EquipmentSlot::Count)
+        || static_cast<int>(item.rarity) < 0
+        || static_cast<int>(item.rarity) > static_cast<int>(Rarity::Rare)
+        || item.itemLevel < 1
+        || !validStatsForRestore(item.stats)
+        || !validStatsForRestore(item.implicitStats)) {
+        return false;
+    }
+
+    for (const auto& affix : item.affixes) {
+        if (affix.tier < 1
+            || static_cast<int>(affix.stat) < 0
+            || static_cast<int>(affix.stat) > static_cast<int>(AffixStat::Armor)
+            || !validStatsForRestore(affix.stats)) {
+            return false;
+        }
+        for (const auto tag : affix.tags) {
+            if (static_cast<int>(tag) < 0
+                || static_cast<int>(tag) > static_cast<int>(AffixTag::Armor)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool validModifierEffectForRestore(const MapModifierEffect& effect) {
+    return positiveFinite(effect.monsterHpMultiplier)
+        && positiveFinite(effect.monsterSpeedMultiplier)
+        && positiveFinite(effect.itemQuantityMultiplier)
+        && positiveFinite(effect.bossHpMultiplier)
+        && positiveFinite(effect.bossDamageMultiplier)
+        && positiveFinite(effect.eventRewardMultiplier)
+        && positiveFinite(effect.primaryLootBiasWeightMultiplier)
+        && positiveFinite(effect.secondaryLootBiasWeightMultiplier);
+}
+
+bool validModifierForRestore(const MapModifier& modifier) {
+    if (!positiveFinite(modifier.monsterHpMultiplier)
+        || !positiveFinite(modifier.monsterSpeedMultiplier)
+        || !positiveFinite(modifier.itemQuantityMultiplier)
+        || !positiveFinite(modifier.bossHpMultiplier)
+        || !positiveFinite(modifier.bossDamageMultiplier)
+        || !positiveFinite(modifier.eventRewardMultiplier)
+        || !positiveFinite(modifier.lootBiasWeightMultiplier)
+        || !positiveFinite(modifier.secondaryLootBiasWeightMultiplier)
+        || modifier.componentCount < 0 || modifier.componentCount > 2) {
+        return false;
+    }
+    for (int index = 0; index < modifier.componentCount; ++index) {
+        if (!validModifierEffectForRestore(
+                modifier.components[static_cast<std::size_t>(index)].effect)) {
+            return false;
+        }
+    }
+    return true;
+}
 }
 
 GameWorld::GameWorld(std::uint64_t runSeed)
@@ -114,6 +191,21 @@ void GameWorld::update(float dt, Input& input) {
         camera.x + static_cast<float>(input.mousePosition().x),
         camera.y + static_cast<float>(input.mousePosition().y)
     );
+
+    const bool saveLoadContext = !passiveTreeOpen_
+        && !skillPanelOpen_
+        && !craftingState_.open;
+    if (saveLoadContext && input.loadRun()) {
+        loadRun(Config::SaveFileName);
+        input.update();
+        return;
+    }
+    if (saveLoadContext && input.saveRun()) {
+        const bool saved = saveRun(Config::SaveFileName);
+        eventStatusMessage_ = saved ? "Run saved" : "Run save failed";
+        eventStatusTimer_ = 2.0f;
+    }
+
     inventoryFullTimer_ = std::max(0.0f, inventoryFullTimer_ - dt);
     if (eventStatusTimer_ > 0.0f) {
         eventStatusTimer_ = std::max(0.0f, eventStatusTimer_ - dt);
@@ -171,6 +263,304 @@ void GameWorld::update(float dt, Input& input) {
     }
 
     input.update();
+}
+
+bool GameWorld::saveRun(const std::filesystem::path& path) const {
+    std::string error;
+    return SaveService::save(path, captureSaveData(), &error);
+}
+
+bool GameWorld::loadRun(const std::filesystem::path& path) {
+    SaveData data;
+    std::string error;
+    if (!SaveService::load(path, data, &error) || !restoreFromSaveData(data)) {
+        eventStatusMessage_ = "Run load failed";
+        eventStatusTimer_ = 2.0f;
+        return false;
+    }
+
+    eventStatusMessage_ = "Run loaded";
+    eventStatusTimer_ = 2.0f;
+    return true;
+}
+
+SaveData GameWorld::captureSaveData() const {
+    SaveData data;
+    data.state = state_ == GameState::MapComplete
+        ? SavedRunState::MapComplete
+        : SavedRunState::Playing;
+    data.runSeed = runSeed_;
+    data.randomEngineState = random_.engineState();
+    data.mapLevel = mapLevel_;
+    data.mapTemplateIndex = map_.templateIndex();
+    data.mapLayoutIndex = map_.layoutIndex();
+    data.currentMapOption = currentMapOption_;
+    data.nextMapOptions = nextMapOptions_;
+    data.mapRewardOptions = mapRewardOptions_;
+    data.selectedNextMapOption = selectedNextMapOption_;
+    data.selectedMapRewardOption = selectedMapRewardOption_;
+    data.nextMapOptionChosen = nextMapOptionChosen_;
+    data.mapRewardChosen = mapRewardChosen_;
+    data.score = score_;
+    data.survivalTime = survivalTime_;
+    data.mapKills = mapKills_;
+    data.mapExperienceGained = mapExperienceGained_;
+    data.mapItemsDropped = mapItemsDropped_;
+    data.mapBossItemsDropped = mapBossItemsDropped_;
+    data.mapItemsPickedUp = mapItemsPickedUp_;
+    data.lifeFlaskCharges = lifeFlaskCharges_;
+    data.unlockedSkills = progression_.unlockedSkills;
+    data.unlockedSupports = progression_.unlockedSupports;
+    data.itemQuantityRewardMultiplier = progression_.itemQuantityRewardMultiplier;
+    data.forgeFragments = progression_.forgeFragments;
+    data.player = player_.saveState();
+    if (data.player.hp <= 0) {
+        data.player.hp = 1;
+    }
+    data.skillBar = skillBar_.saveState();
+    data.inventory = inventory_.items();
+    data.stash = stash_.items();
+
+    data.droppedItems.reserve(droppedItems_.size());
+    for (const auto& dropped : droppedItems_) {
+        if (!dropped.isCollected()) {
+            data.droppedItems.push_back({dropped.position(), dropped.item()});
+        }
+    }
+    data.mapEvents.reserve(map_.events().size());
+    for (const auto& event : map_.events()) {
+        data.mapEvents.push_back({event.type, event.triggered, event.completed});
+    }
+    data.exploredCells = map_.exploration().revealedCells();
+    return data;
+}
+
+bool GameWorld::restoreFromSaveData(const SaveData& data) {
+    const auto validTemplateIndex = [](int index) {
+        return index >= 0 && index < MapLayoutLibrary::TemplateCount;
+    };
+    const auto validLayoutIndex = [](int index) {
+        return index >= 0 && index < MapLayoutLibrary::VariantCount;
+    };
+    const auto validFloat = [](float value) {
+        return std::isfinite(value);
+    };
+
+    if (data.mapLevel < 1
+        || !validTemplateIndex(data.mapTemplateIndex)
+        || !validLayoutIndex(data.mapLayoutIndex)
+        || !validTemplateIndex(data.currentMapOption.templateIndex)
+        || data.inventory.size() > static_cast<std::size_t>(Config::InventoryCapacity)
+        || data.stash.size() > static_cast<std::size_t>(Config::StashCapacity)
+        || data.droppedItems.size() > 4096
+        || data.mapEvents.size() != 3
+        || !validFloat(data.survivalTime)
+        || data.survivalTime < 0.0f
+        || !validFloat(data.itemQuantityRewardMultiplier)
+        || data.itemQuantityRewardMultiplier <= 0.0f
+        || data.lifeFlaskCharges < 0
+        || data.lifeFlaskCharges > Config::LifeFlaskMaxCharges) {
+        return false;
+    }
+
+    for (const auto& option : data.nextMapOptions) {
+        if (!validTemplateIndex(option.templateIndex)
+            || !validModifierForRestore(option.modifier)) {
+            return false;
+        }
+    }
+    if (!validModifierForRestore(data.currentMapOption.modifier)) {
+        return false;
+    }
+    for (const auto& reward : data.mapRewardOptions) {
+        if (!positiveFinite(reward.itemQuantityMultiplierBonus)) {
+            return false;
+        }
+    }
+    for (const auto& item : data.inventory) {
+        if (!validItemForRestore(item)) {
+            return false;
+        }
+    }
+    for (const auto& item : data.stash) {
+        if (!validItemForRestore(item)) {
+            return false;
+        }
+    }
+    for (const auto& item : data.droppedItems) {
+        if (!validItemForRestore(item.item)) {
+            return false;
+        }
+    }
+    for (const auto& item : data.player.equipment) {
+        if (item && !validItemForRestore(*item)) {
+            return false;
+        }
+    }
+
+    RandomService restoredRandom(data.runSeed);
+    if (!restoredRandom.restoreEngineState(data.randomEngineState)) {
+        return false;
+    }
+
+    PlayerSaveState playerState = data.player;
+    playerState.hp = std::max(1, playerState.hp);
+    Player restoredPlayer;
+    MapInstance restoredMap(
+        data.mapLevel,
+        data.mapTemplateIndex,
+        data.mapLayoutIndex
+    );
+    if (!restoredPlayer.restoreState(playerState, restoredMap.size())
+        || !restoredMap.restoreExploration(data.exploredCells)) {
+        return false;
+    }
+
+    for (std::size_t index = 0; index < data.mapEvents.size(); ++index) {
+        auto& event = restoredMap.eventsForMutation()[index];
+        const auto& saved = data.mapEvents[index];
+        if (event.type != saved.type) {
+            return false;
+        }
+        event.triggered = saved.triggered;
+        event.completed = saved.completed;
+        if (event.completed) {
+            event.triggered = true;
+        } else if (data.state == SavedRunState::Playing) {
+            // Do not restore an in-progress ElitePack without its enemies. The
+            // encounter is reset and can be triggered again from the safe map.
+            event.triggered = false;
+        }
+    }
+
+    if (data.state == SavedRunState::MapComplete) {
+        restoredMap.markBossDefeated();
+    }
+    restoredPlayer.setPosition(restoredMap.playerStart());
+
+    SkillBar restoredSkillBar;
+    if (!restoredSkillBar.restoreState(data.skillBar)) {
+        return false;
+    }
+    for (const auto& skillName : data.skillBar.skills) {
+        if (data.unlockedSkills.find(skillName) == data.unlockedSkills.end()) {
+            return false;
+        }
+    }
+    for (const auto& supportName : data.skillBar.supports) {
+        if (!supportName.empty()
+            && data.unlockedSupports.find(supportName) == data.unlockedSupports.end()) {
+            return false;
+        }
+    }
+
+    Inventory restoredInventory;
+    for (const auto& item : data.inventory) {
+        if (!restoredInventory.add(item)) {
+            return false;
+        }
+    }
+    Stash restoredStash;
+    for (const auto& item : data.stash) {
+        if (!restoredStash.add(item)) {
+            return false;
+        }
+    }
+    std::vector<DroppedItem> restoredDroppedItems;
+    restoredDroppedItems.reserve(data.droppedItems.size());
+    for (const auto& dropped : data.droppedItems) {
+        if (!validFloat(dropped.position.x) || !validFloat(dropped.position.y)
+            || dropped.position.x < 0.0f || dropped.position.x > restoredMap.size().x
+            || dropped.position.y < 0.0f || dropped.position.y > restoredMap.size().y) {
+            return false;
+        }
+        restoredDroppedItems.emplace_back(dropped.position, dropped.item);
+    }
+
+    player_ = std::move(restoredPlayer);
+    map_ = std::move(restoredMap);
+    skillBar_ = std::move(restoredSkillBar);
+    inventory_ = std::move(restoredInventory);
+    stash_ = std::move(restoredStash);
+    progression_.unlockedSkills = data.unlockedSkills;
+    progression_.unlockedSupports = data.unlockedSupports;
+    progression_.itemQuantityRewardMultiplier = data.itemQuantityRewardMultiplier;
+    progression_.forgeFragments = data.forgeFragments;
+    runSeed_ = data.runSeed;
+    random_ = std::move(restoredRandom);
+    mapLevel_ = data.mapLevel;
+    currentMapOption_ = data.currentMapOption;
+    nextMapOptions_ = data.nextMapOptions;
+    mapRewardOptions_ = data.mapRewardOptions;
+    selectedNextMapOption_ = data.selectedNextMapOption;
+    selectedMapRewardOption_ = data.selectedMapRewardOption;
+    nextMapOptionChosen_ = data.nextMapOptionChosen;
+    mapRewardChosen_ = data.mapRewardChosen;
+    mapModifier_ = currentMapOption_.modifier;
+    mapModifier_.itemQuantityMultiplier *= progression_.itemQuantityRewardMultiplier;
+    bossDefinition_ = &BossLibrary::forMapLevel(mapLevel_);
+    player_.setBounds(map_.size());
+    player_.setPosition(map_.playerStart());
+    skillBar_.applyStats(player_.stats());
+
+    score_ = data.score;
+    survivalTime_ = data.survivalTime;
+    mapKills_ = data.mapKills;
+    mapExperienceGained_ = data.mapExperienceGained;
+    mapItemsDropped_ = data.mapItemsDropped;
+    mapBossItemsDropped_ = data.mapBossItemsDropped;
+    mapItemsPickedUp_ = data.mapItemsPickedUp;
+    lifeFlaskCharges_ = data.lifeFlaskCharges;
+    state_ = data.state == SavedRunState::MapComplete
+        ? GameState::MapComplete
+        : GameState::Playing;
+
+    projectiles_.clear();
+    bossProjectiles_.clear();
+    enemyProjectiles_.clear();
+    enemies_.clear();
+    groundHazards_.clear();
+    droppedItems_ = std::move(restoredDroppedItems);
+    spawner_.reset();
+    currentWave_ = 0;
+    enemiesSpawnedInWave_ = 0;
+    resetBossDash();
+    bossAoeCenter_ = map_.bossCenter();
+    bossAoeTelegraphTimer_ = 0.0f;
+    bossAoeEffectTimer_ = 0.0f;
+    volatileExplosionTimer_ = 0.0f;
+    volatileExplosionRadius_ = 0.0f;
+    bossAoeSkill_ = BossSkillDefinition();
+    bossSkillTimer_ = bossDefinition_->skillInterval;
+    bossSkillIndex_ = 0;
+    bossEnraged_ = false;
+    playerHitCooldown_ = 0.0f;
+    playerHitEffectTimer_ = 0.0f;
+    playerHitDamage_ = 0;
+    playerHitSource_.clear();
+    novaEffectTimer_ = 0.0f;
+    secondarySkillEffectTimer_ = 0.0f;
+    dashImpactPosition_ = player_.position();
+    dashImpactTimer_ = 0.0f;
+    dashImpactDuration_ = 0.0f;
+    dashImpactRadius_ = 0.0f;
+    shrineBuffTimer_ = 0.0f;
+    passiveTreeOpen_ = false;
+    skillPanelOpen_ = false;
+    craftingState_ = CraftingState();
+    hoveredPassiveNode_ = -1;
+    nearbyEventPrompt_.clear();
+    inventoryFullTimer_ = 0.0f;
+    selectedInventoryIndex_ = -1;
+    selectedStashIndex_ = -1;
+    stashSelectionActive_ = false;
+    mapEventInteractionConsumed_ = false;
+    activeEliteEventIndex_ = -1;
+    eliteEventEnemiesRemaining_ = 0;
+    eventStatusMessage_.clear();
+    eventStatusTimer_ = 0.0f;
+    updateSelectedInventoryIndex();
+    return true;
 }
 
 void GameWorld::updatePlaying(float dt, Input& input) {

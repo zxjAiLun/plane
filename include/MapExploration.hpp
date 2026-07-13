@@ -89,6 +89,29 @@ public:
     float cellSize() const { return cellSize_; }
     float revealRadius() const { return revealRadius_; }
 
+    std::vector<unsigned char> revealedCells() const {
+        std::vector<unsigned char> result;
+        result.reserve(revealed_.size());
+        for (const bool revealed : revealed_) {
+            result.push_back(revealed ? 1 : 0);
+        }
+        return result;
+    }
+
+    bool restoreRevealedCells(const std::vector<unsigned char>& cells) {
+        if (cells.size() != revealed_.size()) {
+            return false;
+        }
+
+        for (std::size_t index = 0; index < cells.size(); ++index) {
+            if (cells[index] > 1) {
+                return false;
+            }
+            revealed_[index] = cells[index] != 0;
+        }
+        return true;
+    }
+
     Vector2 cellCenter(int column, int row) const {
         return {
             (static_cast<float>(column) + 0.5f) * cellSize_,

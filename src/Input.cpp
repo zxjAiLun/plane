@@ -17,6 +17,8 @@ void Input::update() {
     craftingToggle_ = false;
     stashStoreSelected_ = false;
     stashWithdrawSelected_ = false;
+    saveRun_ = false;
+    loadRun_ = false;
     cancel_ = false;
     numberChoice_ = 0;
     functionChoice_ = 0;
@@ -61,11 +63,11 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::F2: functionChoice_ = 2; break;
         case sf::Keyboard::Key::F3: functionChoice_ = 3; break;
         case sf::Keyboard::Key::F4: functionChoice_ = 4; break;
-        case sf::Keyboard::Key::F5: functionChoice_ = 5; break;
+        case sf::Keyboard::Key::F5: functionChoice_ = 5; saveRun_ = true; break;
         case sf::Keyboard::Key::F6: functionChoice_ = 6; break;
         case sf::Keyboard::Key::F7: functionChoice_ = 7; break;
         case sf::Keyboard::Key::F8: functionChoice_ = 8; break;
-        case sf::Keyboard::Key::F9: functionChoice_ = 9; break;
+        case sf::Keyboard::Key::F9: functionChoice_ = 9; loadRun_ = true; break;
         case sf::Keyboard::Key::F10: functionChoice_ = 10; break;
         case sf::Keyboard::Key::Numpad1: numberChoice_ = 1; break;
         case sf::Keyboard::Key::Numpad2: numberChoice_ = 2; break;
@@ -150,5 +152,7 @@ bool Input::inventorySalvageSelected() const { return inventorySalvageSelected_;
 bool Input::craftingToggle() const { return craftingToggle_; }
 bool Input::stashStoreSelected() const { return stashStoreSelected_; }
 bool Input::stashWithdrawSelected() const { return stashWithdrawSelected_; }
+bool Input::saveRun() const { return saveRun_; }
+bool Input::loadRun() const { return loadRun_; }
 bool Input::cancel() const { return cancel_; }
 sf::Vector2i Input::mousePosition() const { return mousePosition_; }

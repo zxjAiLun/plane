@@ -22,6 +22,21 @@ public:
         return equipped_[slotIndex(slot)];
     }
 
+    const std::array<std::optional<Item>, EquipmentSlotCount>& items() const {
+        return equipped_;
+    }
+
+    bool restoreItems(const std::array<std::optional<Item>, EquipmentSlotCount>& items) {
+        for (std::size_t index = 0; index < items.size(); ++index) {
+            if (items[index] && static_cast<std::size_t>(items[index]->slot) != index) {
+                return false;
+            }
+        }
+
+        equipped_ = items;
+        return true;
+    }
+
     Stats combinedStats() const {
         Stats result;
         for (const auto& item : equipped_) {

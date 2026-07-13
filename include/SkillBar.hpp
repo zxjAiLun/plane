@@ -1,13 +1,21 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <string>
+#include <utility>
 
 #include "Config.hpp"
 #include "PlayerStats.hpp"
 #include "Skill.hpp"
 #include "SkillLibrary.hpp"
 #include "SupportLibrary.hpp"
+
+struct SkillBarSaveState {
+    std::array<std::string, static_cast<std::size_t>(SkillSlot::Count)> skills;
+    std::array<std::string, static_cast<std::size_t>(SkillSlot::Count)> supports;
+    std::array<float, static_cast<std::size_t>(SkillSlot::Count)> elapsed{};
+};
 
 class SkillBar {
 public:
@@ -90,6 +98,42 @@ public:
         }
 
         supportNames_[idx] = name;
+        return true;
+    }
+
+    SkillBarSaveState saveState() const {
+        SkillBarSaveState state;
+        for (std::size_t index = 0; index < definitions_.size(); ++index) {
+            state.skills[index] = definitions_[index].name;
+            state.supports[index] = supportNames_[index];
+            state.elapsed[index] = elapsed_[index];
+        }
+        return state;
+    }
+
+    bool restoreState(const SkillBarSaveState& state) {
+        SkillBar restored = *this;
+        for (std::size_t index = 0; index < definitions_.size(); ++index) {
+            const auto* skill = SkillLibrary::find(state.skills[index]);
+            if (!skill || static_cast<std::size_t>(skill->slot) != index
+                || !std::isfinite(state.elapsed[index])
+                || state.elapsed[index] < 0.0f) {
+                return false;
+            }
+
+            restored.definitions_[index] = *skill;
+            restored.supportNames_[index].clear();
+            if (!state.supports[index].empty()) {
+                const auto* support = SupportLibrary::find(state.supports[index]);
+                if (!support || !SupportLibrary::supportsSkill(*support, *skill)) {
+                    return false;
+                }
+                restored.supportNames_[index] = state.supports[index];
+            }
+            restored.elapsed_[index] = state.elapsed[index];
+        }
+
+        *this = std::move(restored);
         return true;
     }
 

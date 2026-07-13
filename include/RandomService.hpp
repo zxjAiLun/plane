@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <limits>
 #include <random>
+#include <sstream>
+#include <string>
 #include <vector>
 
 class RandomService {
@@ -17,6 +19,23 @@ public:
     }
 
     std::uint64_t seed() const { return seed_; }
+
+    std::string engineState() const {
+        std::ostringstream stream;
+        stream << engine_;
+        return stream.str();
+    }
+
+    bool restoreEngineState(const std::string& serializedState) {
+        std::istringstream stream(serializedState);
+        std::mt19937_64 restored;
+        if (!(stream >> restored)) {
+            return false;
+        }
+
+        engine_ = restored;
+        return true;
+    }
 
     void reseed(std::uint64_t seed) {
         seed_ = seed;

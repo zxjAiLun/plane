@@ -88,6 +88,7 @@ namespace Config {
     constexpr int InventoryCapacity = 9;
     constexpr int StashCapacity = 24;
     constexpr int ForgeUpgradeCost = 3;
+    constexpr const char* SaveFileName = "plane_shooter.save";
 
     constexpr int MapWaveCount = 3;
     constexpr int BaseEnemiesPerWave = 6;

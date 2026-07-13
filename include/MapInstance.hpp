@@ -154,6 +154,10 @@ public:
         exploration_.revealAround(playerStart_);
     }
 
+    bool restoreExploration(const std::vector<unsigned char>& cells) {
+        return exploration_.restoreRevealedCells(cells);
+    }
+
     bool geometryIsValid(float playerRadius = Config::PlayerRadius) const {
         for (const auto& obstacle : obstacles_) {
             const float minX = obstacle.center.x - obstacle.halfExtents.x;

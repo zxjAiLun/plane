@@ -33,6 +33,7 @@ add_executable(PlaneShooter
     src/Enemy.cpp
     src/EnemySpawner.cpp
     src/Collision.cpp
+    src/SaveService.cpp
 )
 
 target_include_directories(PlaneShooter PRIVATE include)
@@ -45,11 +46,20 @@ add_executable(arpg_logic_tests
     src/Enemy.cpp
     src/EnemySpawner.cpp
     src/Timer.cpp
+    src/SaveService.cpp
 )
 target_include_directories(arpg_logic_tests PRIVATE include)
 # Player.cpp needs no SFML; keep the test binary free of graphics deps.
 enable_testing()
 add_test(NAME arpg_logic_tests COMMAND arpg_logic_tests)
+
+add_executable(arpg_save_tests
+    tests/save_logic_tests.cpp
+    src/Player.cpp
+    src/SaveService.cpp
+)
+target_include_directories(arpg_save_tests PRIVATE include)
+add_test(NAME arpg_save_tests COMMAND arpg_save_tests)
 
 add_executable(arpg_world_tests
     tests/game_world_logic_tests.cpp
@@ -61,6 +71,7 @@ add_executable(arpg_world_tests
     src/Enemy.cpp
     src/EnemySpawner.cpp
     src/Collision.cpp
+    src/SaveService.cpp
 )
 target_include_directories(arpg_world_tests PRIVATE include)
 target_link_libraries(arpg_world_tests PRIVATE SFML::Window SFML::System)

@@ -39,6 +39,8 @@ public:
     bool craftingToggle() const;
     bool stashStoreSelected() const;
     bool stashWithdrawSelected() const;
+    bool saveRun() const;
+    bool loadRun() const;
     bool cancel() const;
     sf::Vector2i mousePosition() const;
 
@@ -67,6 +69,8 @@ private:
     bool craftingToggle_ = false;
     bool stashStoreSelected_ = false;
     bool stashWithdrawSelected_ = false;
+    bool saveRun_ = false;
+    bool loadRun_ = false;
     bool cancel_ = false;
     sf::Vector2i mousePosition_{0, 0};
 };
