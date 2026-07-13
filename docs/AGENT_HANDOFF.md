@@ -2,7 +2,7 @@
 
 更新日期：2026-07-14
 
-玩法代码基线：`32f240c Add Arc Bolt and expanded Support content`
+玩法代码基线：`ad53e09 Add item base level requirements`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -94,7 +94,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前测试基线：`arpg_logic_tests 981 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 265 passed / 0 failed`。
+当前测试基线：`arpg_logic_tests 987 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 276 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -1553,14 +1553,14 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 已知约束：当前仍没有 Renderer/UI 像素级自动测试；新技能的实际视觉效果仍依赖现有几何渲染。后续改 UI 必须继续保留 800x600 安全列，并用业务测试加启动 smoke 做回归。
 
-### 13.24 hy3 下一项实施任务：装备基底与等级需求 v1
+### 13.24 已完成任务记录：装备基底与等级需求 v1
 
 目标：把“掉落装备 -> 比较 -> 装备”推进到最小 ARPG 物品约束闭环。装备仍然由地面掉落和 F 拾取，不新增货币、商店或复杂属性系统；本轮只让不同 Item Base 有明确等级门槛，并保证失败装备不会丢失。
 
 开始前必须阅读：
 
-- 本文档第 2、3、7、8、11、13.21、13.22、13.23 节；代码基线为 `32f240c`，测试基线为 `981/11/265`。
-- `include/Item.hpp`、`include/ItemBaseLibrary.hpp`、`include/Equipment.hpp`、`include/Player.hpp`、`include/Inventory.hpp`；确认 Item 的 `baseId`、隐式属性、槽位和完整所有权传递路径。
+- 本文档第 2、3、7、8、11、13.21、13.22、13.23 节；任务开始基线为 `32f240c`，测试基线为 `981/11/265`。
+- `include/Item.hpp`、`include/ItemBase.hpp`、`include/Equipment.hpp`、`include/Player.hpp`、`include/Inventory.hpp`；确认 Item 的 `baseId`、隐式属性、槽位和完整所有权传递路径。
 - `src/GameWorld.cpp` 的 `tryEquipInventoryItem()`、装备替换/回背包/掉落兜底逻辑，以及 `src/Renderer.cpp` 的背包、装备详情和 Skill impact 预览。
 - `include/SaveData.hpp`、存档校验和 `tests/arpg_logic_tests.cpp`、`tests/game_world_logic_tests.cpp`、`tests/save_logic_tests.cpp`；需求数据应由 Item Base 静态定义提供，不能破坏旧存档格式。
 
@@ -1593,9 +1593,63 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 完成定义：装备等级门槛由数据表驱动，失败装备不丢失，成功装备替换和 UI 反馈可验证，存档格式不变，主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
 
+验收结果：
+
+- Item Base 数据表新增 `requiredLevel`：起始 Base 为等级 1，Hunter's Bow/Scaled Mail 等为等级 2，Warhammer/Scavenger Loop/Wide-Eyed Talisman 为等级 3；未增加 Item 或存档字段。
+- `Equipment::canEquip()` 与 `Player::canEquipItem()` 提供唯一合法性查询；GameWorld 在从 Inventory 移除物品前校验，失败时保留原 Item、当前装备、选中索引和 HP。
+- 低等级装备失败显示 `Requires level N`；达到需求后新装备生效，旧装备完整回到 Inventory；未知或槽位不匹配的 Base 在加载时拒绝且不污染当前运行。
+- 背包、装备栏、详情面板和 MapComplete 背包显示 `Req Lv N`；需求不足显示红色，保持现有 800x600 截断布局。
+- 存档 schema 保持 `Version = 2` 不变；保存测试 fixture 改为真实 `weapon.rustbound-blade` Base，未放宽非法数据。
+- 代码提交：`ad53e09 Add item base level requirements`。
+- MSVC `cmake --build build --clean-first`：通过。
+- CTest：`3/3` 通过。
+- 直接测试：`arpg_logic_tests 987/0`、`arpg_save_tests 11/0`、`arpg_world_tests 276/0`。
+- `PlaneShooter.exe` 启动 3 秒 smoke：通过。
+
+已知约束：需求只按 Item Base 和玩家等级判断，没有力量/敏捷/智力属性；Renderer/UI 仍没有像素级自动测试。后续若扩展 Base 属性，必须先补数据和纯逻辑测试，再改 UI。
+
+### 13.25 hy3 下一项实施任务：装备基底主题与掉落价值 v1
+
+目标：让 Item Base 不只是等级门槛，而是形成可读的构筑选择：同一槽位的不同 Base 分别服务通用伤害、Projectile、Area、生存和 Loot。只扩展现有 Base 数据和预览，不能借机增加装备槽、货币或复杂属性系统。
+
+开始前必须阅读：
+
+- 本文档第 2、3、7、8、11、13.23、13.24 节；代码基线为 `ad53e09`，测试基线为 `987/11/276`。
+- `include/ItemBase.hpp`、`include/Stats.hpp`、`include/LootGenerator.hpp`、`include/Equipment.hpp`、`include/CombatMath.hpp`；确认 implicit 与 affix 聚合顺序以及装备替换路径。
+- `include/MapModifier.hpp`、`src/GameWorld.cpp` 的 map level/item level 计算和 `src/Renderer.cpp` 的 Item Base/Skill impact 详情；主题信息必须来自数据，不在 Renderer 按名称判断。
+- `tests/arpg_logic_tests.cpp`、`tests/game_world_logic_tests.cpp`、`tests/save_logic_tests.cpp`；先运行并记录 `987/11/276`，不得只复制旧断言。
+
+固定实现范围：
+
+1. 为现有 Base 增加数据化主题标签或等价字段：`General`、`Projectile`、`Area`、`Survival`、`Loot`；Boss relic 保留现有 Boss theme，并可额外暴露一个构筑主题。
+2. 重新审计并微调现有 Base implicit，使每个普通槽位至少有两种明显不同方向；只允许使用现有 Stats 字段（Damage、Projectile/Area Damage、Area Radius、Max HP、Armor、Move Speed、Pickup Range、Item Quantity、Attack Speed），不得新增伤害类型。
+3. 不修改现有 Item Base 的 requiredLevel、affix tier 规则、地图掉率规则和 Boss 保底规则；如果数值必须调整，必须在测试中固定旧行为或明确记录平衡理由。
+4. LootGenerator 继续从 Base 数据表选择，不增加 GameWorld/baseId 名称分支；地图等级只通过现有 item level 和 affix tier 影响掉落。禁止按玩家等级过滤掉落，需求物品仍可掉落并在 UI 显示不可装备。
+5. Item 详情显示 `Base: <name>`、主题和 implicit；Skill impact 预览必须使用候选 Item 的实际 implicit + affix stats，不能只展示 affix stats。当前/候选的主题差异用文本表达，不做 tooltip 或鼠标点击装备。
+6. 主题字段不写入 Item 或 SaveData；保存时仍由 baseId 重新解析。未知 baseId、Base 与 slot 不匹配、非法 implicit 继续由现有恢复校验拒绝。
+
+强制实现约束：
+
+- hy3 不提交代码、不修改本手册；工作区保持未提交，交付完整 diff、测试数量、clean build、CTest、三套直接测试、启动 smoke 和未修复风险。
+- 优先只修改 `include/ItemBase.hpp`、必要的只读查询/Renderer helper 和对应测试；不得重构 Skill、Map、Boss、SaveService 或输入上下文。
+- 不新增装备槽、属性点、力量/敏捷/智力、货币、商店、分解操作、loot filter、自动拾取或新输入键。
+- 主题是数据字段，不允许在 `GameWorld`、`Renderer` 或 LootGenerator 写 `if (baseId == "...")` 的名称白名单；查询必须通过 Base 定义。
+- 任何隐式属性调整必须通过 `Stats`/`combineStats` 聚合，不能复制一套计算公式；Boss relic 的现有主题掉落偏置保持不变。
+- 不改变存档 schema；新建物品、装备替换、MapComplete 背包管理和非法 Base 加载必须继续保持所有权安全。
+
+必须验证：
+
+- 纯逻辑：每个普通装备槽位存在至少两个不同主题；主题、Base name、implicit stats 和 requiredLevel 可由同一 Base 定义查询。
+- 纯逻辑：Projectile/Area/Survival/Loot 主题分别影响预期 Stats，未选中的专精不被误改；Boss relic 主题偏置和现有 stats 仍一致。
+- 掉落：生成物的 `baseId`、`baseName`、主题、implicit、affix 聚合保持一致；map level 3/5 的 item level/tier 回归不变；高需求 Base 仍可在低等级地图掉落。
+- GameWorld：装备候选预览包含 implicit；实际装备后的 `player.stats()` 等于候选 Base implicit + affix 聚合；替换、失败装备、F 拾取和 MapComplete 管理回归通过。
+- 存档：只保存 baseId，保存/加载后主题从 Base 重新解析；未知 Base 或 Base/slot 不匹配拒绝且当前运行不变。
+- MSVC `cmake --build build --clean-first`、CTest `3/3`、三套直接测试、`PlaneShooter.exe` 启动 3 秒 smoke 全部通过；测试数量必须高于 `987/11/276`。
+
+完成定义：现有 Base 形成可读的构筑方向，implicit/affix/预览/实际装备/掉落/存档使用同一数据源，且没有新增存档字段或输入语义；主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
+
 后续里程碑方向（暂不作为本轮任务）：
 
-- 13.25：装备基底扩展与属性主题，让不同 Base 形成武器伤害、护甲、生命、技能专精的选择；先做数据表和测试，不加新槽位。
 - 13.26：战斗反馈 v2，增加受击数字、技能冷却/资源失败原因和 Boss 机制 telegraph 的统一来源；先解决可读性，再增加伤害类型。
 - 13.27：地图内容 v2，在现有三种事件和三种 Boss 上增加少量可组合 encounter，不引入随机生成器或寻路大重构。
 - 13.28：运行稳定性与发布闭环，补 UI 截图/像素级 smoke、资源打包、崩溃边界和用户可重复的 Release 构建命令。
@@ -1611,13 +1665,13 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | Boss | v1 完成 | Brood 召唤、Brimstone 火区、Storm 锁定突进形成三种独立机制 |
 | 天赋盘 | v1 完成 | 20 节点、四个 Keystone、前置和 HUD/hover 反馈已完成 |
 | 状态异常 | 可玩 | Ignite/Chill、Enemy/Boss 抗性、Support 穿透和 Ignite tick 反馈已有，异常种类仍少 |
-| 装备掉落 | v1 完成 | base/implicit/affix/tier/rarity/relic/tags/weights/地图主题偏置/比较/满包安全已有 |
+| 装备掉落 | v1 完成 | base/implicit/affix/tier/rarity/relic/tags/weights/地图主题偏置/requiredLevel/比较/满包安全已有；下一步做 Base 构筑主题 |
 | 地图选择 | v1 完成 | 三选图、风险收益、模板绑定、稳定布局变体和两词缀组合已有 |
 | 经济/锻造 | v1 完成 | 分解、Forge Fragments、三种选择式词缀加工和当前 run Stash 已有 |
 | 存档 | v1 完成 | 单文件版本化存档、RNG 恢复、坏档保护、MapComplete/安全出生点恢复已有 |
 | 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
 | 连续刷图验收 | v1 完成 | 五张真实 Boss -> 拾取/管理掉落 -> 选奖励/地图 -> E 推进，且死亡/暂停/中间存档边界已有自动保护 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 981 条、存档 11 条、GameWorld 265 条通过；已覆盖五张连续真实 Boss 流程、GameOver/Restart、MapComplete/Paused 存档、Projectile/Area 命中、扩展技能/Support、Ignite tick、ElitePack、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
+| 自动化测试 | 原型 | 纯逻辑 987 条、存档 11 条、GameWorld 276 条通过；已覆盖五张连续真实 Boss 流程、GameOver/Restart、MapComplete/Paused 存档、Projectile/Area 命中、扩展技能/Support、装备等级需求与非法 Base、Ignite tick、ElitePack、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
