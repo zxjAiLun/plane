@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`595f03f Add multi-support skill links`
+玩法代码基线：`5a798dc Add combat hit feedback and Boss flow tests`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -94,7 +94,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前测试基线：`arpg_logic_tests 920 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 85 passed / 0 failed`。
+当前测试基线：`arpg_logic_tests 930 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 101 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -1222,9 +1222,21 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 已知约束：当前仍没有无辅助输入的完整 Boss 通关端到端测试；现有世界测试用合法 SaveData fixture 进入 MapComplete，这是测试边界而非生产 debug API。Support 仍是单局解锁、固定 Link 数量，没有颜色、等级、质量或 Support 物品。
 
-### 13.17 hy3 下一项实施任务：战斗反馈与完整 Boss 通关验证 v1
+### 13.17 已完成任务记录：战斗反馈与完整 Boss 通关验证 v1
 
-目标：在继续增加内容前，证明玩家能理解并完成“移动 -> 命中 -> 受伤 -> 进入 Boss Arena -> 击杀 Boss -> 拾取掉落”的真实战斗闭环。重点是战斗反馈和可测试边界，不新增职业、技能或地图系统。
+代码已通过主 review 并提交为 `5a798dc Add combat hit feedback and Boss flow tests`。
+
+实现结果：
+
+- 新增有界的 `CombatFeedback` 数据通道：每条记录保存世界坐标、实际伤害、技能来源和剩余时间；全局最多 32 条，生命周期 0.8 秒，过期和切图时清理。Renderer 只读该通道并绘制上浮伤害数字。
+- `Enemy::takeDamage()` 现在只返回实际扣除的生命值并把生命值限制在零以上；`claimKillReward()` 保证普通怪、精英和 Boss 的经验、掉落、地图统计和 Boss 结算最多执行一次。
+- Primary 投射物、Secondary/Utility 范围技能和 Dash 伤害均记录实际命中值；投射物保存施放时的技能来源，不会因玩家随后切换技能而改变历史反馈。玩家受击仍复用原有护甲、Shrine/Support 外公式和无敌帧，并保留现有 `HIT -N source` 反馈。
+- 新增真实 GameWorld 战斗测试：通过合法 `SaveData` fixture 仅提高测试角色的移动、伤害和承伤容错，使用真实 WASD 进入 Boss Arena，再用真实右键技能降低 Boss HP，验证反馈、MapComplete 和 Boss 保底地面掉落。
+- 验收基线：`arpg_logic_tests 930 / 0`、`arpg_save_tests 11 / 0`、`arpg_world_tests 101 / 0`；CTest `3/3`、MSVC clean build、三套测试直接运行和 3 秒启动 smoke 全部通过。
+
+已知约束：当前伤害数字覆盖直接技能命中，Ignite 周期伤害仍复用 Enemy 的异常生命周期并通过正常死亡奖励路径结算，但没有单独生成每个 DOT tick 的数字；Renderer/UI 尚未纳入自动像素测试。后续涉及异常反馈时必须先补测试，不得在 Renderer 中复制伤害计算。
+
+原计划目标：在继续增加内容前，证明玩家能理解并完成“移动 -> 命中 -> 受伤 -> 进入 Boss Arena -> 击杀 Boss -> 拾取掉落”的真实战斗闭环。重点是战斗反馈和可测试边界，不新增职业、技能或地图系统。
 
 开始前必须阅读：
 
@@ -1251,6 +1263,54 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 明确不做：新技能、新 Support、新 Boss、新地图事件、职业系统、装备新槽、掉落过滤、自动拾取、音频、美术资源、网络、跨运行存档和大型 GameWorld 重构。
 
+### 13.18 hy3 下一项实施任务：构筑数值一致性与战斗回归基准 v1
+
+目标：在继续增加技能、Support、Boss 或经济内容前，证明“天赋/装备/Support/Shrine -> 技能实际伤害与范围/冷却 -> 命中反馈 -> 装备预览”的数值链路只有一套真相。重点是消除 Renderer 预览、CombatMath、GameWorld 施法三者之间的漂移，让玩家能相信面板上看到的数值。
+
+开始前必须阅读：
+
+- 本文档第 2、4、5、7、11、13.16、13.17 节。
+- `include/CombatMath.hpp`、`include/Stats.hpp`、`include/Skill.hpp`、`include/SkillBar.hpp`、`include/SupportLibrary.hpp`。
+- `GameWorld::damageForPlayerSkill()`、`radiusForPlayerSkill()`、`pierceCountForPlayerSkill()`、`projectileCountForPlayerSkill()`、`spreadAngleForPlayerSkill()`、`ailmentForPlayerSkill()`。
+- `src/Renderer.cpp` 中的 `effectiveSkillDamage()`、`effectiveSkillRadius()`、`effectiveSkillCooldown()`、装备替换预览和 Skill Panel 预览。
+- `tests/arpg_logic_tests.cpp`、`tests/game_world_logic_tests.cpp`、`tests/save_logic_tests.cpp`；先运行三套测试并记录基线。
+
+实施范围：
+
+1. 先做公式审计，列出每个技能槽位最终使用的伤害、半径、冷却、投射物数量、散射角、穿透和异常快照来源。优先复用 `CombatMath` 与 `SkillBar::supportDefinitions()`；如果发现 Renderer 中存在与 `CombatMath` 重复的公式，应抽成无 SFML 的纯 helper 或直接改为调用现有 helper，不能复制第三套计算。
+2. 增加纯逻辑构筑矩阵测试，至少覆盖以下固定场景：
+   - Projectile：Projectile 天赋/装备专精 + 两个合法 Support + Shrine 开启时，Primary 实际命中伤害与 `skillDamage()` 一致；Area 专精不能额外放大该伤害。
+   - Area：Area 天赋/装备专精 + 两个合法 Support + Shrine 开启时，Secondary/Utility 的伤害和实际判定半径与 `skillDamage()`/`skillRadius()` 一致；Projectile 专精不能额外放大 Area 技能。
+   - Primary 攻速只影响冷却；Secondary、Utility、Movement 不得因为 `attackSpeedMultiplier` 被错误缩短。
+   - Support 的额外投射物、散射角、穿透、半径、异常持续时间/穿透按两个 Link 聚合；同一个 Support、非法槽位和未解锁 Support 继续被拒绝。
+   - Shrine 只作为临时技能伤害乘区，不改变永久 `Stats`、装备属性、技能半径或冷却；buff 结束后数值恢复。
+3. 增加至少一条真实 GameWorld 路径回归：对同一个固定 seed 和同一目标，比较施放前后 `combatFeedback` 的实际伤害、目标 HP 变化和 `SkillBar` 当前定义；至少覆盖一个 Projectile 和一个 Area 技能。测试不允许直接修改 GameWorld 私有容器，不新增强制击杀、跳图或 debug 输入。
+4. 校正装备详情面板与 Skill Panel 的预览：预览必须使用与施法相同的 Support 列表和 `CombatMath` helper；特别检查双 Link、Primary cooldown、Projectile/Area 专精、Shrine 不在预览中被错误永久化。若只需改显示格式，保持现有 800x600 布局，不重做面板。
+5. 如发现数值异常，只做最小修正并补对应测试。禁止借机调整整体难度、装备掉率、Boss HP、地图 modifier、天赋节点数值或技能基础值；任何平衡改动另开任务。
+
+强制约束：
+
+- 不新增技能、Support、Boss、地图事件、敌人类型、装备槽、货币、商店、loot filter、存档字段或输入键。
+- 不在 `Renderer.cpp` 读取/修改 GameWorld 私有状态，不把测试专用 getter 暴露给生产代码；只允许稳定业务只读接口。
+- 不按技能名称写分支。技能差异必须由 `SkillCastType`、`SkillDefinition`、Support 数据和 `CombatMath` 表达。
+- 不修改 Shrine/Support/天赋/装备的设计语义；不要为了通过测试把期望值写成当前实现的硬编码快照。
+- 实现 Agent 不提交代码；保持工作区未提交，由主 review Agent 审查、修正、clean build 后提交。
+
+必须验证：
+
+- `arpg_logic_tests`、`arpg_save_tests`、`arpg_world_tests` 全部通过，并报告精确数量；不得只报告构建成功。
+- MSVC clean build、CTest `3/3`、三套测试直接运行、`PlaneShooter.exe` 启动 3 秒 smoke 全部通过。
+- 交付报告必须列出：公式审计结论、实际改动文件、每个构筑矩阵的预期/实际值、真实命中路径、UI 预览与施法值的对照、未修复风险和 `git status --short`。
+
+完成定义：所有已有技能的面板预览、装备替换预览和真实施法都调用同一套计算路径；至少一条 Projectile 和一条 Area 真实命中测试证明反馈伤害等于目标 HP 的实际变化；三套测试和启动 smoke 通过；主 review Agent 提交后才更新进度看板。
+
+后续路线（不属于本轮实施范围）：
+
+1. 状态异常反馈 v2：为 Ignite tick 提供有界、可区分的伤害反馈，并测试 DOT 过量伤害、Boss 抗性和死亡奖励不重复。
+2. 敌群与精英可读性 v2：补精英包角色、词缀风险和掉落价值反馈，保持现有 AI 与地图路线。
+3. 构筑内容扩展 v2：在数值基准稳定后再增加少量技能/Support，并要求每个新增数据定义同时提供兼容性、预览和自动测试。
+4. 运行完成度 v2：补结算统计、失败/重试节奏和更完整的 UI 视觉验收；不以新增系统数量代替可玩性验证。
+
 ## 14. 项目进度看板
 
 | 领域 | 状态 | 说明 |
@@ -1268,6 +1328,6 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
 | 连续刷图验收 | v1 完成 | 五次 MapComplete -> 选奖励 -> 选地图 -> E 推进、成长保留和非法阶段保护已有 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 930 条、存档 11 条、GameWorld 85 条通过，仍缺 Renderer/UI 和完整战斗通关端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 930 条、存档 11 条、GameWorld 101 条通过；已有真实移动进 Boss Arena、技能命中、Boss 击杀和保底掉落测试，仍缺 Renderer/UI 像素级验收 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
