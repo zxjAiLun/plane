@@ -2,9 +2,9 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`1f58836 Add Mana resource to skill casting`
+玩法代码基线：`f26fe1b Add passive tree keystones`
 
-接手文档提交：`7201c35 Document ARPG architecture and development roadmap`
+本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
 目标：完成一个具有《流放之路 2》核心味道的单机 Mini ARPG 原型，而不是复刻完整商业游戏。
 
@@ -92,7 +92,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前纯逻辑测试基线：`321 passed / 0 failed`。
+当前纯逻辑测试基线：`366 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -254,10 +254,13 @@ git status --short
 
 分支实际效果：
 
-- Projectile：投射物伤害、攻速。
-- Area：范围伤害、范围半径。
+- Projectile：投射物伤害、攻速；末端 Keystone `Volley Doctrine` 额外发射 2 枚投射物，但投射物伤害降低 25%。
+- Area：范围伤害、范围半径；末端 Keystone `Concentrated Impact` 范围伤害提高 35%，范围半径降低 25%。
 - Survival：HP、护甲、移速。
-- Loot：拾取范围、少量移速。
+- Survival 末端 Keystone `Second Wind` 使生命药瓶治疗量提高 50%，不增加最大生命或充能。
+- Loot：拾取范围、少量移速；末端 Keystone `Loaded Dice` 使物品掉落数量/概率提高 25%，但承受伤害提高 20%。
+
+Keystone 使用 `PassiveKeystone` 数据字段和 `Stats` 聚合，不依赖节点名称字符串。投射物数量、范围伤害/半径、药瓶治疗、掉落概率/数量和承受伤害均通过 `CombatMath` 或 GameWorld 的真实路径生效；HUD build summary 和天赋 hover 会显示 Keystone 名称及收益/代价。
 
 ### 5.7 技能与技能栏
 
@@ -374,6 +377,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - BossDash 目标快照、前摇、移动、单次命中、完成消费和 Storm 技能顺序。
 - Boss 位移经过地图边界与障碍解析。
 - Mana 初始值、消耗、恢复、上限 clamp、八个技能 cost 和资源不足时 cooldown 不变。
+- 四个 Passive Keystone 的类型、前置、重复分配、收益/代价、投射物/范围/药瓶/掉落/承伤实际计算。
 - 药瓶充能奖励。
 - 地图选项差异和风险缩放。
 - 地图奖励生成。
@@ -568,7 +572,7 @@ Review 严重级别：
 8. 关键操作、伤害、危险预警、奖励和装备变化均有清晰反馈。
 9. 构建、纯逻辑测试和关键手动流程有可重复验收方法。
 
-当前已满足 1、2 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，7 尚未实现，8、9 部分完成。
+当前已满足 1、2 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，7 尚未实现，8、9 部分完成。天赋 Keystone 已让 Projectile、Area、Survival、Loot 分支出现第一层明确取舍，但还没有异常抗性、穿透和更丰富的装备基础类型。
 
 ## 12. 后续路线图
 
@@ -621,13 +625,15 @@ Milestone A 验收：已完成。三个 Boss 至少各有一个其他 Boss 没�
 
 实现结果：`Player` 持有并恢复 Mana；`SkillDefinition` 和 `SkillLibrary` 为八个技能提供显式 cost；`SkillBar` 拆出 `canCast()`/`consumeCooldown()`，GameWorld 四条施法路径统一先检查输入、几何、cooldown 和 Mana，再扣资源并启动 cooldown；reset 新 run 回满，MapComplete/死亡/面板状态不进入施法路径。HUD、Skill Bar 和 Skill Panel 已显示资源信息。
 
-任务 B2：天赋盘 Keystones v1
+任务 B2：天赋盘 Keystones v1（完成：`f26fe1b`）
 
 - 保留现有 20 节点布局，先替换或扩展 4 个分支末端 Notable 行为。
 - Keystone 必须改变玩法，而不是单纯再加 10% 数值。
 - 例：Projectile 增加投射物但降低单发伤害；Area 缩小范围换高伤害；Survival 提高药瓶收益；Loot 提高掉落同时提高怪物伤害。
 - 行为通过数据/tag 和 CombatMath 接入。
 - 不一次扩成上百节点。
+
+实现结果：四个末端 Notable 已数据化为 Volley Doctrine、Concentrated Impact、Second Wind、Loaded Dice。`Stats` 聚合新增投射物数量、药瓶效果、物品数量和承伤倍率；GameWorld 的施法、药瓶、掉落和受击路径均已接入，Renderer 复用 CombatMath 展示实际技能结果。宝箱提示读取实际生成数量，避免 Loaded Dice 激活后出现错误文案。新增 Keystone 纯逻辑回归后测试基线为 366 条。
 
 任务 B3：异常抗性与穿透 v1
 
@@ -727,9 +733,9 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Passive Tree Keystones v1`。
+建议立即交给 hy3：`Ailment Resistances and Penetration v1`。
 
-原因：Mana 已经给技能循环增加了短期资源取舍，但四条天赋分支仍以独立数值节点为主。四个末端 Notable 是最小且可控的入口，能让 Projectile、Area、Survival、Loot 构筑出现真正的收益/代价，而不扩大天赋盘规模。
+原因：Mana 和 Keystone 已经让资源、技能数量、范围、掉落与风险形成第一层构筑差异。当前 Ignite/Chill 对普通怪、Elite 和 Boss 没有抗性差异，Area Ignite 和 Cold control 仍缺少高阶地图中的针对性取舍。下一轮应只补异常抗性与穿透，继续使用现有技能和 Support，不再扩展技能库或地图系统。
 
 ### 13.1 已完成任务记录：Mana Resource v1
 
@@ -774,7 +780,7 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 交付报告必须列出：改动文件、接口变化、各技能 Mana cost、施法判定顺序、测试数量、clean build 结果、已知风险和 `git status --short`。
 
-### 13.2 hy3 实施任务：Passive Tree Keystones v1
+### 13.2 已完成任务记录：Passive Tree Keystones v1
 
 目标：把现有 20 节点中的四个末端 Notable（Projectile 4、Area 9、Survival 14、Loot 19）升级为有明显取舍的 Keystone。普通节点、位置、前置关系、SP 输入和天赋盘 UI 的基本交互保持不变。
 
@@ -787,7 +793,7 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 - `Renderer.cpp` 的 `drawPassiveTree()`、HUD build summary 和 Skill Panel 预览。
 - `tests/arpg_logic_tests.cpp`：现有纯逻辑测试风格和 PassiveTree 测试。
 
-必须实现：
+实际实现：
 
 1. 为 `PassiveNode` 增加明确的 Keystone 类型或等价数据字段，默认值为 `None`；不要依赖节点名称字符串判断行为。四个末端 Notable 各绑定一个唯一 Keystone。
 2. Projectile Keystone：`Volley Doctrine`，投射物技能额外发射 2 枚投射物，但投射物伤害倍率降低 25%。额外投射物必须和 Spread/Volley Support 正确叠加，非 Projectile 技能不受影响。
@@ -823,7 +829,52 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 - 不在 Renderer 中修改状态，不复制 CombatMath 公式。
 - 不提交代码；保持工作区未提交，交给主 review Agent 验收、修正和 commit。
 
-交付报告必须列出：改动文件、Keystone 数据表、每个 Keystone 的收益/代价、实际接入点、测试数量、clean build 结果、已知风险和 `git status --short`。
+交付结果：代码提交为 `f26fe1b`，四个 Keystone 均通过纯逻辑测试；clean build、CTest、直接测试和 3 秒启动 smoke test 均通过，测试为 `366 passed / 0 failed`。本记录保留原始约束，便于回看为什么这些属性必须走真实路径。
+
+### 13.3 hy3 实施任务：Ailment Resistances and Penetration v1
+
+目标：让现有 Ignite/Chill 在普通怪、Elite、Boss 和带地图风险时产生可观察的抗性差异，同时给构筑一个最小的 penetration 入口。只改异常效果计算和相关 UI/测试，不新增技能、Support、敌人类型或地图模板。
+
+开始前必须阅读：
+
+- `include/Ailment.hpp`：当前 Ignite/Chill 定义和快照字段。
+- `include/EnemyDefinition.hpp`、`include/BossDefinition.hpp`：敌人/Boss 数据表及生成缩放。
+- `include/SupportLibrary.hpp`、`include/CombatMath.hpp`：Combustion、Deep Chill 和异常计算入口。
+- `src/GameWorld.cpp`：施法命中、投射物命中、异常应用、DOT tick、Boss/Elite 生成和地图 modifier 接入点。
+- `src/Renderer.cpp`：技能面板异常摘要、Boss 血条区和敌人状态环。
+- `tests/arpg_logic_tests.cpp`：现有 `skillAilment()`、Ignite、Chill 和 Boss 数据测试。
+
+必须实现：
+
+1. 为 `EnemyDefinition` 增加数据化异常抗性字段，至少包含 `igniteResistance` 与 `chillResistance`，默认值为 0；为 BossDefinition 增加可覆盖或乘区字段，不能通过 Boss 名称字符串判断。
+2. 推荐基线：Normal `0/0`，Ranged `10/10`，Charger `15/10`，Elite 在对应普通类型基础上额外 `+15`，Boss 使用定义表中的明确值。数值必须集中在数据表，便于以后调整。
+3. 在异常最终应用前统一计算有效效果：
+   - Ignite 抵抗降低最终 DOT tick damage，不改变原始 hit damage、经验、掉落和击杀归属。
+   - Chill 抵抗降低 slow magnitude，不能让速度倍率低于现有安全下限 `0.20f`。
+   - 抗性应 clamp 到 `[0, 100]`；有效效果不能为负。
+4. 增加最小 penetration 数据入口，不新增装备词缀池：先让 `SupportDefinition` 可选地提供 `ignitePenetration` / `chillPenetration`，只给一个已有 Support 配置非零值用于验证。若你认为现有 Support 不适合，使用一个明确的 CombatMath 参数/测试探针，但不能硬编码技能名。
+5. 有效抗性统一使用 `max(0, resistance - penetration)`。计算必须放在无状态 `CombatMath` 或独立纯 helper 中；GameWorld 只传入技能/Support/敌人数据并应用结果，Renderer 不复制公式。
+6. 状态快照必须保持现有语义：投射物发射后，切换 Support 或玩家属性不能改变已飞行投射物的异常结果；同一次命中只应用一次有效抗性。
+7. 不改变现有异常规则：Ignite 仍按实际命中伤害计算 DOT，Chill 仍影响普通怪、冲锋和 Boss 移动；未受异常命中的敌人行为不变。
+8. UI 至少做到：Boss 血条区域显示 `Ignite Res N% / Chill Res N%`；技能面板或 hover 显示当前 Support 的 penetration。不要新增复杂 tooltip 或独立抗性面板。
+
+测试必须覆盖：
+
+- 默认抗性、各 EnemyDefinition/BossDefinition 的具体抗性数据和 clamp。
+- Ignite：0 抵抗保持现有 tick，抗性降低 tick，100 抵抗不产生正 DOT；命中伤害和击杀奖励不被改写。
+- Chill：0 抵抗保持现有 slow，抗性降低 slow，100 抵抗不产生额外 slow；速度倍率仍在 `[0.20, 1.0]`。
+- Penetration：有效抗性等于 `max(0, resistance - penetration)`；不允许负抗性放大效果；Support 兼容性和快照行为保持。
+- Boss/Elite 走真实 GameWorld 应用路径，不能只测试一个复制公式。
+- 现有全部回归测试仍通过；由于数据表/header 变化，最终必须执行 `cmake --build build --clean-first` 和 CTest。
+
+明确不做：
+
+- 不新增元素伤害类型、抗性装备词缀、第五种异常、免疫系统或完整元素抗性面板。
+- 不新增技能、不新增 Support、不改技能栏、地图奖励、Boss 技能和存档。
+- 不把抗性判断散落在 Ignite 和 Chill 各自的多处分支；必须保留单一纯计算入口。
+- 不提交代码；保持工作区未提交，交给主 review Agent 验收、修正和 commit。
+
+交付报告必须列出：改动文件、抗性数据表、penetration 来源、实际接入路径、快照处理、测试数量、clean build 结果、已知风险和 `git status --short`。
 
 ## 14. 项目进度看板
 
@@ -833,12 +884,12 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 开放地图 | v1 完成 | 大地图、相机、障碍、事件和 Boss 路线已完成 |
 | 怪物生态 | 可玩 | 近战、远程、精英、冲锋均有，pack 协同仍弱 |
 | Boss | v1 完成 | Brood 召唤、Brimstone 火区、Storm 锁定突进形成三种独立机制 |
-| 天赋盘 | v1 完成 | 20 节点可用，缺 Keystone 级玩法变化 |
+| 天赋盘 | v1 完成 | 20 节点、四个 Keystone、前置和 HUD/hover 反馈已完成 |
 | 装备掉落 | v1 完成 | affix/tier/rarity/relic/比较/满包安全已有，缺 base/implicit/权重 |
 | 地图选择 | v1 完成 | 三选图和风险收益已有，缺组合 modifier 和布局变体 |
 | 经济/锻造 | 原型 | 分解碎片和 +3 强化已有，缺有选择的 crafting |
 | 存档 | 未开始 | 完成定义中的最大缺口 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 321 条通过，缺 UI 和端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 366 条通过，缺 UI 和端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
