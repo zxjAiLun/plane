@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`7ea69b2 Add versioned local run save`
+玩法代码基线：`57d8d85 Add pause state and input help`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -94,7 +94,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前测试基线：`arpg_logic_tests 920 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 20 passed / 0 failed`。
+当前测试基线：`arpg_logic_tests 920 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 34 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -137,29 +137,29 @@ git status --short
 
 输入是上下文相关的。新增按键前必须检查 `Input` 和 `GameWorld::update()`，不能让同一个按键在同一状态触发两个动作。
 
-| 输入 | Playing | Passive Tree | Skill Panel | MapComplete |
-|---|---|---|---|---|
-| `WASD` / 方向键 | 移动 | 仍可移动 | 仍可移动 | 不处理战斗移动 |
-| 左键按住 | Primary 技能 | 点击天赋节点，不射击 | 不射击 | 不射击 |
-| 右键 | Secondary 技能 | 不施法 | 不施法 | 不施法 |
-| `Q` | Utility 技能 | 不施法 | 不施法 | 不施法 |
-| `Space` | Movement / Dash | 不施法 | 不施法 | 不施法 |
-| `G` | 使用生命药瓶 | 不处理 | 不处理 | 不处理 |
-| `F` | 优先交互地图事件，否则拾取最近物品 | 无 | 无 | 拾取 Boss 战利品 |
-| `1-9` | 装备对应背包物品 | `1-0` 点节点 1-10 | `1-8` 分配技能 | 按阶段选择奖励或下一图 |
-| `F1-F10` | 无普通战斗语义 | 点节点 11-20 | `F1-F4` 切换四个槽位 Support | 无 |
-| `F5` / `F9` | 保存 / 加载当前 run | 天赋节点 5 / 9 | 不处理 | 保存 / 加载当前 run |
-| `P` | 打开天赋盘 | 关闭天赋盘 | 打开时会关闭 Skill Panel | 禁止打开 |
-| `K` | 打开技能面板 | 打开时会关闭天赋盘 | 关闭技能面板 | 禁止打开 |
-| `Tab` | 循环选择背包物品 | 不处理 | 不处理 | 循环选择背包物品 |
-| `Delete` | 丢弃选中物品 | 不处理 | 不处理 | 丢弃选中物品 |
-| `C` | 分解选中物品 | 不处理 | 不处理 | 分解选中物品 |
-| `V` | 打开/关闭锻造面板 | 不处理 | 不处理 | 打开/关闭锻造面板 |
-| `I` | 无 | 无 | 无 | 将选中的背包物品移入 Stash |
-| `O` | 无 | 无 | 无 | 将选中的 Stash 物品移回背包 |
-| `E` | 无 | 无 | 无 | 奖励和地图均选完后进入下一图 |
-| `R` | 无 | 无 | 无 | 重新开始 run |
-| `Esc` | 退出 | 退出 | 退出 | 退出 |
+| 输入 | Playing | Passive Tree | Skill Panel | MapComplete | Paused |
+|---|---|---|---|---|---|
+| `WASD` / 方向键 | 移动 | 仍可移动 | 仍可移动 | 不处理战斗移动 | 不处理 |
+| 左键按住 | Primary 技能 | 点击天赋节点，不射击 | 不射击 | 不射击 | 不处理 |
+| 右键 | Secondary 技能 | 不施法 | 不施法 | 不施法 | 不处理 |
+| `Q` | Utility 技能 | 不施法 | 不施法 | 不施法 | Quit |
+| `Space` | Movement / Dash | 不施法 | 不施法 | 不施法 | 不处理 |
+| `G` | 使用生命药瓶 | 不处理 | 不处理 | 不处理 | 不处理 |
+| `F` | 优先交互地图事件，否则拾取最近物品 | 无 | 无 | 拾取 Boss 战利品 | 不处理 |
+| `1-9` | 装备对应背包物品 | `1-0` 点节点 1-10 | `1-8` 分配技能 | 按阶段选择奖励或下一图 | 不处理 |
+| `F1-F10` | 无普通战斗语义 | 点节点 11-20 | `F1-F4` 切换四个槽位 Support | 无 | 不处理 |
+| `F5` / `F9` | 保存 / 加载当前 run | 天赋节点 5 / 9 | 不处理 | 保存 / 加载当前 run | Save / Load |
+| `P` | 打开天赋盘 | 关闭天赋盘 | 打开时会关闭 Skill Panel | 禁止打开 | 不处理 |
+| `K` | 打开技能面板 | 打开时会关闭天赋盘 | 关闭技能面板 | 禁止打开 | 不处理 |
+| `Tab` | 循环选择背包物品 | 不处理 | 不处理 | 循环选择背包物品 | 不处理 |
+| `Delete` | 丢弃选中物品 | 不处理 | 不处理 | 丢弃选中物品 | 不处理 |
+| `C` | 分解选中物品 | 不处理 | 不处理 | 分解选中物品 | 不处理 |
+| `V` | 打开/关闭锻造面板 | 不处理 | 不处理 | 打开/关闭锻造面板 | 不处理 |
+| `I` | 无 | 无 | 无 | 将选中的背包物品移入 Stash | 不处理 |
+| `O` | 无 | 无 | 无 | 将选中的 Stash 物品移回背包 | 不处理 |
+| `E` | 无 | 无 | 无 | 奖励和地图均选完后进入下一图 | 不处理 |
+| `R` | 无 | 无 | 无 | 重新开始 run | Restart |
+| `Esc` | 关闭子面板或打开 Pause | 关闭天赋盘 | 关闭技能面板 | 关闭结算子面板或打开 Pause | Continue |
 
 重要约束：
 
@@ -792,11 +792,18 @@ Milestone D 验收：连续三张地图在路线、遭遇、风险和奖励上�
 - F5 保存、F9 加载；天赋盘、技能面板和锻造面板打开时不抢夺 F1-F10 上下文。
 - 加载失败不改变当前内存 run；战斗中的 Enemy、Projectile、Boss 火区和进行中的 ElitePack 不保存，读档回到地图出生点或 MapComplete。
 
-任务 E3：Pause / Settings / Input Help
+任务 E3：Pause / Settings / Input Help（完成：`57d8d85`）
 
-- Esc 改为 Pause 菜单，菜单中提供 Continue / Restart Run / Quit。
-- 音量和窗口设置先保留结构，即使暂无音频资源。
-- 控制说明必须来自 Input binding 数据或单一表，避免手写多处漂移。
+- `GameState::Paused` 保存暂停前的 Playing/MapComplete 上下文；Esc 按“关闭 Crafting/Passive/Skill 子面板 -> Pause -> Continue”优先级处理，窗口 `Closed` 仍由 `Game` 关闭。
+- Pause 早期返回，冻结 Mana、技能冷却、敌人、投射物、地面危险、刷怪、Boss/事件计时、地图统计和 `survivalTime`，没有把 `dt = 0` 分散到各个对象。
+- Pause 菜单提供 Continue、F5 Save Run、F9 Load Run、R Restart Run、Q Quit to Desktop；Quit 只设置 `GameWorld` 退出请求，由 `Game` 处理窗口关闭。
+- 新增 `InputBinding.hpp` 只读 binding 表，Pause 的 Input Help 从该表绘制；数字键、F、鼠标和玩法输入在 Pause 中不会进入战斗/装备/奖励分支。
+- 暂停状态保存时按暂停前上下文写入 SaveData；从 MapComplete 暂停后保存/恢复仍保留结算阶段。
+
+验收结果：
+
+- `arpg_world_tests`：`34 passed / 0 failed`，覆盖子面板关闭优先级、Pause 冻结、Continue、Pause Save/Load、Restart、Quit 请求和 MapComplete 恢复。
+- clean build、CTest `3/3` 和 3 秒启动 smoke test 通过；代码提交为 `57d8d85`，工作区在代码提交后干净。
 
 任务 E4：Visual/Audio Pass
 
@@ -808,9 +815,9 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Pause / Settings / Input Help v1`。
+建议交给 hy3：`可玩性验收与难度曲线 v1`。
 
-原因：当前 run 已能保存和恢复，下一项缺口是退出、暂停和控制反馈。先把 Esc 从“直接退出”改成明确的 Pause 上下文，再接入已有 Save/Load 入口；不要在这一轮新增技能、商店或美术资源。
+原因：核心系统已经覆盖战斗、地图事件、Boss、掉落、天赋、技能、锻造、Stash、存档和暂停。下一步应证明这些系统能连续工作，而不是继续增加孤立内容。先用数据和测试把“出生点 -> 探索 -> Boss -> 奖励 -> 下一图”稳定跑通至少 5 张地图，再决定是否投入新技能或美术资源。
 
 ### 13.1 已完成任务记录：Mana Resource v1
 
@@ -1132,6 +1139,57 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 交付报告必须列出：改动文件、Pause 状态/输入优先级、冻结的计时器和模拟对象、菜单动作、binding 数据来源、测试数量、clean build、CTest、启动 smoke test、已知风险和 `git status --short`。
 
+### 13.14 已完成任务记录：Pause / Input Help v1
+
+代码已通过主 review 并提交为 `57d8d85 Add pause state and input help`。
+
+实现结果：
+
+- `GameState::Paused` 记录暂停前的 `Playing` 或 `MapComplete` 状态；Esc 的优先级固定为关闭 Crafting、Passive Tree、Skill Panel，随后才进入 Pause，再次 Esc 恢复原状态。
+- Pause 在 `GameWorld::update()` 的状态边界提前返回，因此不会推进 Player Mana、SkillBar cooldown、Enemy/Projectile/GroundHazard、刷怪、Boss 技能、事件计时、地图统计或 `survivalTime`。
+- Pause 菜单通过现有 API 提供 Continue、F5 Save Run、F9 Load Run、R Restart Run、Q Quit to Desktop；Quit 只产生 `GameWorld` 请求，由 `Game` 关闭窗口。
+- 新增 `InputBinding.hpp` 供 Pause Input Help 读取；数字键、F、鼠标和其它玩法边沿在 Pause 中均不会进入战斗、装备、拾取、奖励或锻造分支。
+- 暂停时保存会按暂停前上下文写入 `SaveData`；MapComplete 暂停、保存、加载和恢复均保留结算阶段。
+
+验收结果：
+
+- `arpg_logic_tests`：`920 passed / 0 failed`。
+- `arpg_save_tests`：`11 passed / 0 failed`。
+- `arpg_world_tests`：`34 passed / 0 failed`，新增子面板关闭优先级、冻结、Continue、Pause Save/Load、Restart、Quit 和 MapComplete 恢复测试。
+- clean build、CTest `3/3` 和 3 秒启动 smoke test 通过；代码提交后工作区干净。
+
+已知约束：Input Help 表集中管理展示文案，但 SFML 事件到 `Input` 状态的 switch 仍在 `src/Input.cpp`；新增按键时必须同时更新两处并补输入上下文测试。Pause 仍是单文件存档、无多槽位、无音频和无设置页面。
+
+### 13.15 hy3 下一项实施任务：可玩性验收与难度曲线 v1
+
+目标：不增加新系统，证明当前“探索地图 -> 事件 -> Boss -> 结算奖励 -> 选择下一图 -> 继续刷图”能够连续完成至少 5 张地图，并把明显的数值断点、状态丢失和进度回退修掉。
+
+开始前必须阅读：
+
+- 本文档第 2、4、5、7、11、13.12、13.14 节。
+- `GameWorld::startNextMap()`、`isMapCleared()`、`triggerBossIfNeeded()`、`rewardEnemyKill()` 和 `restoreFromSaveData()`。
+- `MapInstance`、`MapOptionLibrary`、`MapModifierLibrary`、`BossLibrary`、`EnemyDefinition`、`Config`。
+- `tests/game_world_logic_tests.cpp`、`tests/arpg_logic_tests.cpp`、`tests/save_logic_tests.cpp`。
+
+实施约束：
+
+1. 先做静态审计和可复现运行记录：使用固定 seed 检查地图 1 到 5 的模板、布局、Boss、modifier、敌人强度、掉落等级和奖励状态；不要用当前时间播种，不要在 Renderer 生成随机数。
+2. 只修复影响“连续刷图可完成性”的问题：地图切换必须保留 Player、装备、Inventory、Stash、天赋、技能/Support 解锁、Forge Fragments 和 Future Item Quantity；新地图必须清理旧地图敌人、投射物、Boss 技能残留和地面掉落。
+3. 检查并必要时调整已有数据表的数值曲线：普通怪 HP/伤害、Boss HP/伤害、刷怪间隔、事件奖励、掉落数量和 map level。调整必须小而有依据，优先改 `Config`/Definition 数据，不把平衡常数散落到 `GameWorld.cpp`。
+4. 保持 Boss 门口、Boss Arena、MapComplete 两阶段选择和 `E` 进入下一图的规则不变；不要把“清普通怪”重新变成地图完成条件。
+5. 增加可自动运行的进度测试，不新增面向生产的 debug API。推荐使用现有 `SaveData`/`SaveService` 构造 MapComplete fixture，再通过真实输入 `1/2/3`、`E` 推进地图；覆盖连续 5 次 `mapLevel` 增长、地图状态重置和成长状态保留。
+6. 增加至少一条失败保护测试：奖励未选不能进图、地图未选不能进图、坏档/非法地图选项不能污染当前 run、MapComplete 的背包/地面掉落不被错误清空。
+7. 如果发现 Renderer 只读接口或 HUD 与实际状态不一致，只做最小修正；不得顺手新增技能、怪物 AI、地图类型、装备槽、商店、loot filter、音频或美术资源。
+
+必须验证：
+
+- MSVC clean build，`ctest --test-dir build --output-on-failure` 全部通过。
+- 直接运行三类测试并报告精确数量；`arpg_world_tests` 至少保留当前 `34 passed` 基线并增加连续地图覆盖。
+- `PlaneShooter.exe` 启动 3 秒保持运行；若做 UI 调整，至少检查 800x600 下 Pause、MapComplete、Inventory/Stash 不重叠。
+- 交付报告列出审计到的公式/数据、实际修改文件、测试场景、未修复风险和 `git status --short`；实现 Agent 不提交代码，由主 review Agent 复核后提交。
+
+明确不做：完整难度选择界面、随机地牢生成、更多技能/Support、职业系统、交易/经济扩展、音频、复杂美术、跨运行存档和大型 GameWorld 重构。
+
 ## 14. 项目进度看板
 
 | 领域 | 状态 | 说明 |
@@ -1146,7 +1204,8 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 地图选择 | v1 完成 | 三选图、风险收益、模板绑定、稳定布局变体和两词缀组合已有 |
 | 经济/锻造 | v1 完成 | 分解、Forge Fragments、三种选择式词缀加工和当前 run Stash 已有 |
 | 存档 | v1 完成 | 单文件版本化存档、RNG 恢复、坏档保护、MapComplete/安全出生点恢复已有 |
+| 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 920 条、存档 11 条、GameWorld 20 条通过，仍缺 Renderer/UI 和完整端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 920 条、存档 11 条、GameWorld 34 条通过，仍缺 Renderer/UI 和完整端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
