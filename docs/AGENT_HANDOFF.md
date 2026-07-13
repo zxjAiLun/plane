@@ -2,7 +2,7 @@
 
 更新日期：2026-07-14
 
-玩法代码基线：`ea1a9c1 Add item base build themes`
+玩法代码基线：`cf16fc7 Unify combat feedback events`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -1661,7 +1661,7 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 - 直接测试：`arpg_logic_tests 995/0`、`arpg_save_tests 11/0`、`arpg_world_tests 280/0`。
 - `PlaneShooter.exe` 启动 3 秒 smoke：通过。
 
-### 13.26 hy3 下一项实施任务：战斗反馈 v2
+### 13.26 已完成任务：战斗反馈 v2
 
 目标：让玩家能在战斗中明确知道“造成了什么、为什么没放出来、Boss 正在准备什么”。本轮只提升可读性和反馈一致性，不增加伤害类型、不扩展技能数量、不改变战斗数值。
 
@@ -1703,17 +1703,77 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 完成定义：战斗数字、受击结果、施法失败原因和 Boss telegraph 都由同一运行时反馈模型产生；输入、数值、存档和地图流程不发生非目标变化；主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
 
-后续里程碑方向（暂不作为 13.26 任务）：
+验收结果：
 
-- 13.27：地图内容 v2，在现有三种事件和三种 Boss 上增加少量可组合 encounter，不引入随机生成器或寻路大重构。
+- CombatFeedback 已数据化为 Damage、PlayerHit、SkillRejected、Telegraph 四种类型；保留原有四字段聚合初始化兼容性，默认类型仍为 Damage。
+- GameWorld 统一生产玩家命中、玩家受击、技能拒绝和 Boss telegraph；Renderer 按类型绘制，不再从玩家绘制逻辑重复生成 HIT 文案。
+- 冷却中和 Mana 不足会生成短反馈；失败施法不消耗 Mana、不启动 cooldown、不生成投射物或范围效果；同一失败原因在反馈寿命内不会每帧刷屏。
+- Boss 圆形范围、召唤和冲刺准备阶段使用真实 Boss 状态产生 telegraph；原有警告、血条、地面危险区和伤害逻辑保持不变。
+- 反馈最大数量、过期清理、reset/load/下一张地图清理均保持有效；没有新增输入、存档字段、伤害类型、技能或 Boss 技能。
+- 代码提交：cf16fc7 Unify combat feedback events。
+- MSVC cmake --build build --clean-first：通过。
+- CTest：3/3 通过。
+- 直接测试：arpg_logic_tests 995/0、arpg_save_tests 11/0、arpg_world_tests 291/0。
+- PlaneShooter.exe 启动 3 秒 smoke：通过。
+
+### 13.27 hy3 下一项实施任务：地图内容 v2：可组合遭遇
+
+目标：在现有开放地图、三种基础事件和 Boss 路线之上，增加少量数据驱动的组合遭遇，让从出生点到 Boss 区域的路线上出现更清晰的选择和风险；不引入随机地图生成器、寻路系统或新的战斗大系统。
+
+开始前必须阅读：
+
+- 本文档第 2、3、7、8、11、13.25、13.26 节；代码基线为 cf16fc7，测试基线为 995/11/291。
+- MapInstance、MapLayout、MapExploration、MapModifier，以及 GameWorld 的 updateMapEvents、Boss 触发和地图切换路径。
+- MapEventType/MapEventInstance、EnemyDefinition、EliteModifier、GroundHazard、BossDefinition 和现有 Enemy 追踪 AI。
+- Renderer 的小地图、事件 HUD、Boss HUD、MapComplete 统计；确认所有展示都通过 GameWorld/MapInstance getter 读取。
+- tests/arpg_logic_tests.cpp、tests/game_world_logic_tests.cpp；先运行并记录 995/11/291，不得以减少或关闭测试代替通过。
+
+固定实现范围：
+
+1. 新增少量可组合 encounter 定义，至少覆盖以下三类中的两类：
+   - Enhanced Cache：宝箱事件和现有掉落倍率/稀有度倾向组合；
+   - Hazardous Elite Pack：ElitePack 与现有 GroundHazardDefinition 组合；
+   - Guarded Shrine：Shrine 与一组守卫怪组合，守卫只复用现有追踪移动和 EnemyDefinition。
+   组合定义必须是数据表或等价定义，奖励、伤害、数量、半径、持续时间从已有数据读取；禁止在 GameWorld 按事件名称复制一套大分支。
+2. 每张地图最多生成一个组合 encounter，同时保留现有三个基础事件；位置必须通过 MapLayout/MapInstance 的单一布局入口生成，并满足地图边界、起点安全区、Boss 区域和事件间最小距离约束。
+3. 组合 encounter 只触发一次。Boss 触发后禁止触发未开始的组合 encounter；已经开始的事件按照现有战斗状态继续结算，完成统计必须保留到 MapComplete；进入下一张地图时清空运行时事件状态。
+4. Enhanced Cache 继续使用 F 交互和现有掉落生成；Hazardous Elite Pack 继续使用现有 ElitePack 生成与地面危险区；Guarded Shrine 先生成守卫，守卫全灭后才允许祭坛激活。不要新增货币、技能、装备槽或专属掉落系统。
+5. HUD 和小地图显示组合 encounter 的类型、未触发/进行中/已完成状态；当前目标、事件数量和 Boss 目标不能互相覆盖。Renderer 只能读 getter，事件状态由 MapInstance/GameWorld 更新。
+6. MapComplete 继续复用现有掉落拾取、背包容量、Tab/Delete 管理、奖励和三选地图流程；不得改变输入上下文、技能栏、天赋盘、存档 schema、SaveService 或 CombatFeedback 公共语义。
+
+强制实现约束：
+
+- hy3 不提交代码、不修改本手册；交付时工作区必须保持未提交，并提供完整 diff、实现说明、测试数量、clean build、CTest、三套直接测试、启动 smoke 和未修复风险。
+- 代码改动限于地图事件/地图布局定义、GameWorld、Renderer 和必要测试；不得顺手重构 Skill、CombatFeedback、SaveService、Input、LootGenerator 或整个 Enemy 系统。
+- 不新增随机地图生成器、迷雾、门、传送门、寻路、编辑器、网络状态或存档字段；不新增输入键。
+- 所有组合 encounter 数值必须由数据定义驱动。GameWorld 只负责生命周期、触发和调用已有系统；不得按具体 encounter 名称散落 if/else 规则。
+- 事件触发、完成、奖励、统计和地图切换必须幂等；容器索引、所有权和 erase/生成失败路径必须安全，不能重复生成或吞掉掉落。
+- 新增 UI 必须复用世界坐标转换、现有颜色/截断/布局 helper；不以未验证的截图作为唯一验收依据。
+
+必须验证：
+
+- 纯逻辑：组合定义字段完整；每个组合类型能解析其基础事件、奖励和守卫/危险区配置；布局位置始终在地图边界、起点安全区和 Boss 区域之外，事件间距满足约束。
+- GameWorld：组合 encounter 每张图最多一个；未触发、进行中、完成状态单向变化；重复靠近/F/同帧更新不会重复奖励、重复生成或重复计数。
+- Enhanced Cache：F 只生成配置数量的掉落，满包时地面物品保留；MapComplete 仍可按最近目标拾取。
+- Hazardous Elite Pack：只生成一次 Elite/普通怪和危险区；怪物全灭后事件完成；危险区伤害/持续时间来自 GroundHazardDefinition。
+- Guarded Shrine：守卫未清除前不能领取 Shrine 奖励；守卫清除后只激活一次，原有 buff 倍率/时长保持一致。
+- Boss 回归：Boss 区域触发后未开始的组合 encounter 不再触发；已开始 encounter 不污染 Boss 战；击杀 Boss、保底掉落、MapComplete、三选图和下一图事件重置正常。
+- 五张连续地图：WASD、左键、右键、Q、Space、F、Tab/Delete、P、K、1-9、E、暂停/存档/加载语义均保持；存档 schema 不变且加载不重复 encounter。
+- MSVC cmake --build build --clean-first、CTest 3/3、三套直接测试、PlaneShooter.exe 启动 3 秒 smoke 全部通过；测试数量必须高于 995/11/291。
+
+完成定义：组合遭遇具有单一数据源、稳定布局、一次性生命周期、正确奖励/统计和 Boss/地图切换边界；不改变既有输入、战斗数值、存档和基础事件语义；主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
+
+后续里程碑方向（暂不作为 13.27 任务）：
+
 - 13.28：运行稳定性与发布闭环，补 UI 截图/像素级 smoke、资源打包、崩溃边界和用户可重复的 Release 构建命令。
+- 13.29：内容扩展，在组合遭遇稳定后增加少量新 Boss/地图模板，仍保持定义驱动和小步测试。
 
 ## 14. 项目进度看板
 
 | 领域 | 状态 | 说明 |
 |---|---|---|
 | 主动战斗 | v1 完成 | 四槽技能、Support、异常、药瓶已形成基础构筑 |
-| 构筑内容扩展 | 可玩 | 10 个技能、9 个 Support、双 Link、技能/Support 解锁奖励、CombatMath 实际构筑差异和 Base 构筑主题已接通；下一步做战斗反馈 |
+| 构筑内容扩展 | 可玩 | 10 个技能、9 个 Support、双 Link、技能/Support 解锁奖励、CombatMath 实际构筑差异、Base 构筑主题和统一战斗反馈已接通；下一步做可组合地图遭遇 |
 | 开放地图 | v1 完成 | 大地图、相机、预制布局、探索小地图、事件和 Boss 路线已完成 |
 | 怪物生态 | v1 完成 | 近战、远程、精英、冲锋、ElitePack 均有，精英风险和事件进度已有数据化可读反馈 |
 | Boss | v1 完成 | Brood 召唤、Brimstone 火区、Storm 锁定突进形成三种独立机制 |
@@ -1726,6 +1786,6 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
 | 连续刷图验收 | v1 完成 | 五张真实 Boss -> 拾取/管理掉落 -> 选奖励/地图 -> E 推进，且死亡/暂停/中间存档边界已有自动保护 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 995 条、存档 11 条、GameWorld 280 条通过；已覆盖五张连续真实 Boss 流程、GameOver/Restart、MapComplete/Paused 存档、Projectile/Area 命中、扩展技能/Support、装备等级需求与非法 Base/隐式校验、Item Base 构筑主题、Ignite tick、ElitePack、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
+| 自动化测试 | 原型 | 纯逻辑 995 条、存档 11 条、GameWorld 291 条通过；已覆盖五张连续真实 Boss 流程、GameOver/Restart、MapComplete/Paused 存档、Projectile/Area 命中、扩展技能/Support、装备等级需求与非法 Base/隐式校验、Item Base 构筑主题、Ignite tick、ElitePack、Boss 击杀和保底掉落、Damage/PlayerHit/SkillRejected/Telegraph，仍缺 Renderer/UI 像素级验收 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
