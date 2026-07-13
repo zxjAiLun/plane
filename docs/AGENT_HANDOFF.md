@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`e058357 Add deterministic random service`
+玩法代码基线：`7ea69b2 Add versioned local run save`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -84,6 +84,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 ```text
 [100%] Built target PlaneShooter
 [100%] Built target arpg_logic_tests
+[100%] Built target arpg_save_tests
 [100%] Built target arpg_world_tests
 ```
 
@@ -93,7 +94,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前测试基线：`arpg_logic_tests 920 passed / 0 failed`，`arpg_world_tests 7 passed / 0 failed`。
+当前测试基线：`arpg_logic_tests 920 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 20 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -147,6 +148,7 @@ git status --short
 | `F` | 优先交互地图事件，否则拾取最近物品 | 无 | 无 | 拾取 Boss 战利品 |
 | `1-9` | 装备对应背包物品 | `1-0` 点节点 1-10 | `1-8` 分配技能 | 按阶段选择奖励或下一图 |
 | `F1-F10` | 无普通战斗语义 | 点节点 11-20 | `F1-F4` 切换四个槽位 Support | 无 |
+| `F5` / `F9` | 保存 / 加载当前 run | 天赋节点 5 / 9 | 不处理 | 保存 / 加载当前 run |
 | `P` | 打开天赋盘 | 关闭天赋盘 | 打开时会关闭 Skill Panel | 禁止打开 |
 | `K` | 打开技能面板 | 打开时会关闭天赋盘 | 关闭技能面板 | 禁止打开 |
 | `Tab` | 循环选择背包物品 | 不处理 | 不处理 | 循环选择背包物品 |
@@ -403,6 +405,8 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - 地图选项差异和风险缩放。
 - 地图奖励生成。
 - 三个 MapTemplate 的三套布局变体、稳定布局 id、边界/事件交互空间和 Start-to-Boss BFS 可达性。
+- `SaveService` 的完整 Item/词缀/装备/技能 Support/Inventory/Stash/掉落 round-trip。
+- 存档 magic/version/payload/CRC、RNG state round-trip、未知版本、截断、损坏、缺失文件和原子替换失败保护。
 
 `RandomService` 与真实 GameWorld 随机流程还由以下测试覆盖：
 
@@ -416,7 +420,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - Input event 到 GameWorld 的完整集成。
 - 从出生到 Boss 再到下一图的端到端流程。
 - 地面拾取、满包、分解、强化的完整组合流程。
-- 保存/读取，因为当前尚无存档。
+- 从真实窗口事件到 F5/F9 保存/加载的完整 UI 端到端流程。
 
 ## 6. 代码结构与职责边界
 
@@ -450,6 +454,8 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 | `PassiveTree.hpp` | 20 节点数据、前置、命中查询、属性聚合 | SP 扣除仍由 Player 管理 |
 | `MapRewardLibrary.hpp` | 技能/Support/fallback 奖励生成 | GameWorld 只过滤、抽取、应用 |
 | `RandomService.hpp` | 单局 seed、确定性随机、边界与权重选择 | 玩法路径注入 `RandomService&`；兼容重载只能使用固定 legacy seed；Renderer 禁止调用 |
+| `SaveData.hpp` | 不依赖 SFML 的稳定 run 存档数据 | 只保存可验证的值类型和完整 Item；不放 GameWorld/Renderer 指针 |
+| `SaveService.*` | v1 存档编码、CRC、原子写入和读取校验 | 不修改 GameWorld；解析失败必须不产生半成品数据 |
 | `Renderer.*` | 只读 GameWorld 并绘制世界和 UI | 禁止在 Renderer 中修改游戏状态或复制玩法公式 |
 | `tests/arpg_logic_tests.cpp` | 无 SFML 的纯逻辑回归测试 | 新数据化规则必须补断言 |
 | `tests/game_world_logic_tests.cpp` | 轻量真实 GameWorld 随机流程测试 | 只覆盖可稳定驱动的状态，不依赖窗口和渲染 |
@@ -778,12 +784,13 @@ Milestone D 验收：连续三张地图在路线、遭遇、风险和奖励上�
 - 同 seed 的纯逻辑和轻量 GameWorld 生成结果可复现；Renderer 不持有 RNG。
 - 旧纯逻辑调用方保留固定 legacy seed 重载，但新玩法代码不得依赖该兼容路径。
 
-任务 E2：Local Save v1
+任务 E2：Local Save v1（完成：`7ea69b2`）
 
-- 保存 Player level/EXP/SP、天赋节点、装备、Inventory、Stash、技能/Support 解锁、当前地图等级和永久 run 奖励。
-- 使用版本化存档格式。
-- 加载失败时安全回到新 run，不覆盖损坏文件。
-- 不保存地图中瞬时 Enemy/Projectile 状态，加载后从地图起点恢复。
+- 保存 Player 成长、天赋节点、装备、Inventory、Stash、地面掉落、技能/Support 解锁、当前地图和永久 run 奖励。
+- `RandomService` 保存并恢复引擎状态，读档后不会改变下一次随机结果。
+- 使用带 magic、schema version、payload length 和 CRC32 的二进制格式；写入采用临时文件加 Windows 原子替换。
+- F5 保存、F9 加载；天赋盘、技能面板和锻造面板打开时不抢夺 F1-F10 上下文。
+- 加载失败不改变当前内存 run；战斗中的 Enemy、Projectile、Boss 火区和进行中的 ElitePack 不保存，读档回到地图出生点或 MapComplete。
 
 任务 E3：Pause / Settings / Input Help
 
@@ -801,9 +808,9 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Local Save v1`。
+建议立即交给 hy3：`Pause / Settings / Input Help v1`。
 
-原因：确定性 RNG、当前 run Stash、地图奖励和成长状态已经有明确边界，存档是完成定义中最大的缺口。下一轮应只保存稳定的 run 检查点，不要同时加入商店、新技能、复杂序列化框架或跨运行经济。
+原因：当前 run 已能保存和恢复，下一项缺口是退出、暂停和控制反馈。先把 Esc 从“直接退出”改成明确的 Pause 上下文，再接入已有 Save/Load 入口；不要在这一轮新增技能、商店或美术资源。
 
 ### 13.1 已完成任务记录：Mana Resource v1
 
@@ -1069,44 +1076,61 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 - clean build、CTest `2/2` 和 3 秒启动 smoke test 通过；代码提交为 `e058357`，工作区干净。
 - `include/`、`src/`、`tests/` 中不再存在 `std::rand`、`std::srand` 或裸 `rand` 调用。
 
-已知约束：当前 RNG 默认 seed 是固定值，适合复现和测试；以后如需用户可配置 seed，应通过明确的 run 创建入口接入，不能在 Renderer 或每张地图内部按时间播种。`RandomService` 尚未提供可序列化的引擎内部状态，这正是下一项存档任务必须先补齐的边界。
+已知约束：当前 RNG 默认 seed 是固定值，适合复现和测试；以后如需用户可配置 seed，应通过明确的 run 创建入口接入，不能在 Renderer 或每张地图内部按时间播种。E2 已补充引擎状态快照，但 RNG stream 仍不应暴露给 Renderer。
 
-### 13.12 hy3 实施任务：Local Save v1
+### 13.12 已完成任务记录：Local Save v1
 
-目标：实现单机单文件、版本化、可恢复的当前 run 存档。玩家可以在稳定检查点退出，再次启动后继续同一 run；损坏或不兼容的文件必须安全降级，不得覆盖旧文件或吞掉当前内存中的物品。
+目标：实现单机单文件、版本化、可恢复的当前 run 存档，并保证损坏或不兼容文件不会污染当前内存状态。
+
+实现结果：
+
+- 新增纯数据 `SaveData`、`SaveService` 和 `SaveService.cpp`；存档不依赖 Renderer、SFML 或 GameWorld 指针。
+- 保存 Player 的 level/EXP/SP/Mana/HP、升级属性源、20 个天赋分配、四槽装备、完整 Item 字段、Inventory、Stash、地面掉落、技能/Support 槽位和 cooldown elapsed。
+- 保存当前地图等级、模板/布局、探索格、事件完成态、MapComplete 奖励阶段、地图选项、run progression、Forge Fragments、life flask charges 和 RNG 引擎状态。
+- 不保存 Enemy、Projectile、Boss 投射物、GroundHazard、瞄准状态和进行中的 ElitePack 敌人；读档时清空瞬时对象并把玩家放到地图出生点，MapComplete 存档恢复 Boss Defeated 阶段。
+- 二进制格式为 little-endian：`magic`、`schema version`、payload length、CRC32、payload；写入使用 `.tmp` 加 `MoveFileExW(..., MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)`。
+- F5 保存、F9 加载；加载失败保留当前 run，成功/失败通过现有 HUD event status 显示。
+
+验收结果：
+
+- `arpg_logic_tests`：`920 passed / 0 failed`。
+- `arpg_save_tests`：`11 passed / 0 failed`，覆盖 RNG continuation、带词缀 Item/装备/Support/Inventory/Stash/掉落 round-trip、CRC、版本、截断、缺失和原子替换失败。
+- `arpg_world_tests`：`20 passed / 0 failed`，覆盖保存后改变再加载、瞬时敌人清理、安全出生点、坏档不污染当前 run 和 MapComplete 恢复。
+- clean build、CTest `3/3` 和 3 秒启动 smoke test 通过；代码提交为 `7ea69b2`，工作区在代码提交后干净。
+
+已知约束：当前只提供单个默认存档文件 `plane_shooter.save`，没有自动启动加载、多个存档槽、云存档或战斗中断恢复；Playing 状态保存后按安全策略从地图起点继续。F5/F9 在 Passive Tree、Skill Panel 和 Crafting 上下文中不抢夺面板快捷键。
+
+### 13.13 hy3 实施任务：Pause / Settings / Input Help v1
+
+目标：把当前 Esc 直接退出改为明确的 Pause 上下文，并让 Save/Load 成为可发现、可验证的主流程。暂停必须冻结战斗模拟，不得通过 `dt = 0` 的零散判断把暂停逻辑扩散到各系统。
 
 开始前必须阅读：
 
-- 本文第 3、4、6、7、11 节，尤其是 reset/startNextMap、输入上下文、Item 所有权和存档边界。
-- `include/GameWorld.hpp`、`src/GameWorld.cpp`：当前 run 状态、MapComplete 阶段、`reset()` / `startNextMap()` 生命周期。
-- `include/Player.hpp`、`src/Player.cpp`、`include/Stats.hpp`：经验、SP、Mana、药瓶、天赋和最终属性的来源；不要序列化派生属性后再叠加一次。
-- `include/Item.hpp`、`include/Inventory.hpp`、`include/Equipment.hpp`、`include/Stash.hpp`：完整 Item、词缀 contribution、装备替换和所有权转移。
-- `include/SkillBar.hpp`、`include/SupportLibrary.hpp`、`include/MapRewardLibrary.hpp`：技能/Support 解锁、当前槽位和奖励状态。
-- `include/RandomService.hpp`：seed 与引擎状态边界；先补状态快照/恢复 API，再设计存档字段。
-- `tests/arpg_logic_tests.cpp`、`tests/game_world_logic_tests.cpp`：测试风格和无 SFML 逻辑测试入口。
+- `include/GameWorld.hpp`、`src/GameWorld.cpp`：当前 GameState、F5/F9 存档入口和面板上下文。
+- `include/Input.hpp`、`src/Input.cpp`、`src/Game.cpp`：事件边沿、按键释放、窗口关闭和当前 Esc 语义。
+- `include/Renderer.hpp`、`src/Renderer.cpp`：现有 HUD、MapComplete、Passive/Skill/Crafting 面板层级。
+- `docs/AGENT_HANDOFF.md` 第 4、6、7、11 节：输入不变量、职责边界、完成定义和验收门禁。
+- `tests/game_world_logic_tests.cpp`：无窗口状态测试风格。
 
 必须实现：
 
-1. 新增小型 `SaveData` / `RunSave` 纯数据结构，保存格式必须带 magic、schema version 和明确的 payload 长度或等价完整性校验。不要让 `Renderer`、SFML 类型或 `GameWorld` 指针进入存档结构。
-2. 保存稳定的当前 run 状态：run seed 与 RNG 可恢复状态、地图等级/当前地图选项、玩家 level/EXP/SP/Mana/HP、天赋已分配节点、装备栏、Inventory、Stash、已解锁技能/Support、Future Item Quantity 等永久 run progression、MapComplete 选择阶段和必要的选中索引。
-3. 不保存瞬时战斗对象：Enemy、Projectile、Boss 火区、事件进行中的敌人列表和鼠标瞄准状态。加载后必须进入明确的安全状态：优先恢复到当前地图出生点并重建该地图的非战斗状态；若当前地图已完成则恢复到 MapComplete，不能把玩家放在半个 Boss 战中。
-4. 把 `Stats` 视为派生数据。加载装备、天赋和 progression 后调用现有重算路径，禁止同时加载并累加保存的最终 Stats，避免重复应用词缀/天赋。
-5. 提供明确的 `saveRun(path)` / `loadRun(path)` 或等价入口。保存只允许在稳定检查点触发：至少包括 MapComplete、显式 Pause/退出前；不要每帧写盘，也不要在战斗中异步修改 GameWorld。
-6. 文件写入必须使用临时文件加替换/重命名的原子策略。新文件写坏时保留旧存档；读取 magic、version、长度、校验失败时返回“无有效存档”，并让调用方安全创建新 run。禁止用半解析数据覆盖内存状态。
-7. 版本策略只实现 v1，但必须显式拒绝未知版本；对缺少文件、空文件、截断文件、随机字节和旧版本文件分别有测试。不要为了兼容未来版本而静默猜字段。
-8. 主流程只增加最小入口和反馈：在 Pause/启动路径显示 Save/Load 成功或失败状态；不要在本轮新增设置菜单、云存档、多个存档槽、加密、压缩、联网或跨运行共享仓库。
-9. `reset()` 必须清理当前 run 存档相关状态；`startNextMap()` 必须保留 run seed、RNG 状态、Stash、解锁和玩家成长。保存后立即加载的结果应与保存前的稳定检查点等价。
-10. 新增无 SFML 测试：完整 Item/词缀/装备/背包/Stash round-trip、天赋与解锁 round-trip、MapComplete 阶段 round-trip、RNG state round-trip、损坏/截断/未知版本拒绝、原子保存失败保护。至少补一个 GameWorld 级别的“保存 -> 改变 -> 加载”测试。
+1. 新增明确的 Pause 状态或等价输入上下文；Esc 在 Playing、Passive Tree、Skill Panel、Crafting、MapComplete 中先关闭当前子面板，下一次 Esc 才打开 Pause，不能直接关闭窗口。窗口 `Closed` 事件仍然允许退出。
+2. Pause 时停止玩家 Mana 恢复、技能 cooldown、敌人移动/攻击、刷怪、投射物、地面危险、事件计时、Boss 技能计时、地图统计和 `survivalTime`；Renderer 继续绘制冻结世界并覆盖 Pause 菜单。
+3. Pause 菜单只提供 `Continue`、`Save Run`、`Load Run`、`Restart Run`、`Quit` 五个明确动作。优先复用 F5/F9 和现有 reset/load API，不复制保存逻辑。
+4. 增加 Input binding 的单一只读数据表或等价 helper，Renderer 的 Input Help 从该表绘制；禁止继续在 Renderer 里手写一份与 `Input.cpp` 可能漂移的按键说明。
+5. Pause/Load 失败不能改变当前世界；Restart 必须走现有 `reset()`，Quit 只设置退出请求，由 `Game` 处理窗口关闭，不让 Renderer 直接关闭窗口。
+6. Pause/Settings 面板与 Passive Tree、Skill Panel、Crafting、MapComplete 互斥；数字键、F 键、鼠标左键在 Pause 中不得触发战斗、装备、拾取、奖励或锻造。
+7. 测试必须覆盖：Pause 冻结前后玩家 Mana/cooldown/敌人位置不变；Esc 子面板关闭优先级；Continue 恢复；Pause Save/Load 调用现有入口；Restart 清理当前 run；Pause 数字/F/鼠标输入无玩法副作用。
+8. UI 只使用现有 SFML 文字和几何，先保证 800x600 可读；面板按钮区域不能遮住状态提示，键位文案必须来自统一 binding 数据。
 
 明确不做：
 
-- 不新增技能、Support、Boss、装备槽、词缀、地图 modifier、商店、loot filter 或新的经济资源。
-- 不保存 Enemy/Projectile/地面危险的实时状态，不做战斗回放和网络同步。
-- 不引入第三方序列化框架；优先使用当前 C++17 可维护的明确二进制/文本格式，字段顺序和大小端必须写在代码注释或格式说明中。
-- 不把保存逻辑塞进 `Renderer` 或让 UI 直接操作 Item 容器。
-- 不提交代码；保持工作区未提交，交给主 review Agent 进行完整 diff review、必要修正、clean build、CTest、直接测试、启动 smoke test 后提交。
+- 不新增音频、窗口分辨率、画质、键位重绑定或多个存档槽；Settings 只保留可扩展结构。
+- 不重写 GameWorld 主循环，不在每个 Enemy/Skill 内新增 Pause flag。
+- 不新增技能、Support、Boss、地图 modifier、商店或 loot filter。
+- 不提交代码；保持工作区未提交，交给主 review Agent 做完整 diff review、clean build、CTest、直接测试、启动 smoke test 后提交。
 
-交付报告必须列出：改动文件、存档格式和版本、保存字段、稳定检查点、加载后的地图状态、RNG 状态处理、损坏文件策略、测试数量、clean build、CTest、启动 smoke test、已知风险和 `git status --short`。若无法保证原子替换或 RNG round-trip，必须明确报告并停止扩展范围。
+交付报告必须列出：改动文件、Pause 状态/输入优先级、冻结的计时器和模拟对象、菜单动作、binding 数据来源、测试数量、clean build、CTest、启动 smoke test、已知风险和 `git status --short`。
 
 ## 14. 项目进度看板
 
@@ -1121,8 +1145,8 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 装备掉落 | v1 完成 | base/implicit/affix/tier/rarity/relic/tags/weights/地图主题偏置/比较/满包安全已有 |
 | 地图选择 | v1 完成 | 三选图、风险收益、模板绑定、稳定布局变体和两词缀组合已有 |
 | 经济/锻造 | v1 完成 | 分解、Forge Fragments、三种选择式词缀加工和当前 run Stash 已有 |
-| 存档 | 规划中 | 下一项：Local Save v1；RNG 状态快照和稳定检查点必须先定义 |
+| 存档 | v1 完成 | 单文件版本化存档、RNG 恢复、坏档保护、MapComplete/安全出生点恢复已有 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 920 条 + GameWorld RNG 7 条通过，仍缺 Renderer/UI 和完整端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 920 条、存档 11 条、GameWorld 20 条通过，仍缺 Renderer/UI 和完整端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
