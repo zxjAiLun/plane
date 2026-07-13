@@ -2,7 +2,7 @@
 
 更新日期：2026-07-14
 
-玩法代码基线：`ad53e09 Add item base level requirements`
+玩法代码基线：`ea1a9c1 Add item base build themes`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -1608,7 +1608,7 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 已知约束：需求只按 Item Base 和玩家等级判断，没有力量/敏捷/智力属性；Renderer/UI 仍没有像素级自动测试。后续若扩展 Base 属性，必须先补数据和纯逻辑测试，再改 UI。
 
-### 13.25 hy3 下一项实施任务：装备基底主题与掉落价值 v1
+### 13.25 已完成任务：装备基底主题与掉落价值 v1
 
 目标：让 Item Base 不只是等级门槛，而是形成可读的构筑选择：同一槽位的不同 Base 分别服务通用伤害、Projectile、Area、生存和 Loot。只扩展现有 Base 数据和预览，不能借机增加装备槽、货币或复杂属性系统。
 
@@ -1648,9 +1648,63 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 完成定义：现有 Base 形成可读的构筑方向，implicit/affix/预览/实际装备/掉落/存档使用同一数据源，且没有新增存档字段或输入语义；主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
 
-后续里程碑方向（暂不作为本轮任务）：
+验收结果：
 
-- 13.26：战斗反馈 v2，增加受击数字、技能冷却/资源失败原因和 Boss 机制 telegraph 的统一来源；先解决可读性，再增加伤害类型。
+- `ItemBuildTheme` 已加入 `ItemBaseDefinition`，所有普通槽位至少提供两种主题；主题、Base name、implicit 和 requiredLevel 都从同一 Base 数据表读取。
+- Hunter's Bow、Warhammer、Windweave 分别验证 Projectile、Area、Loot 主题和对应隐式属性；现有 Survival、General、Boss relic 主题保留。
+- Item 详情显示 Base 与主题；装备预览继续使用候选物品的 implicit + affix 聚合，不再只看 affix。
+- 低等级地图仍可掉落高需求 Base；现有 item level、affix tier、Boss relic 数值和掉落规则未改变。
+- 恢复校验现在拒绝 Base 与 slot/implicit 不匹配，以及 `stats != implicit + affixes` 的篡改数据；失败加载不污染当前运行。主题不写入 Item 或 SaveData。
+- 代码提交：`ea1a9c1 Add item base build themes`。
+- MSVC `cmake --build build --clean-first`：通过。
+- CTest：`3/3` 通过。
+- 直接测试：`arpg_logic_tests 995/0`、`arpg_save_tests 11/0`、`arpg_world_tests 280/0`。
+- `PlaneShooter.exe` 启动 3 秒 smoke：通过。
+
+### 13.26 hy3 下一项实施任务：战斗反馈 v2
+
+目标：让玩家能在战斗中明确知道“造成了什么、为什么没放出来、Boss 正在准备什么”。本轮只提升可读性和反馈一致性，不增加伤害类型、不扩展技能数量、不改变战斗数值。
+
+开始前必须阅读：
+
+- 本文档第 2、3、7、8、11、13.25 节；代码基线为 `ea1a9c1`，测试基线为 `995/11/280`。
+- `include/CombatFeedback.hpp`、`src/GameWorld.cpp` 的 `addCombatFeedback()`/`updateCombatFeedback()`/技能释放路径，以及 `src/Renderer.cpp` 的 `drawCombatFeedback()`。
+- `include/SkillBar.hpp`、`include/CombatMath.hpp`、`include/Player.hpp`、`include/Config.hpp`；确认 cooldown、Mana 和实际伤害都从现有运行时数据读取。
+- `include/BossDefinition.hpp`、`include/BossDash.hpp`、`include/GroundHazard.hpp`，以及 Renderer 中现有 Boss AoE、Dash、火区绘制；禁止重复推断 Boss 状态。
+- `tests/arpg_logic_tests.cpp`、`tests/game_world_logic_tests.cpp`；先运行并记录 `995/11/280`。
+
+固定实现范围：
+
+1. 扩展现有 `CombatFeedback` 为可区分的反馈类型，至少覆盖 `Damage`、`PlayerHit`、`SkillRejected` 三类；保留已有 damage/source/position/timeRemaining 字段的兼容语义。反馈由 GameWorld 产生，Renderer 只读绘制。
+2. 玩家命中敌人继续显示实际伤害；玩家受到伤害时显示实际扣除 HP，并标注来源。所有数字必须来自 `Enemy::takeDamage()`/`Player::takeDamage()` 返回值，不能用 raw damage 代替实际值。
+3. 技能释放失败必须给出短原因：冷却中显示 `Skill cooling down`，Mana 不足显示 `Not enough Mana`；失败不得消耗 Mana、不得启动或重置 cooldown。优先复用现有状态查询，不在 Renderer 复制判断。
+4. Boss telegraph 继续由 `BossDefinition`/`BossDashState`/现有 ground hazard 状态驱动；补充统一的状态标签或轻量提示，例如 `Boss preparing area attack`、`Boss charging`。不要新增 Boss 技能、寻路或复杂 UI。
+5. 保持现有世界空间到屏幕空间转换、CombatFeedback 最大数量和寿命上限；反馈过多时按现有上限丢弃旧记录，不能无限增长。HUD/世界文字布局必须复用现有截断和相机 helper。
+6. MapComplete、Pause、GameOver、PassiveTree、SkillPanel 等输入上下文不改变；本轮不新增输入键，不改变地图推进、掉落、技能解锁、Support、天赋和存档 schema。
+
+强制实现约束：
+
+- hy3 不提交代码、不修改本手册；工作区保持未提交，交付完整 diff、测试数量、clean build、CTest、三套直接测试、启动 smoke 和未修复风险。
+- 优先只修改 `CombatFeedback`、`GameWorld`、`Renderer`、必要的 `Config` 和测试；不得顺手重构 Skill、Map、BossDefinition、SaveService 或输入系统。
+- 不新增伤害类型、抗性、属性、货币、技能、Boss 技能、事件、输入键或存档字段。
+- `GameWorld` 是反馈事件的唯一生产者；Renderer 不能通过 cooldown、Mana、HP 或字符串反推事件原因。
+- 失败施法必须保持状态不变：Mana、技能 cooldown、投射物/地面效果和敌人 HP 都不能产生副作用；同一失败原因只生成一条短反馈，不能每帧刷屏。
+- 反馈文本和颜色由类型/来源数据驱动；禁止在 Renderer 按具体技能名或 Boss 名称复制一套规则。保留现有 `source` 文本用于显示，但不能把文本当逻辑枚举。
+- 不要求用截图声称像素级通过；若改动布局，必须至少运行启动 smoke，并说明未覆盖的 UI 风险。
+
+必须验证：
+
+- 纯逻辑：CombatFeedback 类型/来源/寿命正确，Damage、PlayerHit、SkillRejected 不混淆；达到最大数量后不会无限增长，过期反馈会移除。
+- GameWorld：真实玩家技能命中反馈的 damage 等于实际敌人 HP 减少；真实玩家受击反馈的 damage 等于实际 HP 损失；Boss/普通敌人来源可区分。
+- 技能失败：冷却中和 Mana 不足分别产生正确原因；失败前后 Mana、cooldown、敌人 HP、投射物数量保持不变；恢复后一次成功施法只产生一次正常反馈。
+- Boss：AoE telegraph、Dash charging 和 ground hazard 的提示与现有 BossDefinition/BossDashState 状态一致；Boss 死亡、MapComplete 和下一图流程不受影响。
+- 回归：WASD、左键、右键、Q、Space、F、Tab/Delete、P、K、1-9、MapComplete 奖励/地图选择和五张连续 Boss 流程继续通过。
+- MSVC `cmake --build build --clean-first`、CTest `3/3`、三套直接测试、`PlaneShooter.exe` 启动 3 秒 smoke 全部通过；测试数量必须高于 `995/11/280`。
+
+完成定义：战斗数字、受击结果、施法失败原因和 Boss telegraph 都由同一运行时反馈模型产生；输入、数值、存档和地图流程不发生非目标变化；主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
+
+后续里程碑方向（暂不作为 13.26 任务）：
+
 - 13.27：地图内容 v2，在现有三种事件和三种 Boss 上增加少量可组合 encounter，不引入随机生成器或寻路大重构。
 - 13.28：运行稳定性与发布闭环，补 UI 截图/像素级 smoke、资源打包、崩溃边界和用户可重复的 Release 构建命令。
 
@@ -1659,19 +1713,19 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 领域 | 状态 | 说明 |
 |---|---|---|
 | 主动战斗 | v1 完成 | 四槽技能、Support、异常、药瓶已形成基础构筑 |
-| 构筑内容扩展 | 可玩 | 10 个技能、9 个 Support、双 Link、技能/Support 解锁奖励和 CombatMath 实际构筑差异已接通；下一步做装备等级需求 |
+| 构筑内容扩展 | 可玩 | 10 个技能、9 个 Support、双 Link、技能/Support 解锁奖励、CombatMath 实际构筑差异和 Base 构筑主题已接通；下一步做战斗反馈 |
 | 开放地图 | v1 完成 | 大地图、相机、预制布局、探索小地图、事件和 Boss 路线已完成 |
 | 怪物生态 | v1 完成 | 近战、远程、精英、冲锋、ElitePack 均有，精英风险和事件进度已有数据化可读反馈 |
 | Boss | v1 完成 | Brood 召唤、Brimstone 火区、Storm 锁定突进形成三种独立机制 |
 | 天赋盘 | v1 完成 | 20 节点、四个 Keystone、前置和 HUD/hover 反馈已完成 |
 | 状态异常 | 可玩 | Ignite/Chill、Enemy/Boss 抗性、Support 穿透和 Ignite tick 反馈已有，异常种类仍少 |
-| 装备掉落 | v1 完成 | base/implicit/affix/tier/rarity/relic/tags/weights/地图主题偏置/requiredLevel/比较/满包安全已有；下一步做 Base 构筑主题 |
+| 装备掉落 | v1 完成 | base/implicit/affix/tier/rarity/relic/tags/weights/地图主题偏置/requiredLevel/Base 构筑主题/比较/满包安全已有 |
 | 地图选择 | v1 完成 | 三选图、风险收益、模板绑定、稳定布局变体和两词缀组合已有 |
 | 经济/锻造 | v1 完成 | 分解、Forge Fragments、三种选择式词缀加工和当前 run Stash 已有 |
 | 存档 | v1 完成 | 单文件版本化存档、RNG 恢复、坏档保护、MapComplete/安全出生点恢复已有 |
 | 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
 | 连续刷图验收 | v1 完成 | 五张真实 Boss -> 拾取/管理掉落 -> 选奖励/地图 -> E 推进，且死亡/暂停/中间存档边界已有自动保护 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 987 条、存档 11 条、GameWorld 276 条通过；已覆盖五张连续真实 Boss 流程、GameOver/Restart、MapComplete/Paused 存档、Projectile/Area 命中、扩展技能/Support、装备等级需求与非法 Base、Ignite tick、ElitePack、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
+| 自动化测试 | 原型 | 纯逻辑 995 条、存档 11 条、GameWorld 280 条通过；已覆盖五张连续真实 Boss 流程、GameOver/Restart、MapComplete/Paused 存档、Projectile/Area 命中、扩展技能/Support、装备等级需求与非法 Base/隐式校验、Item Base 构筑主题、Ignite tick、ElitePack、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
