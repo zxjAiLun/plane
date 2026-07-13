@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`c1e7e56 Add ailment resistances and penetration`
+玩法代码基线：`bbd6dd7 Add item base types and implicit stats`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -92,7 +92,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前纯逻辑测试基线：`393 passed / 0 failed`。
+当前纯逻辑测试基线：`535 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -338,6 +338,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - 怪物死亡在地面生成 DroppedItem，经验不落地。
 - 地图等级提高 Rare 概率和 affix tier。
 - T1 / T2 / T3 词缀。
+- 每个槽位三个普通 Base，包含固定 implicit；Boss relic 使用主题专属 Base。
 - 词缀名称、Prefix/Suffix、物品名和实际 Stats 分离。
 - 全局伤害、攻速、移速、拾取范围、HP、护甲、Projectile、Area damage/radius 等词缀。
 - Boss 主题专属 Rare relic。
@@ -370,6 +371,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - Combustion、Deep Chill、Ignite、Chill。
 - 护甲减伤、装备影响战斗属性。
 - Loot rarity、affix 数量、tier、Boss relic。
+- Item Base 数量、唯一 id、implicit + affix 聚合和 Boss theme Base。
 - Elite modifier。
 - Charger 状态机。
 - Boss summon 数据、阶段顺序和数量上限。
@@ -410,6 +412,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 | `SkillBar.hpp` | 四槽技能/Support 分配、冷却 | 不负责解锁奖励 |
 | `CombatMath.hpp` | 无状态、纯战斗计算 | 供 GameWorld、Renderer 预览和测试复用 |
 | `Ailment.hpp` | 状态异常数据类型 | 不放 Enemy 生命周期状态 |
+| `ItemBase.hpp` | 普通装备 Base、Boss relic Base 和 implicit 数据 | Base 选择必须由 LootGenerator 驱动，不让 Renderer 参与 |
 | `LootGenerator.hpp` | rarity、affix、tier、Boss relic 生成 | UI 文本不得参与数值计算 |
 | `Equipment.hpp` | 装备 Item，并返回被替换 Item | 不允许静默吞掉旧装备 |
 | `Inventory.hpp` | 有容量的 Item 容器 | 满包 add 返回 false，不产生副作用 |
@@ -572,7 +575,7 @@ Review 严重级别：
 8. 关键操作、伤害、危险预警、奖励和装备变化均有清晰反馈。
 9. 构建、纯逻辑测试和关键手动流程有可重复验收方法。
 
-当前已满足 1、2 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，7 尚未实现，8、9 部分完成。天赋 Keystone 已让 Projectile、Area、Survival、Loot 分支出现第一层明确取舍；Ignite/Chill 现在已有 Enemy/Boss 抗性和 Support 穿透，但装备还缺少 base/implicit 层。
+当前已满足 1、2 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，7 尚未实现，8、9 部分完成。天赋 Keystone、异常抗性和装备 Base/implicit 已让构筑出现第一层真实取舍；装备词缀还缺少 tags/weights 和冲突选择规则。
 
 ## 12. 后续路线图
 
@@ -651,13 +654,15 @@ Milestone B 验收：至少存在 Projectile direct-hit、Area Ignite、Cold con
 
 ### Milestone C：装备价值与掉落循环
 
-任务 C1：Item Base Types v1
+任务 C1：Item Base Types v1（完成：`bbd6dd7`）
 
 - 每个槽位增加 3 个 base type。
 - Base 提供固定 implicit 或基础属性，affix 仍提供随机属性。
 - Item 保存 base id/name，Renderer 展示 Base、Implicit、Affix。
 - Boss relic 继续是特殊 base。
 - 不新增更多装备槽。
+
+实现结果：四个槽位各有三个普通 Base，另有三个 Boss theme relic Base。Item 保存 `baseId`、`baseName` 和 `implicitStats`；LootGenerator 先选 Base，再以 `ItemAffix::stats` 记录每条词缀贡献，最终 `stats` 由 implicit 与词缀贡献聚合得到。普通掉落名称包含 Base，详情面板显示 Base、Implicit、Affixes；装备、替换、分解、强化和地面掉落继续移动完整 Item。Boss relic 的旧等级缩放数值保持不变。
 
 任务 C2：词缀标签与权重 v1
 
@@ -737,9 +742,9 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Item Base Types v1`。
+建议立即交给 hy3：`Affix Tags and Weights v1`。
 
-原因：Mana、Keystone 和异常抗性已经让资源、技能数量、范围、掉落、风险和状态控制形成第一层构筑差异。现在装备仍主要是“随机词缀叠加”，缺少 PoE-like 的 base/implicit 取舍；下一轮应先补装备基础类型，不继续扩展技能、Boss 或地图事件。
+原因：Base、implicit、rarity、tier 和构筑词缀已经存在，但当前词缀仍是无权重随机抽取，可能在同一件物品上重复堆叠冲突方向。下一轮应让词缀选择可控、可测试并能受地图/Boss 主题影响，再进入有选择的 crafting。
 
 ### 13.1 已完成任务记录：Mana Resource v1
 
@@ -855,43 +860,65 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 - 不新增元素伤害类型、抗性装备词缀、第五种异常、免疫系统或完整元素抗性面板。
 - 不新增技能、Support、技能栏、地图奖励、Boss 技能或存档。
 
-### 13.4 hy3 实施任务：Item Base Types v1
+### 13.4 已完成任务记录：Item Base Types v1
 
-目标：把当前“槽位 + 稀有度 + 随机词缀”的装备，推进为最小的 `base + implicit + affix` 结构。玩家在掉落比较时必须能看到基础类型和固定属性差异；本轮不扩充装备槽、不做完整 crafting。
+代码已通过主 review 并提交为 `bbd6dd7 Add item base types and implicit stats`。
 
-开始前必须阅读：
+实现结果：
 
-- `include/Item.hpp`：Item 当前字段、名称/词缀展示和所有权语义。
-- `include/Stats.hpp`、`include/Equipment.hpp`、`include/Player.hpp`：Stats 聚合、装备替换和最终属性刷新。
-- `include/LootGenerator.hpp`：slot、rarity、affix tier、Boss relic 和随机生成入口。
-- `include/BossDefinition.hpp`、`include/MapModifier.hpp`：Boss loot theme 和地图等级/掉落缩放。
-- `src/Renderer.cpp`：背包列表、装备详情、MapComplete 掉落详情和技能影响预览。
-- `tests/arpg_logic_tests.cpp`：装备、词缀、Boss relic 和比较预览测试风格。
+- 新增 `ItemBaseLibrary`，四个装备槽各有三个普通 Base，另有 Brimstone、Storm、Brood 三个 Boss relic Base。
+- `Item` 保存 `baseId`、`baseName`、`implicitStats`；`ItemAffix` 保存该词缀的实际 Stats contribution。
+- `LootGenerator` 先选 Base，再按 rarity 生成词缀；普通和 Boss Item 的最终 Stats 都可以由 `implicitStats + affix.stats` 重建。
+- 生成物品名称包含 Base，详情面板显示 Base、Implicit、Affixes；负向 Base 属性也会显示，便于看到取舍。
+- 装备替换、背包、分解、强化、地面掉落和 MapComplete 所有权流程继续移动完整 Item；Boss relic 的旧等级缩放数值保持。
 
-实现范围：
-
-1. 为 `Item` 增加数据化 base 信息，至少包含稳定的 `baseId`、展示名和 implicit Stats；字段追加在现有聚合初始化之后，或统一修正所有初始化，禁止发生静默字段错位。
-2. 每个槽位提供至少 3 个 base type：
-   - Weapon：偏 Damage、Attack Speed、Projectile Damage 之间的取舍。
-   - Armor：偏 Max HP、Armor、Incoming Damage 之间的取舍。
-   - Ring：偏 Attack Speed、Pickup、Projectile/Area 之一。
-   - Amulet：偏 Area Damage、Area Radius、Max HP 之一。
-   每个 base 必须有明确 id、名称、隐式属性和可测试的数值表。
-3. `LootGenerator` 生成物品时先选择 base，再生成 rarity/affix；最终 Item 的实际 Stats 必须是 `implicit + affix`，不能让 UI 文本参与计算。Boss relic 保留主题倾向，并使用合法的特殊 base，不得被普通随机 base 覆盖。
-4. 物品名称、词缀和比较必须同时显示 base：详情面板至少显示 `Base: <name>`、`Implicit: <stats>`、`Affixes:`；背包列表可以只保留紧凑的 base 名称，但不得隐藏隐式属性导致玩家无法比较。
-5. 装备、替换、分解、丢弃、掉落和 MapComplete 拾取必须保留 Item 的 base/implicit 数据；旧装备不能被吞，满包拾取失败时地面物品不能消失。
-6. 预览逻辑必须继续复用现有 Stats 聚合和 `CombatMath`；不要在 Renderer 重新写“装备后技能伤害”的公式，也不要复制 LootGenerator 的 base 选择逻辑。
-7. 为 base library 和生成流程补纯逻辑测试：每槽 base 数量至少 3；所有 baseId 唯一；每个生成 Item 有合法 base；implicit 在 `Item::stats`/最终装备属性中实际生效；Boss relic 保留 loot theme；旧的 rarity/affix/tier 测试继续通过。
-8. 如果现有 `Item` 构造和聚合初始化难以安全扩展，优先新增显式构造函数或 factory，并一次性修正调用点；不要为了兼容旧初始化而保留含糊的长 aggregate initializer。
+验收结果：clean build、CTest、逻辑测试和 3 秒启动 smoke test 均通过；测试为 `535 passed / 0 failed`。中途发现并排除了 NMake 增量构建造成的旧 Item ABI 混链问题，最终以 clean build 为准。
 
 明确不做：
 
 - 不新增装备槽、背包分页、stash、装备等级需求、宝石或技能物品。
 - 不实现词缀 tags/weights、重铸、选择式 crafting；这些分别留给 C2/C3。
-- 不新增地图、Boss、技能、Support 或天赋节点。
+
+### 13.5 hy3 实施任务：Affix Tags and Weights v1
+
+目标：让词缀选择从“同槽位随机抽取”变成可解释、可测试、能受到地图/Boss 主题影响的选择。必须保留现有 Base、implicit、rarity、tier、Boss relic 和装备所有权，不新增 UI 大系统。
+
+开始前必须阅读：
+
+- `include/LootGenerator.hpp`：当前 AffixDefinition、词缀池、tier 计算和随机抽取。
+- `include/Item.hpp`、`include/ItemBase.hpp`、`include/Stats.hpp`：Item 的 Base/implicit/affix contribution 结构。
+- `include/BossDefinition.hpp`、`include/MapModifier.hpp`、`src/GameWorld.cpp`：Boss loot theme、当前地图 modifier 和掉落调用点。
+- `src/Renderer.cpp`：物品详情、词缀显示和比较面板；不得让 Renderer 参与词缀选择。
+- `tests/arpg_logic_tests.cpp`：LootGenerator、Boss relic 和随机测试风格。
+
+必须实现：
+
+1. 新增明确的 `enum class AffixTag`，至少覆盖 `Damage`、`AttackSpeed`、`MoveSpeed`、`Pickup`、`Survival`、`Projectile`、`Area`、`Armor`；`AffixDefinition` 增加 tags 和正数 weight。字段追加到现有 aggregate initializer 末尾，或一次性显式修正所有数据，禁止字段错位。
+2. 给当前全部词缀配置至少一个 tag 和明确 weight；每条词缀的 tag 必须与其 `AffixStat` 一致，例如 ProjectileDamage 不能只有 Damage 而没有 Projectile。不要使用词缀显示文本作为逻辑条件。
+3. 重写同一件物品的候选选择：只从同槽位、未使用的词缀中按 weight 抽取；至少避免同一 `AffixStat` 重复，避免同一 tag 的明显冲突组合。若候选耗尽必须有稳定 fallback，不能死循环、越界或生成空词缀。
+4. 增加可选的 `LootBias`/`AffixTag` 生成上下文。普通地图默认无偏置；地图或 Boss theme 可以提高对应 tag 的权重。推荐让 `GameWorld` 传递当前地图/Boss 主题到生成器，不要在 LootGenerator 读取 GameWorld 全局状态。
+5. Boss relic 的固定主题 Base 和固定主题词缀继续保留；本轮只让 Boss 额外普通掉落或通用生成路径使用主题 bias，不得把 relic 变成完全随机物品。
+6. 权重计算必须集中在 `LootGenerator` 的纯 helper；基础 weight、主题 bonus 和候选过滤不能复制到 Renderer。暂不替换全项目 `std::rand()`，E1 才做统一 RNG service。
+7. 详情面板可以显示词缀 tag 摘要，但不能改变当前紧凑布局；至少保证玩家能从词缀名/现有属性看到结果。不要做 loot filter、词缀搜索或 crafting UI。
+8. 保持 `ItemAffix::stats` contribution 和 Base/implicit 聚合不变；生成出的 Item 仍必须能由 `implicitStats + affix.stats` 重建。所有权、升级、分解和满包拾取路径不改。
+
+测试必须覆盖：
+
+- 每条 AffixDefinition 的 tags 非空、weight > 0，tag 与 AffixStat 映射正确。
+- 同一物品不会重复同一 AffixStat；候选不足时生成数量稳定且不崩溃。
+- 使用固定随机种子验证权重选择可复现；用纯 helper 验证主题 bias 提高目标 tag 的选择权重。
+- Weapon/Armor/Ring/Amulet 的生成均保留合法 Base、implicit 和 affix contribution。
+- Boss relic 的 Base、主题属性和固定掉落逻辑继续通过；现有 rarity/tier/Item Base 回归测试继续通过。
+- 最终执行 clean build、CTest、直接测试和 3 秒启动 smoke test。
+
+明确不做：
+
+- 不做 C3 的重铸/强化词缀选择，不做 C4 Stash，不做完整经济系统。
+- 不新增装备槽、技能、Support、地图、Boss 或天赋节点。
+- 不在本轮替换 `std::rand()`，不引入第三方 RNG 库。
 - 不提交代码；保持工作区未提交，交给主 review Agent 验收、修正和 commit。
 
-交付报告必须列出：改动文件、base 数据表、implicit 与 affix 的聚合路径、Boss relic 处理、UI 显示、测试数量、clean build、启动 smoke test、已知风险和 `git status --short`。
+交付报告必须列出：改动文件、AffixTag/weight 数据表、候选过滤与 fallback、主题 bias 来源、Boss relic 处理、测试数量、clean build、启动 smoke test、已知风险和 `git status --short`。
 
 ## 14. 项目进度看板
 
@@ -903,11 +930,11 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | Boss | v1 完成 | Brood 召唤、Brimstone 火区、Storm 锁定突进形成三种独立机制 |
 | 天赋盘 | v1 完成 | 20 节点、四个 Keystone、前置和 HUD/hover 反馈已完成 |
 | 状态异常 | 可玩 | Ignite/Chill、Enemy/Boss 抗性和 Support 穿透已有，异常种类仍少 |
-| 装备掉落 | v1 完成 | affix/tier/rarity/relic/比较/满包安全已有，缺 base/implicit/权重 |
+| 装备掉落 | v1 完成 | base/implicit/affix/tier/rarity/relic/比较/满包安全已有，缺 tags/weights |
 | 地图选择 | v1 完成 | 三选图和风险收益已有，缺组合 modifier 和布局变体 |
 | 经济/锻造 | 原型 | 分解碎片和 +3 强化已有，缺有选择的 crafting |
 | 存档 | 未开始 | 完成定义中的最大缺口 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 393 条通过，缺 UI 和端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 535 条通过，缺 UI 和端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
