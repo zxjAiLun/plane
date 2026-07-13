@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`abcaffc Add affix tags and weighted loot`
+玩法代码基线：`c3e456f Add choice-based affix crafting`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -92,7 +92,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前纯逻辑测试基线：`707 passed / 0 failed`。
+当前纯逻辑测试基线：`765 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -148,7 +148,7 @@ git status --short
 | `Tab` | 循环选择背包物品 | 不处理 | 不处理 | 循环选择背包物品 |
 | `Delete` | 丢弃选中物品 | 不处理 | 不处理 | 丢弃选中物品 |
 | `C` | 分解选中物品 | 不处理 | 不处理 | 分解选中物品 |
-| `V` | 使用碎片强化选中物品 | 不处理 | 不处理 | 强化选中物品 |
+| `V` | 打开/关闭锻造面板 | 不处理 | 不处理 | 打开/关闭锻造面板 |
 | `E` | 无 | 无 | 无 | 奖励和地图均选完后进入下一图 |
 | `R` | 无 | 无 | 无 | 重新开始 run |
 | `Esc` | 退出 | 退出 | 退出 | 退出 |
@@ -350,7 +350,10 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - 装备替换后旧装备返回背包，极端满包情况掉到玩家脚下。
 - `Tab` 选择、`Delete` 丢弃。
 - `C` 分解获得 Forge Fragments。
-- `V` 消耗碎片强化物品，最高 `+3`。
+- `V` 打开锻造面板；数字键选择 Improve / Reroll / Raise Tier，`F1-F3` 选择目标词缀。
+- 锻造只在成功操作后消耗 `Forge Fragments`；失败时 Item、资源和选中索引保持不变。
+- `ImproveAffix` 只改一条词缀 contribution，`RerollAffix` 只替换同组词缀，`RaiseAffixTier` 只提升一档合法 Tier。
+- `ItemAffix` 保存稳定 id、词缀类型、prefix/suffix、tags、tier 和实际 contribution；Item stats 由 implicit + affix contributions 统一重建。
 
 ### 5.11 地图选择与奖励
 
@@ -373,6 +376,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - Loot rarity、affix 数量、tier、Boss relic。
 - Item Base 数量、唯一 id、implicit + affix 聚合和 Boss theme Base。
 - AffixTag/weight 数据、地图/Boss loot bias、候选过滤、重复 AffixStat 防护和固定种子选择。
+- CraftingOperation 三种操作、稳定 affix id、Tier contribution 重建、重铸候选过滤和失败回滚规则。
 - Elite modifier。
 - Charger 状态机。
 - Boss summon 数据、阶段顺序和数量上限。
@@ -413,6 +417,8 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 | `SkillBar.hpp` | 四槽技能/Support 分配、冷却 | 不负责解锁奖励 |
 | `CombatMath.hpp` | 无状态、纯战斗计算 | 供 GameWorld、Renderer 预览和测试复用 |
 | `Ailment.hpp` | 状态异常数据类型 | 不放 Enemy 生命周期状态 |
+| `Affix.hpp` | 词缀 Stat 身份枚举 | 不使用显示名称作为逻辑身份 |
+| `Crafting.hpp` | 锻造操作、结果和面板状态 | 不保存 Renderer 状态，不处理资源扣除 |
 | `ItemBase.hpp` | 普通装备 Base、Boss relic Base 和 implicit 数据 | Base 选择必须由 LootGenerator 驱动，不让 Renderer 参与 |
 | `LootBias.hpp` | 地图/Boss 对词缀标签的权重偏置 | 只保存数据，不读取 GameWorld 全局状态 |
 | `LootGenerator.hpp` | rarity、base、implicit、affix、tier、标签权重、Boss relic 生成 | UI 文本不得参与数值计算 |
@@ -577,7 +583,7 @@ Review 严重级别：
 8. 关键操作、伤害、危险预警、奖励和装备变化均有清晰反馈。
 9. 构建、纯逻辑测试和关键手动流程有可重复验收方法。
 
-当前已满足 1、2 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，7 尚未实现，8、9 部分完成。天赋 Keystone、异常抗性和装备 Base/implicit 已让构筑出现第一层真实取舍；装备词缀还缺少 tags/weights 和冲突选择规则。
+当前已满足 1、2 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，7 尚未实现，8、9 部分完成。天赋 Keystone、异常抗性、装备 Base/implicit、词缀 tags/weights、地图/Boss 掉落偏置和选择式锻造已经让构筑出现第一层真实取舍；Stash、存档和更深的地图布局仍未实现。
 
 ## 12. 后续路线图
 
@@ -674,11 +680,12 @@ Milestone B 验收：至少存在 Projectile direct-hit、Area Ignite、Cold con
 - Map drop、事件 drop、Boss 非 relic 额外掉落均传递偏置；Boss relic 继续使用固定 Base/主题词缀。
 - ItemAffix 保留 tags 和实际 contribution，详情面板显示标签摘要。
 
-任务 C3：锻造选择 v2
+任务 C3：锻造选择 v2（完成：`c3e456f`）
 
-- 当前 `V` 只有线性强化。扩展为一次明确选择：强化现有词缀、重铸一条词缀、提升 affix tier 三者之一。
-- 仍使用 Forge Fragments，不引入完整货币经济。
-- 所有失败路径保留原物品。
+- `V` 打开锻造上下文，数字键选择 Improve/Reroll/Raise Tier，F1-F3 选择目标词缀。
+- `LootGenerator` 持有稳定 affix id、Tier contribution、候选过滤、Stats rebuild 和纯锻造结果。
+- Forge Fragments 只在成功操作后扣除；失败、无效目标、无候选、最高 Tier 和碎片不足均保留原 Item。
+- 锻造面板在 Playing/MapComplete 均可用，独占输入上下文；旧线性 `upgradeLevel` 状态已移除。
 
 任务 C4：Stash v1
 
@@ -745,9 +752,9 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Crafting Choice v2`。
+建议立即交给 hy3：`Stash v1`。
 
-原因：Base、implicit、rarity、tier、标签权重和地图/Boss 主题掉落偏置已经存在。下一步应让玩家对已有装备做一次明确的选择式加工，形成“掉落 -> 比较 -> 保留/分解 -> 有风险地改造 -> 进入下一图”的最小装备决策闭环；不应在此时继续扩大词缀池或新增装备槽。
+原因：装备已经具备 Base、implicit、rarity、tier、标签权重、地图/Boss 掉落偏置和选择式锻造。下一步需要让地图间的装备保留与整理形成持久闭环，避免背包 9 格成为唯一长期存储；Stash 完成后再进入地图布局变体和可重复运行能力。
 
 ### 13.1 已完成任务记录：Mana Resource v1
 
@@ -901,50 +908,63 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 - 不替换全项目 `std::rand()`，不引入第三方 RNG；统一 RNG 留给 E1。
 - 不实现重铸、选择式 crafting、stash、loot filter、装备等级需求或新装备槽。
 
-### 13.6 hy3 实施任务：Crafting Choice v2
+### 13.6 已完成任务记录：Crafting Choice v2
 
-目标：把当前“选中物品后按 V 线性强化”改成一个最小、可读、可测试的选择式锻造流程。玩家必须能在保留 Base/implicit 和物品所有权的前提下，对一件背包装备选择“强化一条词缀、重铸一条词缀、提升一条词缀 Tier”中的一种操作，然后继续比较装备并决定装备、分解或丢弃。不要扩展成完整 PoE 工艺台或货币系统。
+代码已通过主 review 并提交为 `c3e456f Add choice-based affix crafting`。
+
+实现结果：
+
+- 新增 `Affix.hpp` 和 `Crafting.hpp`；`ItemAffix` 保存稳定 id、AffixStat、prefix/suffix 身份和 contribution。
+- `LootGenerator` 提供 `ImproveAffix`、`RerollAffix`、`RaiseAffixTier` 纯操作，统一负责候选过滤、Tier 数值和 Item stats rebuild。
+- `V` 在 Playing/MapComplete 打开锻造面板；数字键选操作，F1-F3 选词缀，Escape 关闭；面板打开时不会装备、拾取、选奖励或切换 P/K 面板。
+- Forge Fragments 仅在成功操作后扣除；Boss relic 固定词缀不可重铸，Base/implicit/其他词缀在单条加工中保持不变。
+- 移除旧的线性 `upgradeLevel`/`MaxItemUpgradeLevel` 状态，避免两套强化规则并存。
+
+验收结果：clean build、CTest、逻辑测试和 3 秒启动 smoke test 均通过；测试为 `765 passed / 0 failed`，工作区在提交后干净。
+
+明确不做：
+
+- 不做完整货币、商店、交易、装备锁定、工艺配方、风险失败或物品毁坏。
+- 不做 stash、存档、统一 RNG 或复杂鼠标工艺台；下一项为 C4 Stash v1。
+
+### 13.7 hy3 实施任务：Stash v1
+
+目标：在地图之间提供持久的有限仓库，让玩家可以保留、比较和整理重要装备，而不是被 9 格 Inventory 迫使立即丢弃。Stash 只属于当前 run，不做跨运行存档。
 
 开始前必须阅读：
 
-- `include/Item.hpp`、`include/ItemBase.hpp`、`include/Stats.hpp`：Base、implicit、最终 stats 和 ItemAffix contribution 的当前数据模型。
-- `include/LootGenerator.hpp`、`include/LootBias.hpp`：AffixDefinition、tags、weight、tier、候选过滤和 Boss relic 生成；锻造逻辑必须复用这里的数据，不得复制词缀数值表。
-- `include/Inventory.hpp`、`src/GameWorld.cpp`：选中物品、分解、当前 V 强化、装备替换和 MapComplete 背包语义。
-- `include/Input.hpp`、`src/Input.cpp`、`src/Renderer.cpp`：现有 `C Salvage`、`V Improve`、Tab/Delete、数字键上下文和详情面板布局。
-- `tests/arpg_logic_tests.cpp`：Item Base、affix contribution、地图流程和输入相关纯逻辑测试风格。
+- `include/Inventory.hpp`、`include/Item.hpp`：当前容量容器和完整 Item 所有权规则。
+- `include/GameWorld.hpp`、`src/GameWorld.cpp`：MapComplete 背包操作、startNextMap/reset、奖励阶段和输入上下文。
+- `include/Input.hpp`、`src/Input.cpp`、`src/Renderer.cpp`：Tab/Delete/C/V 键语义、MapComplete 面板布局和锻造上下文。
+- `tests/arpg_logic_tests.cpp`：Inventory、装备替换、满包和 Item 聚合测试风格。
 
 必须实现：
 
-1. 新增一个小型 `CraftingOperation`/`CraftingState` 数据类型或等价状态，至少表达 `ImproveAffix`、`RerollAffix`、`RaiseAffixTier` 三种操作，以及当前选中的背包 Item 和 Affix 下标。状态放在 GameWorld 或独立纯逻辑类型中，不放 Renderer 静态变量。
-2. `V` 在 Playing 和 MapComplete 都只对当前 selected inventory item 打开/关闭锻造面板；没有选中物品、选中越界、物品无词缀或 Forge Fragments 不足时，不能消耗资源、不能修改 Item，并显示明确的短提示。保留 `C Salvage`、Tab、Delete、1-9 的现有语义。
-3. 锻造面板使用现有 SFML 文本风格，显示：选中物品、Forge Fragments、三种操作和各自成本、词缀列表、可操作的 F1-F3 词缀选择、当前操作/失败原因。不要新增鼠标拖拽、复杂 tooltip、弹窗树或第二套物品列表。
-4. 面板打开时输入上下文必须独占：数字键/F1-F3 只能选择锻造操作或词缀，不能装备、点天赋、换技能、选地图奖励；P/K 在锻造面板打开时不切换其他面板。按 `V` 或 `Escape` 关闭面板。若 `Escape` 当前尚未提供边沿 accessor，只增加最小的一次性 Input accessor，不改全局输入架构。
-5. 所有操作统一先验证，再以临时副本或可回滚方式修改，成功后才扣除 `Config::ForgeUpgradeCost`（或新增明确的独立成本常量）。任何失败路径都必须保留原 Item、原 Forge Fragments 和选中索引，不允许半修改。
-6. `ImproveAffix`：只强化选定词缀的实际 contribution，不修改 Base/implicit、不改其他词缀、不伪造显示文本。强化倍率/上限必须进入数据或单一纯 helper，不能在 Renderer 和 GameWorld 各写一份。建议保持当前小幅增益并设置明确上限，避免一次操作超过该词缀下一 Tier 的数值。
-7. `RerollAffix`：只替换选定词缀；保留该 Item 的 slot、prefix/suffix 组、Base、implicit、其他词缀和 item level。候选必须来自 `LootGenerator` 的 AffixDefinition 数据，遵守 tags/weight/重复 `AffixStat` 约束；不要通过比较词缀展示名做逻辑判断。若无合法候选，操作失败且不扣资源。
-8. `RaiseAffixTier`：只把选定词缀提升一个合法 Tier，不能超过该物品 item level 对应的最高 Tier。提升后的 contribution 必须由 `LootGenerator` 根据 AffixDefinition 和 item level 重算；不要只改 `tier` 文本。若已经是最高 Tier，操作失败且不扣资源。
-9. 增加 `LootGenerator` 的纯 helper，例如按稳定 affix id 查定义、计算指定 Tier contribution、过滤可重铸候选、重建 `item.stats`。不要在 GameWorld 复制 tier 数值、weight 或 tags 规则。若当前 `ItemAffix` 缺少稳定身份信息，增加 `affixId`/`AffixStat`/prefix-suffix 元数据，并把字段追加到 aggregate initializer 末尾后修正全部初始化点；禁止依赖 `name` 作为唯一逻辑 id。
-10. 每次成功变更后调用统一的 Item stats rebuild；确保 `item.stats == combineStats(item.implicitStats, all item.affix.stats)`，并刷新详情面板、装备比较和已装备属性。当前背包 item 被装备后，永久 Player/SkillBar 属性必须继续由现有装备刷新路径计算。
-11. 成功/失败反馈使用现有 `eventStatusMessage_` 短提示或等价单行状态，不创建通用 toast 队列。成功示例：`Affix improved`、`Affix rerolled`、`Affix tier raised`；失败示例：`Need 3 Forge Fragments`、`Affix already at max tier`。
-12. 只在本轮需要的文件中修改。不要新增装备槽、技能、Support、地图、Boss、天赋节点、stash、存档或统一 RNG；不要改变 Boss relic 固定词缀和 map/Boss loot bias 生成语义。
+1. 新增独立 `Stash` 类型或等价容器，容量至少 24；`add(Item)` 返回 bool，满仓时原 Item 保留且不产生副作用；提供 `take(index)`、`items()`、`size()`、`capacity()`、`isFull()`、`clear()`。
+2. `GameWorld` 持有 Stash。`reset()` 清空 Stash；`startNextMap()` 保留 Stash、Inventory、装备、天赋、技能/Support 解锁、Forge Fragments 和当前 run 奖励。不得在地图加载时意外清空仓库。
+3. 只在 MapComplete 开放 Stash 管理，不做 Playing 中的远程仓库。增加明确的 stash 输入上下文：Tab 在 Inventory/Stash 两侧循环选择，至少提供一个键将选中 Inventory Item 移入 Stash、一个键将选中 Stash Item 移回 Inventory；移动前检查目标容量，失败时原物品保留。
+4. 不复用数字键作为 Stash 移动操作，因为 MapComplete 数字键只负责地图奖励/下一图选择；不改变 `1-9`、F、C、V、Delete、E 的既有语义。锻造面板打开时 Stash 移动键必须被屏蔽。
+5. MapComplete UI 明确显示 `Inventory X/9` 和 `Stash Y/24`，显示两侧选中项、满仓/满包提示和移动操作提示；不能遮挡三选奖励、下一图选项、Boss 掉落详情或锻造面板。需要时拆成两个窄面板，不做复杂拖拽。
+6. Stash 移动完整 `Item`，不只复制 stats；移动成功后 Inventory/Stash 的 selected index 必须夹回合法范围。装备栏不直接移动到 Stash，必须先换回背包或保持当前装备。
+7. 与 C3 锻造互斥：Stash 面板打开时 V/C/Delete/拾取和地图选择不能串入；锻造面板打开时 Stash 操作不能串入。Escape/V 关闭当前子面板时不得关闭游戏窗口或推进地图。
+8. 将容量/移动逻辑放在 `Stash`/`Inventory`/GameWorld 编排层，Renderer 只读；不要在 Renderer 修改容器或复制容量规则。
 
 测试必须覆盖：
 
-- 三种操作的数据类型、成本、可用条件和无效输入；Forge Fragments 不足时 Item 与资源完全不变。
-- ImproveAffix 只改变目标词缀 contribution；RerollAffix 只替换目标词缀并保留 Base/implicit/其他词缀；RaiseAffixTier 只提升一个合法 Tier并重算 contribution。
-- 不能超过 item level 对应的最高 Tier；不能生成重复 `AffixStat` 或非法槽位词缀；无候选时安全失败。
-- 每次成功操作后验证 `implicitStats + affix.stats == item.stats`，装备后 Player/SkillBar 实际属性与详情预览一致。
-- 分解、丢弃、装备替换、满包拾取和 MapComplete 结算流程继续通过；锻造面板打开时数字键/F 键不会串到其他输入上下文。
-- 使用固定种子测试重铸结果可复现；不要求本轮替换全项目 RNG。
+- Stash 容量、满仓 add 失败保留原 Item、take 越界安全和 clear。
+- MapComplete Inventory <-> Stash 双向移动，目标满时源 Item、数量和选中索引不变。
+- `reset()` 清空 Stash；`startNextMap()` 保留 Stash 和 Item 完整字段（Base、implicit、affix、tags、id、tier）。
+- 输入上下文回归：MapComplete 数字键仍只选奖励/地图，Stash 操作键不装备；Crafting/Stash 互斥。
+- 满包/满仓、Boss 掉落拾取、装备替换、分解、锻造和下一图流程继续通过。
 - 最终执行 clean build、CTest、直接逻辑测试、3 秒启动 smoke test 和 `git diff --check`。
 
 明确不做：
 
-- 不新增完整货币、商店、交易、装备锁定、工艺配方、风险失败或物品毁坏。
-- 不做一次操作同时改多条词缀，不做拖拽和复杂鼠标工艺台。
+- 不做跨运行存档、共享仓库、多页仓库、物品堆叠、标签过滤、拖拽或仓库排序。
+- 不新增装备槽、技能、Support、地图、Boss、天赋节点或经济系统。
 - 不提交代码；保持工作区未提交，交给主 review Agent 验收、修正和 commit。
 
-交付报告必须列出：改动文件、CraftingState/输入状态机、三种操作的成本与上限、Item 身份/重建策略、失败回滚策略、测试数量、clean build、CTest、启动 smoke test、已知风险和 `git status --short`。
+交付报告必须列出：改动文件、Stash API、输入状态机、容量和失败保护、reset/startNextMap 生命周期验证、UI 布局、测试数量、clean build、启动 smoke test、已知风险和 `git status --short`。
 
 ## 14. 项目进度看板
 
@@ -958,9 +978,9 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 状态异常 | 可玩 | Ignite/Chill、Enemy/Boss 抗性和 Support 穿透已有，异常种类仍少 |
 | 装备掉落 | v1 完成 | base/implicit/affix/tier/rarity/relic/tags/weights/地图主题偏置/比较/满包安全已有 |
 | 地图选择 | v1 完成 | 三选图和风险收益已有，缺组合 modifier 和布局变体 |
-| 经济/锻造 | 原型 | 分解碎片和旧线性强化已有，C3 计划改为三选一式词缀加工 |
+| 经济/锻造 | 可玩 | 分解、Forge Fragments 和三种选择式词缀加工已有；Stash 尚未实现 |
 | 存档 | 未开始 | 完成定义中的最大缺口 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 707 条通过，缺 UI 和端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 765 条通过，缺 UI 和端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
