@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`9f19718 Add Storm Herald mobility pattern`
+玩法代码基线：`1f58836 Add Mana resource to skill casting`
 
 接手文档提交：`7201c35 Document ARPG architecture and development roadmap`
 
@@ -92,7 +92,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前纯逻辑测试基线：`283 passed / 0 failed`。
+当前纯逻辑测试基线：`321 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -238,6 +238,8 @@ git status --short
 - 击杀直接获得经验。
 - 升级后 SP +1，不暂停游戏。
 - SP 只能通过 `Player::spendPassivePoint()` 消费。
+- 玩家拥有 100 Mana，按时间恢复；技能消耗 Mana，资源不足时不会施法或启动 cooldown。
+- Primary 使用低消耗，Secondary/Utility 使用中高消耗，Dash 不消耗 Mana。
 - `reset()` 重置整局成长，`startNextMap()` 保留单局成长。
 
 ### 5.6 天赋盘
@@ -285,6 +287,8 @@ git status --short
 - Dash
 
 技能面板使用 `K` 打开。默认解锁 Spread Shot、Meteor、Pulse、Dash；其他技能通过 Boss 结算奖励解锁。未解锁技能可预览但不能装备。
+
+每个主动技能定义包含 Mana cost。HUD 和 Skill Bar/Skill Panel 显示当前 Mana、技能消耗和实际 cooldown。
 
 ### 5.8 Support 构筑
 
@@ -369,6 +373,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - GroundHazard 数据、tick 生命周期和 Brimstone 火区配置。
 - BossDash 目标快照、前摇、移动、单次命中、完成消费和 Storm 技能顺序。
 - Boss 位移经过地图边界与障碍解析。
+- Mana 初始值、消耗、恢复、上限 clamp、八个技能 cost 和资源不足时 cooldown 不变。
 - 药瓶充能奖励。
 - 地图选项差异和风险缩放。
 - 地图奖励生成。
@@ -388,7 +393,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 | `Game.cpp` | SFML 窗口、事件循环、更新和渲染入口 | 不放玩法规则 |
 | `Input.*` | 将 SFML 事件转换成按帧输入状态 | 不解释 GameState 语义 |
 | `GameWorld.*` | 当前总编排器，连接地图、战斗、奖励、输入上下文 | 可做流程编排，避免继续塞纯数据表和可独立算法 |
-| `Player.*` | 玩家生命、经验、SP、装备、天赋与最终属性 | 永久属性刷新必须走 `recalculateStats()` |
+| `Player.*` | 玩家生命、Mana、经验、SP、装备、天赋与最终属性 | 永久属性刷新必须走 `recalculateStats()`；Mana 只由 Player 持有 |
 | `Enemy.*` | 单个敌人移动、攻击状态机、异常生命周期 | 不生成掉落、不直接修改地图奖励 |
 | `EnemyDefinition.hpp` | 怪物类型数据 | 新怪先加数据，通用行为再加状态机 |
 | `BossDefinition.hpp` | Boss、Boss 技能顺序和奖励主题数据 | Boss 差异优先数据化 |
@@ -605,7 +610,7 @@ Milestone A 验收：已完成。三个 Boss 至少各有一个其他 Boss 没�
 
 ### Milestone B：构筑深度和资源约束
 
-任务 B1：Mana Resource v1
+任务 B1：Mana Resource v1（完成：`1f58836`）
 
 - Player 增加 mana/maxMana/regen。
 - SkillDefinition 增加 manaCost。
@@ -613,6 +618,8 @@ Milestone A 验收：已完成。三个 Boss 至少各有一个其他 Boss 没�
 - 资源不足时不消耗 cooldown，也不施法。
 - HUD 和 Skill Panel 显示当前/最大 Mana、消耗和实际 cooldown。
 - 暂不增加 mana flask。
+
+实现结果：`Player` 持有并恢复 Mana；`SkillDefinition` 和 `SkillLibrary` 为八个技能提供显式 cost；`SkillBar` 拆出 `canCast()`/`consumeCooldown()`，GameWorld 四条施法路径统一先检查输入、几何、cooldown 和 Mana，再扣资源并启动 cooldown；reset 新 run 回满，MapComplete/死亡/面板状态不进入施法路径。HUD、Skill Bar 和 Skill Panel 已显示资源信息。
 
 任务 B2：天赋盘 Keystones v1
 
@@ -720,11 +727,11 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Mana Resource v1`。
+建议立即交给 hy3：`Passive Tree Keystones v1`。
 
-原因：主动技能、Support 和天赋已有构筑差异，但当前所有技能只受 cooldown 限制，玩家没有短期资源取舍。Mana 是 Milestone B 的第一项基础设施，也会成为后续 Keystone、装备词缀和技能平衡的共同约束。
+原因：Mana 已经给技能循环增加了短期资源取舍，但四条天赋分支仍以独立数值节点为主。四个末端 Notable 是最小且可控的入口，能让 Projectile、Area、Survival、Loot 构筑出现真正的收益/代价，而不扩大天赋盘规模。
 
-### 13.1 hy3 实施任务：Mana Resource v1
+### 13.1 已完成任务记录：Mana Resource v1
 
 目标：增加一个可恢复的玩家施法资源。资源不足时施法必须完全失败，不能产生效果、投射物、位移或 cooldown；资源足够时一次施法只扣一次 Mana。
 
@@ -767,6 +774,57 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 交付报告必须列出：改动文件、接口变化、各技能 Mana cost、施法判定顺序、测试数量、clean build 结果、已知风险和 `git status --short`。
 
+### 13.2 hy3 实施任务：Passive Tree Keystones v1
+
+目标：把现有 20 节点中的四个末端 Notable（Projectile 4、Area 9、Survival 14、Loot 19）升级为有明显取舍的 Keystone。普通节点、位置、前置关系、SP 输入和天赋盘 UI 的基本交互保持不变。
+
+开始前必须阅读：
+
+- `PassiveTree.hpp`：20 节点数据、`Stats` 聚合、前置关系和分支统计。
+- `Stats.hpp`、`Player.hpp/.cpp`：最终属性聚合和生命/药瓶逻辑。
+- `CombatMath.hpp`、`SkillBar.hpp`：投射物数量、范围伤害、范围半径和 Support 计算。
+- `GameWorld.cpp` 中 `damageForPlayerSkill()`、`radiusForPlayerSkill()`、`projectileCountForPlayerSkill()`、`tryUseLifeFlask()`、`rewardEnemyKill()`：真实效果接入点。
+- `Renderer.cpp` 的 `drawPassiveTree()`、HUD build summary 和 Skill Panel 预览。
+- `tests/arpg_logic_tests.cpp`：现有纯逻辑测试风格和 PassiveTree 测试。
+
+必须实现：
+
+1. 为 `PassiveNode` 增加明确的 Keystone 类型或等价数据字段，默认值为 `None`；不要依赖节点名称字符串判断行为。四个末端 Notable 各绑定一个唯一 Keystone。
+2. Projectile Keystone：`Volley Doctrine`，投射物技能额外发射 2 枚投射物，但投射物伤害倍率降低 25%。额外投射物必须和 Spread/Volley Support 正确叠加，非 Projectile 技能不受影响。
+3. Area Keystone：`Concentrated Impact`，范围技能伤害提高 35%，实际范围半径降低 25%。Projectile 和 Dash 不受影响；Renderer 的范围预览必须显示实际半径。
+4. Survival Keystone：`Second Wind`，生命药瓶治疗量提高 50%，不提高最大生命、不增加充能数量。治疗结果仍 clamp 到最大生命，药瓶空、满血和死亡的失败路径不扣充能。
+5. Loot Keystone：`Loaded Dice`，物品掉落数量/概率提高 25%，但普通/精英/Boss 的实际伤害提高 20%。风险必须接入真实地图掉落与敌人伤害路径，不能只改 UI 文案。
+6. Keystone 效果应通过数据/属性或无状态计算 helper 接入真实路径。Renderer 不得复制另一套数值公式；Skill Panel、装备预览和实际施法要使用相同的 CombatMath/Stats 计算。
+7. `PassiveTree::combinedStats()` 或等价聚合必须保持普通节点的原有结果；分配/重复分配/前置检查语义不变。Keystone 只能在节点成功分配后生效。
+8. HUD build summary 明确显示 Keystone 名称或短标签；天赋盘 hover 描述显示收益与代价。不能只显示 `Notable`。
+
+推荐接口方向：
+
+- 新增 `enum class PassiveKeystone { None, VolleyDoctrine, ConcentratedImpact, SecondWind, LoadedDice }`。
+- 用数据字段保存 Keystone；可以在 `PassiveTree` 提供 `hasKeystone()` / `keystoneSummary()`，也可以把可聚合的数值放入 `Stats`。
+- 投射物数量、范围伤害/半径、药瓶治疗和掉落/敌人伤害必须有单一计算来源；不要在 `GameWorld` 和 `Renderer` 各写一套 Keystone switch。
+- 如果给 `Stats` 增加字段，必须同步 `combineStats()`、装备预览的 `statsDelta()` 和所有 Stats 聚合初始化，避免聚合字段错位。
+
+测试必须覆盖：
+
+- 四个末端节点的 Keystone 类型、名称、描述和前置关系。
+- Keystone 未分配时不改变默认 Projectile/Area/Flask/Loot 行为；分配后才生效，重复分配不重复叠加。
+- Projectile：投射物数量 +2、投射物伤害下降 25%，Area/Movement 不变；和 Volley/Pierce Support 组合不崩溃。
+- Area：范围伤害提高 35%、半径降低 25%；Projectile/Dash 不变，实际伤害和半径与 Renderer 预览使用同一计算结果。
+- Survival：药瓶治疗量提高 50%，满血/死亡/空瓶失败路径不消耗充能，治疗不超过 max HP。
+- Loot：掉落概率/数量提高 25%，普通/Elite/Boss 伤害提高 20%；至少覆盖真实 `enemyDamageForMap()` 和 `rewardEnemyKill()` 的计算 helper。
+- 现有全部回归测试仍通过；header-only 天赋数据变更后必须 clean build。
+
+明确不做：
+
+- 不新增节点、不改变 20 节点布局、不做天赋重置和职业起点。
+- 不新增第五条分支、不做复杂 Keystone 互斥树。
+- 不新增装备词缀、Mana 系统扩展、技能解锁、地图模板或 Boss 技能。
+- 不在 Renderer 中修改状态，不复制 CombatMath 公式。
+- 不提交代码；保持工作区未提交，交给主 review Agent 验收、修正和 commit。
+
+交付报告必须列出：改动文件、Keystone 数据表、每个 Keystone 的收益/代价、实际接入点、测试数量、clean build 结果、已知风险和 `git status --short`。
+
 ## 14. 项目进度看板
 
 | 领域 | 状态 | 说明 |
@@ -781,6 +839,6 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 经济/锻造 | 原型 | 分解碎片和 +3 强化已有，缺有选择的 crafting |
 | 存档 | 未开始 | 完成定义中的最大缺口 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 283 条通过，缺 UI 和端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 321 条通过，缺 UI 和端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
