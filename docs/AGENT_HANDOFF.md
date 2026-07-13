@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`1a20767 Add persistent Brimstone ground hazards`
+玩法代码基线：`9f19718 Add Storm Herald mobility pattern`
 
 接手文档提交：`7201c35 Document ARPG architecture and development roadmap`
 
@@ -92,7 +92,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前纯逻辑测试基线：`261 passed / 0 failed`。
+当前纯逻辑测试基线：`283 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -214,18 +214,20 @@ git status --short
 已实现：
 
 - 独立 HP、伤害、技能间隔、掉落倍率和保底掉落。
-- Circular AoE、Projectile 和 SummonAdds 三种技能类型。
+- Circular AoE、Projectile、SummonAdds 和 Dash 四种技能类型。
 - 技能顺序数据化。
 - 低血量 Enrage 阶段，改变技能顺序、间隔和伤害。
 - Brood Matriarch 普通阶段召唤近战幼体，Enrage 阶段加入远程幼体。
 - 召唤物按当前地图等级和 modifier 缩放，数量有上限；Boss 死亡时统一清理。
 - Brimstone Colossus 的 Magma Slam 留下持续火区，按间隔造成伤害。
 - 火区使用世界坐标，可同时存在多个，显示危险边界、tick 节奏和剩余时间。
+- Storm Herald 的 Tempest Rush 在前摇开始时锁定目标，显示完整路径和落点后短距离突进。
+- Tempest Rush 经过地图边界/障碍解析，每次施放最多命中一次；Chill 只降低其移动速度，不缩短前摇。
 - Boss 名称、血条、技能预警、阶段信息。
 - 三种主题 Boss relic，分别偏 Weapon、Ring、Amulet 构筑。
 - Boss 死亡后进入 MapComplete，并生成奖励和下一图选项。
 
-当前 Brood 具有召唤机制，Brimstone 具有持续区域控制；Storm 仍主要依赖不同参数与技能顺序，缺少位置变化和阶段转场。
+三个 Boss 已各有独立机制：Brood 召唤增援，Brimstone 制造持续区域危险，Storm 通过带锁定预警的位移改变站位。Milestone A 已完成；后续 Boss 内容先暂停，优先补玩家资源约束和构筑深度。
 
 ### 5.5 玩家、生存与成长
 
@@ -365,6 +367,8 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - Charger 状态机。
 - Boss summon 数据、阶段顺序和数量上限。
 - GroundHazard 数据、tick 生命周期和 Brimstone 火区配置。
+- BossDash 目标快照、前摇、移动、单次命中、完成消费和 Storm 技能顺序。
+- Boss 位移经过地图边界与障碍解析。
 - 药瓶充能奖励。
 - 地图选项差异和风险缩放。
 - 地图奖励生成。
@@ -388,6 +392,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 | `Enemy.*` | 单个敌人移动、攻击状态机、异常生命周期 | 不生成掉落、不直接修改地图奖励 |
 | `EnemyDefinition.hpp` | 怪物类型数据 | 新怪先加数据，通用行为再加状态机 |
 | `BossDefinition.hpp` | Boss、Boss 技能顺序和奖励主题数据 | Boss 差异优先数据化 |
+| `BossDash.hpp` | Boss 突进定义与无 SFML 状态机 | 目标快照、移动和一次性命中/完成状态必须可纯逻辑测试 |
 | `GroundHazard.hpp` | 持续地面危险定义、世界实例和 tick 生命周期 | 不直接修改 Player；伤害由 GameWorld 编排 |
 | `MapInstance.hpp` | 地图模板、障碍、区域、事件实例和移动解析 | 不处理玩家输入 |
 | `MapModifier.hpp` | 下一图选项和风险收益倍率 | 数值必须能在 GameWorld 中找到实际应用点 |
@@ -588,13 +593,15 @@ Review 严重级别：
 - Boss 死亡、下一图、reset 时清空 Hazard。
 - 不做复杂粒子系统。
 
-任务 A3：Storm Mobility Pattern v1
+任务 A3：Storm Mobility Pattern v1（完成：`9f19718`）
 
 - 给 Storm Herald 增加一次数据化位置变化或短距离突进。
 - 必须有目标线/落点提示和不可连续命中保护。
 - 不能复用玩家 Input，不修改 Player Dash。
 
-Milestone A 验收：三个 Boss 至少各有一个其他 Boss 没有的可观察机制。
+实现结果：Tempest Rush 使用独立 `BossDashState`，在前摇开始时快照目标；移动和落点经过地图解析，Chill 只影响移动阶段；Renderer 显示锁定路径、落点和冲击反馈；Boss 死亡、下一图和 reset 均清理状态。
+
+Milestone A 验收：已完成。三个 Boss 至少各有一个其他 Boss 没有的可观察机制。
 
 ### Milestone B：构筑深度和资源约束
 
@@ -713,20 +720,52 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Storm Mobility Pattern v1`。
+建议立即交给 hy3：`Mana Resource v1`。
 
-原因：Brood 已有召唤，Brimstone 已有持续火区，Storm Herald 仍缺少独立空间机制。一次带前摇、锁定方向和落点反馈的短距离位移能让三个 Boss 的战斗目标明显分化，并完成 Milestone A 的验收条件。
+原因：主动技能、Support 和天赋已有构筑差异，但当前所有技能只受 cooldown 限制，玩家没有短期资源取舍。Mana 是 Milestone B 的第一项基础设施，也会成为后续 Keystone、装备词缀和技能平衡的共同约束。
 
-给 hy3 的任务必须直接引用本文件中“任务 A3”的范围和验收标准，并额外要求：
+### 13.1 hy3 实施任务：Mana Resource v1
 
-- 先阅读 `BossDefinition.hpp`、`GameWorld::updateBossSkills()`、`Enemy::update()`、`MapInstance::resolveMovement()` 和现有 Charger 状态机。
-- 改动保持未提交。
-- 必须补纯逻辑测试。
-- 位移目标必须在前摇开始时快照，不能每帧追踪玩家。
-- 位移路径和落点必须经过 `MapInstance` 边界/障碍解析。
-- 一次位移最多命中玩家一次，并继续走 `damagePlayer()`。
-- Boss 死亡、`startNextMap()` 和 `reset()` 必须清空待执行移动状态。
-- 不修改 Player Dash，不新增 EnemyType，不顺手实现 Mana、阶段转场或新地图词缀。
+目标：增加一个可恢复的玩家施法资源。资源不足时施法必须完全失败，不能产生效果、投射物、位移或 cooldown；资源足够时一次施法只扣一次 Mana。
+
+开始前必须阅读：
+
+- `Player.hpp/.cpp`：当前生命、经验、属性和 reset 语义。
+- `Skill.hpp`、`SkillLibrary.hpp`：技能定义与 header-only 数据表。
+- `SkillBar.hpp`：当前 `tryCast()` 会立即启动 cooldown，这是本任务最容易产生顺序 bug 的位置。
+- `GameWorld::tryCastPrimarySkill()`、`tryCastSecondarySkill()`、`tryCastUtilitySkill()`、`tryCastMovementSkill()`：四条真实施法路径。
+- `Renderer::drawSkillBar()`、`Renderer::drawSkillPanel()` 和 HUD stats 区域。
+- `tests/arpg_logic_tests.cpp`：现有 Player、SkillBar 和 CombatMath 测试风格。
+
+必须实现：
+
+1. `Player` 增加 `mana_`、`maxMana_`、`manaRegenPerSecond_`，以及只读 getter、`canSpendMana(float)` 和 `spendMana(float)`；资源必须 clamp 在 `[0, maxMana]`。
+2. `Player::update(dt)` 只在 `dt > 0` 时恢复 Mana，不能超过上限；新 run 满 Mana，`startNextMap()` 保留当前 Mana，不自动回满。
+3. `SkillDefinition` 增加 `float manaCost = 0.0f`，所有八个技能显式填写：Primary 低消耗，Secondary/Utility 中高消耗，Dash 为 0。
+4. 重构施法判定，确保顺序为“输入及几何前置条件 -> cooldown 是否 ready -> Mana 是否足够 -> 扣 Mana并启动 cooldown -> 生成效果”。不能先调用现有会重置 cooldown 的 `SkillBar::tryCast()` 再检查 Mana。
+5. 推荐将 `SkillBar` 拆为 `canCast(slot)` 和 `consumeCooldown(slot)`，或提供等价的原子接口；禁止把 Player/Mana 所有权塞进 `SkillBar`。
+6. Primary 按住左键时，Mana 不足只是不施法；后续 Mana 恢复且 cooldown ready 后可自然再次发射，不需要重新按键。
+7. HUD 常驻显示 `Mana current/max`；Skill Bar 或 Skill Panel 显示每个技能的 `Mana N`，Locked 技能也可预览消耗。
+8. `reset()` 恢复默认满 Mana；死亡、MapComplete 和面板上下文不得继续施法或扣 Mana。
+
+测试必须覆盖：
+
+- Player 初始 Mana、扣除、余额不足拒绝、恢复和上限 clamp。
+- `dt <= 0` 不恢复；`reset()` 后恢复默认值。
+- 每个技能 Mana cost 已显式设置，Dash 为零，Primary 低于 Secondary/Utility。
+- cooldown 未 ready 时不扣 Mana；Mana 不足时不启动 cooldown；成功施法同时扣一次 Mana并启动 cooldown。
+- Primary 零方向、Secondary/Utility 无输入、Movement 无 dash 输入等既有早退路径不扣 Mana。
+- 构建后运行现有全部测试，最终执行一次 `--clean-first`，因为 `SkillDefinition` 和 `SkillLibrary` 是 header-only 数据。
+
+明确不做：
+
+- 不做 Mana flask、资源保留、Energy Shield、按命中回蓝、击杀回蓝。
+- 不新增 Mana 装备词缀或天赋节点；先只交付基础资源闭环。
+- 不改技能解锁、Support 兼容性、地图奖励、Boss、敌人 AI。
+- 不顺手重构整个 `GameWorld` 或 Renderer。
+- 不提交代码；保持工作区未提交，交给主 review Agent 验收、修正和 commit。
+
+交付报告必须列出：改动文件、接口变化、各技能 Mana cost、施法判定顺序、测试数量、clean build 结果、已知风险和 `git status --short`。
 
 ## 14. 项目进度看板
 
@@ -735,13 +774,13 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 主动战斗 | v1 完成 | 四槽技能、Support、异常、药瓶已形成基础构筑 |
 | 开放地图 | v1 完成 | 大地图、相机、障碍、事件和 Boss 路线已完成 |
 | 怪物生态 | 可玩 | 近战、远程、精英、冲锋均有，pack 协同仍弱 |
-| Boss | 可玩 | Brood 召唤与 Brimstone 火区已完成，Storm 独立移动机制仍缺失 |
+| Boss | v1 完成 | Brood 召唤、Brimstone 火区、Storm 锁定突进形成三种独立机制 |
 | 天赋盘 | v1 完成 | 20 节点可用，缺 Keystone 级玩法变化 |
 | 装备掉落 | v1 完成 | affix/tier/rarity/relic/比较/满包安全已有，缺 base/implicit/权重 |
 | 地图选择 | v1 完成 | 三选图和风险收益已有，缺组合 modifier 和布局变体 |
 | 经济/锻造 | 原型 | 分解碎片和 +3 强化已有，缺有选择的 crafting |
 | 存档 | 未开始 | 完成定义中的最大缺口 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 261 条通过，缺 UI 和端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 283 条通过，缺 UI 和端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
