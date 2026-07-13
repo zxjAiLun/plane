@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`f26fe1b Add passive tree keystones`
+玩法代码基线：`c1e7e56 Add ailment resistances and penetration`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -92,7 +92,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前纯逻辑测试基线：`366 passed / 0 failed`。
+当前纯逻辑测试基线：`393 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -572,7 +572,7 @@ Review 严重级别：
 8. 关键操作、伤害、危险预警、奖励和装备变化均有清晰反馈。
 9. 构建、纯逻辑测试和关键手动流程有可重复验收方法。
 
-当前已满足 1、2 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，7 尚未实现，8、9 部分完成。天赋 Keystone 已让 Projectile、Area、Survival、Loot 分支出现第一层明确取舍，但还没有异常抗性、穿透和更丰富的装备基础类型。
+当前已满足 1、2 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，7 尚未实现，8、9 部分完成。天赋 Keystone 已让 Projectile、Area、Survival、Loot 分支出现第一层明确取舍；Ignite/Chill 现在已有 Enemy/Boss 抗性和 Support 穿透，但装备还缺少 base/implicit 层。
 
 ## 12. 后续路线图
 
@@ -635,13 +635,17 @@ Milestone A 验收：已完成。三个 Boss 至少各有一个其他 Boss 没�
 
 实现结果：四个末端 Notable 已数据化为 Volley Doctrine、Concentrated Impact、Second Wind、Loaded Dice。`Stats` 聚合新增投射物数量、药瓶效果、物品数量和承伤倍率；GameWorld 的施法、药瓶、掉落和受击路径均已接入，Renderer 复用 CombatMath 展示实际技能结果。宝箱提示读取实际生成数量，避免 Loaded Dice 激活后出现错误文案。新增 Keystone 纯逻辑回归后测试基线为 366 条。
 
-任务 B3：异常抗性与穿透 v1
+任务 B3：异常抗性与穿透 v1（完成：`c1e7e56`）
 
 - EnemyDefinition / BossDefinition 增加 Ignite 与 Chill resistance/effectiveness。
 - 普通怪、Elite、Boss 使用不同基线。
 - UI 至少在 Boss 血条区展示抗性摘要。
+- Ignite 伤害和 Chill 强度都通过统一的有效抗性计算；有效抗性为 `max(0, resistance - penetration)`，并限制在 0 至 100。
+- Deep Chill 提供 Chill penetration，异常快照在施放时保存穿透值；Combustion 保持原有 Ignite 伤害/持续时间职责。
 - Combustion/Deep Chill 的收益必须仍可观察。
 - 不做完整元素伤害类型和五种抗性系统。
+
+实现结果：Normal/Ranged/Elite/Charger 通过 `EnemyDefinition` 使用不同 Ignite/Chill 基线，三个 Boss 通过 `BossDefinition` 使用主题化抗性。`GameWorld::applySkillAilment()` 是唯一实际接入点，Ignite tick 和 Chill 移速均经过 `CombatMath` 抗性/穿透 helper；Boss HUD 显示当前 Boss 抗性，异常摘要显示 Support 穿透。新增抗性、穿透、Enemy 生命周期和 Support 快照测试，纯逻辑基线提升至 393 条。
 
 Milestone B 验收：至少存在 Projectile direct-hit、Area Ignite、Cold control 三种手感和配装明显不同的构筑。
 
@@ -733,9 +737,9 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Ailment Resistances and Penetration v1`。
+建议立即交给 hy3：`Item Base Types v1`。
 
-原因：Mana 和 Keystone 已经让资源、技能数量、范围、掉落与风险形成第一层构筑差异。当前 Ignite/Chill 对普通怪、Elite 和 Boss 没有抗性差异，Area Ignite 和 Cold control 仍缺少高阶地图中的针对性取舍。下一轮应只补异常抗性与穿透，继续使用现有技能和 Support，不再扩展技能库或地图系统。
+原因：Mana、Keystone 和异常抗性已经让资源、技能数量、范围、掉落、风险和状态控制形成第一层构筑差异。现在装备仍主要是“随机词缀叠加”，缺少 PoE-like 的 base/implicit 取舍；下一轮应先补装备基础类型，不继续扩展技能、Boss 或地图事件。
 
 ### 13.1 已完成任务记录：Mana Resource v1
 
@@ -831,50 +835,63 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 交付结果：代码提交为 `f26fe1b`，四个 Keystone 均通过纯逻辑测试；clean build、CTest、直接测试和 3 秒启动 smoke test 均通过，测试为 `366 passed / 0 failed`。本记录保留原始约束，便于回看为什么这些属性必须走真实路径。
 
-### 13.3 hy3 实施任务：Ailment Resistances and Penetration v1
+### 13.3 已完成任务记录：Ailment Resistances and Penetration v1
 
-目标：让现有 Ignite/Chill 在普通怪、Elite、Boss 和带地图风险时产生可观察的抗性差异，同时给构筑一个最小的 penetration 入口。只改异常效果计算和相关 UI/测试，不新增技能、Support、敌人类型或地图模板。
+代码已通过主 review 并提交为 `c1e7e56 Add ailment resistances and penetration`。
 
-开始前必须阅读：
+实现结果：
 
-- `include/Ailment.hpp`：当前 Ignite/Chill 定义和快照字段。
-- `include/EnemyDefinition.hpp`、`include/BossDefinition.hpp`：敌人/Boss 数据表及生成缩放。
-- `include/SupportLibrary.hpp`、`include/CombatMath.hpp`：Combustion、Deep Chill 和异常计算入口。
-- `src/GameWorld.cpp`：施法命中、投射物命中、异常应用、DOT tick、Boss/Elite 生成和地图 modifier 接入点。
-- `src/Renderer.cpp`：技能面板异常摘要、Boss 血条区和敌人状态环。
-- `tests/arpg_logic_tests.cpp`：现有 `skillAilment()`、Ignite、Chill 和 Boss 数据测试。
+- `EnemyDefinition` 增加 Ignite/Chill resistance；Normal 为 `0/0`，Ranged 为 `10/10`，Elite 为 `15/15`，Charger 为 `15/10`。
+- `BossDefinition` 为 Brimstone、Storm、Brood 分别提供 `35/20`、`20/35`、`30/30` 的抗性配置。
+- `SupportDefinition` 增加穿透字段；Deep Chill 提供 `20% Chill penetration`，Combustion 保持原有 Ignite 伤害/持续时间职责。
+- `CombatMath` 统一提供有效抗性、Ignite tick 和 Chill slow 的计算；有效抗性为 `max(0, resistance - penetration)`，抗性限制在 `0..100`。
+- `GameWorld::applySkillAilment()` 将计算结果接入实际命中路径，Ignite 抗性只影响 DOT，Chill 抗性只影响 slow；原始命中、击杀、经验、掉落路径不变。
+- 异常数据继续在投射物生成时快照；Renderer 显示 Boss 抗性和当前异常的 penetration 摘要。
 
-必须实现：
-
-1. 为 `EnemyDefinition` 增加数据化异常抗性字段，至少包含 `igniteResistance` 与 `chillResistance`，默认值为 0；为 BossDefinition 增加可覆盖或乘区字段，不能通过 Boss 名称字符串判断。
-2. 推荐基线：Normal `0/0`，Ranged `10/10`，Charger `15/10`，Elite 在对应普通类型基础上额外 `+15`，Boss 使用定义表中的明确值。数值必须集中在数据表，便于以后调整。
-3. 在异常最终应用前统一计算有效效果：
-   - Ignite 抵抗降低最终 DOT tick damage，不改变原始 hit damage、经验、掉落和击杀归属。
-   - Chill 抵抗降低 slow magnitude，不能让速度倍率低于现有安全下限 `0.20f`。
-   - 抗性应 clamp 到 `[0, 100]`；有效效果不能为负。
-4. 增加最小 penetration 数据入口，不新增装备词缀池：先让 `SupportDefinition` 可选地提供 `ignitePenetration` / `chillPenetration`，只给一个已有 Support 配置非零值用于验证。若你认为现有 Support 不适合，使用一个明确的 CombatMath 参数/测试探针，但不能硬编码技能名。
-5. 有效抗性统一使用 `max(0, resistance - penetration)`。计算必须放在无状态 `CombatMath` 或独立纯 helper 中；GameWorld 只传入技能/Support/敌人数据并应用结果，Renderer 不复制公式。
-6. 状态快照必须保持现有语义：投射物发射后，切换 Support 或玩家属性不能改变已飞行投射物的异常结果；同一次命中只应用一次有效抗性。
-7. 不改变现有异常规则：Ignite 仍按实际命中伤害计算 DOT，Chill 仍影响普通怪、冲锋和 Boss 移动；未受异常命中的敌人行为不变。
-8. UI 至少做到：Boss 血条区域显示 `Ignite Res N% / Chill Res N%`；技能面板或 hover 显示当前 Support 的 penetration。不要新增复杂 tooltip 或独立抗性面板。
-
-测试必须覆盖：
-
-- 默认抗性、各 EnemyDefinition/BossDefinition 的具体抗性数据和 clamp。
-- Ignite：0 抵抗保持现有 tick，抗性降低 tick，100 抵抗不产生正 DOT；命中伤害和击杀奖励不被改写。
-- Chill：0 抵抗保持现有 slow，抗性降低 slow，100 抵抗不产生额外 slow；速度倍率仍在 `[0.20, 1.0]`。
-- Penetration：有效抗性等于 `max(0, resistance - penetration)`；不允许负抗性放大效果；Support 兼容性和快照行为保持。
-- Boss/Elite 走真实 GameWorld 应用路径，不能只测试一个复制公式。
-- 现有全部回归测试仍通过；由于数据表/header 变化，最终必须执行 `cmake --build build --clean-first` 和 CTest。
+验收结果：clean build、CTest、逻辑测试和 3 秒启动 smoke test 均通过；测试为 `393 passed / 0 failed`。未发现 P0/P1 问题。
 
 明确不做：
 
 - 不新增元素伤害类型、抗性装备词缀、第五种异常、免疫系统或完整元素抗性面板。
-- 不新增技能、不新增 Support、不改技能栏、地图奖励、Boss 技能和存档。
-- 不把抗性判断散落在 Ignite 和 Chill 各自的多处分支；必须保留单一纯计算入口。
+- 不新增技能、Support、技能栏、地图奖励、Boss 技能或存档。
+
+### 13.4 hy3 实施任务：Item Base Types v1
+
+目标：把当前“槽位 + 稀有度 + 随机词缀”的装备，推进为最小的 `base + implicit + affix` 结构。玩家在掉落比较时必须能看到基础类型和固定属性差异；本轮不扩充装备槽、不做完整 crafting。
+
+开始前必须阅读：
+
+- `include/Item.hpp`：Item 当前字段、名称/词缀展示和所有权语义。
+- `include/Stats.hpp`、`include/Equipment.hpp`、`include/Player.hpp`：Stats 聚合、装备替换和最终属性刷新。
+- `include/LootGenerator.hpp`：slot、rarity、affix tier、Boss relic 和随机生成入口。
+- `include/BossDefinition.hpp`、`include/MapModifier.hpp`：Boss loot theme 和地图等级/掉落缩放。
+- `src/Renderer.cpp`：背包列表、装备详情、MapComplete 掉落详情和技能影响预览。
+- `tests/arpg_logic_tests.cpp`：装备、词缀、Boss relic 和比较预览测试风格。
+
+实现范围：
+
+1. 为 `Item` 增加数据化 base 信息，至少包含稳定的 `baseId`、展示名和 implicit Stats；字段追加在现有聚合初始化之后，或统一修正所有初始化，禁止发生静默字段错位。
+2. 每个槽位提供至少 3 个 base type：
+   - Weapon：偏 Damage、Attack Speed、Projectile Damage 之间的取舍。
+   - Armor：偏 Max HP、Armor、Incoming Damage 之间的取舍。
+   - Ring：偏 Attack Speed、Pickup、Projectile/Area 之一。
+   - Amulet：偏 Area Damage、Area Radius、Max HP 之一。
+   每个 base 必须有明确 id、名称、隐式属性和可测试的数值表。
+3. `LootGenerator` 生成物品时先选择 base，再生成 rarity/affix；最终 Item 的实际 Stats 必须是 `implicit + affix`，不能让 UI 文本参与计算。Boss relic 保留主题倾向，并使用合法的特殊 base，不得被普通随机 base 覆盖。
+4. 物品名称、词缀和比较必须同时显示 base：详情面板至少显示 `Base: <name>`、`Implicit: <stats>`、`Affixes:`；背包列表可以只保留紧凑的 base 名称，但不得隐藏隐式属性导致玩家无法比较。
+5. 装备、替换、分解、丢弃、掉落和 MapComplete 拾取必须保留 Item 的 base/implicit 数据；旧装备不能被吞，满包拾取失败时地面物品不能消失。
+6. 预览逻辑必须继续复用现有 Stats 聚合和 `CombatMath`；不要在 Renderer 重新写“装备后技能伤害”的公式，也不要复制 LootGenerator 的 base 选择逻辑。
+7. 为 base library 和生成流程补纯逻辑测试：每槽 base 数量至少 3；所有 baseId 唯一；每个生成 Item 有合法 base；implicit 在 `Item::stats`/最终装备属性中实际生效；Boss relic 保留 loot theme；旧的 rarity/affix/tier 测试继续通过。
+8. 如果现有 `Item` 构造和聚合初始化难以安全扩展，优先新增显式构造函数或 factory，并一次性修正调用点；不要为了兼容旧初始化而保留含糊的长 aggregate initializer。
+
+明确不做：
+
+- 不新增装备槽、背包分页、stash、装备等级需求、宝石或技能物品。
+- 不实现词缀 tags/weights、重铸、选择式 crafting；这些分别留给 C2/C3。
+- 不新增地图、Boss、技能、Support 或天赋节点。
 - 不提交代码；保持工作区未提交，交给主 review Agent 验收、修正和 commit。
 
-交付报告必须列出：改动文件、抗性数据表、penetration 来源、实际接入路径、快照处理、测试数量、clean build 结果、已知风险和 `git status --short`。
+交付报告必须列出：改动文件、base 数据表、implicit 与 affix 的聚合路径、Boss relic 处理、UI 显示、测试数量、clean build、启动 smoke test、已知风险和 `git status --short`。
 
 ## 14. 项目进度看板
 
@@ -885,11 +902,12 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 怪物生态 | 可玩 | 近战、远程、精英、冲锋均有，pack 协同仍弱 |
 | Boss | v1 完成 | Brood 召唤、Brimstone 火区、Storm 锁定突进形成三种独立机制 |
 | 天赋盘 | v1 完成 | 20 节点、四个 Keystone、前置和 HUD/hover 反馈已完成 |
+| 状态异常 | 可玩 | Ignite/Chill、Enemy/Boss 抗性和 Support 穿透已有，异常种类仍少 |
 | 装备掉落 | v1 完成 | affix/tier/rarity/relic/比较/满包安全已有，缺 base/implicit/权重 |
 | 地图选择 | v1 完成 | 三选图和风险收益已有，缺组合 modifier 和布局变体 |
 | 经济/锻造 | 原型 | 分解碎片和 +3 强化已有，缺有选择的 crafting |
 | 存档 | 未开始 | 完成定义中的最大缺口 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 366 条通过，缺 UI 和端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 393 条通过，缺 UI 和端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
