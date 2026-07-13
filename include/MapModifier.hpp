@@ -4,6 +4,8 @@
 #include <array>
 #include <string>
 
+#include "LootBias.hpp"
+
 struct MapModifier {
     std::string name = "Quiet Coast";
     std::string description = "No modifier";
@@ -15,6 +17,12 @@ struct MapModifier {
     float bossHpMultiplier = 1.0f;
     float bossDamageMultiplier = 1.0f;
     int itemLevelBonus = 0;
+    AffixTag lootBiasTag = AffixTag::None;
+    float lootBiasWeightMultiplier = 1.0f;
+
+    LootBias lootBias() const {
+        return {lootBiasTag, lootBiasWeightMultiplier, AffixTag::None, 1.0f};
+    }
 };
 
 struct MapOption {
@@ -28,7 +36,8 @@ class MapOptionLibrary {
 public:
     static MapOption defaultOption() {
         return {
-            {"Quiet Coast", "No modifier", 1.0f, 0, 1.0f, 0, 0, 1.0f, 1.0f, 0},
+            {"Quiet Coast", "No modifier", 1.0f, 0, 1.0f, 0, 0, 1.0f, 1.0f, 0,
+                AffixTag::None, 1.0f},
             "Baseline monster density and loot",
             "Recommended level 1",
             0
@@ -41,7 +50,7 @@ public:
             {
                 {
                     "Feral Foothills",
-                    "More life and elites; better loot",
+                    "More life and elites; Survival affixes favored",
                     1.15f + levelBonus * 0.05f,
                     mapLevel / 4,
                     1.15f + levelBonus * 0.03f,
@@ -49,16 +58,18 @@ public:
                     4,
                     1.05f,
                     1.0f,
-                    0
+                    0,
+                    AffixTag::Survival,
+                    1.35f
                 },
-                "+Item quantity, moderate elite pressure",
+                "+Survival affix weight, moderate elite pressure",
                 "Recommended level " + std::to_string(mapLevel),
                 0
             },
             {
                 {
                     "Savage Hollow",
-                    "More damage and elites; richer Boss drops",
+                    "More damage and elites; Damage affixes favored",
                     1.05f + levelBonus * 0.04f,
                     1 + mapLevel / 3,
                     1.25f + levelBonus * 0.04f,
@@ -66,16 +77,18 @@ public:
                     8,
                     1.10f,
                     1.15f,
-                    0
+                    0,
+                    AffixTag::Damage,
+                    1.35f
                 },
-                "+Boss guaranteed drop, dangerous Boss skills",
+                "+Damage affix weight, richer Boss drops",
                 "Recommended level " + std::to_string(mapLevel + 1),
                 1
             },
             {
                 {
                     "Gilded Ruins",
-                    "Tougher elites; higher iLvl loot",
+                    "Tougher elites; Pickup affixes favored",
                     1.30f + levelBonus * 0.06f,
                     mapLevel / 5,
                     1.50f + levelBonus * 0.05f,
@@ -83,9 +96,11 @@ public:
                     12,
                     1.20f,
                     1.05f,
-                    1
+                    1,
+                    AffixTag::Pickup,
+                    1.35f
                 },
-                "+Item level, high item quantity, high elite pressure",
+                "+Pickup affix weight, high item quantity and elite pressure",
                 "Recommended level " + std::to_string(mapLevel + 1),
                 2
             },

@@ -732,6 +732,131 @@ void testItemBaseTypes() {
         "Brood relic preserves its level-scaled combat bonuses");
 }
 
+// --- Affix tags, weights and themed selection ---
+void testAffixTagsAndWeights() {
+    section("Affix tags, weights and themed selection");
+
+    const auto& affixes = LootGenerator::affixDefinitions();
+    expect(!affixes.empty(), "affix library exposes data-driven definitions");
+    for (const auto& affix : affixes) {
+        expect(!affix.tags.empty() && affix.weight > 0,
+            affix.name + " has tags and a positive weight");
+
+        const auto hasTag = [&](AffixTag tag) {
+            return std::find(affix.tags.begin(), affix.tags.end(), tag) != affix.tags.end();
+        };
+        switch (affix.stat) {
+            case AffixStat::MaxHp:
+                expect(hasTag(AffixTag::Survival), affix.name + " maps MaxHp to Survival");
+                break;
+            case AffixStat::DamageMultiplier:
+                expect(hasTag(AffixTag::Damage), affix.name + " maps damage to Damage");
+                break;
+            case AffixStat::AttackSpeedMultiplier:
+                expect(hasTag(AffixTag::AttackSpeed), affix.name + " maps attack speed to AttackSpeed");
+                break;
+            case AffixStat::MoveSpeedMultiplier:
+                expect(hasTag(AffixTag::MoveSpeed), affix.name + " maps move speed to MoveSpeed");
+                break;
+            case AffixStat::PickupRangeMultiplier:
+                expect(hasTag(AffixTag::Pickup), affix.name + " maps pickup to Pickup");
+                break;
+            case AffixStat::ProjectileDamageMultiplier:
+                expect(hasTag(AffixTag::Projectile) && hasTag(AffixTag::Damage),
+                    affix.name + " maps projectile damage to Projectile and Damage");
+                break;
+            case AffixStat::AreaDamageMultiplier:
+            case AffixStat::AreaRadiusMultiplier:
+                expect(hasTag(AffixTag::Area), affix.name + " maps area scaling to Area");
+                break;
+            case AffixStat::Armor:
+                expect(hasTag(AffixTag::Armor) && hasTag(AffixTag::Survival),
+                    affix.name + " maps armor to Armor and Survival");
+                break;
+        }
+    }
+
+    expect(LootGenerator::weightedChoiceIndex({1, 3}, 0) == 0,
+        "weighted choice starts in the first bucket");
+    expect(LootGenerator::weightedChoiceIndex({1, 3}, 1) == 1,
+        "weighted choice uses the larger second bucket");
+    expect(LootGenerator::weightedChoiceIndex({1, 3}, 7) == 1,
+        "weighted choice wraps deterministic rolls by total weight");
+    expect(LootGenerator::weightedChoiceIndex({}, 10) == 0,
+        "weighted choice handles an empty candidate list");
+
+    const auto projectileIt = std::find_if(
+        affixes.begin(), affixes.end(),
+        [](const AffixDefinition& affix) {
+            return affix.slot == EquipmentSlot::Weapon
+                && affix.stat == AffixStat::ProjectileDamageMultiplier;
+        }
+    );
+    const auto armorIt = std::find_if(
+        affixes.begin(), affixes.end(),
+        [](const AffixDefinition& affix) {
+            return affix.slot == EquipmentSlot::Armor
+                && affix.stat == AffixStat::Armor;
+        }
+    );
+    expect(projectileIt != affixes.end() && armorIt != affixes.end(),
+        "bias test finds projectile and armor affixes");
+    if (projectileIt != affixes.end() && armorIt != affixes.end()) {
+        const LootBias projectileBias{AffixTag::Projectile, 1.5f, AffixTag::None, 1.0f};
+        const LootBias noBias{};
+        expect(LootGenerator::weightFor(*projectileIt, projectileBias)
+                > LootGenerator::weightFor(*projectileIt, noBias),
+            "Projectile bias increases projectile affix weight");
+        expect(LootGenerator::weightFor(*armorIt, projectileBias)
+                == LootGenerator::weightFor(*armorIt, noBias),
+            "Projectile bias does not alter unrelated armor weight");
+    }
+
+    const auto mapOptions = MapOptionLibrary::generateOptions(2);
+    expect(mapOptions[0].modifier.lootBiasTag != AffixTag::None
+            && mapOptions[1].modifier.lootBiasTag != AffixTag::None
+            && mapOptions[2].modifier.lootBiasTag != AffixTag::None,
+        "map options expose explicit loot bias tags");
+
+    auto generateSignatures = [](unsigned int seed, const LootBias& bias) {
+        std::srand(seed);
+        LootGenerator generator;
+        std::vector<std::string> signatures;
+        for (int index = 0; index < 10; ++index) {
+            const Item item = generator.generate(3, bias);
+            std::string signature = item.baseId + "|" + item.name;
+            for (const auto& affix : item.affixes) {
+                signature += "|" + affix.name + ":" + std::to_string(affix.tier);
+            }
+            signatures.push_back(signature);
+        }
+        return signatures;
+    };
+    const LootBias areaBias{AffixTag::Area, 1.45f, AffixTag::None, 1.0f};
+    expect(generateSignatures(91, areaBias) == generateSignatures(91, areaBias),
+        "fixed seed reproduces weighted item selection");
+
+    std::srand(123);
+    LootGenerator generator;
+    for (int index = 0; index < 18; ++index) {
+        const Item item = generator.generate(5, areaBias);
+        std::set<AffixStat> rolledStats;
+        for (const auto& affix : item.affixes) {
+            const auto definition = std::find_if(
+                affixes.begin(), affixes.end(),
+                [&](const AffixDefinition& candidate) {
+                    return candidate.name == affix.name && candidate.slot == item.slot;
+                }
+            );
+            if (definition != affixes.end()) {
+                expect(rolledStats.insert(definition->stat).second,
+                    "generated item avoids duplicate AffixStat");
+            }
+            expect(!affix.tags.empty(), "rolled affix preserves its tags on the Item");
+        }
+    }
+}
+
 // --- Elite modifiers ---
 void testEliteModifierDefinitions() {
     section("Elite modifier definitions");
@@ -1081,6 +1206,7 @@ int main() {
     testEquipmentChangesCombatStats();
     testLootGeneration();
     testItemBaseTypes();
+    testAffixTagsAndWeights();
     testEliteModifierDefinitions();
     testChargerStateMachine();
     testFlaskChargeRewards();

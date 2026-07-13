@@ -89,6 +89,17 @@ std::string itemSummary(const Item& item) {
     return item.name + " " + statsSummary(item.stats);
 }
 
+std::string affixTagsSummary(const std::vector<AffixTag>& tags) {
+    std::string summary;
+    for (std::size_t index = 0; index < tags.size(); ++index) {
+        if (index > 0) {
+            summary += ", ";
+        }
+        summary += affixTagName(tags[index]);
+    }
+    return summary;
+}
+
 Stats statsDelta(const Stats& next, const Stats& current) {
     return {
         next.maxHp - current.maxHp,
@@ -1231,7 +1242,9 @@ void Renderer::drawItemDetailPanel(const GameWorld& world, const sf::Vector2f& p
     y += 16.0f;
 
     for (const auto& affix : item.affixes) {
-        drawText("- " + affix.name + " T" + std::to_string(affix.tier),
+        const std::string tags = affixTagsSummary(affix.tags);
+        drawText("- " + affix.name + " T" + std::to_string(affix.tier)
+                + (tags.empty() ? "" : " [" + tags + "]"),
             {x, y}, 11, sf::Color(160, 200, 255));
         y += 15.0f;
     }

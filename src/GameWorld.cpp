@@ -12,6 +12,40 @@
 namespace {
 constexpr float ShrineBuffDuration = 20.0f;
 constexpr float ShrineDamageMultiplier = 1.35f;
+
+LootBias bossLootBias(BossLootTheme theme) {
+    switch (theme) {
+        case BossLootTheme::Brimstone:
+            return {AffixTag::Area, 1.45f, AffixTag::Damage, 1.20f};
+        case BossLootTheme::Storm:
+            return {AffixTag::Projectile, 1.45f, AffixTag::AttackSpeed, 1.20f};
+        case BossLootTheme::Brood:
+            return {AffixTag::Area, 1.45f, AffixTag::Survival, 1.20f};
+    }
+    return {};
+}
+
+void mergeLootBias(LootBias& target, const LootBias& extra) {
+    const auto add = [&](AffixTag tag, float multiplier) {
+        if (tag == AffixTag::None || multiplier <= 0.0f) {
+            return;
+        }
+        if (target.primaryTag == tag) {
+            target.primaryWeightMultiplier *= multiplier;
+        } else if (target.secondaryTag == tag) {
+            target.secondaryWeightMultiplier *= multiplier;
+        } else if (target.primaryTag == AffixTag::None) {
+            target.primaryTag = tag;
+            target.primaryWeightMultiplier = multiplier;
+        } else if (target.secondaryTag == AffixTag::None) {
+            target.secondaryTag = tag;
+            target.secondaryWeightMultiplier = multiplier;
+        }
+    };
+
+    add(extra.primaryTag, extra.primaryWeightMultiplier);
+    add(extra.secondaryTag, extra.secondaryWeightMultiplier);
+}
 }
 
 GameWorld::GameWorld()
@@ -1179,7 +1213,10 @@ int GameWorld::dropItemsAround(const Vector2& center, int count) {
         const float angle = static_cast<float>(i) * 2.39996323f;
         const float radius = i == 0 ? 0.0f : 24.0f + static_cast<float>(i) * 5.0f;
         const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
-        droppedItems_.push_back(DroppedItem(center + offset, lootGenerator_.generate(itemLevelForMap())));
+        droppedItems_.push_back(DroppedItem(
+            center + offset,
+            lootGenerator_.generate(itemLevelForMap(), mapModifier_.lootBias())
+        ));
         ++mapItemsDropped_;
     }
 
@@ -1645,9 +1682,13 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
         const float angle = static_cast<float>(i) * 2.39996323f;
         const float radius = i == 0 ? 0.0f : 18.0f + static_cast<float>(i) * 4.0f;
         const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
+        LootBias dropBias = mapModifier_.lootBias();
+        if (enemy.isBoss()) {
+            mergeLootBias(dropBias, bossLootBias(bossDefinition_->lootTheme));
+        }
         Item item = enemy.isBoss() && i == 0
             ? lootGenerator_.generateBossReward(itemLevelForMap(), bossDefinition_->lootTheme)
-            : lootGenerator_.generate(itemLevelForMap());
+            : lootGenerator_.generate(itemLevelForMap(), dropBias);
         droppedItems_.push_back(DroppedItem(enemy.position() + offset, std::move(item)));
         ++mapItemsDropped_;
         if (enemy.isBoss()) {

@@ -5,6 +5,7 @@
 
 #include "EquipmentSlot.hpp"
 #include "ItemBase.hpp"
+#include "LootBias.hpp"
 #include "Stats.hpp"
 
 enum class Rarity {
@@ -17,6 +18,7 @@ struct ItemAffix {
     std::string name;
     int tier = 1;
     Stats stats;
+    std::vector<AffixTag> tags;
 };
 
 struct Item {

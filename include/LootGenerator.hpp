@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdlib>
 #include <set>
 #include <string>
@@ -29,11 +30,13 @@ struct AffixDefinition {
     EquipmentSlot slot;
     AffixStat stat;
     std::array<float, 3> tiers;
+    std::vector<AffixTag> tags;
+    int weight = 100;
 };
 
 class LootGenerator {
 public:
-    Item generate(int monsterLevel) const {
+    Item generate(int monsterLevel, const LootBias& bias = {}) const {
         Item item;
         item.itemLevel = monsterLevel;
         item.slot = randomSlot();
@@ -45,11 +48,12 @@ public:
         std::vector<ItemAffix> prefixes;
         std::vector<ItemAffix> suffixes;
         std::set<std::size_t> usedIndices;
+        std::set<AffixStat> usedStats;
         for (int i = 0; i < affixCount; ++i) {
-            const AffixDefinition& affix = randomAffixFor(item.slot, usedIndices);
+            const AffixDefinition& affix = randomAffixFor(item.slot, usedIndices, usedStats, bias);
             const Stats contribution = affixStatsFor(affix, monsterLevel);
             item.stats = combineStats(item.stats, contribution);
-            const ItemAffix itemAffix{affix.name, tier, contribution};
+            const ItemAffix itemAffix{affix.name, tier, contribution, affix.tags};
             if (affix.isPrefix) {
                 prefixes.push_back(itemAffix);
             } else {
@@ -70,7 +74,7 @@ public:
         item.itemLevel = monsterLevel;
         item.rarity = Rarity::Rare;
         applyBase(item, ItemBaseLibrary::forBossTheme(toBaseTheme(theme)));
-        item.affixes.push_back({"Boss relic", tier + 1, {}});
+        item.affixes.push_back({"Boss relic", tier + 1, {}, {}});
 
         switch (theme) {
             case BossLootTheme::Brimstone:
@@ -78,11 +82,11 @@ public:
                 addBossAffix(item, "Brimstone might", tier + 1,
                     damageContribution(relativeMultiplier(
                         1.0f + std::array<float, 3>{0.14f, 0.20f, 0.27f}[tier],
-                        item.implicitStats.damageMultiplier)));
+                        item.implicitStats.damageMultiplier)), {AffixTag::Damage});
                 addBossAffix(item, "Crushing impact", tier + 1,
                     areaDamageContribution(relativeMultiplier(
                         1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
-                        item.implicitStats.areaDamageMultiplier)));
+                        item.implicitStats.areaDamageMultiplier)), {AffixTag::Area});
                 break;
 
             case BossLootTheme::Storm:
@@ -90,11 +94,11 @@ public:
                 addBossAffix(item, "Storm cadence", tier + 1,
                     attackSpeedContribution(relativeMultiplier(
                         1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
-                        item.implicitStats.attackSpeedMultiplier)));
+                        item.implicitStats.attackSpeedMultiplier)), {AffixTag::AttackSpeed});
                 addBossAffix(item, "Charged projectiles", tier + 1,
                     projectileDamageContribution(relativeMultiplier(
                         1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
-                        item.implicitStats.projectileDamageMultiplier)));
+                        item.implicitStats.projectileDamageMultiplier)), {AffixTag::Projectile, AffixTag::Damage});
                 break;
 
             case BossLootTheme::Brood:
@@ -102,11 +106,11 @@ public:
                 addBossAffix(item, "Brood surge", tier + 1,
                     areaDamageContribution(relativeMultiplier(
                         1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
-                        item.implicitStats.areaDamageMultiplier)));
+                        item.implicitStats.areaDamageMultiplier)), {AffixTag::Area});
                 addBossAffix(item, "Expanding nests", tier + 1,
                     areaRadiusContribution(relativeMultiplier(
                         1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
-                        item.implicitStats.areaRadiusMultiplier)));
+                        item.implicitStats.areaRadiusMultiplier)), {AffixTag::Area});
                 break;
         }
 
@@ -124,6 +128,52 @@ public:
             return Rarity::Magic;
         }
         return Rarity::Normal;
+    }
+
+    static const std::vector<AffixDefinition>& affixDefinitions() {
+        return affixPool();
+    }
+
+    static int weightFor(const AffixDefinition& affix, const LootBias& bias) {
+        float weight = static_cast<float>(std::max(1, affix.weight));
+        const auto applyBias = [&](AffixTag tag, float multiplier) {
+            if (tag == AffixTag::None || multiplier <= 0.0f) {
+                return;
+            }
+            if (std::find(affix.tags.begin(), affix.tags.end(), tag) != affix.tags.end()) {
+                weight *= multiplier;
+            }
+        };
+        applyBias(bias.primaryTag, bias.primaryWeightMultiplier);
+        applyBias(bias.secondaryTag, bias.secondaryWeightMultiplier);
+        return std::max(1, static_cast<int>(std::ceil(weight)));
+    }
+
+    static std::size_t weightedChoiceIndex(const std::vector<int>& weights, int roll) {
+        if (weights.empty()) {
+            return 0;
+        }
+
+        long long total = 0;
+        for (const int weight : weights) {
+            total += std::max(0, weight);
+        }
+        if (total <= 0) {
+            return 0;
+        }
+
+        long long normalizedRoll = static_cast<long long>(roll);
+        if (normalizedRoll < 0) {
+            normalizedRoll = -normalizedRoll;
+        }
+        long long target = normalizedRoll % total;
+        for (std::size_t index = 0; index < weights.size(); ++index) {
+            target -= std::max(0, weights[index]);
+            if (target < 0) {
+                return index;
+            }
+        }
+        return weights.size() - 1;
     }
 
 private:
@@ -192,9 +242,15 @@ private:
         return stats;
     }
 
-    static void addBossAffix(Item& item, const std::string& name, int tier, const Stats& contribution) {
+    static void addBossAffix(
+        Item& item,
+        const std::string& name,
+        int tier,
+        const Stats& contribution,
+        std::vector<AffixTag> tags
+    ) {
         item.stats = combineStats(item.stats, contribution);
-        item.affixes.push_back({name, tier, contribution});
+        item.affixes.push_back({name, tier, contribution, std::move(tags)});
     }
 
     static const std::vector<AffixDefinition>& affixPool() {
@@ -203,7 +259,7 @@ private:
     }
 
     static std::vector<AffixDefinition> buildAffixPool() {
-        return {
+        auto pool = std::vector<AffixDefinition>{
             // Weapon
             {"Vicious", true, EquipmentSlot::Weapon, AffixStat::DamageMultiplier, {0.08f, 0.14f, 0.20f}},
             {"Serrated", true, EquipmentSlot::Weapon, AffixStat::DamageMultiplier, {0.06f, 0.10f, 0.14f}},
@@ -259,6 +315,51 @@ private:
             {"Wide", true, EquipmentSlot::Amulet, AffixStat::AreaRadiusMultiplier, {0.05f, 0.08f, 0.11f}},
             {"of Expansion", false, EquipmentSlot::Amulet, AffixStat::AreaRadiusMultiplier, {0.03f, 0.06f, 0.09f}},
         };
+
+        for (auto& affix : pool) {
+            affix.tags = tagsForStat(affix.stat);
+            affix.weight = defaultWeightFor(affix);
+        }
+        return pool;
+    }
+
+    static std::vector<AffixTag> tagsForStat(AffixStat stat) {
+        switch (stat) {
+            case AffixStat::MaxHp:
+                return {AffixTag::Survival};
+            case AffixStat::DamageMultiplier:
+                return {AffixTag::Damage};
+            case AffixStat::AttackSpeedMultiplier:
+                return {AffixTag::AttackSpeed};
+            case AffixStat::MoveSpeedMultiplier:
+                return {AffixTag::MoveSpeed};
+            case AffixStat::PickupRangeMultiplier:
+                return {AffixTag::Pickup};
+            case AffixStat::ProjectileDamageMultiplier:
+                return {AffixTag::Projectile, AffixTag::Damage};
+            case AffixStat::AreaDamageMultiplier:
+            case AffixStat::AreaRadiusMultiplier:
+                return {AffixTag::Area};
+            case AffixStat::Armor:
+                return {AffixTag::Armor, AffixTag::Survival};
+        }
+        return {AffixTag::None};
+    }
+
+    static int defaultWeightFor(const AffixDefinition& affix) {
+        int weight = 100;
+        switch (affix.stat) {
+            case AffixStat::MaxHp: weight = 110; break;
+            case AffixStat::DamageMultiplier: weight = 100; break;
+            case AffixStat::AttackSpeedMultiplier: weight = 95; break;
+            case AffixStat::MoveSpeedMultiplier: weight = 90; break;
+            case AffixStat::PickupRangeMultiplier: weight = 85; break;
+            case AffixStat::ProjectileDamageMultiplier: weight = 90; break;
+            case AffixStat::AreaDamageMultiplier:
+            case AffixStat::AreaRadiusMultiplier: weight = 90; break;
+            case AffixStat::Armor: weight = 95; break;
+        }
+        return affix.isPrefix ? weight + 10 : weight;
     }
 
     static EquipmentSlot randomSlot() {
@@ -283,12 +384,27 @@ private:
         return 1;
     }
 
-    static const AffixDefinition& randomAffixFor(EquipmentSlot slot, std::set<std::size_t>& usedIndices) {
+    static const AffixDefinition& randomAffixFor(
+        EquipmentSlot slot,
+        std::set<std::size_t>& usedIndices,
+        std::set<AffixStat>& usedStats,
+        const LootBias& bias
+    ) {
         const auto& pool = affixPool();
         std::vector<std::size_t> matching;
         for (std::size_t i = 0; i < pool.size(); ++i) {
-            if (pool[i].slot == slot && usedIndices.find(i) == usedIndices.end()) {
+            if (pool[i].slot == slot
+                && usedIndices.find(i) == usedIndices.end()
+                && usedStats.find(pool[i].stat) == usedStats.end()) {
                 matching.push_back(i);
+            }
+        }
+
+        if (matching.empty()) {
+            for (std::size_t i = 0; i < pool.size(); ++i) {
+                if (pool[i].slot == slot && usedIndices.find(i) == usedIndices.end()) {
+                    matching.push_back(i);
+                }
             }
         }
 
@@ -300,8 +416,18 @@ private:
             }
         }
 
-        const std::size_t index = matching.empty() ? 0 : matching[static_cast<std::size_t>(std::rand()) % matching.size()];
+        std::vector<int> weights;
+        weights.reserve(matching.size());
+        for (const std::size_t index : matching) {
+            weights.push_back(weightFor(pool[index], bias));
+        }
+
+        const std::size_t matchingIndex = weightedChoiceIndex(weights, std::rand());
+        const std::size_t index = matching.empty() ? 0 : matching[matchingIndex];
         usedIndices.insert(index);
+        if (index < pool.size()) {
+            usedStats.insert(pool[index].stat);
+        }
         return pool[index];
     }
 
