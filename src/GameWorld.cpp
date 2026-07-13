@@ -364,7 +364,11 @@ void GameWorld::startNextMap() {
     }
 
     ++mapLevel_;
-    map_ = MapInstance(mapLevel_, currentMapOption_.templateIndex);
+    map_ = MapInstance(
+        mapLevel_,
+        currentMapOption_.templateIndex,
+        MapLayoutLibrary::variantForMapLevel(mapLevel_)
+    );
     bossDefinition_ = &BossLibrary::forMapLevel(mapLevel_);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());

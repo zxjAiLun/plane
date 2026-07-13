@@ -1240,6 +1240,68 @@ void testMapOptionGeneration() {
         "map options bind to distinct map templates 0/1/2");
 }
 
+// --- Map layout variants ---
+void testMapLayoutVariants() {
+    section("MapLayoutLibrary deterministic variants and geometry");
+
+    const auto& layouts = MapLayoutLibrary::all();
+    expect(layouts.size() == MapLayoutLibrary::TemplateCount,
+        "map layout library has one group per map template");
+
+    std::set<std::string> layoutIds;
+    for (int templateIndex = 0; templateIndex < MapLayoutLibrary::TemplateCount; ++templateIndex) {
+        const auto& variants = layouts[static_cast<std::size_t>(templateIndex)];
+        expect(variants.size() >= 3,
+            "each map template has at least three layout variants");
+
+        for (int variantIndex = 0; variantIndex < MapLayoutLibrary::VariantCount; ++variantIndex) {
+            const auto& layout = MapLayoutLibrary::forTemplate(templateIndex, variantIndex);
+            const std::string layoutLabel = " [" + layout.id + "]";
+            expect(!layout.id.empty() && layoutIds.insert(layout.id).second,
+                "layout identity is non-empty and globally unique" + layoutLabel);
+            expect(!layout.obstacles.empty() && layout.eventPositions.size() == 3,
+                "layout defines obstacles and the three map events" + layoutLabel);
+
+            MapInstance map(1, templateIndex, variantIndex);
+            expect(map.templateIndex() == templateIndex
+                    && map.layoutIndex() == variantIndex
+                    && map.layoutId() == layout.id,
+                "MapInstance binds the requested template and layout" + layoutLabel);
+            expect(!map.intersectsObstacle(map.playerStart(), Config::PlayerRadius),
+                "layout leaves the player start clear" + layoutLabel);
+            expect(!map.intersectsObstacle(map.bossCenter(), Config::BossArenaRadius),
+                "layout leaves the Boss arena clear" + layoutLabel);
+            for (const auto& event : map.events()) {
+                expect(!map.intersectsObstacle(event.position, event.radius),
+                    "layout leaves event interaction space clear" + layoutLabel);
+            }
+            expect(map.geometryIsValid(),
+                "layout stays in bounds, clear of protected points, and reachable" + layoutLabel);
+            expect(map.hasReachableBossPath(), "layout has a reachable Boss path" + layoutLabel);
+        }
+    }
+
+    expect(MapInstance(1, 1).layoutIndex() == 0
+            && MapInstance(2, 1).layoutIndex() == 1
+            && MapInstance(3, 1).layoutIndex() == 2
+            && MapInstance(4, 1).layoutIndex() == 0,
+        "map level selects layout variants deterministically");
+
+    MapInstance map(1, 0, 1);
+    expect(!map.intersectsObstacle(map.playerStart(), Config::PlayerRadius),
+        "layout obstacle does not cover player start");
+    expect(!map.intersectsObstacle(map.bossCenter(), Config::BossArenaRadius),
+        "layout obstacle does not cover Boss arena");
+    const Vector2 resolved = map.resolveMovement(
+        map.playerStart(), Config::PlayerRadius, {10000.0f, -10000.0f});
+    expect(resolved.x >= Config::PlayerRadius
+            && resolved.x <= map.size().x - Config::PlayerRadius
+            && resolved.y >= Config::PlayerRadius
+            && resolved.y <= map.size().y - Config::PlayerRadius
+            && !map.intersectsObstacle(resolved, Config::PlayerRadius),
+        "layout movement resolution still respects bounds and obstacles");
+}
+
 // --- Map rewards ---
 void testMapRewardGeneration() {
     section("MapRewardLibrary unlock skill/support options");
@@ -1374,6 +1436,7 @@ int main() {
     testGroundHazardLifecycle();
     testBossDashStateAndStormPattern();
     testMapOptionGeneration();
+    testMapLayoutVariants();
     testMapRewardGeneration();
     testPassiveAndEquipPipeline();
     testItemContainers();

@@ -520,6 +520,8 @@ void Renderer::render(const GameWorld& world) {
         {16.0f, 60.0f}, 18, sf::Color::White);
     drawText("MAP " + std::to_string(world.mapLevel()) + " " + world.map().definition().name
         + "  " + world.currentMapOption().modifier.name
+        + "  LAYOUT " + std::to_string(world.map().layoutIndex() + 1) + "/"
+            + std::to_string(MapLayoutLibrary::VariantCount)
         + "  AREA " + mapAreaName(world.currentMapArea())
         + "  ENEMIES " + std::to_string(world.enemiesRemainingInWave()),
         {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));

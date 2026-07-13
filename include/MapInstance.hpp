@@ -3,10 +3,13 @@
 #include <algorithm>
 #include <cstdint>
 #include <cmath>
+#include <queue>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "Config.hpp"
+#include "MapLayout.hpp"
 #include "Vector2.hpp"
 
 enum class MapArea {
@@ -29,11 +32,6 @@ struct MapEventInstance {
     float radius = 70.0f;
     bool triggered = false;
     bool completed = false;
-};
-
-struct MapObstacle {
-    Vector2 center;
-    Vector2 halfExtents;
 };
 
 struct MapColor {
@@ -63,8 +61,6 @@ struct MapTemplateDefinition {
     std::string theme;
     MapPalette palette;
     MapEncounterProfile encounter;
-    std::vector<MapObstacle> obstacles;
-    std::vector<Vector2> eventPositions;
 };
 
 class MapTemplateLibrary {
@@ -97,42 +93,19 @@ private:
                 "Ashen Causeway",
                 "Ash and stone",
                 {{24, 28, 30}, {65, 70, 72}, {120, 70, 40}, {120, 35, 35}, {40, 110, 70}},
-                {55, 20, 15, "Mixed melee and charger patrols", 10},
-                {
-                    {{720.0f, 1330.0f}, {135.0f, 70.0f}},
-                    {{1040.0f, 1120.0f}, {95.0f, 170.0f}},
-                    {{1250.0f, 730.0f}, {180.0f, 80.0f}},
-                    {{1650.0f, 800.0f}, {100.0f, 145.0f}},
-                },
-                {{700.0f, 1090.0f}, {1315.0f, 950.0f}, {1365.0f, 555.0f}}
+                {55, 20, 15, "Mixed melee and charger patrols", 10}
             },
             {
                 "Stormscar Expanse",
                 "Rain and shattered glass",
                 {{20, 29, 38}, {52, 72, 92}, {75, 115, 145}, {46, 72, 125}, {42, 95, 110}},
-                {25, 45, 15, "Ranged pressure and charger flanks", 15},
-                {
-                    {{650.0f, 1300.0f}, {90.0f, 130.0f}},
-                    {{900.0f, 1020.0f}, {160.0f, 70.0f}},
-                    {{1250.0f, 1200.0f}, {105.0f, 150.0f}},
-                    {{1510.0f, 700.0f}, {160.0f, 85.0f}},
-                    {{1770.0f, 620.0f}, {75.0f, 150.0f}},
-                },
-                {{680.0f, 1040.0f}, {1180.0f, 820.0f}, {1580.0f, 500.0f}}
+                {25, 45, 15, "Ranged pressure and charger flanks", 15}
             },
             {
                 "Venom Hollow",
                 "Acid and overgrowth",
                 {{23, 38, 31}, {55, 82, 61}, {105, 125, 55}, {92, 68, 35}, {42, 110, 70}},
-                {35, 20, 30, "Elite patrols and charger ambushes", 15},
-                {
-                    {{600.0f, 1420.0f}, {140.0f, 65.0f}},
-                    {{970.0f, 1120.0f}, {90.0f, 180.0f}},
-                    {{1410.0f, 1040.0f}, {150.0f, 65.0f}},
-                    {{1650.0f, 700.0f}, {105.0f, 150.0f}},
-                    {{1820.0f, 820.0f}, {80.0f, 115.0f}},
-                },
-                {{720.0f, 1150.0f}, {1260.0f, 900.0f}, {1450.0f, 510.0f}}
+                {35, 20, 30, "Elite patrols and charger ambushes", 15}
             },
         };
     }
@@ -140,13 +113,18 @@ private:
 
 class MapInstance {
 public:
-    explicit MapInstance(int mapLevel = 1, int templateIndex = -1)
+    explicit MapInstance(int mapLevel = 1, int templateIndex = -1, int layoutIndex = -1)
         : size_(Config::MapWidth, Config::MapHeight)
         , playerStart_(220.0f, Config::MapHeight - 220.0f)
         , bossCenter_(Config::MapWidth - 320.0f, 300.0f)
-        , templateDefinition_(templateIndex >= 0
-            ? &MapTemplateLibrary::forIndex(templateIndex)
-            : &MapTemplateLibrary::forMapLevel(mapLevel))
+        , templateIndex_(templateIndex >= 0
+            ? MapLayoutLibrary::normalizeTemplateIndex(templateIndex)
+            : MapLayoutLibrary::normalizeTemplateIndex(std::max(1, mapLevel) - 1))
+        , layoutIndex_(layoutIndex >= 0
+            ? MapLayoutLibrary::normalizeVariantIndex(layoutIndex)
+            : MapLayoutLibrary::variantForMapLevel(mapLevel))
+        , templateDefinition_(&MapTemplateLibrary::forIndex(templateIndex_))
+        , layoutDefinition_(&MapLayoutLibrary::forTemplate(templateIndex_, layoutIndex_))
         , bossTriggered_(false)
         , bossDefeated_(false) {
         generateObstacles();
@@ -157,11 +135,106 @@ public:
     const Vector2& playerStart() const { return playerStart_; }
     const Vector2& bossCenter() const { return bossCenter_; }
     const MapTemplateDefinition& definition() const { return *templateDefinition_; }
+    const MapLayoutDefinition& layoutDefinition() const { return *layoutDefinition_; }
+    int templateIndex() const { return templateIndex_; }
+    int layoutIndex() const { return layoutIndex_; }
+    const std::string& layoutId() const { return layoutDefinition_->id; }
     bool bossTriggered() const { return bossTriggered_; }
     bool bossDefeated() const { return bossDefeated_; }
     const std::vector<MapEventInstance>& events() const { return events_; }
     std::vector<MapEventInstance>& eventsForMutation() { return events_; }
     const std::vector<MapObstacle>& obstacles() const { return obstacles_; }
+
+    bool geometryIsValid(float playerRadius = Config::PlayerRadius) const {
+        for (const auto& obstacle : obstacles_) {
+            const float minX = obstacle.center.x - obstacle.halfExtents.x;
+            const float maxX = obstacle.center.x + obstacle.halfExtents.x;
+            const float minY = obstacle.center.y - obstacle.halfExtents.y;
+            const float maxY = obstacle.center.y + obstacle.halfExtents.y;
+            if (minX < 0.0f || maxX > size_.x || minY < 0.0f || maxY > size_.y) {
+                return false;
+            }
+        }
+
+        if (intersectsObstacle(playerStart_, playerRadius)
+            || intersectsObstacle(bossCenter_, Config::BossArenaRadius)) {
+            return false;
+        }
+
+        for (const auto& event : events_) {
+            if (event.position.x < event.radius
+                || event.position.x > size_.x - event.radius
+                || event.position.y < event.radius
+                || event.position.y > size_.y - event.radius
+                || intersectsObstacle(event.position, event.radius)) {
+                return false;
+            }
+        }
+
+        return hasReachableBossPath(playerRadius);
+    }
+
+    bool hasReachableBossPath(float playerRadius = Config::PlayerRadius, float cellSize = 40.0f) const {
+        if (cellSize <= 0.0f) {
+            return false;
+        }
+
+        const int columns = std::max(1, static_cast<int>(std::ceil(size_.x / cellSize)));
+        const int rows = std::max(1, static_cast<int>(std::ceil(size_.y / cellSize)));
+        const auto cellIndex = [columns](int x, int y) { return y * columns + x; };
+        const auto cellPosition = [cellSize](int x, int y) {
+            return Vector2((static_cast<float>(x) + 0.5f) * cellSize,
+                (static_cast<float>(y) + 0.5f) * cellSize);
+        };
+        const auto clampCell = [columns, rows, cellSize](const Vector2& position) {
+            return std::pair<int, int>(
+                std::clamp(static_cast<int>(position.x / cellSize), 0, columns - 1),
+                std::clamp(static_cast<int>(position.y / cellSize), 0, rows - 1)
+            );
+        };
+
+        // The default grid spacing is fixed at 40px so the result is stable
+        // across all normal callers and map levels.
+        const auto startCell = clampCell(playerStart_);
+        const auto goalPosition = bossCenter_;
+        const int startIndex = cellIndex(startCell.first, startCell.second);
+        std::vector<bool> visited(static_cast<std::size_t>(columns * rows), false);
+        std::queue<std::pair<int, int>> pending;
+        if (intersectsObstacle(cellPosition(startCell.first, startCell.second), playerRadius)) {
+            return false;
+        }
+        pending.push(startCell);
+        visited[static_cast<std::size_t>(startIndex)] = true;
+
+        constexpr int directions[][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        while (!pending.empty()) {
+            const auto current = pending.front();
+            pending.pop();
+            const Vector2 position = cellPosition(current.first, current.second);
+            if ((position - goalPosition).lengthSquared()
+                    <= Config::BossArenaRadius * Config::BossArenaRadius) {
+                return true;
+            }
+
+            for (const auto& direction : directions) {
+                const int nextX = current.first + direction[0];
+                const int nextY = current.second + direction[1];
+                if (nextX < 0 || nextX >= columns || nextY < 0 || nextY >= rows) {
+                    continue;
+                }
+
+                const int nextIndex = cellIndex(nextX, nextY);
+                if (visited[static_cast<std::size_t>(nextIndex)]
+                    || intersectsObstacle(cellPosition(nextX, nextY), playerRadius)) {
+                    continue;
+                }
+                visited[static_cast<std::size_t>(nextIndex)] = true;
+                pending.emplace(nextX, nextY);
+            }
+        }
+
+        return false;
+    }
 
     bool intersectsObstacle(const Vector2& position, float radius) const {
         for (const auto& obstacle : obstacles_) {
@@ -260,12 +333,15 @@ public:
 
 private:
     void generateObstacles() {
-        obstacles_ = templateDefinition_->obstacles;
+        obstacles_ = layoutDefinition_->obstacles;
     }
 
     void generateEvents() {
-        const auto& eventPositions = templateDefinition_->eventPositions;
+        const auto& eventPositions = layoutDefinition_->eventPositions;
         events_.clear();
+        if (eventPositions.size() < 3) {
+            return;
+        }
         events_.push_back({
             MapEventType::LootCache,
             eventPositions[0],
@@ -292,7 +368,10 @@ private:
     Vector2 size_;
     Vector2 playerStart_;
     Vector2 bossCenter_;
+    int templateIndex_;
+    int layoutIndex_;
     const MapTemplateDefinition* templateDefinition_;
+    const MapLayoutDefinition* layoutDefinition_;
     std::vector<MapObstacle> obstacles_;
     std::vector<MapEventInstance> events_;
     bool bossTriggered_;
