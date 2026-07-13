@@ -1,11 +1,13 @@
 // Unit tests for shipped pure ARPG logic (no SFML).
 // Each assertion drives real headers/types used by the game binary.
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <string>
 
+#include "BossDefinition.hpp"
 #include "CombatMath.hpp"
 #include "Config.hpp"
 #include "EliteModifier.hpp"
@@ -432,6 +434,62 @@ void testFlaskChargeRewards() {
         "boss kill refills the life flask");
 }
 
+// --- Boss summon skills ---
+void testBossSummonDefinitions() {
+    section("Boss summon definitions and population cap");
+
+    const auto& bosses = BossLibrary::all();
+    const auto broodIt = std::find_if(
+        bosses.begin(), bosses.end(),
+        [](const BossDefinition& boss) { return boss.name == "Brood Matriarch"; }
+    );
+    expect(broodIt != bosses.end(), "Brood Matriarch definition exists");
+    if (broodIt == bosses.end()) {
+        return;
+    }
+
+    bool hasNormalSummon = false;
+    bool hasRangedSummon = false;
+    for (const auto& skill : broodIt->skills) {
+        if (skill.type != BossSkillType::SummonAdds) {
+            continue;
+        }
+
+        expect(skill.summonCount > 0, skill.name + " summons at least one add");
+        expect(skill.radius > 0.0f, skill.name + " has a spawn radius");
+        expect(skill.telegraphDuration > 0.0f, skill.name + " has a warning window");
+        hasNormalSummon = hasNormalSummon || skill.summonType == EnemyType::Normal;
+        hasRangedSummon = hasRangedSummon || skill.summonType == EnemyType::Ranged;
+    }
+    expect(hasNormalSummon, "Brood normal phase can summon melee broodlings");
+    expect(hasRangedSummon, "Brood enrage phase can summon ranged broodlings");
+
+    bool normalOrderSummons = false;
+    for (std::size_t i = 0; i < broodIt->normalSkillOrder.size(); ++i) {
+        normalOrderSummons = normalOrderSummons
+            || broodIt->skillForCast(i, false).type == BossSkillType::SummonAdds;
+    }
+    expect(normalOrderSummons, "Brood normal skill order schedules a summon");
+
+    bool enragedOrderSummonsRanged = false;
+    for (std::size_t i = 0; i < broodIt->enragedSkillOrder.size(); ++i) {
+        const auto& skill = broodIt->skillForCast(i, true);
+        enragedOrderSummonsRanged = enragedOrderSummonsRanged
+            || (skill.type == BossSkillType::SummonAdds
+                && skill.summonType == EnemyType::Ranged);
+    }
+    expect(enragedOrderSummonsRanged, "Brood enrage order schedules ranged broodlings");
+
+    expect(availableBossSummonCount(4, 0, 10) == 4,
+        "summon count is unchanged below the population cap");
+    expect(availableBossSummonCount(4, 8, 10) == 2,
+        "summon count is reduced to remaining population space");
+    expect(availableBossSummonCount(4, 10, 10) == 0,
+        "summon count is zero at the population cap");
+    expect(availableBossSummonCount(-2, -1, 10) == 0,
+        "summon count rejects invalid negative inputs");
+}
+
 // --- Map options ---
 void testMapOptionGeneration() {
     section("MapOptionLibrary distinct modifiers");
@@ -538,6 +596,7 @@ int main() {
     testEliteModifierDefinitions();
     testChargerStateMachine();
     testFlaskChargeRewards();
+    testBossSummonDefinitions();
     testMapOptionGeneration();
     testMapRewardGeneration();
     testPassiveAndEquipPipeline();

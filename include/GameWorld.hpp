@@ -142,6 +142,7 @@ private:
     void movePlayerBy(const Vector2& delta);
     void updateObjects(float dt);
     void updateBossSkills(float dt);
+    int summonBossAdds(const Enemy& boss, const BossSkillDefinition& skill);
     void updateBossProjectiles(float dt);
     void updateEnemyProjectiles(float dt);
     void spawnEnemies(float dt);

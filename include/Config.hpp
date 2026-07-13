@@ -63,6 +63,7 @@ namespace Config {
 
     constexpr float EnemySpawnInterval = 1.0f;
     constexpr int MaxActiveEnemies = 28;
+    constexpr int MaxBossSummonedEnemies = 10;
     constexpr float EnemySpawnMinDistance = 520.0f;
     constexpr float EnemySpawnMaxDistance = 760.0f;
     constexpr float VolatileExplosionEffectDuration = 0.35f;

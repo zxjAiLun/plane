@@ -5,10 +5,12 @@
 #include <vector>
 
 #include "Config.hpp"
+#include "EnemyType.hpp"
 
 enum class BossSkillType {
     CircularAoe,
-    Projectile
+    Projectile,
+    SummonAdds
 };
 
 enum class BossLootTheme {
@@ -27,6 +29,8 @@ struct BossSkillDefinition {
     float projectileSpeed = 0.0f;
     int projectileCount = 1;
     float spreadAngle = 0.0f;
+    EnemyType summonType = EnemyType::Normal;
+    int summonCount = 0;
 };
 
 struct BossDefinition {
@@ -159,14 +163,40 @@ private:
                 0.50f,
                 0.72f,
                 1.20f,
-                "Alternates acid spray and nest bursts",
-                "Relentless acid spray",
+                "Acid spray, nest bursts, and brooding hatchlings",
+                "Rapid acid pressure with ranged broodlings",
                 {
                     {BossSkillType::Projectile, "Acid Spray", Config::BossProjectileRadius, 1, 0.0f, 0.0f, 420.0f, 3, 28.0f},
                     {BossSkillType::CircularAoe, "Nest Burst", 115.0f, 2, 0.55f, 0.25f, 0.0f, 1, 0.0f},
+                    {
+                        BossSkillType::SummonAdds,
+                        "Hatch Broodlings",
+                        105.0f,
+                        0,
+                        0.65f,
+                        0.25f,
+                        0.0f,
+                        1,
+                        0.0f,
+                        EnemyType::Normal,
+                        4
+                    },
+                    {
+                        BossSkillType::SummonAdds,
+                        "Hatch Spitters",
+                        125.0f,
+                        0,
+                        0.75f,
+                        0.25f,
+                        0.0f,
+                        1,
+                        0.0f,
+                        EnemyType::Ranged,
+                        2
+                    },
                 },
-                {0, 1, 0},
-                {0, 0, 1}
+                {0, 2, 1, 0},
+                {0, 3, 0, 2, 1}
             },
         };
     }

@@ -18,6 +18,10 @@ inline int refilledFlaskCharges(int currentCharges, int maxCharges, int restored
     return std::clamp(currentCharges + std::max(0, restoredCharges), 0, maxCharges);
 }
 
+inline int availableBossSummonCount(int requested, int active, int maximum) {
+    return std::clamp(requested, 0, std::max(0, maximum - std::max(0, active)));
+}
+
 inline int skillDamage(
     const SkillDefinition& skill,
     const Stats& stats,

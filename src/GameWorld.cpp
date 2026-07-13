@@ -403,13 +403,23 @@ void GameWorld::updateBossSkills(float dt) {
     const float telegraphBefore = bossAoeTelegraphTimer_;
     bossAoeTelegraphTimer_ = std::max(0.0f, bossAoeTelegraphTimer_ - dt);
     if (telegraphBefore > 0.0f && bossAoeTelegraphTimer_ <= 0.0f) {
-        if (Collision::circleCircle(
-                player_.position(), player_.radius(),
-                bossAoeCenter_, bossAoeSkill_.radius
-            )) {
-            damagePlayer(bossAoeSkill_.damage, bossAoeSkill_.name);
+        switch (bossAoeSkill_.type) {
+            case BossSkillType::CircularAoe:
+                if (Collision::circleCircle(
+                        player_.position(), player_.radius(),
+                        bossAoeCenter_, bossAoeSkill_.radius
+                    )) {
+                    damagePlayer(bossAoeSkill_.damage, bossAoeSkill_.name);
+                }
+                break;
+            case BossSkillType::SummonAdds:
+                summonBossAdds(*boss, bossAoeSkill_);
+                break;
+            case BossSkillType::Projectile:
+                break;
         }
         bossAoeEffectTimer_ = bossAoeSkill_.effectDuration;
+        return;
     }
 
     if (bossAoeTelegraphTimer_ > 0.0f) {
@@ -430,14 +440,24 @@ void GameWorld::updateBossSkills(float dt) {
         static_cast<std::size_t>(bossSkillIndex_), bossEnraged_
     );
 
-    if (skill.type == BossSkillType::CircularAoe) {
-        bossAoeCenter_ = player_.position();
-        bossAoeSkill_ = skill;
-        bossAoeSkill_.damage = bossSkillDamage(skill.damage);
-        bossAoeTelegraphTimer_ = skill.telegraphDuration;
-    } else {
-        const Vector2 direction = (player_.position() - boss->position()).normalized();
-        if (direction.lengthSquared() > 0.0f) {
+    switch (skill.type) {
+        case BossSkillType::CircularAoe:
+            bossAoeCenter_ = player_.position();
+            bossAoeSkill_ = skill;
+            bossAoeSkill_.damage = bossSkillDamage(skill.damage);
+            bossAoeTelegraphTimer_ = skill.telegraphDuration;
+            break;
+        case BossSkillType::SummonAdds:
+            bossAoeCenter_ = boss->position();
+            bossAoeSkill_ = skill;
+            bossAoeTelegraphTimer_ = skill.telegraphDuration;
+            break;
+        case BossSkillType::Projectile: {
+            const Vector2 direction = (player_.position() - boss->position()).normalized();
+            if (direction.lengthSquared() <= 0.0f) {
+                break;
+            }
+
             const int projectileCount = std::max(1, skill.projectileCount);
             const float halfSpread = skill.spreadAngle * 0.5f;
             const float step = projectileCount > 1
@@ -464,11 +484,48 @@ void GameWorld::updateBossSkills(float dt) {
                     true
                 });
             }
+            break;
         }
     }
 
     ++bossSkillIndex_;
     bossSkillTimer_ = bossSkillInterval();
+}
+
+int GameWorld::summonBossAdds(const Enemy& boss, const BossSkillDefinition& skill) {
+    const int activeAdds = static_cast<int>(std::count_if(
+        enemies_.begin(), enemies_.end(),
+        [](const Enemy& enemy) { return !enemy.isBoss() && !enemy.isDead(); }
+    ));
+    const int summonCount = availableBossSummonCount(
+        skill.summonCount, activeAdds, Config::MaxBossSummonedEnemies
+    );
+    if (summonCount <= 0) {
+        eventStatusMessage_ = "Summon limit reached";
+        eventStatusTimer_ = 2.0f;
+        return 0;
+    }
+
+    const auto& definition = EnemyLibrary::forType(skill.summonType);
+    const int hp = std::max(1, static_cast<int>(std::ceil(
+        enemyHpForMap() * definition.hpMultiplier
+    )));
+    const int damage = enemyDamageForMap() + definition.damageBonus;
+    const float enemyRadius = Config::EnemyRadius * definition.radiusMultiplier;
+    const Vector2 bossPosition = boss.position();
+    constexpr float twoPi = 6.28318531f;
+
+    for (int i = 0; i < summonCount; ++i) {
+        const float angle = twoPi * static_cast<float>(i) / static_cast<float>(summonCount);
+        const Vector2 offset(std::cos(angle) * skill.radius, std::sin(angle) * skill.radius);
+        const Vector2 position = map_.resolveMovement(bossPosition, enemyRadius, offset);
+        enemies_.emplace_back(position, hp, damage, skill.summonType);
+    }
+
+    eventStatusMessage_ = "Boss summoned: " + std::to_string(summonCount)
+        + " " + definition.name;
+    eventStatusTimer_ = 2.0f;
+    return summonCount;
 }
 
 void GameWorld::updateBossProjectiles(float dt) {
@@ -665,7 +722,9 @@ void GameWorld::removeDeadObjects() {
     }
 
     auto enemyIt = std::remove_if(enemies_.begin(), enemies_.end(),
-        [](const Enemy& e) { return e.isDead(); });
+        [this](const Enemy& e) {
+            return e.isDead() || (map_.bossDefeated() && !e.isBoss());
+        });
     if (enemyIt != enemies_.end()) {
         enemies_.erase(enemyIt, enemies_.end());
     }
@@ -1399,6 +1458,7 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
     if (enemy.isBoss()) {
         map_.markBossDefeated();
         bossProjectiles_.clear();
+        enemyProjectiles_.clear();
         bossAoeTelegraphTimer_ = 0.0f;
         bossAoeEffectTimer_ = 0.0f;
         bossAoeSkill_ = BossSkillDefinition();
