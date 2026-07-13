@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`d4879d5 Add ailment specialization supports`
+玩法代码基线：`1e959ee Add Brood Matriarch summon phases`
 
 接手文档提交：`7201c35 Document ARPG architecture and development roadmap`
 
@@ -92,7 +92,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前纯逻辑测试基线：`231 passed / 0 failed`。
+当前纯逻辑测试基线：`246 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -214,14 +214,16 @@ git status --short
 已实现：
 
 - 独立 HP、伤害、技能间隔、掉落倍率和保底掉落。
-- Circular AoE 和 Projectile 两种技能类型。
+- Circular AoE、Projectile 和 SummonAdds 三种技能类型。
 - 技能顺序数据化。
 - 低血量 Enrage 阶段，改变技能顺序、间隔和伤害。
+- Brood Matriarch 普通阶段召唤近战幼体，Enrage 阶段加入远程幼体。
+- 召唤物按当前地图等级和 modifier 缩放，数量有上限；Boss 死亡时统一清理。
 - Boss 名称、血条、技能预警、阶段信息。
 - 三种主题 Boss relic，分别偏 Weapon、Ring、Amulet 构筑。
 - Boss 死亡后进入 MapComplete，并生成奖励和下一图选项。
 
-当前 Boss 仍主要是“不同参数和技能顺序”，缺少召唤、持续地面危险、阶段转场等更强的机制差异。
+当前 Brood 已具有召唤机制；Brimstone 和 Storm 仍主要依赖不同参数与技能顺序，缺少持续地面危险、位置变化和阶段转场。
 
 ### 5.5 玩家、生存与成长
 
@@ -359,6 +361,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - Loot rarity、affix 数量、tier、Boss relic。
 - Elite modifier。
 - Charger 状态机。
+- Boss summon 数据、阶段顺序和数量上限。
 - 药瓶充能奖励。
 - 地图选项差异和风险缩放。
 - 地图奖励生成。
@@ -561,7 +564,7 @@ Review 严重级别：
 
 目标：三个 Boss 不再只是不同数值、投射物和 AoE 顺序。
 
-任务 A1：Boss Summon Skill v1
+任务 A1：Boss Summon Skill v1（完成：`1e959ee`）
 
 - 新增 `BossSkillType::SummonAdds`。
 - `BossSkillDefinition` 增加 summon type/count/radius 数据。
@@ -706,17 +709,18 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Boss Summon Skill v1`。
+建议立即交给 hy3：`Persistent Hazard v1`。
 
-原因：当前技能、装备、天赋和异常构筑已经有足够选择，最明显的体验短板是三个 Boss 的机制差异仍偏弱。Brood Matriarch 的召唤行为可以复用现有 Enemy、EnemyDefinition、地图缩放和 Renderer，不需要引入新系统，同时能验证 BossDefinition 是否真的具备继续扩展能力。
+原因：Brood Matriarch 已通过 SummonAdds 获得独立机制，下一个最明显的 Boss 差异缺口是 Brimstone 的持续区域控制。数据化 Hazard 能同时验证世界对象生命周期、周期伤害、危险反馈和 Boss 结算清理，为后续地图词缀与技能地面效果提供可复用基础。
 
-给 hy3 的任务必须直接引用本文件中“任务 A1”的范围和验收标准，并额外要求：
+给 hy3 的任务必须直接引用本文件中“任务 A2”的范围和验收标准，并额外要求：
 
-- 先阅读 `BossDefinition.hpp`、`GameWorld::updateBossSkills()`、`rewardEnemyKill()`、`EnemyDefinition.hpp`。
+- 先阅读 `BossDefinition.hpp`、`GameWorld::updateBossSkills()`、`damagePlayer()`、`rewardEnemyKill()`、`Renderer::drawBossAoeEffect()`。
 - 改动保持未提交。
 - 必须补纯逻辑测试。
-- 必须手动跑到 Brood Matriarch 或提供可重复的测试入口证明召唤发生。
-- 不顺手实现 Hazard、Storm Dash、存档或新怪类型。
+- 必须验证 Hazard 的 tick 间隔与玩家受击无敌时间不会形成逐帧伤害。
+- 必须证明 Boss 死亡、`startNextMap()` 和 `reset()` 都清空 Hazard。
+- 不顺手实现 Storm Dash、玩家技能持续地面效果、地图词缀 Hazard 或存档。
 
 ## 14. 项目进度看板
 
@@ -725,13 +729,13 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 主动战斗 | v1 完成 | 四槽技能、Support、异常、药瓶已形成基础构筑 |
 | 开放地图 | v1 完成 | 大地图、相机、障碍、事件和 Boss 路线已完成 |
 | 怪物生态 | 可玩 | 近战、远程、精英、冲锋均有，pack 协同仍弱 |
-| Boss | 可玩 | 三 Boss、技能顺序、Enrage、主题掉落已完成，独特机制不足 |
+| Boss | 可玩 | 三 Boss、技能顺序、Enrage、主题掉落和 Brood 召唤已完成，另外两者独特机制不足 |
 | 天赋盘 | v1 完成 | 20 节点可用，缺 Keystone 级玩法变化 |
 | 装备掉落 | v1 完成 | affix/tier/rarity/relic/比较/满包安全已有，缺 base/implicit/权重 |
 | 地图选择 | v1 完成 | 三选图和风险收益已有，缺组合 modifier 和布局变体 |
 | 经济/锻造 | 原型 | 分解碎片和 +3 强化已有，缺有选择的 crafting |
 | 存档 | 未开始 | 完成定义中的最大缺口 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 231 条通过，缺 UI 和端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 246 条通过，缺 UI 和端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
