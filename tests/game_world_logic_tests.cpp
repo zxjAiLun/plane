@@ -15,6 +15,7 @@
 #include "ItemBase.hpp"
 #include "LootGenerator.hpp"
 #include "MapRewardLibrary.hpp"
+#include "MapScaling.hpp"
 #include "SaveService.hpp"
 #include "SkillLibrary.hpp"
 #include "SupportLibrary.hpp"
@@ -699,6 +700,75 @@ void testFiveMapRealBossProgression() {
 
     expect(world.mapLevel() == 6,
         "real Boss progression completes five maps");
+    std::filesystem::remove(path);
+}
+
+void testBossSpawnUsesMapScaling() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_boss_scaling_path_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(15601);
+    SaveData baseData;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, baseData, &error),
+        "Boss scaling fixture starts from a valid run save");
+
+    int previousBossHp = 0;
+    int previousBossDamage = 0;
+    for (int mapLevel = 1; mapLevel <= 5; ++mapLevel) {
+        SaveData data = baseData;
+        const MapOption mapOption = mapLevel == 1
+            ? MapOptionLibrary::defaultOption()
+            : MapOptionLibrary::generateOptions(mapLevel)[0];
+        data.mapLevel = mapLevel;
+        data.currentMapOption = mapOption;
+        data.mapTemplateIndex = mapOption.templateIndex;
+        data.mapLayoutIndex = MapLayoutLibrary::variantForMapLevel(mapLevel);
+        data.state = SavedRunState::Playing;
+        data.mapRewardChosen = false;
+        data.nextMapOptionChosen = false;
+        data.selectedMapRewardOption = -1;
+        data.selectedNextMapOption = -1;
+        data.player.hp = 10000;
+        data.player.upgradeStats.maxHp = 10000;
+        data.player.upgradeStats.moveSpeedMultiplier = 8.0f;
+        data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+        data.player.mana = Config::PlayerMaxMana;
+        expect(SaveService::save(path, data, &error) && world.loadRun(path),
+            "Boss scaling fixture loads map " + std::to_string(mapLevel));
+
+        Input input;
+        expect(moveToBoss(world, input),
+            "real movement reaches the Boss on map " + std::to_string(mapLevel));
+        const auto bossIt = std::find_if(
+            world.enemies().begin(),
+            world.enemies().end(),
+            [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+        );
+        const int expectedHp = MapScaling::bossHp(
+            mapLevel, mapOption.modifier, world.bossDefinition()
+        );
+        const int expectedDamage = MapScaling::bossContactDamage(
+            mapLevel, mapOption.modifier, world.bossDefinition()
+        );
+        expect(bossIt != world.enemies().end()
+                && bossIt->maxHp() == expectedHp
+                && bossIt->contactDamage() == expectedDamage,
+            "runtime Boss uses the shared map scaling profile on map "
+                + std::to_string(mapLevel));
+        if (bossIt != world.enemies().end()) {
+            expect(bossIt->maxHp() >= previousBossHp,
+                "runtime Boss HP does not decrease at map "
+                    + std::to_string(mapLevel));
+            expect(bossIt->contactDamage() >= previousBossDamage,
+                "runtime Boss contact damage does not decrease at map "
+                    + std::to_string(mapLevel));
+            previousBossHp = bossIt->maxHp();
+            previousBossDamage = bossIt->contactDamage();
+        }
+    }
+
     std::filesystem::remove(path);
 }
 
@@ -1819,6 +1889,7 @@ int main() {
     testContinuousMapProgression();
     testItemBaseLevelRequirementWorldFlow();
     testFiveMapRealBossProgression();
+    testBossSpawnUsesMapScaling();
     testGameOverRestartBoundary();
     testInvalidProgressionSaveDoesNotMutate();
     testCombatFeedbackAndDeathClaim();

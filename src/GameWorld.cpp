@@ -3,6 +3,7 @@
 #include "CombatMath.hpp"
 #include "Config.hpp"
 #include "EnemyDefinition.hpp"
+#include "MapScaling.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -2951,18 +2952,15 @@ int GameWorld::enemiesPerWave() const {
 }
 
 int GameWorld::enemyHpForMap() const {
-    const float levelMultiplier = 1.0f + (mapLevel_ - 1) * 0.25f;
-    return std::max(1, static_cast<int>(std::ceil(
-        Config::EnemyHp * levelMultiplier * mapModifier_.monsterHpMultiplier
-    )));
+    return MapScaling::enemyHp(mapLevel_, mapModifier_);
 }
 
 int GameWorld::enemyDamageForMap() const {
-    return Config::EnemyContactDamage + (mapLevel_ - 1) / 3 + mapModifier_.monsterDamageBonus;
+    return MapScaling::enemyDamage(mapLevel_, mapModifier_);
 }
 
 int GameWorld::itemLevelForMap() const {
-    return std::max(1, mapLevel_ + mapModifier_.itemLevelBonus);
+    return MapScaling::itemLevel(mapLevel_, mapModifier_);
 }
 
 EliteModifier GameWorld::randomEliteModifier() {
@@ -3031,13 +3029,10 @@ void GameWorld::triggerBossIfNeeded() {
     eventStatusMessage_ = "Boss awakened: " + bossDefinition_->name;
     eventStatusTimer_ = 2.0f;
 
-    const int hp = std::max(1, static_cast<int>(std::ceil(
-        enemyHpForMap() * bossDefinition_->hpMultiplier * mapModifier_.bossHpMultiplier
-    )));
-    const int damage = std::max(1, static_cast<int>(std::ceil(
-        static_cast<float>(enemyDamageForMap() + bossDefinition_->damageBonus)
-            * mapModifier_.bossDamageMultiplier
-    )));
+    const int hp = MapScaling::bossHp(mapLevel_, mapModifier_, *bossDefinition_);
+    const int damage = MapScaling::bossContactDamage(
+        mapLevel_, mapModifier_, *bossDefinition_
+    );
     enemies_.push_back(Enemy(map_.bossCenter(), hp, damage, EnemyType::Boss));
 }
 

@@ -29,6 +29,7 @@
 #include "MapModifier.hpp"
 #include "MapInstance.hpp"
 #include "MapRewardLibrary.hpp"
+#include "MapScaling.hpp"
 #include "PassiveTree.hpp"
 #include "Player.hpp"
 #include "RandomService.hpp"
@@ -1683,6 +1684,64 @@ void testMapOptionGeneration() {
         "map options bind to distinct map templates 0/1/2");
 }
 
+void testMapScalingProgression() {
+    section("Map scaling progression and modifier monotonicity");
+
+    const auto& bosses = BossLibrary::all();
+    for (std::size_t optionIndex = 0; optionIndex < 3; ++optionIndex) {
+        int previousEnemyHp = 0;
+        int previousEnemyDamage = 0;
+        int previousItemLevel = 0;
+        for (int mapLevel = 1; mapLevel <= 5; ++mapLevel) {
+            const auto options = MapOptionLibrary::generateOptions(mapLevel);
+            const auto& modifier = options[optionIndex].modifier;
+            const int enemyHp = MapScaling::enemyHp(mapLevel, modifier);
+            const int enemyDamage = MapScaling::enemyDamage(mapLevel, modifier);
+            const int itemLevel = MapScaling::itemLevel(mapLevel, modifier);
+            expect(enemyHp >= previousEnemyHp,
+                "map option " + std::to_string(optionIndex + 1)
+                    + " keeps enemy HP non-decreasing at level "
+                    + std::to_string(mapLevel));
+            expect(enemyDamage >= previousEnemyDamage,
+                "map option " + std::to_string(optionIndex + 1)
+                    + " keeps enemy damage non-decreasing at level "
+                    + std::to_string(mapLevel));
+            expect(itemLevel >= previousItemLevel,
+                "map option " + std::to_string(optionIndex + 1)
+                    + " keeps item level non-decreasing at level "
+                    + std::to_string(mapLevel));
+            previousEnemyHp = enemyHp;
+            previousEnemyDamage = enemyDamage;
+            previousItemLevel = itemLevel;
+        }
+    }
+
+    for (const auto& boss : bosses) {
+        for (std::size_t optionIndex = 0; optionIndex < 3; ++optionIndex) {
+            int previousBossHp = 0;
+            int previousBossDamage = 0;
+            for (int mapLevel = 1; mapLevel <= 5; ++mapLevel) {
+                const auto options = MapOptionLibrary::generateOptions(mapLevel);
+                const auto& modifier = options[optionIndex].modifier;
+                const int bossHp = MapScaling::bossHp(mapLevel, modifier, boss);
+                const int bossDamage = MapScaling::bossContactDamage(
+                    mapLevel, modifier, boss
+                );
+                expect(bossHp >= previousBossHp,
+                    boss.name + " keeps Boss HP non-decreasing for map option "
+                        + std::to_string(optionIndex + 1) + " at level "
+                        + std::to_string(mapLevel));
+                expect(bossDamage >= previousBossDamage,
+                    boss.name + " keeps contact damage non-decreasing for map option "
+                        + std::to_string(optionIndex + 1) + " at level "
+                        + std::to_string(mapLevel));
+                previousBossHp = bossHp;
+                previousBossDamage = bossDamage;
+            }
+        }
+    }
+}
+
 // --- Map layout variants ---
 void testMapLayoutVariants() {
     section("MapLayoutLibrary deterministic variants and geometry");
@@ -2038,6 +2097,7 @@ int main() {
     testGroundHazardLifecycle();
     testBossDashStateAndStormPattern();
     testMapOptionGeneration();
+    testMapScalingProgression();
     testMapLayoutVariants();
     testMapExploration();
     testMapRewardGeneration();
