@@ -421,11 +421,15 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     const auto validFloat = [](float value) {
         return std::isfinite(value);
     };
+    const auto validChoice = [](int choice) {
+        return choice == -1 || (choice >= 0 && choice < 3);
+    };
 
     if (data.mapLevel < 1
         || !validTemplateIndex(data.mapTemplateIndex)
         || !validLayoutIndex(data.mapLayoutIndex)
         || !validTemplateIndex(data.currentMapOption.templateIndex)
+        || data.currentMapOption.templateIndex != data.mapTemplateIndex
         || data.inventory.size() > static_cast<std::size_t>(Config::InventoryCapacity)
         || data.stash.size() > static_cast<std::size_t>(Config::StashCapacity)
         || data.droppedItems.size() > 4096
@@ -436,6 +440,16 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
         || data.itemQuantityRewardMultiplier <= 0.0f
         || data.lifeFlaskCharges < 0
         || data.lifeFlaskCharges > Config::LifeFlaskMaxCharges) {
+        return false;
+    }
+
+    if (!validChoice(data.selectedMapRewardOption)
+        || !validChoice(data.selectedNextMapOption)
+        || (data.mapRewardChosen != (data.selectedMapRewardOption >= 0))
+        || (data.nextMapOptionChosen != (data.selectedNextMapOption >= 0))
+        || (data.nextMapOptionChosen && !data.mapRewardChosen)
+        || (data.state == SavedRunState::Playing
+            && (data.mapRewardChosen || data.nextMapOptionChosen))) {
         return false;
     }
 

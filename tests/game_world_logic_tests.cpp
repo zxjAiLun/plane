@@ -8,13 +8,17 @@
 #include "Config.hpp"
 #include "GameWorld.hpp"
 #include "Input.hpp"
+#include "LootGenerator.hpp"
+#include "MapRewardLibrary.hpp"
 #include "SaveService.hpp"
 
 namespace {
 
 int failures = 0;
+int checks = 0;
 
 void expect(bool condition, const std::string& label) {
+    ++checks;
     if (condition) {
         std::cout << "  PASS  " << label << '\n';
     } else {
@@ -193,6 +197,136 @@ void testMapCompleteLoad() {
     std::filesystem::remove(path);
 }
 
+bool saveAsMapCompleteFixture(
+    const std::filesystem::path& path,
+    GameWorld& world,
+    int sequence,
+    bool addGroundDrop
+) {
+    std::string error;
+    SaveData data;
+    if (!world.saveRun(path) || !SaveService::load(path, data, &error)) {
+        return false;
+    }
+
+    data.state = SavedRunState::MapComplete;
+    RandomService rewardRandom(data.runSeed + static_cast<std::uint64_t>(sequence));
+    data.mapRewardOptions = MapRewardLibrary::generateOptions(
+        data.unlockedSkills,
+        data.unlockedSupports,
+        rewardRandom
+    );
+    data.nextMapOptions = MapOptionLibrary::generateOptions(data.mapLevel + 1);
+    data.selectedMapRewardOption = -1;
+    data.selectedNextMapOption = -1;
+    data.mapRewardChosen = false;
+    data.nextMapOptionChosen = false;
+
+    if (addGroundDrop) {
+        LootGenerator lootGenerator;
+        RandomService lootRandom(data.runSeed + 1000U + static_cast<std::uint64_t>(sequence));
+        data.droppedItems.push_back({data.player.position, lootGenerator.generate(
+            data.mapLevel, lootRandom
+        )});
+    }
+
+    return SaveService::save(path, data, &error) && world.loadRun(path);
+}
+
+void testContinuousMapProgression() {
+    const auto path = std::filesystem::temp_directory_path() / "plane_fight_progression_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(15001);
+    std::string error;
+    expect(world.saveRun(path), "progression fixture saves the initial run");
+    SaveData initial;
+    expect(SaveService::load(path, initial, &error),
+        "progression fixture loads the initial run");
+    LootGenerator lootGenerator;
+    RandomService lootRandom(15002);
+    const Item carriedItem = lootGenerator.generate(1, lootRandom);
+    initial.inventory.push_back(carriedItem);
+    initial.stash.push_back(carriedItem);
+    expect(SaveService::save(path, initial, &error) && world.loadRun(path),
+        "progression fixture restores carried Inventory and Stash items");
+
+    const std::size_t inventorySize = world.inventory().size();
+    const std::size_t stashSize = world.stash().size();
+    const int initialLevel = world.player().level();
+
+    for (int mapIndex = 0; mapIndex < 5; ++mapIndex) {
+        const int levelBefore = world.mapLevel();
+        expect(saveAsMapCompleteFixture(path, world, mapIndex, true),
+            "fixture enters MapComplete for map " + std::to_string(levelBefore));
+        expect(world.state() == GameState::MapComplete && world.droppedItems().size() == 1,
+            "MapComplete keeps the ground drop before entering the next map");
+
+        Input input;
+        pressKey(world, input, sf::Keyboard::Key::E);
+        expect(world.state() == GameState::MapComplete && world.mapLevel() == levelBefore,
+            "E cannot enter before reward and map choices are complete");
+
+        pressKey(world, input, sf::Keyboard::Key::Num1);
+        expect(world.mapRewardChosen(), "reward choice is accepted on MapComplete");
+        pressKey(world, input, sf::Keyboard::Key::E);
+        expect(world.state() == GameState::MapComplete && !world.nextMapOptionChosen(),
+            "E cannot enter before a next map is selected");
+        pressKey(world, input, sf::Keyboard::Key::Num1);
+        expect(world.nextMapOptionChosen(), "next map choice is accepted on MapComplete");
+        pressKey(world, input, sf::Keyboard::Key::E);
+        expect(world.state() == GameState::Playing
+                && world.mapLevel() == levelBefore + 1,
+            "E enters the selected next map");
+        expect(world.inventory().size() == inventorySize
+                && world.stash().size() == stashSize
+                && world.player().level() >= initialLevel
+                && world.droppedItems().empty()
+                && world.mapEventsCompleted() == 0
+                && world.mapEventsTotal() == 3,
+            "next map keeps progression and resets transient map state");
+    }
+
+    expect(world.mapLevel() == 6, "five transitions reach map level 6");
+    std::filesystem::remove(path);
+}
+
+void testInvalidProgressionSaveDoesNotMutate() {
+    const auto path = std::filesystem::temp_directory_path() / "plane_fight_invalid_progression_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld target(16001);
+    Input input;
+    expect(saveAsMapCompleteFixture(path, target, 0, false),
+        "invalid progression fixture reaches MapComplete");
+    const std::uint64_t originalSeed = target.runSeed();
+    const int originalLevel = target.mapLevel();
+
+    pressKey(target, input, sf::Keyboard::Key::E);
+    expect(target.state() == GameState::MapComplete && target.mapLevel() == originalLevel,
+        "MapComplete rejects entering without selections");
+
+    expect(target.saveRun(path), "invalid phase fixture saves a valid current run");
+    SaveData invalid;
+    std::string error;
+    expect(SaveService::load(path, invalid, &error),
+        "invalid phase fixture can be edited");
+    invalid.state = SavedRunState::MapComplete;
+    invalid.mapRewardChosen = false;
+    invalid.selectedMapRewardOption = -1;
+    invalid.nextMapOptionChosen = true;
+    invalid.selectedNextMapOption = 0;
+    expect(SaveService::save(path, invalid, &error),
+        "invalid phase fixture is written");
+    expect(!target.loadRun(path),
+        "load rejects a next-map choice without a reward choice");
+    expect(target.runSeed() == originalSeed && target.mapLevel() == originalLevel
+            && target.state() == GameState::MapComplete,
+        "rejected progression save leaves the current run untouched");
+
+    std::filesystem::remove(path);
+}
+
 } // namespace
 
 int main() {
@@ -236,8 +370,10 @@ int main() {
     testCorruptLoadDoesNotMutate();
     testMapCompleteLoad();
     testPauseContextsAndFreeze();
+    testContinuousMapProgression();
+    testInvalidProgressionSaveDoesNotMutate();
 
-    std::cout << "Passed: " << (failures == 0 ? 34 : 34 - failures)
+    std::cout << "Passed: " << (checks - failures)
         << "  Failed: " << failures << '\n';
     return failures == 0 ? 0 : 1;
 }
