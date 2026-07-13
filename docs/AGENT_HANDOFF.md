@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`4d1c639 Improve elite and pack readability`
+玩法代码基线：`601b279 Harden continuous map progression tests`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -94,7 +94,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前测试基线：`arpg_logic_tests 957 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 127 passed / 0 failed`。
+当前测试基线：`arpg_logic_tests 958 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 254 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -1451,41 +1451,65 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 已知约束：当前仍没有 Renderer/UI 像素级自动测试；焦点目标是只读的最近目标，不提供锁定输入；掉落来源使用 ElitePack 完成短提示而不是为每个 `DroppedItem` 增加持久化 source 字段。后续若需要精确区分多个事件来源，应先设计不破坏存档版本的掉落来源模型。
 
-### 13.21 hy3 下一项实施任务：连续刷图完成度 v2
+### 13.21 已完成任务记录：连续刷图完成度 v2
 
-目标：在继续增加新技能、Support 或敌人之前，证明当前系统可以稳定完成至少 5 张连续地图，并把“死亡、结算、拾取、背包/Stash、奖励、地图选择、存档恢复”做成可重复验收的完整 run。此任务优先补测试、状态边界和最小反馈，不扩展玩法内容。
+目标：在继续增加新技能、Support 或敌人之前，证明系统可以稳定完成至少 5 张连续地图，并保护死亡、结算、拾取、背包/Stash、奖励、地图选择和存档恢复边界。
+
+实现与验收结果：
+
+- `tests/game_world_logic_tests.cpp` 新增共享的真实移动、Boss 瞄准施法和统计比较 helper。
+- 新增 5 张连续真实流程：WASD 移动到 Boss Arena，真实右键 Area 技能击杀 Boss，F 拾取最近掉落，Tab + I 转存 Stash，数字键分阶段选择奖励/地图，E 进入下一张地图。
+- 每张地图验证 Boss 掉落存在、地面掉落和三张事件在下一图清空、Inventory/Stash 所有权保留、等级/装备/天赋分配/技能解锁保留，并显式验证 `Pierce` Support link 保留。
+- 新增 GameOver 边界：真实承伤进入 GameOver，移动输入无效，R 生成新 run 并清空旧 Inventory/Stash/掉落/事件。
+- 新增存档阶段边界：Paused MapComplete 保存后恢复为 MapComplete；只选择奖励的中间存档加载后仍阻止 E，补选地图后才能进入下一图。
+- 生产代码没有增加 debug kill、debug teleport、测试专用可写容器、输入键、存档字段或玩法内容。
+
+验收结果：
+
+- 代码提交：`601b279 Harden continuous map progression tests`。
+- MSVC `cmake --build build --clean-first`：通过。
+- CTest：`3/3` 通过。
+- 直接测试：`arpg_logic_tests 958/0`、`arpg_save_tests 11/0`、`arpg_world_tests 254/0`。
+- `PlaneShooter.exe` 启动 3 秒 smoke：通过。
+
+已知约束：本轮未修改 Renderer，尚未完成带截图的 800x600 全面 UI 人工验收；当前无 Renderer/UI 像素级自动测试。下一项任务专门处理这项可读性门禁，不应借机扩展玩法内容。
+
+### 13.22 hy3 下一项实施任务：800x600 UI 可读性与流程提示 v1
+
+目标：在现有玩法不变的前提下，人工验收并修复小窗口下的关键 HUD/面板遮挡，让玩家能完成“探索 -> Boss -> 掉落 -> 结算 -> 下一图”的流程。此任务只做可读性和布局修正，不新增系统。
 
 开始前必须阅读：
 
-- 本文档第 2、3、4、6、7、11、13.15、13.16、13.17、13.18、13.19、13.20 节；当前基线为 `957/11/127`，代码 HEAD 为 `4d1c639`。
-- `GameWorld::update()`、`startNextMap()`、`reset()`、`captureSaveData()`、`restoreFromSaveData()`、`MapComplete` 输入分支和 `SaveService` 版本/CRC 校验。
-- `tests/game_world_logic_tests.cpp` 中的连续地图、Boss 战、ElitePack、MapComplete 背包、奖励/地图选择测试；禁止复制已有 fixture，优先抽取共享的只读测试辅助。
-- `src/Renderer.cpp` 的 MapComplete、Pause、GameOver、Events、Inventory/Stash 面板；确认当前 UI 文案和窗口坐标，不重做面板布局。
+- 本文档第 2、3、5、7、11、13.18、13.19、13.20、13.21 节；代码基线为 `601b279`，测试基线为 `958/11/254`。
+- `src/Renderer.cpp` 的 `render()`、Playing HUD、MapComplete、Pause、GameOver、Inventory/Stash、Passive Tree、Skill Panel、Crafting Panel 绘制函数。
+- `include/Renderer.hpp` 的现有 helper 与 `Config.hpp` 的窗口尺寸；先理解当前固定坐标，不要另起 UI 框架。
+- `GameWorld` 的 `mapObjective()`、`nearbyEventPrompt()`、`pickupPrompt()`、`eventStatusMessage()`、`skillPanelOpen()`、`passiveTreeOpen()` 和结算 getter；文案必须读取业务状态，不得在 Renderer 猜测复杂状态。
 
 实施范围：
 
-1. 连续地图真实流程测试：从新 run 开始，使用合法 `SaveData` fixture 只提高测试容错和伤害，重复执行“移动到 Boss Arena -> 真实技能命中 -> Boss 死亡 -> 拾取/管理掉落 -> 选择奖励 -> 选择地图 -> `E` 进入下一图”至少 5 次。每一张地图都断言地图等级、布局/事件重置、地面旧掉落清理、玩家/装备/Inventory/Stash/天赋/技能与 Support 解锁保留。
-2. 失败与重试边界：通过公开行为或合法存档构造 GameOver，验证死亡不会进入 MapComplete、不会重复结算 Boss、`R`/Restart 会生成新 run 并清理旧地图状态；不得新增 debug kill、debug teleport 或测试专用生产 API。
-3. 存档阶段矩阵：覆盖 Playing、MapComplete、Paused 保存/加载；验证暂停保存恢复到正确 resume state，结算阶段未完成奖励/地图选择不能用 `E` 跳图，坏 CRC/未知版本/截断文件不会修改当前世界。
-4. 最小状态反馈修正：仅当测试发现用户无法判断“需要先拾取/选奖励/选地图/按 E”时，补一行稳定 HUD 文案；不得新增 UI 页面、输入键、奖励类型、地图类型或存档字段。
-5. 测试结构整理：如果现有 GameWorld fixture 重复，抽取命名清晰、只服务测试的 helper；生产代码不得为了测试暴露可写容器。所有新增断言必须验证实际状态变化，不只验证 getter 存在。
+1. 用现有 `PlaneShooter.exe` 实际打开并检查至少两种窗口：`800x600` 和当前默认尺寸。若程序没有运行时改尺寸入口，允许在测试分支临时通过现有窗口配置启动验证，但不得把测试专用开关带入生产代码。
+2. 逐项检查 Playing：HP/Mana、Level/SP、地图名/词缀、目标、Events、Boss HUD、pickup/event toast、Build/SkillBar、Inventory/Stash 是否互相覆盖或出界。
+3. 逐项检查 MapComplete：阶段文案、三项奖励、三张地图候选、E 提示、地面掉落详情、Inventory/Stash 管理、F/Tab/Delete 文案是否仍可读；禁止因为遮挡而删除已有功能。
+4. 检查 Passive Tree、Skill Panel、Crafting Panel、Pause、GameOver 的打开/关闭优先级和最小窗口边界；修正时优先使用统一 panel origin、行高或可用区域计算，避免散落 magic number。
+5. 若发现文案超出容器，优先缩短稳定文案或换行；不得通过负字距、全局缩放字体或隐藏信息掩盖问题。不得修改战斗数值、掉率、奖励、地图生成、输入语义或存档格式。
+6. 每个实际修正至少补一个可自动断言的稳定业务 getter/布局相关纯函数测试；如果问题只能人工判断，必须在交付报告中给出窗口尺寸、触发状态、修正坐标和复验结果。
 
 强制约束：
 
-- 不新增技能、Support、Boss、敌人类型、地图事件、装备槽、货币、商店、loot filter、输入键或存档字段。
-- 不修改当前难度、Boss HP、掉率、经验、奖励数量、地图 modifier 和地图生成规则；发现平衡问题只记录。
-- 不把测试专用的瞬移、强制击杀或直接修改私有容器接口带入生产代码；只能通过合法 SaveData fixture 调整测试角色的生命、承伤、移动或伤害容错。
-- 不改变 `F` 最近拾取、Tab/Delete 背包管理、P/K 面板、MapComplete 数字键阶段和 Pause 输入优先级。
-- hy3 不提交代码、不修改本手册；交付完整 diff、测试数量、clean build、CTest、三套测试直接运行、启动 smoke 和未修复风险，保持工作区未提交。
+- 只允许修改 `Renderer.hpp/cpp`、必要的 `Config.hpp` 窗口常量和与布局纯函数直接相关的测试；不改 `GameWorld` 的玩法状态机。
+- 不新增技能、Support、Boss、敌人、地图事件、装备槽、货币、商店、loot filter、输入键、存档字段或 UI 页面。
+- 不引入纹理、美术资源、第三方 UI 库、像素级截图依赖或平台特定 API。
+- 不复制 GameWorld 的伤害、掉落、地图或奖励公式到 Renderer；Renderer 只读 getter 和现有 CombatMath/显示 helper。
+- hy3 不提交代码、不修改本手册；保持工作区未提交，报告完整 diff、800x600 与默认尺寸检查、测试数量、clean build、CTest、直接测试、启动 smoke 和未修复风险。
 
 必须验证：
 
-- 运行 MSVC `cmake --build build --clean-first`、CTest `3/3`、三套测试直接运行和 `PlaneShooter.exe` 3 秒启动 smoke。
-- 新增至少一条 5 张地图连续真实流程断言、一条 GameOver/Restart 断言和一条 Pause/MapComplete 存档阶段断言；测试数量必须相对 `957/11/127` 增长。
-- 明确报告每一张地图的 Boss 击杀、奖励选择、地图选择、`E` 推进、状态重置和成长保留结果。
-- 手动检查 800x600：Playing HUD、MapComplete 奖励/地图选择、背包/Stash、Pause 和 GameOver 文案无关键遮挡；不要求像素级自动截图。
+- MSVC `cmake --build build --clean-first`、CTest `3/3`、三套测试直接运行、`PlaneShooter.exe` 启动 3 秒 smoke。
+- Playing、MapComplete、Pause、GameOver、Passive Tree、Skill Panel、Crafting Panel 各至少检查一次；MapComplete 必须检查“只选奖励/只选地图/两者都选”三个阶段。
+- 800x600 下不能出现关键文本出界、面板互相覆盖到无法操作、Boss 血条/拾取目标/结算选项不可读。
+- 交付中明确列出每个改动的文件、原因、前后坐标/行高、是否新增测试，以及 `git status --short`。
 
-完成定义：五张连续地图可通过真实流程完成，死亡/重开/暂停/结算/存档阶段边界有测试保护，旧掉落和 transient 状态不会泄漏到下一图；主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
+完成定义：默认窗口和 800x600 的核心战斗/结算/面板流程可读且可操作，现有 958/11/254 回归不退化；主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
 
 ## 14. 项目进度看板
 
@@ -1502,8 +1526,8 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 经济/锻造 | v1 完成 | 分解、Forge Fragments、三种选择式词缀加工和当前 run Stash 已有 |
 | 存档 | v1 完成 | 单文件版本化存档、RNG 恢复、坏档保护、MapComplete/安全出生点恢复已有 |
 | 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
-| 连续刷图验收 | v1 完成 | 五次 MapComplete -> 选奖励 -> 选地图 -> E 推进、成长保留和非法阶段保护已有 |
+| 连续刷图验收 | v1 完成 | 五张真实 Boss -> 拾取/管理掉落 -> 选奖励/地图 -> E 推进，且死亡/暂停/中间存档边界已有自动保护 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 957 条、存档 11 条、GameWorld 127 条通过；已覆盖真实移动进 Boss Arena、Projectile/Area 命中、Ignite tick、ElitePack、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
+| 自动化测试 | 原型 | 纯逻辑 958 条、存档 11 条、GameWorld 254 条通过；已覆盖五张连续真实 Boss 流程、GameOver/Restart、MapComplete/Paused 存档、Projectile/Area 命中、Ignite tick、ElitePack、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
