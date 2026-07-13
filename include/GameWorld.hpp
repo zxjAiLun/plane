@@ -185,7 +185,13 @@ private:
     void handleBossProjectileCollisions();
     void handleEnemyProjectileCollisions();
     void removeDeadObjects();
-    void addCombatFeedback(const Vector2& position, int damage, const std::string& source);
+    void addCombatFeedback(
+        const Vector2& position,
+        int damage,
+        const std::string& source,
+        CombatFeedbackType type = CombatFeedbackType::Damage
+    );
+    void addSkillRejectedFeedback(const std::string& source);
     void updateCombatFeedback(float dt);
     void tryCastMovementSkill(Input& input);
     void tryCastUtilitySkill(Input& input);
@@ -306,6 +312,8 @@ private:
     float playerHitEffectTimer_ = 0.0f;
     int playerHitDamage_ = 0;
     std::string playerHitSource_;
+    float skillFailureFeedbackTimer_ = 0.0f;
+    std::string lastSkillFailureFeedback_;
     int mapLevel_;
     int currentWave_;
     int enemiesSpawnedInWave_;

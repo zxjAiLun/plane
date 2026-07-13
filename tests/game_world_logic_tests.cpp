@@ -808,13 +808,80 @@ void testCombatFeedbackAndDeathClaim() {
     if (!world.combatFeedback().empty()) {
         const auto& feedback = world.combatFeedback().back();
         expect(feedback.damage > 0 && !feedback.source.empty()
-                && feedback.timeRemaining > 0.0f,
+                && feedback.timeRemaining > 0.0f
+                && feedback.type == CombatFeedbackType::Damage,
             "combat feedback exposes positive damage, source, and lifetime");
     }
 
     world.update(Config::CombatFeedbackDuration + 0.05f, input);
     expect(world.combatFeedback().empty(),
         "expired combat feedback is removed from the world");
+}
+
+void testSkillFailureFeedback() {
+    GameWorld cooldownWorld(17501);
+    Input cooldownInput;
+    cooldownInput.handleMousePressed(sf::Mouse::Button::Left, {700, 300});
+    cooldownWorld.update(0.05f, cooldownInput);
+    const std::size_t projectileCountAfterCast = cooldownWorld.projectiles().size();
+    const float cooldownProgress = cooldownWorld.skillBar().cooldownProgress(SkillSlot::Primary);
+    cooldownWorld.update(0.05f, cooldownInput);
+    cooldownInput.handleMouseReleased(sf::Mouse::Button::Left, {700, 300});
+
+    const std::size_t cooldownFailureCount = static_cast<std::size_t>(std::count_if(
+        cooldownWorld.combatFeedback().begin(),
+        cooldownWorld.combatFeedback().end(),
+        [](const CombatFeedback& feedback) {
+            return feedback.type == CombatFeedbackType::SkillRejected
+                && feedback.source.find("Skill cooling down:") == 0;
+        }
+    ));
+    expect(projectileCountAfterCast > 0 && cooldownProgress < 1.0f,
+        "first skill cast consumes the Primary cooldown");
+    expect(cooldownFailureCount == 1,
+        "cooldown failure creates one throttled SkillRejected feedback");
+    expect(cooldownWorld.projectiles().size() == projectileCountAfterCast,
+        "cooldown failure does not create another projectile");
+
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_skill_failure_feedback_test.bin";
+    std::filesystem::remove(path);
+    GameWorld manaWorld(17502);
+    SaveData data;
+    std::string error;
+    expect(manaWorld.saveRun(path) && SaveService::load(path, data, &error),
+        "Mana failure fixture starts from a valid save");
+    data.player.mana = 0.0f;
+    expect(SaveService::save(path, data, &error) && manaWorld.loadRun(path),
+        "Mana failure fixture restores an empty Mana pool");
+
+    Input manaInput;
+    const float secondaryCooldownBefore = manaWorld.skillBar().cooldownProgress(
+        SkillSlot::Secondary
+    );
+    manaInput.handleMousePressed(sf::Mouse::Button::Right, {700, 300});
+    manaWorld.update(0.05f, manaInput);
+    const float secondaryCooldownAfter = manaWorld.skillBar().cooldownProgress(
+        SkillSlot::Secondary
+    );
+    const bool manaRejected = std::any_of(
+        manaWorld.combatFeedback().begin(),
+        manaWorld.combatFeedback().end(),
+        [](const CombatFeedback& feedback) {
+            return feedback.type == CombatFeedbackType::SkillRejected
+                && feedback.source.find("Not enough Mana:") == 0;
+        }
+    );
+    expect(manaRejected, "Mana failure creates a typed SkillRejected feedback");
+    const float expectedManaAfterRegen = Config::PlayerManaRegenPerSecond * 0.05f;
+    expect(std::abs(manaWorld.player().mana() - expectedManaAfterRegen) < 0.001f,
+        "Mana failure preserves the Mana pool after normal regeneration");
+    expect(secondaryCooldownBefore > 0.99f && secondaryCooldownAfter > 0.99f,
+        "Mana failure preserves the Secondary cooldown");
+    expect(manaWorld.projectiles().empty(),
+        "Mana failure creates no projectile side effect");
+
+    std::filesystem::remove(path);
 }
 
 void testIgniteFeedbackMatchesWorldDamage() {
@@ -998,9 +1065,18 @@ void testBuildMathMatchesWorldHits() {
     );
     const int bossHpBeforeProjectile = boss->hp();
     const std::size_t projectileFeedbackStart = world.combatFeedback().size();
+    const auto hasProjectileFeedback = [&world, &primary]() {
+        return std::any_of(
+            world.combatFeedback().begin(),
+            world.combatFeedback().end(),
+            [&primary](const CombatFeedback& feedback) {
+                return feedback.type == CombatFeedbackType::Damage
+                    && feedback.source == primary.name;
+            }
+        );
+    };
     input.handleMousePressed(sf::Mouse::Button::Left, worldToScreen(boss->position()));
-    for (int frame = 0; frame < 30
-            && world.combatFeedback().size() == projectileFeedbackStart; ++frame) {
+    for (int frame = 0; frame < 30 && !hasProjectileFeedback(); ++frame) {
         world.update(0.05f, input);
     }
     input.handleMouseReleased(sf::Mouse::Button::Left, worldToScreen(bossCenter));
@@ -1283,6 +1359,8 @@ void testBossCombatFlow() {
     }
 
     bool bossHpReduced = false;
+    bool telegraphFeedbackObserved = false;
+    bool playerHitFeedbackObserved = false;
     for (int frame = 0; frame < 120 && world.state() == GameState::Playing; ++frame) {
         const auto bossIt = std::find_if(
             world.enemies().begin(),
@@ -1301,6 +1379,20 @@ void testBossCombatFlow() {
         );
         input.handleMousePressed(sf::Mouse::Button::Right, screenTarget);
         world.update(0.05f, input);
+        telegraphFeedbackObserved = telegraphFeedbackObserved || std::any_of(
+            world.combatFeedback().begin(),
+            world.combatFeedback().end(),
+            [](const CombatFeedback& feedback) {
+                return feedback.type == CombatFeedbackType::Telegraph;
+            }
+        );
+        playerHitFeedbackObserved = playerHitFeedbackObserved || std::any_of(
+            world.combatFeedback().begin(),
+            world.combatFeedback().end(),
+            [](const CombatFeedback& feedback) {
+                return feedback.type == CombatFeedbackType::PlayerHit;
+            }
+        );
 
         const auto bossAfterHit = std::find_if(
             world.enemies().begin(),
@@ -1319,6 +1411,10 @@ void testBossCombatFlow() {
     );
     expect(bossFeedbackObserved, "Boss damage creates the same combat feedback records");
     expect(bossHpReduced, "Boss HP decreases on the same hit that creates feedback");
+    expect(telegraphFeedbackObserved,
+        "Boss telegraph creates a typed feedback record from the real Boss state");
+    expect(playerHitFeedbackObserved,
+        "player damage creates a typed PlayerHit feedback record");
     expect(world.state() == GameState::MapComplete && world.map().bossDefeated(),
         "Boss death enters MapComplete through the real reward path");
     expect(world.mapBossItemsDropped() >= 1 && !world.droppedItems().empty(),
@@ -1485,6 +1581,7 @@ int main() {
     testGameOverRestartBoundary();
     testInvalidProgressionSaveDoesNotMutate();
     testCombatFeedbackAndDeathClaim();
+    testSkillFailureFeedback();
     testIgniteFeedbackMatchesWorldDamage();
     testBuildMathMatchesWorldHits();
     testExpandedSkillWorldHits();

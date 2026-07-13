@@ -659,6 +659,8 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     playerHitEffectTimer_ = 0.0f;
     playerHitDamage_ = 0;
     playerHitSource_.clear();
+    skillFailureFeedbackTimer_ = 0.0f;
+    lastSkillFailureFeedback_.clear();
     novaEffectTimer_ = 0.0f;
     secondarySkillEffectTimer_ = 0.0f;
     dashImpactPosition_ = player_.position();
@@ -725,6 +727,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     volatileExplosionTimer_ = std::max(0.0f, volatileExplosionTimer_ - dt);
     playerHitCooldown_ = std::max(0.0f, playerHitCooldown_ - dt);
     playerHitEffectTimer_ = std::max(0.0f, playerHitEffectTimer_ - dt);
+    skillFailureFeedbackTimer_ = std::max(0.0f, skillFailureFeedbackTimer_ - dt);
     shrineBuffTimer_ = std::max(0.0f, shrineBuffTimer_ - dt);
     updateGroundHazards(dt);
     if (lifeFlaskStatusTimer_ > 0.0f) {
@@ -847,6 +850,8 @@ void GameWorld::reset(std::uint64_t runSeed) {
     playerHitEffectTimer_ = 0.0f;
     playerHitDamage_ = 0;
     playerHitSource_.clear();
+    skillFailureFeedbackTimer_ = 0.0f;
+    lastSkillFailureFeedback_.clear();
     mapLevel_ = 1;
     currentWave_ = 0;
     enemiesSpawnedInWave_ = 0;
@@ -921,6 +926,8 @@ void GameWorld::startNextMap() {
     playerHitEffectTimer_ = 0.0f;
     playerHitDamage_ = 0;
     playerHitSource_.clear();
+    skillFailureFeedbackTimer_ = 0.0f;
+    lastSkillFailureFeedback_.clear();
 
     projectiles_.clear();
     combatFeedback_.clear();
@@ -1094,11 +1101,23 @@ void GameWorld::updateBossSkills(float dt) {
                 );
             }
             bossAoeTelegraphTimer_ = skill.telegraphDuration;
+            addCombatFeedback(
+                boss->position(),
+                0,
+                "Boss casting: " + skill.name,
+                CombatFeedbackType::Telegraph
+            );
             break;
         case BossSkillType::SummonAdds:
             bossAoeCenter_ = boss->position();
             bossAoeSkill_ = skill;
             bossAoeTelegraphTimer_ = skill.telegraphDuration;
+            addCombatFeedback(
+                boss->position(),
+                0,
+                "Boss casting: " + skill.name,
+                CombatFeedbackType::Telegraph
+            );
             break;
         case BossSkillType::Dash: {
             const Vector2 direction = (player_.position() - boss->position()).normalized();
@@ -1113,6 +1132,12 @@ void GameWorld::updateBossSkills(float dt) {
             bossDashSkill_.damage = bossSkillDamage(skill.damage);
             bossDashState_.begin(
                 boss->position(), target, skill.telegraphDuration, skill.dash.speed
+            );
+            addCombatFeedback(
+                boss->position(),
+                0,
+                "Boss casting: " + skill.name,
+                CombatFeedbackType::Telegraph
             );
             break;
         }
@@ -1567,13 +1592,20 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
 
 bool GameWorld::tryStartPlayerSkill(SkillSlot slot) {
     const auto& skill = skillBar_.definition(slot);
-    if (!skillBar_.canCast(slot) || !player_.canSpendMana(skill.manaCost)) {
+    if (!skillBar_.canCast(slot)) {
+        addSkillRejectedFeedback("Skill cooling down: " + skill.name);
+        return false;
+    }
+
+    if (!player_.canSpendMana(skill.manaCost)) {
+        addSkillRejectedFeedback("Not enough Mana: " + skill.name);
         return false;
     }
 
     // SkillBar has no Player dependency. Keep resource ownership in Player,
     // but consume both gates here so insufficient Mana cannot start cooldown.
     if (!player_.spendMana(skill.manaCost)) {
+        addSkillRejectedFeedback("Not enough Mana: " + skill.name);
         return false;
     }
 
@@ -1654,9 +1686,11 @@ void GameWorld::dealAreaDamage(
 void GameWorld::addCombatFeedback(
     const Vector2& position,
     int damage,
-    const std::string& source
+    const std::string& source,
+    CombatFeedbackType type
 ) {
-    if (damage <= 0 || Config::MaxCombatFeedback <= 0) {
+    if ((damage <= 0 && type == CombatFeedbackType::Damage)
+        || Config::MaxCombatFeedback <= 0) {
         return;
     }
 
@@ -1668,8 +1702,28 @@ void GameWorld::addCombatFeedback(
         position,
         damage,
         source.empty() ? "Skill" : source,
-        Config::CombatFeedbackDuration
+        Config::CombatFeedbackDuration,
+        type
     });
+}
+
+void GameWorld::addSkillRejectedFeedback(const std::string& source) {
+    if (source.empty()) {
+        return;
+    }
+
+    if (skillFailureFeedbackTimer_ > 0.0f && lastSkillFailureFeedback_ == source) {
+        return;
+    }
+
+    addCombatFeedback(
+        player_.position(),
+        0,
+        source,
+        CombatFeedbackType::SkillRejected
+    );
+    skillFailureFeedbackTimer_ = Config::CombatFeedbackDuration;
+    lastSkillFailureFeedback_ = source;
 }
 
 void GameWorld::updateCombatFeedback(float dt) {
@@ -2647,6 +2701,12 @@ void GameWorld::damagePlayer(int damage, const std::string& source) {
     playerHitSource_ = source;
     playerHitEffectTimer_ = Config::PlayerHitEffectDuration;
     playerHitCooldown_ = Config::PlayerHitCooldown;
+    addCombatFeedback(
+        player_.position(),
+        playerHitDamage_,
+        source,
+        CombatFeedbackType::PlayerHit
+    );
 }
 
 Enemy* GameWorld::activeBoss() {

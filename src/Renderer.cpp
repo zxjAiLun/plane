@@ -913,10 +913,6 @@ void Renderer::drawPlayer(const GameWorld& world) {
     shape.setPosition(screenPosition);
     window_.draw(shape);
 
-    if (hitProgress > 0.0f) {
-        drawCenteredText("HIT -" + std::to_string(world.playerHitDamage()) + " " + world.playerHitSource(),
-            {screenPosition.x, screenPosition.y - player.radius() - 36.0f}, 12, sf::Color(255, 105, 90));
-    }
 }
 
 void Renderer::drawNovaEffect(const GameWorld& world) {
@@ -1252,12 +1248,31 @@ void Renderer::drawCombatFeedback(const GameWorld& world) {
                 ? std::clamp(feedback.timeRemaining / duration, 0.0f, 1.0f)
                 : 0.0f) * 165.0f
         );
-        const sf::Color color = feedback.source == "Ignite"
-            ? sf::Color(255, 155, 90, alpha)
-            : sf::Color(255, 235, 150, alpha);
+        std::string text;
+        sf::Color color;
+        switch (feedback.type) {
+            case CombatFeedbackType::Damage:
+                text = "-" + std::to_string(feedback.damage) + " " + feedback.source;
+                color = feedback.source == "Ignite"
+                    ? sf::Color(255, 155, 90, alpha)
+                    : sf::Color(255, 235, 150, alpha);
+                break;
+            case CombatFeedbackType::PlayerHit:
+                text = "HIT -" + std::to_string(feedback.damage) + " " + feedback.source;
+                color = sf::Color(255, 105, 90, alpha);
+                break;
+            case CombatFeedbackType::SkillRejected:
+                text = feedback.source;
+                color = sf::Color(255, 165, 100, alpha);
+                break;
+            case CombatFeedbackType::Telegraph:
+                text = "! " + feedback.source;
+                color = sf::Color(255, 120, 90, alpha);
+                break;
+        }
         const Vector2 textPosition(feedback.position.x, feedback.position.y - 24.0f - rise);
         drawCenteredText(
-            "-" + std::to_string(feedback.damage) + " " + feedback.source,
+            text,
             worldToScreen(world, textPosition),
             11,
             color
