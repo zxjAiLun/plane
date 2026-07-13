@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`c3e456f Add choice-based affix crafting`
+玩法代码基线：`93065e4 Add map-complete stash management`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -92,7 +92,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前纯逻辑测试基线：`765 passed / 0 failed`。
+当前纯逻辑测试基线：`804 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -149,6 +149,8 @@ git status --short
 | `Delete` | 丢弃选中物品 | 不处理 | 不处理 | 丢弃选中物品 |
 | `C` | 分解选中物品 | 不处理 | 不处理 | 分解选中物品 |
 | `V` | 打开/关闭锻造面板 | 不处理 | 不处理 | 打开/关闭锻造面板 |
+| `I` | 无 | 无 | 无 | 将选中的背包物品移入 Stash |
+| `O` | 无 | 无 | 无 | 将选中的 Stash 物品移回背包 |
 | `E` | 无 | 无 | 无 | 奖励和地图均选完后进入下一图 |
 | `R` | 无 | 无 | 无 | 重新开始 run |
 | `Esc` | 退出 | 退出 | 退出 | 退出 |
@@ -158,7 +160,9 @@ git status --short
 - Playing 中 `F` 的事件交互优先级高于拾取。
 - 拾取目标必须使用 `GameWorld::focusedDroppedItemIndex()`，显示目标和实际拾取目标必须一致。
 - MapComplete 中数字键绝不能装备物品。
-- MapComplete 中允许 `F` 拾取、`Tab` 选择、`Delete` 丢弃、`C` 分解、`V` 强化。
+- MapComplete 中允许 `F` 拾取、`Tab` 在 Inventory/Stash 间循环选择、`Delete` 丢弃、`C` 分解、`V` 锻造，以及 `I/O` 双向移动物品。
+- `Delete`、`C`、`V` 只作用于当前选中的背包物品；选中 Stash 物品时不会误删、分解或锻造仓库物品。
+- `I/O` 只在 MapComplete 生效，Playing、Passive Tree、Skill Panel 和 Crafting 上下文均忽略。
 - `R` 在 GameOver 和 MapComplete 中都会执行完整 `reset()`。
 - 天赋盘和技能面板互斥。
 - 新面板必须明确关闭战斗输入，不能只在 Renderer 中遮住画面。
@@ -354,6 +358,9 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - 锻造只在成功操作后消耗 `Forge Fragments`；失败时 Item、资源和选中索引保持不变。
 - `ImproveAffix` 只改一条词缀 contribution，`RerollAffix` 只替换同组词缀，`RaiseAffixTier` 只提升一档合法 Tier。
 - `ItemAffix` 保存稳定 id、词缀类型、prefix/suffix、tags、tier 和实际 contribution；Item stats 由 implicit + affix contributions 统一重建。
+- 9 格 Inventory 满包时保留地面掉落；MapComplete 提供 24 格 Stash，供地图之间保留完整 Item。
+- `Tab` 在 MapComplete 的 Inventory/Stash 项目之间循环选择；`I` 存入 Stash，`O` 取回 Inventory。
+- Stash 满或 Inventory 满时移动失败且源 Item 不变；`reset()` 清空 Stash，`startNextMap()` 保留 Stash。
 
 ### 5.11 地图选择与奖励
 
@@ -377,6 +384,8 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - Item Base 数量、唯一 id、implicit + affix 聚合和 Boss theme Base。
 - AffixTag/weight 数据、地图/Boss loot bias、候选过滤、重复 AffixStat 防护和固定种子选择。
 - CraftingOperation 三种操作、稳定 affix id、Tier contribution 重建、重铸候选过滤和失败回滚规则。
+- Inventory/Stash 容量、完整 Item 所有权、满容器失败保护和插入顺序恢复。
+- Stash 的 GameWorld 双向移动由 MapComplete 输入上下文和 Renderer 代码路径接入；端到端状态切换仍需手动验证。
 - Elite modifier。
 - Charger 状态机。
 - Boss summon 数据、阶段顺序和数量上限。
@@ -424,6 +433,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 | `LootGenerator.hpp` | rarity、base、implicit、affix、tier、标签权重、Boss relic 生成 | UI 文本不得参与数值计算 |
 | `Equipment.hpp` | 装备 Item，并返回被替换 Item | 不允许静默吞掉旧装备 |
 | `Inventory.hpp` | 有容量的 Item 容器 | 满包 add 返回 false，不产生副作用 |
+| `Stash.hpp` | 当前 run 的 24 格 Item 仓库 | 只在 MapComplete 由 GameWorld 编排移动，不负责输入或 UI |
 | `PassiveTree.hpp` | 20 节点数据、前置、命中查询、属性聚合 | SP 扣除仍由 Player 管理 |
 | `MapRewardLibrary.hpp` | 技能/Support/fallback 奖励生成 | GameWorld 只过滤、抽取、应用 |
 | `Renderer.*` | 只读 GameWorld 并绘制世界和 UI | 禁止在 Renderer 中修改游戏状态或复制玩法公式 |
@@ -454,6 +464,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - `Equipment::equip()` 返回旧 Item。
 - 任何装备、替换、分解、丢弃流程都不能静默销毁 Item。
 - 满包拾取失败时地面物品必须保留。
+- Stash 满或 Inventory 满时跨容器移动失败，源 Item、数量和索引必须保留。
 
 ### 7.4 世界与渲染
 
@@ -466,6 +477,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 
 - `reset()` 开始新 run，清空装备、天赋、解锁和 Future Item Quantity。
 - `startNextMap()` 保留本 run 的装备、天赋、技能/Support 解锁和永久奖励。
+- `reset()` 清空本 run Stash；`startNextMap()` 保留 Stash 中完整 Item 字段。
 - 当前没有跨进程存档，不要假装已有持久化。
 
 ## 8. 代码风格和实现约束
@@ -583,7 +595,7 @@ Review 严重级别：
 8. 关键操作、伤害、危险预警、奖励和装备变化均有清晰反馈。
 9. 构建、纯逻辑测试和关键手动流程有可重复验收方法。
 
-当前已满足 1、2 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，7 尚未实现，8、9 部分完成。天赋 Keystone、异常抗性、装备 Base/implicit、词缀 tags/weights、地图/Boss 掉落偏置和选择式锻造已经让构筑出现第一层真实取舍；Stash、存档和更深的地图布局仍未实现。
+当前已满足 1、2 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，7 尚未实现，8、9 部分完成。天赋 Keystone、异常抗性、装备 Base/implicit、词缀 tags/weights、地图/Boss 掉落偏置、选择式锻造和当前 run Stash 已经让构筑出现第一层真实取舍；存档和更深的地图布局仍未实现。
 
 ## 12. 后续路线图
 
@@ -687,12 +699,12 @@ Milestone B 验收：至少存在 Projectile direct-hit、Area Ignite、Cold con
 - Forge Fragments 只在成功操作后扣除；失败、无效目标、无候选、最高 Tier 和碎片不足均保留原 Item。
 - 锻造面板在 Playing/MapComplete 均可用，独占输入上下文；旧线性 `upgradeLevel` 状态已移除。
 
-任务 C4：Stash v1
+任务 C4：Stash v1（完成：`93065e4`）
 
-- 地图间提供有限 stash，至少 24 格。
-- MapComplete 可在 Inventory 和 Stash 间移动物品。
-- startNextMap 保留 stash，reset 清空或由存档策略决定。
-- 不做拖拽，先用键盘/选中操作完成。
+- 新增 24 格 `Stash`，保存完整 Item；满仓 add 失败不消耗调用方物品。
+- MapComplete 使用 `Tab` 在 Inventory/Stash 间循环选择，`I/O` 双向移动；Playing 不开放远程仓库。
+- `reset()` 清空 Stash，`startNextMap()` 保留 Stash、装备和本 run 成长。
+- Stash 与锻造互斥；数字键仍只处理奖励/下一图，未引入拖拽、排序或分页。
 
 Milestone C 验收：玩家会因为 base、implicit、affix、tier 和构筑方向做真实取舍，而不是只看总伤害。
 
@@ -752,9 +764,9 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Stash v1`。
+建议立即交给 hy3：`Map Layout Variants v2`。
 
-原因：装备已经具备 Base、implicit、rarity、tier、标签权重、地图/Boss 掉落偏置和选择式锻造。下一步需要让地图间的装备保留与整理形成持久闭环，避免背包 9 格成为唯一长期存储；Stash 完成后再进入地图布局变体和可重复运行能力。
+原因：装备、锻造、Inventory/Stash 和 Boss 结算已经形成当前 run 的保留闭环。下一步应让连续地图真正产生路线差异，先为现有 MapTemplate 增加可达的预制布局变体，再做小地图揭示和可组合地图词缀；不要此时扩展商店、存档或新的装备槽。
 
 ### 13.1 已完成任务记录：Mana Resource v1
 
@@ -925,46 +937,62 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 明确不做：
 
 - 不做完整货币、商店、交易、装备锁定、工艺配方、风险失败或物品毁坏。
-- 不做 stash、存档、统一 RNG 或复杂鼠标工艺台；下一项为 C4 Stash v1。
+- 当时不做 stash、存档、统一 RNG 或复杂鼠标工艺台；Stash 后续已由 C4 完成，下一项转为 D1 地图布局变体。
 
-### 13.7 hy3 实施任务：Stash v1
+### 13.7 已完成任务记录：Stash v1
 
-目标：在地图之间提供持久的有限仓库，让玩家可以保留、比较和整理重要装备，而不是被 9 格 Inventory 迫使立即丢弃。Stash 只属于当前 run，不做跨运行存档。
+代码已通过主 review 并提交为 `93065e4 Add map-complete stash management`。
 
-开始前必须阅读：
+实现结果：
 
-- `include/Inventory.hpp`、`include/Item.hpp`：当前容量容器和完整 Item 所有权规则。
-- `include/GameWorld.hpp`、`src/GameWorld.cpp`：MapComplete 背包操作、startNextMap/reset、奖励阶段和输入上下文。
-- `include/Input.hpp`、`src/Input.cpp`、`src/Renderer.cpp`：Tab/Delete/C/V 键语义、MapComplete 面板布局和锻造上下文。
-- `tests/arpg_logic_tests.cpp`：Inventory、装备替换、满包和 Item 聚合测试风格。
+- 新增 24 格 `Stash`，提供 `add`、`insert`、`take`、`items`、`size`、`capacity`、`isFull` 和 `clear`；满容量失败在移动调用方 Item 前返回。
+- `GameWorld` 在 MapComplete 持有并展示 Stash；`reset()` 清空，`startNextMap()` 保留；跨容器移动复制完整 Item 字段且失败时恢复源容器。
+- `Tab` 在 Inventory/Stash 所有物品之间循环，`I` 存入 Stash，`O` 取回 Inventory；`Delete/C/V` 在选中 Stash 时被屏蔽，数字键仍只用于结算奖励/地图。
+- Stash 与锻造上下文互斥；Renderer 只读显示 `Inventory X/9`、`Stash Y/24`、选中项、容量提示和移动操作。
 
-必须实现：
-
-1. 新增独立 `Stash` 类型或等价容器，容量至少 24；`add(Item)` 返回 bool，满仓时原 Item 保留且不产生副作用；提供 `take(index)`、`items()`、`size()`、`capacity()`、`isFull()`、`clear()`。
-2. `GameWorld` 持有 Stash。`reset()` 清空 Stash；`startNextMap()` 保留 Stash、Inventory、装备、天赋、技能/Support 解锁、Forge Fragments 和当前 run 奖励。不得在地图加载时意外清空仓库。
-3. 只在 MapComplete 开放 Stash 管理，不做 Playing 中的远程仓库。增加明确的 stash 输入上下文：Tab 在 Inventory/Stash 两侧循环选择，至少提供一个键将选中 Inventory Item 移入 Stash、一个键将选中 Stash Item 移回 Inventory；移动前检查目标容量，失败时原物品保留。
-4. 不复用数字键作为 Stash 移动操作，因为 MapComplete 数字键只负责地图奖励/下一图选择；不改变 `1-9`、F、C、V、Delete、E 的既有语义。锻造面板打开时 Stash 移动键必须被屏蔽。
-5. MapComplete UI 明确显示 `Inventory X/9` 和 `Stash Y/24`，显示两侧选中项、满仓/满包提示和移动操作提示；不能遮挡三选奖励、下一图选项、Boss 掉落详情或锻造面板。需要时拆成两个窄面板，不做复杂拖拽。
-6. Stash 移动完整 `Item`，不只复制 stats；移动成功后 Inventory/Stash 的 selected index 必须夹回合法范围。装备栏不直接移动到 Stash，必须先换回背包或保持当前装备。
-7. 与 C3 锻造互斥：Stash 面板打开时 V/C/Delete/拾取和地图选择不能串入；锻造面板打开时 Stash 操作不能串入。Escape/V 关闭当前子面板时不得关闭游戏窗口或推进地图。
-8. 将容量/移动逻辑放在 `Stash`/`Inventory`/GameWorld 编排层，Renderer 只读；不要在 Renderer 修改容器或复制容量规则。
-
-测试必须覆盖：
-
-- Stash 容量、满仓 add 失败保留原 Item、take 越界安全和 clear。
-- MapComplete Inventory <-> Stash 双向移动，目标满时源 Item、数量和选中索引不变。
-- `reset()` 清空 Stash；`startNextMap()` 保留 Stash 和 Item 完整字段（Base、implicit、affix、tags、id、tier）。
-- 输入上下文回归：MapComplete 数字键仍只选奖励/地图，Stash 操作键不装备；Crafting/Stash 互斥。
-- 满包/满仓、Boss 掉落拾取、装备替换、分解、锻造和下一图流程继续通过。
-- 最终执行 clean build、CTest、直接逻辑测试、3 秒启动 smoke test 和 `git diff --check`。
+验收结果：clean build、CTest、逻辑测试和 3 秒启动 smoke test 均通过；测试为 `804 passed / 0 failed`，工作区在提交后干净。
 
 明确不做：
 
 - 不做跨运行存档、共享仓库、多页仓库、物品堆叠、标签过滤、拖拽或仓库排序。
-- 不新增装备槽、技能、Support、地图、Boss、天赋节点或经济系统。
-- 不提交代码；保持工作区未提交，交给主 review Agent 验收、修正和 commit。
+- 不新增装备槽、技能、Support、地图、Boss 或经济系统。
 
-交付报告必须列出：改动文件、Stash API、输入状态机、容量和失败保护、reset/startNextMap 生命周期验证、UI 布局、测试数量、clean build、启动 smoke test、已知风险和 `git status --short`。
+### 13.8 hy3 实施任务：Map Layout Variants v2
+
+目标：让连续地图具有不同的路线和空间决策，同时保留当前矩形障碍、事件和 Boss Gate 规则。只实现预制布局变体，不引入复杂随机地图生成器或寻路系统。
+
+开始前必须阅读：
+
+- `include/MapInstance.hpp`：MapTemplate、障碍、事件位置、区域判断、移动解析和模板库。
+- `include/MapModifier.hpp`、`include/MapRewardLibrary.hpp`：下一图模板选择与 modifier 来源；布局变化不得绕过当前地图选项。
+- `src/GameWorld.cpp`：地图构造、`startNextMap()`、Boss Gate/Arena 触发、普通怪生成边界和事件生成流程。
+- `src/Renderer.cpp`：地图障碍、事件、小地图和目标 HUD 的现有绘制坐标。
+- `tests/arpg_logic_tests.cpp`：当前 MapOption、BossDash 障碍解析和地图数据测试风格。
+
+必须实现：
+
+1. 每个现有 MapTemplate 至少提供 3 个预制布局变体；变体至少改变障碍布局、事件位置或可行走空间，不能只改颜色/名称。布局数据放入 `MapInstance` 或独立 `MapLayoutLibrary`，不要在 Renderer 或 GameWorld 写大段坐标 switch。
+2. 地图实例选择布局时使用当前 run 的可复现 layout seed/index；第一张图和 `startNextMap()` 都必须正确绑定当前 MapOption 的 template 与 layout。暂不替换全项目 RNG，但不得使用当前时间作为布局身份。
+3. 所有布局必须满足：Start 到 BossGate/BossArena 存在可达路径；出生点、Boss 中心、事件点和障碍都在地图边界内；障碍不覆盖玩家出生点、Boss 核心区域或事件交互半径。
+4. 增加无 SFML 的可达性纯逻辑 helper/test。使用栅格/BFS 或等价的保守采样验证玩家半径能通过，不要实现运行时寻路；测试所有模板的所有布局变体，并覆盖至少一个边界/障碍碰撞解析。
+5. `MapInstance::resolveMovement()` 继续是唯一移动碰撞入口；Enemy、BossDash、Projectile 和 Player 不得各自复制布局碰撞规则。布局变体不能导致越界、卡死或 Boss 触发失效。
+6. Renderer 显示当前布局编号或简短布局摘要，小地图继续显示实际障碍/事件；目标 HUD 不暴露尚未探索区域。UI 文本必须有长度上限，不能遮挡 Boss 血条、事件提示或结算面板。
+7. 不改变 Stash、锻造、天赋、技能、Support、掉落所有权和 MapComplete 输入语义；不新增小地图交互、迷雾、传送门、寻路、动态房间生成或新 Boss。
+
+测试必须覆盖：
+
+- 所有 MapTemplate 的 3 个以上布局变体数量、唯一布局身份和边界合法性。
+- Start、BossGate/BossArena、事件点与障碍不重叠；布局可达性测试对所有变体通过。
+- 当前 MapOption/template/layout 绑定正确，进入下一图后布局重置且 run 成长/Stash 保留。
+- Player/BossDash 在布局障碍与边界上的移动解析继续通过；未触碰的地图和战斗回归测试继续通过。
+- 最终执行 `git diff --check`、clean build、CTest、直接逻辑测试、3 秒启动 smoke test；保持工作区未提交，交给主 review Agent。
+
+明确不做：
+
+- 不做复杂随机地牢生成、运行时寻路、迷雾、小地图点击、传送门或地图仓库。
+- 不修改怪物 AI、技能、Boss 技能、装备词缀、存档和经济系统。
+
+交付报告必须列出：改动文件、布局数据/API、布局选择规则、可达性算法与边界假设、测试数量、clean build、启动 smoke test、已知风险和 `git status --short`。
 
 ## 14. 项目进度看板
 
@@ -978,9 +1006,9 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 状态异常 | 可玩 | Ignite/Chill、Enemy/Boss 抗性和 Support 穿透已有，异常种类仍少 |
 | 装备掉落 | v1 完成 | base/implicit/affix/tier/rarity/relic/tags/weights/地图主题偏置/比较/满包安全已有 |
 | 地图选择 | v1 完成 | 三选图和风险收益已有，缺组合 modifier 和布局变体 |
-| 经济/锻造 | 可玩 | 分解、Forge Fragments 和三种选择式词缀加工已有；Stash 尚未实现 |
+| 经济/锻造 | v1 完成 | 分解、Forge Fragments、三种选择式词缀加工和当前 run Stash 已有 |
 | 存档 | 未开始 | 完成定义中的最大缺口 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 765 条通过，缺 UI 和端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 804 条通过，缺 UI 和端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
