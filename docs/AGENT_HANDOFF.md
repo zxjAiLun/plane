@@ -2,7 +2,7 @@
 
 更新日期：2026-07-14
 
-玩法代码基线：`cf16fc7 Unify combat feedback events`
+玩法代码基线：`ed1f7d9 Add data-driven map encounters`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -94,7 +94,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前测试基线：`arpg_logic_tests 987 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 276 passed / 0 failed`。
+当前测试基线：`arpg_logic_tests 1013 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 316 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -187,11 +187,16 @@ git status --short
 
 ### 5.2 地图事件
 
-每张地图包含三种一次性事件：
+每张地图包含三种基础一次性事件，以及一个由地图等级、模板和布局稳定选择的组合遭遇：
 
 - Loot Cache：靠近后按 `F`，掉落两件装备。
 - Shrine：靠近后按 `F`，获得 20 秒 `+35% damage`。
 - Elite Pack：进入范围自动生成 1 Elite + 4 Normal，全部击杀后完成。
+- Enhanced Cache：按 `F` 后掉落 3 件装备，并带有组合遭遇奖励倍率。
+- Hazardous Elite Pack：自动生成 1 Elite + 4 Normal，同时生成持续地面危险。
+- Guarded Shrine：按 `F` 唤醒 4 个守卫，清完后再次按 `F` 激活祭坛并获得 Shrine buff。
+
+组合遭遇由 `MapEncounterLibrary` 数据表定义；`MapInstance` 将其绑定到布局中的第四个遭遇点。事件敌人携带所属事件索引，GameWorld 只允许一个敌对事件同时处于进行中，避免不同事件的死亡奖励互相扣减。Boss 触发后所有未完成事件停止响应，但 MapComplete 仍显示事件统计。
 
 已有事件提示、短状态消息、剩余敌人数、小地图完成态和 MapComplete 事件统计。Boss 战触发后未完成事件停止响应。
 
@@ -376,6 +381,8 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - 下一图选项包含地图模板、名称、描述、推荐等级、怪物 HP/伤害、掉落倍率、Boss 风险、Elite 压力和 item level bonus。
 - 当前 HUD 显示地图名和 modifier 摘要。
 - 每张地图还绑定一个可复现的预制布局变体，HUD 显示 `LAYOUT N/3`；布局不会使用当前时间或 Renderer 随机生成。
+- 每张布局包含四个事件点：三个基础事件和一个数据化组合遭遇；组合遭遇类型由 `MapEncounterLibrary::forMap()` 稳定选择。
+- 组合遭遇的完成状态、事件敌人归属、地面危险和旧三事件 MapComplete 存档迁移均由 GameWorld/SaveService 处理。
 - MapComplete 允许先整理背包和拾取 Boss 战利品，再按 `E` 进入下一图。
 
 ### 5.12 测试现状
@@ -405,6 +412,8 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 - 地图选项差异和风险缩放。
 - 地图奖励生成。
 - 三个 MapTemplate 的三套布局变体、稳定布局 id、边界/事件交互空间和 Start-to-Boss BFS 可达性。
+- 三套模板、九个布局的第四个组合遭遇数据、事件点几何校验和 Enhanced Cache / Hazardous Elite Pack / Guarded Shrine 流程。
+- 组合遭遇的单事件敌人归属锁、完成后不重生、地面危险生命周期和旧三事件 MapComplete 存档迁移。
 - `SaveService` 的完整 Item/词缀/装备/技能 Support/Inventory/Stash/掉落 round-trip。
 - 存档 magic/version/payload/CRC、RNG state round-trip、未知版本、截断、损坏、缺失文件和原子替换失败保护。
 
@@ -772,6 +781,17 @@ Milestone C 验收：玩家会因为 base、implicit、affix、tier 和构筑方
 
 已知约束：LootBias 当前最多承载两个标签，组合时按稳定顺序保留前两个有效标签；未来扩展为更多标签前必须先扩展 `LootBias` 和测试，不能静默增加字符串规则。地图选项仍是固定模板池，不是随机地图生成器。
 
+任务 D4：Map Encounter Content v2（完成：`ed1f7d9`）
+
+- 每张地图在三个基础事件之外增加一个数据化组合遭遇，类型从 Enhanced Cache、Hazardous Elite Pack、Guarded Shrine 中稳定选择。
+- 组合遭遇的位置属于 `MapLayoutDefinition`，必须通过边界、出生区、Boss 区、障碍、事件间距和 Start-to-Boss 可达性校验。
+- Enhanced Cache 使用数据表的掉落数量和奖励倍率；Hazardous Elite Pack 使用数据表的敌人数和地面危险；Guarded Shrine 使用数据表的守卫数和二阶段激活规则。
+- 事件生成的敌人保存所属事件索引；同一时间只允许一个敌对事件扣减剩余数量，防止跨事件击杀污染完成状态。
+- Renderer 显示组合遭遇名称、状态、小地图颜色和进行中的敌人数；MapComplete 显示四事件统计。
+- SaveService 继续使用现有事件字段；旧的三事件 MapComplete 存档加载时将新遭遇标记为已结算，避免结算画面出现虚假的未完成事件。
+
+验收结果：clean build、CTest `3/3`、直接测试 `1013/0`、`11/0`、`316/0` 和 3 秒启动 smoke 全部通过。主 review 另外修正了组合遭遇 HUD 在普通 Elite Pack 进行时错误显示 `Enemies remaining` 的状态判断。
+
 Milestone D 验收：连续三张地图在路线、遭遇、风险和奖励上有明显变化。
 
 ### Milestone E：可持续运行与产品化
@@ -815,9 +835,45 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议交给 hy3：`可玩性验收与难度曲线 v1`。
+建议交给 hy3：`可玩性验收与难度曲线 v1`。当前阶段禁止继续添加技能、Support、Boss 或地图事件；先证明已有系统能连续工作并且难度有可解释的上升。
 
-原因：核心系统已经覆盖战斗、地图事件、Boss、掉落、天赋、技能、锻造、Stash、存档和暂停。下一步应证明这些系统能连续工作，而不是继续增加孤立内容。先用数据和测试把“出生点 -> 探索 -> Boss -> 奖励 -> 下一图”稳定跑通至少 5 张地图，再决定是否投入新技能或美术资源。
+### 13.0 当前交付任务：可玩性验收与难度曲线 v1（待实现）
+
+#### 目标
+
+把“出生点 -> 探索事件 -> 到达 Boss -> 击杀 Boss -> 结算奖励 -> 进入下一图”固化为至少 5 张连续地图的可重复流程。重点是发现数值失控、状态残留、事件阻塞和 UI 文案误导，不是增加内容数量。
+
+#### 开始前必须阅读并记录基线
+
+- 先执行 `git status --short`，必须以干净工作区和当前 HEAD `ed1f7d9` 为基线；若工作区不干净，报告文件列表并停止，不要覆盖其它 Agent 的改动。
+- 阅读 `MapInstance.hpp`、`MapLayout.hpp`、`MapModifier.hpp`、`MapEncounterLibrary`、`EnemyDefinition.hpp`、`BossDefinition.hpp`、`GameWorld::startNextMap()`、`triggerBossIfNeeded()`、`rewardEnemyKill()`、`updateMapEvents()`。
+- 阅读 `tests/arpg_logic_tests.cpp`、`tests/arpg_world_logic_tests.cpp`（实际文件名为 `tests/game_world_logic_tests.cpp`）和 `tests/save_logic_tests.cpp`，先运行三套测试并报告精确数量。
+- 必须确认当前基线：`1013/0`、`11/0`、`316/0`、CTest `3/3`。
+
+#### 允许修改范围
+
+1. 只允许调整已有数据表中的数值和必要的纯逻辑测试：地图 modifier、地图遭遇权重、Enemy/Boss 缩放、掉落数量/等级、事件奖励倍率。优先改 `Config.hpp`、`EnemyDefinition.hpp`、`BossDefinition.hpp`、`MapModifier.hpp`、`MapInstance.hpp` 的数据字段；不要把平衡数字散落到 `GameWorld.cpp`。
+2. 为至少 5 张地图增加一个确定性 progression fixture，覆盖真实 `GameWorld` 输入路径：移动到事件、处理或绕过事件、进入 Boss Arena、击杀 Boss、拾取/整理掉落、选择奖励、选择下一图、按 `E` 进入下一图。
+3. 测试每张地图的可验收指标：地图等级递增；普通怪、精英、Boss 的 HP/伤害不会下降；地图掉落等级/数量不会反常下降；每张地图至少可以到达 Boss；组合遭遇不会在未到达时提前触发；事件敌人完成后不重生；Boss 触发后未完成事件不会阻塞结算。
+4. 增加或补强数据单调性测试：对 `mapLevel = 1..5` 和至少三种下一图 modifier，断言实际应用后的怪物 HP、Boss HP/伤害、掉落 item level 与设计方向一致。测试必须调用生产 helper 或真实 GameWorld 公开行为，不得复制一套公式到测试里。
+5. 只在测试暴露出确定的 UI 文案/溢出问题时改 `Renderer.cpp`；修复必须保持 800x600 及当前默认窗口可读，不得借机重做布局。
+
+#### 强制不做
+
+- 不新增技能、Support、Boss、敌人类型、地图事件类型、装备槽、货币、商店、loot filter、自动拾取、输入键、存档字段或随机地图生成。
+- 不重构 `GameWorld`、`Enemy`、`SkillBar`、`SaveService`；不把平衡值硬编码进 Renderer，不改变存档 schema。
+- 不为了通过测试降低现有 Boss/地图难度；如果发现某个值需要产品决策，记录为 `open question`，不要擅自改变其它系统。
+- 不提交代码。完成后保持工作区未提交，交由主 review Agent 修正、验证和提交。
+
+#### 必须验证与交付报告
+
+- `git diff --check` 无错误。
+- MSVC `cmake --build build --clean-first` 成功；CTest `3/3` 成功；直接运行三套测试并报告精确通过数；`PlaneShooter.exe` 启动 3 秒 smoke 成功。
+- 报告 5 张地图每张的：地图模板/布局/组合遭遇、普通怪与 Boss 的关键倍率、是否到达 Boss、事件完成数、掉落数、是否成功进入下一图。
+- 报告任何数值异常、UI 风险、未自动化覆盖和保留的产品问题；不要只写“构建通过”。
+- 交付文件列表和 `git status --short` 必须写在回复中；代码保持未提交。
+
+完成定义：在固定 seed 下，真实 GameWorld 流程连续完成至少 5 张地图，核心风险/奖励随地图等级有单调且可解释的变化，所有现有测试不回归。主 review Agent 验收并提交后，才把该任务写入已完成记录。
 
 ### 13.1 已完成任务记录：Mana Resource v1
 
@@ -1716,13 +1772,13 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 - 直接测试：arpg_logic_tests 995/0、arpg_save_tests 11/0、arpg_world_tests 291/0。
 - PlaneShooter.exe 启动 3 秒 smoke：通过。
 
-### 13.27 hy3 下一项实施任务：地图内容 v2：可组合遭遇
+### 13.27 已完成任务记录：地图内容 v2：可组合遭遇
 
 目标：在现有开放地图、三种基础事件和 Boss 路线之上，增加少量数据驱动的组合遭遇，让从出生点到 Boss 区域的路线上出现更清晰的选择和风险；不引入随机地图生成器、寻路系统或新的战斗大系统。
 
 开始前必须阅读：
 
-- 本文档第 2、3、7、8、11、13.25、13.26 节；代码基线为 cf16fc7，测试基线为 995/11/291。
+- 本文档第 2、3、7、8、11、13.25、13.26 节；实现基线为 `ed1f7d9`，验收基线为 `1013/11/316`。
 - MapInstance、MapLayout、MapExploration、MapModifier，以及 GameWorld 的 updateMapEvents、Boss 触发和地图切换路径。
 - MapEventType/MapEventInstance、EnemyDefinition、EliteModifier、GroundHazard、BossDefinition 和现有 Enemy 追踪 AI。
 - Renderer 的小地图、事件 HUD、Boss HUD、MapComplete 统计；确认所有展示都通过 GameWorld/MapInstance getter 读取。
@@ -1763,29 +1819,37 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 完成定义：组合遭遇具有单一数据源、稳定布局、一次性生命周期、正确奖励/统计和 Boss/地图切换边界；不改变既有输入、战斗数值、存档和基础事件语义；主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
 
-后续里程碑方向（暂不作为 13.27 任务）：
+验收结果：
 
-- 13.28：运行稳定性与发布闭环，补 UI 截图/像素级 smoke、资源打包、崩溃边界和用户可重复的 Release 构建命令。
-- 13.29：内容扩展，在组合遭遇稳定后增加少量新 Boss/地图模板，仍保持定义驱动和小步测试。
+- `MapEncounterLibrary` 提供 Enhanced Cache、Hazardous Elite Pack、Guarded Shrine 三种组合定义；每张地图最多生成一个组合遭遇，并与第四个布局事件点绑定。
+- 九个布局通过边界、出生区、Boss 区、障碍、事件间距和 Start-to-Boss 可达性校验；组合遭遇流程、事件锁、敌人归属和 Guarded Shrine 二阶段状态均有 GameWorld 测试。
+- 旧三事件 MapComplete 存档可加载，新组合遭遇会迁移为已结算；当前保存格式未增加字段。
+- `arpg_logic_tests 1013/0`、`arpg_save_tests 11/0`、`arpg_world_tests 316/0`、CTest `3/3`、clean build 和启动 smoke 均通过。
+- 主 review 修正了 HUD 在普通 Elite Pack 进行时错误显示组合遭遇 `Enemies remaining` 的问题；代码已提交为 `ed1f7d9`。
+
+后续里程碑方向（13.0 已列出当前唯一实施任务）：
+
+- 13.28：运行稳定性与发布闭环，补 UI 截图/像素级 smoke、资源打包、崩溃边界和用户可重复的 Release 构建命令；必须等 13.0 完成后再排期。
+- 13.29：内容扩展，在组合遭遇和难度曲线稳定后增加少量新 Boss/地图模板，仍保持定义驱动和小步测试。
 
 ## 14. 项目进度看板
 
 | 领域 | 状态 | 说明 |
 |---|---|---|
 | 主动战斗 | v1 完成 | 四槽技能、Support、异常、药瓶已形成基础构筑 |
-| 构筑内容扩展 | 可玩 | 10 个技能、9 个 Support、双 Link、技能/Support 解锁奖励、CombatMath 实际构筑差异、Base 构筑主题和统一战斗反馈已接通；下一步做可组合地图遭遇 |
-| 开放地图 | v1 完成 | 大地图、相机、预制布局、探索小地图、事件和 Boss 路线已完成 |
+| 构筑内容扩展 | 可玩 | 10 个技能、9 个 Support、双 Link、技能/Support 解锁奖励、CombatMath 实际构筑差异、Base 构筑主题、统一战斗反馈和组合遭遇已接通；下一步做可玩性/难度验收 |
+| 开放地图 | v1 完成 | 大地图、相机、预制布局、探索小地图、三种基础事件、一个数据化组合遭遇和 Boss 路线已完成 |
 | 怪物生态 | v1 完成 | 近战、远程、精英、冲锋、ElitePack 均有，精英风险和事件进度已有数据化可读反馈 |
 | Boss | v1 完成 | Brood 召唤、Brimstone 火区、Storm 锁定突进形成三种独立机制 |
 | 天赋盘 | v1 完成 | 20 节点、四个 Keystone、前置和 HUD/hover 反馈已完成 |
 | 状态异常 | 可玩 | Ignite/Chill、Enemy/Boss 抗性、Support 穿透和 Ignite tick 反馈已有，异常种类仍少 |
 | 装备掉落 | v1 完成 | base/implicit/affix/tier/rarity/relic/tags/weights/地图主题偏置/requiredLevel/Base 构筑主题/比较/满包安全已有 |
-| 地图选择 | v1 完成 | 三选图、风险收益、模板绑定、稳定布局变体和两词缀组合已有 |
+| 地图选择 | v1 完成 | 三选图、风险收益、模板绑定、稳定布局变体、两词缀组合和组合遭遇绑定已有 |
 | 经济/锻造 | v1 完成 | 分解、Forge Fragments、三种选择式词缀加工和当前 run Stash 已有 |
 | 存档 | v1 完成 | 单文件版本化存档、RNG 恢复、坏档保护、MapComplete/安全出生点恢复已有 |
 | 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
 | 连续刷图验收 | v1 完成 | 五张真实 Boss -> 拾取/管理掉落 -> 选奖励/地图 -> E 推进，且死亡/暂停/中间存档边界已有自动保护 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 995 条、存档 11 条、GameWorld 291 条通过；已覆盖五张连续真实 Boss 流程、GameOver/Restart、MapComplete/Paused 存档、Projectile/Area 命中、扩展技能/Support、装备等级需求与非法 Base/隐式校验、Item Base 构筑主题、Ignite tick、ElitePack、Boss 击杀和保底掉落、Damage/PlayerHit/SkillRejected/Telegraph，仍缺 Renderer/UI 像素级验收 |
+| 自动化测试 | 原型 | 纯逻辑 1013 条、存档 11 条、GameWorld 316 条通过；已覆盖五张连续真实 Boss 流程、GameOver/Restart、MapComplete/Paused 存档、Projectile/Area 命中、扩展技能/Support、装备等级需求与非法 Base/隐式校验、Item Base 构筑主题、Ignite tick、ElitePack、三种组合遭遇、Boss 击杀和保底掉落、Damage/PlayerHit/SkillRejected/Telegraph，仍缺 Renderer/UI 像素级验收 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
