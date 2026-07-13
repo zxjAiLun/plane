@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`1508dcc Add deterministic map layout variants`
+玩法代码基线：`0594ebe Add composable map modifiers`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -92,7 +92,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前纯逻辑测试基线：`913 passed / 0 failed`。
+当前纯逻辑测试基线：`920 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -745,10 +745,16 @@ Milestone C 验收：玩家会因为 base、implicit、affix、tier 和构筑方
 
 任务 D3：Map Modifier 扩展 v2
 
-- 增加可组合 modifier，而不是一个模板只带一个固定词缀。
-- 至少覆盖怪物速度、Projectile 数量、Elite modifier 权重、事件奖励和异常抗性。
-- 每个 modifier 同时声明风险与收益。
-- HUD 对过长词缀做多行或摘要，不允许溢出。
+- 增加可组合 modifier，而不是一个模板只带一个固定词缀；每个候选地图稳定组合两个定义。
+- 已覆盖怪物速度/攻击压力、掉落数量、Elite/Charger 遭遇权重、事件奖励、Boss 风险、掉落等级和异常抗性。
+- 每个定义有稳定 id、名称、风险描述、收益描述和明确数值字段；组合通过乘法倍率/加法数值统一聚合，不用显示名称驱动玩法。
+- HUD 显示当前组合的短摘要；MapComplete 对候选名称、风险、收益和数值摘要做长度限制，避免遮挡其它面板。
+
+实现结果：代码提交为 `0594ebe`。`MapModifierLibrary` 提供 6 个定义，`MapOptionLibrary` 固定生成三组两词缀组合；Enemy 速度、普通/精英/Charger 权重、宝箱事件掉落、异常抗性、Boss/普通怪生命与伤害、掉落数量/等级和 LootBias 均接入真实 GameWorld 路径。保留三参数 `Enemy::update()` 兼容入口，避免破坏已有纯逻辑调用方。
+
+验收结果：clean build、CTest、直接逻辑测试和 3 秒启动 smoke test 均通过；纯逻辑基线为 `920 passed / 0 failed`，工作区在提交后干净。
+
+已知约束：LootBias 当前最多承载两个标签，组合时按稳定顺序保留前两个有效标签；未来扩展为更多标签前必须先扩展 `LootBias` 和测试，不能静默增加字符串规则。地图选项仍是固定模板池，不是随机地图生成器。
 
 Milestone D 验收：连续三张地图在路线、遭遇、风险和奖励上有明显变化。
 
@@ -784,9 +790,9 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Composable Map Modifiers v2`。
+建议立即交给 hy3：`Deterministic RNG Service v1`。
 
-原因：地图布局和探索信息层已经稳定，下一步应增强地图风险/收益的组合深度，让连续刷图产生真实取舍；不要同时扩展商店、存档或新的装备槽。
+原因：地图布局、探索、组合词缀、掉落和奖励已经有可玩的闭环，但仍依赖散落的 `std::rand()`。先收敛随机数边界，才能可靠复现“同一 run seed 下的地图、掉落和奖励”，也能让后续存档、Bug report 和自动化端到端测试建立在稳定基础上。不要在这一轮同时做存档、商店或新技能。
 
 ### 13.1 已完成任务记录：Mana Resource v1
 
@@ -1010,37 +1016,59 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 已知约束：未探索区域只影响小地图可读性，大地图世界暂不增加迷雾遮罩；探索网格是显示层近似，不是地图寻路或碰撞网格。
 
-### 13.10 hy3 实施任务：Composable Map Modifiers v2
+### 13.10 已完成任务记录：Composable Map Modifiers v2
 
 目标：把当前“一张地图一个 modifier”升级为 2 个可组合的风险/收益词缀，让连续刷图在怪物、掉落和事件层面产生更明显的取舍；不改变地图布局、探索、Boss AI 和输入上下文。
 
+代码已通过主 review 并提交为 `0594ebe Add composable map modifiers`。
+
+实现结果：
+
+- `MapModifierEffect` / `MapModifierDefinition` 保存稳定 id、名称、风险描述、收益描述和可组合数值；`MapModifierLibrary` 提供 6 个数据定义。
+- `MapOptionLibrary` 仍生成 3 个候选，每个候选稳定组合 2 个不重复 modifier；默认第一张地图使用 neutral modifier，不额外增加难度。
+- 倍率字段相乘、整数压力/奖励字段相加；地图等级缩放在组合完成后统一执行。`MapModifier::lootBias()` 保持旧接口并提供主/次两个标签。
+- 速度接入 `Enemy::update()`，Elite/Charger 权重接入地图遭遇选择，宝箱数量接入事件奖励倍率，Ignite/Chill 接入地图异常抗性；普通敌人、Boss、掉落数量、Boss 保底掉落、item level、LootBias 和 Future Item Quantity 仍走原有奖励路径。
+- HUD 当前地图显示组合摘要；MapComplete 候选文本使用长度限制，保留地图模板、风险/收益和推荐等级可读性。
+- 为 Enemy 保留无 modifier 的三参数 `update()` 重载，旧调用方默认使用 `1.0f` 地图速度。
+
+测试与验收：
+
+- 测试覆盖三候选、两组件身份、组合后的速度/事件/抗性、伤害/Boss 掉落、Charger/item level、同等级稳定生成和 neutral 默认地图。
+- clean build 通过，CTest 通过，直接运行 `arpg_logic_tests.exe` 为 `920 passed / 0 failed`。
+- `PlaneShooter.exe` 启动 3 秒后进程保持运行，工作区在提交后干净。
+
+已知约束：`LootBias` 目前最多承载两个标签，组合时按稳定顺序保留前两个有效标签；未来扩展更多标签前必须先扩展该数据结构和测试。地图选项仍来自固定模板池，不是随机地形生成器。
+
+### 13.11 hy3 实施任务：Deterministic RNG Service v1
+
+目标：将地图、掉落、奖励、敌人遭遇和事件奖励从散落的 `std::rand()` 收敛到可注入、可复现的单局随机服务，为后续存档和端到端测试提供稳定基础。本轮只做 RNG 边界，不新增玩法内容。
+
 开始前必须阅读：
 
-- `include/MapModifier.hpp`、`include/MapRewardLibrary.hpp`：当前 modifier、MapOption 和三选图数据来源。
-- `include/GameWorld.hpp/.cpp`：`mapModifier_` 的应用点，包括敌人生命/伤害、掉落、事件、Boss 和 MapComplete 生命周期。
-- `include/EnemyDefinition.hpp`、`include/EliteModifier.hpp`、`include/CombatMath.hpp`：现有遭遇权重、敌人伤害和异常相关计算，不能复制公式。
-- `include/MapInstance.hpp`、`include/MapLayout.hpp`、`include/MapExploration.hpp`：确认本任务不能绕过地图几何/探索状态。
-- `src/Renderer.cpp`：Map HUD、MapComplete 下一图选项和文本布局。
-- `tests/arpg_logic_tests.cpp`：现有 MapOption、地图奖励和真实缩放路径测试。
+- `src/GameWorld.cpp`：所有当前 `std::rand()` 调用及 reset/startNextMap/MapComplete 生命周期。
+- `include/LootGenerator.hpp`：掉落、词缀、Boss relic、weighted choice 的随机入口。
+- `include/MapModifier.hpp`、`include/MapLayout.hpp`、`include/MapRewardLibrary.hpp`：候选地图、布局和奖励是否依赖随机。
+- `include/EnemyDefinition.hpp`、`include/BossDefinition.hpp`：遭遇类型、Boss 技能和奖励选择的数据表。
+- `tests/arpg_logic_tests.cpp`：现有以 `std::srand` 验证确定性的测试，必须迁移而不是删除。
 
 必须实现：
 
-1. 将 `MapModifier` 拆成可组合的 `MapModifierDefinition` 数据项和当前地图的 `std::vector`/固定数组实例；每个 modifier 必须有稳定 id、名称、风险描述、收益描述和明确的数值字段或 enum/tag。禁止用名称字符串判断玩法。
-2. 下一图候选仍为 3 个；每个候选生成 2 个不重复 modifier，组合结果必须稳定可显示。第一张普通地图使用空 modifier 或明确的默认组合，不改变当前开局难度。
-3. 至少实现并接入 4 类 modifier：怪物速度/攻击压力、掉落数量、Elite/Charger 遭遇权重、事件奖励或异常抗性。每个 modifier 必须在真实 GameWorld 路径生效，不能只显示文案。
-4. 组合规则必须明确：同一字段的倍率相乘或相加要统一；怪物伤害、Boss 伤害、掉落数量、掉落等级、事件奖励和异常抗性不能在多个模块重复叠加。优先增加纯计算 helper，Renderer 复用同一结果。
-5. Boss 保底掉落、Boss relic、Loaded Dice、地图主题词缀偏置和当前 run Future Item Quantity 奖励必须继续生效；组合 modifier 不能吞掉物品、重复奖励或绕过背包/Stash 所有权保护。
-6. HUD 显示当前地图两个 modifier 的短摘要；MapComplete 三个下一图选项显示组合风险/收益和推荐等级。文本必须有长度上限或拆行，不得遮挡 Boss 血条、小地图、事件提示、奖励面板和 Stash。
-7. 输入和生命周期不变：Playing 数字键装备，P/K/V/F 等上下文保持原语义；reset 清空当前 modifier，startNextMap 只在按 `E` 后应用所选组合；MapComplete 仍可拾取、整理背包、使用 Stash 和锻造。
-8. 增加纯逻辑测试：候选 modifier 数量为 2 且不重复；同 seed/同 map level 生成结果稳定；每个 modifier 的真实数值路径生效；组合乘加规则正确；第一张默认图不额外增压；MapComplete 选择后下一图状态正确；现有地图布局/探索和掉落所有权回归通过。
+1. 新增无 SFML 的 `RandomService` 或等价小型类型，使用明确的 `uint32_t`/`uint64_t` seed，提供 `nextInt(min,max)`、`nextFloat01()`、`chance(percent)` 和按权重选择等最小接口；边界输入必须可预测且不会除零。
+2. `GameWorld` 持有本 run 的 seed 和 RNG 状态；`reset()` 生成/设置新 run seed，`startNextMap()` 继续同一 RNG 状态，不得按时间在每张地图重新播种。
+3. `LootGenerator` 的随机入口改为接收 RNG 引用或等价接口；普通掉落、Boss relic、affix/tier、map reward fallback 和遭遇类型不得继续直接调用 `std::rand()`。
+4. 迁移 GameWorld 中的敌人生成、掉落生成、事件奖励、Boss 技能随机分支和地图候选随机逻辑。若某些当前候选仍固定顺序，也要明确写测试证明“稳定固定”而不是伪随机。
+5. 保留现有行为边界：随机服务不改变装备所有权、Boss 保底掉落、地图词缀组合、Loaded Dice、Stash、锻造和输入上下文；Renderer 禁止持有或调用 RNG。
+6. 测试必须证明：同 seed 新 run 生成相同地图候选/掉落/遭遇序列；不同 seed 在足够长序列上存在差异；`min == max`、反向区间、0 权重、空权重和 100% chance 不崩溃；连续地图不重新播种；已有 LootBias 和 MapModifier 结果仍正确。
+7. 对外 API 保持小而明确；禁止把 `std::mt19937` 暴露到 Renderer 或在多个模块复制分布逻辑。需要兼容旧纯逻辑调用时，用明确的默认 seed 或重载，不要恢复全局 `std::rand()`。
 
 明确不做：
 
-- 不做随机地形、迷雾规则、地图仓库、商店、存档、复杂词缀条件表达式或新 Boss 技能。
-- 不替换全项目 RNG；只沿用当前 MapOption 生成方式并保证组合选择不依赖当前时间。
-- 不提交代码，保持工作区未提交，交给主 review Agent 完成代码风格审查、修正、clean build、CTest、直接逻辑测试、3 秒启动 smoke test 后提交。
+- 不实现存档、回放、联网同步、加密 seed 或完整随机地图生成。
+- 不顺手新增技能、Boss、装备槽、词缀、商店或 loot filter。
+- 不在 Renderer 中随机颜色/布局，不修改输入键位，不改变现有地图完成阶段。
+- 不提交代码；保持工作区未提交，交给主 review Agent 进行代码风格 review、行为修正、clean build、CTest、直接测试、3 秒启动 smoke test 后提交。
 
-交付报告必须列出：改动文件、modifier 数据/API、组合顺序和真实应用点、输入/生命周期影响、测试数量、clean build、CTest、启动 smoke test、已知风险和 `git status --short`。
+交付报告必须列出：改动文件、RNG API、seed 生命周期、所有迁移的随机入口、是否保持旧行为、测试数量、clean build、CTest、启动 smoke test、已知风险和 `git status --short`。
 
 ## 14. 项目进度看板
 
@@ -1053,10 +1081,10 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 天赋盘 | v1 完成 | 20 节点、四个 Keystone、前置和 HUD/hover 反馈已完成 |
 | 状态异常 | 可玩 | Ignite/Chill、Enemy/Boss 抗性和 Support 穿透已有，异常种类仍少 |
 | 装备掉落 | v1 完成 | base/implicit/affix/tier/rarity/relic/tags/weights/地图主题偏置/比较/满包安全已有 |
-| 地图选择 | v1 完成 | 三选图、风险收益、模板绑定和稳定布局变体已有，缺组合 modifier |
+| 地图选择 | v1 完成 | 三选图、风险收益、模板绑定、稳定布局变体和两词缀组合已有 |
 | 经济/锻造 | v1 完成 | 分解、Forge Fragments、三种选择式词缀加工和当前 run Stash 已有 |
 | 存档 | 未开始 | 完成定义中的最大缺口 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 913 条通过，缺 UI 和端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 920 条通过，缺 UI 和端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
