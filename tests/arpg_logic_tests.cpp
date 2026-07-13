@@ -1223,15 +1223,26 @@ void testEliteModifierDefinitions() {
     const auto& volatileModifier = EliteModifierLibrary::forModifier(EliteModifier::Volatile);
 
     expect(none.name.empty(), "None modifier has no display label");
+    expect(none.description.empty(), "None modifier has no risk description");
     expect(std::abs(none.hpMultiplier - 1.0f) < 0.0001f
             && std::abs(none.speedMultiplier - 1.0f) < 0.0001f,
         "None modifier leaves elite base stats unchanged");
     expect(hardened.hpMultiplier > 1.0f && hardened.speedMultiplier == 1.0f,
         "Hardened increases life without increasing speed");
+    expect(hardened.description == "+60% maximum life",
+        "Hardened risk description matches its life multiplier");
     expect(swift.speedMultiplier > 1.0f && swift.hpMultiplier == 1.0f,
         "Swift increases speed without increasing life");
+    expect(swift.description == "+45% movement speed",
+        "Swift risk description matches its speed multiplier");
     expect(volatileModifier.deathBurstRadius > 0.0f && volatileModifier.deathBurstDamage > 0,
         "Volatile defines a damaging death burst");
+    expect(volatileModifier.description == "82 radius death burst for 2 damage",
+        "Volatile risk description matches its death burst data");
+
+    Enemy normal({400.0f, 400.0f}, 10, 1, EnemyType::Normal, EliteModifier::Hardened);
+    expect(normal.eliteModifier() == EliteModifier::None,
+        "normal enemies cannot retain an Elite modifier");
 }
 
 // --- Charger behavior ---

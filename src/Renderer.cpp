@@ -453,6 +453,81 @@ sf::Color mapEventColor(MapEventType type, bool completed) {
 
     return sf::Color::White;
 }
+
+std::string enemyDisplayLabel(const GameWorld& world, const Enemy& enemy) {
+    if (enemy.isBoss()) {
+        return world.bossDefinition().name;
+    }
+
+    const auto& definition = EnemyLibrary::forType(enemy.type());
+    const auto& modifier = EliteModifierLibrary::forModifier(enemy.eliteModifier());
+    return modifier.name.empty() ? definition.name : modifier.name + " " + definition.name;
+}
+
+std::string eliteModifierDescription(const Enemy& enemy) {
+    return EliteModifierLibrary::forModifier(enemy.eliteModifier()).description;
+}
+
+const Enemy* focusedEliteEnemy(const GameWorld& world) {
+    constexpr float FocusRange = 520.0f;
+    const float rangeSquared = FocusRange * FocusRange;
+    const Vector2 playerPosition = world.player().position();
+    const Enemy* focused = nullptr;
+    float closestDistanceSquared = 0.0f;
+
+    for (const auto& enemy : world.enemies()) {
+        if (!enemy.isElite() || enemy.isDead()) {
+            continue;
+        }
+
+        const float distanceSquared = (enemy.position() - playerPosition).lengthSquared();
+        if (distanceSquared > rangeSquared
+            || (focused != nullptr && distanceSquared >= closestDistanceSquared)) {
+            continue;
+        }
+
+        focused = &enemy;
+        closestDistanceSquared = distanceSquared;
+    }
+
+    return focused;
+}
+
+std::string activeElitePackModifierDescription(const GameWorld& world) {
+    if (world.activeEliteEventEnemiesRemaining() <= 0) {
+        return "";
+    }
+
+    const MapEventInstance* activeEvent = nullptr;
+    for (const auto& event : world.map().events()) {
+        if (event.type == MapEventType::ElitePack && event.triggered && !event.completed) {
+            activeEvent = &event;
+            break;
+        }
+    }
+    if (activeEvent == nullptr) {
+        return "";
+    }
+
+    const Enemy* eventElite = nullptr;
+    float closestDistanceSquared = 0.0f;
+    for (const auto& enemy : world.enemies()) {
+        if (!enemy.isElite() || enemy.isBoss() || enemy.isDead()) {
+            continue;
+        }
+
+        const float distanceSquared = (enemy.position() - activeEvent->position).lengthSquared();
+        if (distanceSquared > 600.0f * 600.0f
+            || (eventElite != nullptr && distanceSquared >= closestDistanceSquared)) {
+            continue;
+        }
+
+        eventElite = &enemy;
+        closestDistanceSquared = distanceSquared;
+    }
+
+    return eventElite == nullptr ? "" : eliteModifierDescription(*eventElite);
+}
 }
 
 Renderer::Renderer(sf::RenderWindow& window)
@@ -548,8 +623,24 @@ void Renderer::render(const GameWorld& world) {
         hudY += 18.0f;
     }
     if (world.activeEliteEventEnemiesRemaining() > 0) {
-        drawText("Elite pack: " + std::to_string(world.activeEliteEventEnemiesRemaining())
-            + " enemies left", {16.0f, hudY}, 14, sf::Color(200, 140, 255));
+        std::string elitePackLine = "Elite pack: "
+            + std::to_string(world.activeEliteEventEnemiesRemaining()) + " enemies left";
+        const std::string modifierDescription = activeElitePackModifierDescription(world);
+        if (!modifierDescription.empty()) {
+            elitePackLine += " | " + modifierDescription;
+        }
+        drawText(truncateText(elitePackLine, 78), {16.0f, hudY}, 14, sf::Color(200, 140, 255));
+        hudY += 18.0f;
+    }
+    if (const Enemy* focused = focusedEliteEnemy(world)) {
+        std::string focusLine = "Focus: " + enemyDisplayLabel(world, *focused)
+            + " HP " + std::to_string(std::max(0, focused->hp()))
+            + "/" + std::to_string(std::max(0, focused->maxHp()));
+        const std::string modifierDescription = eliteModifierDescription(*focused);
+        if (!modifierDescription.empty()) {
+            focusLine += " | " + modifierDescription;
+        }
+        drawText(truncateText(focusLine, 78), {16.0f, hudY}, 14, sf::Color(255, 215, 160));
         hudY += 18.0f;
     }
     const std::string pickupPrompt = world.pickupPrompt();
@@ -1121,8 +1212,7 @@ void Renderer::drawEnemies(const GameWorld& world) {
         }
 
         if (definition.outlineThickness > 0.0f) {
-            const std::string label = enemy.isBoss() ? world.bossDefinition().name
-                : modifier.name.empty() ? definition.name : modifier.name + " " + definition.name;
+            const std::string label = enemyDisplayLabel(world, enemy);
             drawCenteredText(label, {screenPosition.x, screenPosition.y - enemy.radius() - 18.0f},
                 11, enemy.eliteModifier() == EliteModifier::None
                     ? enemyColor(definition.outlineColor)

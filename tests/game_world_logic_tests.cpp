@@ -720,6 +720,115 @@ void testBossCombatFlow() {
     std::filesystem::remove(path);
 }
 
+void testElitePackEventFlow() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_elite_pack_event_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(20001);
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "ElitePack fixture starts from a valid run save");
+
+    data.player.hp = 1000;
+    data.player.upgradeStats.maxHp = 1000;
+    data.player.upgradeStats.moveSpeedMultiplier = 6.0f;
+    data.player.upgradeStats.damageMultiplier = 10.0f;
+    data.player.upgradeStats.areaDamageMultiplier = 10.0f;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.player.mana = Config::PlayerMaxMana;
+    data.state = SavedRunState::Playing;
+    data.mapRewardChosen = false;
+    data.nextMapOptionChosen = false;
+    data.selectedMapRewardOption = -1;
+    data.selectedNextMapOption = -1;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "ElitePack fixture restores a high-tolerance combat setup");
+
+    const auto eventIt = std::find_if(
+        world.map().events().begin(),
+        world.map().events().end(),
+        [](const MapEventInstance& event) { return event.type == MapEventType::ElitePack; }
+    );
+    expect(eventIt != world.map().events().end(),
+        "ElitePack fixture finds the generated ElitePack event");
+    if (eventIt == world.map().events().end()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const Vector2 eventPosition = eventIt->position;
+    Input input;
+    for (int frame = 0; frame < 300 && world.activeEliteEventEnemiesRemaining() == 0;
+        ++frame) {
+        const float deltaX = eventPosition.x - world.player().position().x;
+        if (std::abs(deltaX) > 18.0f) {
+            const auto key = deltaX > 0.0f
+                ? sf::Keyboard::Key::D : sf::Keyboard::Key::A;
+            const auto opposite = deltaX > 0.0f
+                ? sf::Keyboard::Key::A : sf::Keyboard::Key::D;
+            input.handleKeyPressed(key);
+            input.handleKeyReleased(opposite);
+        } else {
+            input.handleKeyReleased(sf::Keyboard::Key::A);
+            input.handleKeyReleased(sf::Keyboard::Key::D);
+        }
+        input.handleKeyReleased(sf::Keyboard::Key::W);
+        input.handleKeyReleased(sf::Keyboard::Key::S);
+        world.update(0.05f, input);
+    }
+    input.handleKeyReleased(sf::Keyboard::Key::A);
+    input.handleKeyReleased(sf::Keyboard::Key::D);
+    input.handleKeyReleased(sf::Keyboard::Key::W);
+    input.handleKeyReleased(sf::Keyboard::Key::S);
+    for (int frame = 0; frame < 300 && world.activeEliteEventEnemiesRemaining() == 0;
+        ++frame) {
+        const float deltaY = eventPosition.y - world.player().position().y;
+        if (std::abs(deltaY) > 18.0f) {
+            const auto key = deltaY > 0.0f
+                ? sf::Keyboard::Key::S : sf::Keyboard::Key::W;
+            const auto opposite = deltaY > 0.0f
+                ? sf::Keyboard::Key::W : sf::Keyboard::Key::S;
+            input.handleKeyPressed(key);
+            input.handleKeyReleased(opposite);
+        } else {
+            input.handleKeyReleased(sf::Keyboard::Key::W);
+            input.handleKeyReleased(sf::Keyboard::Key::S);
+        }
+        input.handleKeyReleased(sf::Keyboard::Key::A);
+        input.handleKeyReleased(sf::Keyboard::Key::D);
+        world.update(0.05f, input);
+    }
+    input.handleKeyReleased(sf::Keyboard::Key::A);
+    input.handleKeyReleased(sf::Keyboard::Key::D);
+    input.handleKeyReleased(sf::Keyboard::Key::W);
+    input.handleKeyReleased(sf::Keyboard::Key::S);
+
+    expect(world.activeEliteEventEnemiesRemaining() == 5,
+        "entering ElitePack starts exactly five event enemies");
+    expect(world.mapEventsCompleted() == 0,
+        "an active ElitePack is not counted as completed");
+    if (world.activeEliteEventEnemiesRemaining() == 5) {
+        const Vector2 camera = world.cameraTopLeft();
+        const sf::Vector2i screenTarget(
+            static_cast<int>(std::lround(eventPosition.x - camera.x)),
+            static_cast<int>(std::lround(eventPosition.y - camera.y))
+        );
+        input.handleMousePressed(sf::Mouse::Button::Right, screenTarget);
+        world.update(0.05f, input);
+    }
+
+    expect(world.activeEliteEventEnemiesRemaining() == 0,
+        "one boosted area cast clears all five ElitePack enemies");
+    expect(world.mapEventsCompleted() == 1,
+        "ElitePack completes only after all event enemies are defeated");
+    expect(world.eventStatusMessage().find("Elite pack cleared") != std::string::npos,
+        "ElitePack completion reports nearby loot feedback");
+
+    std::filesystem::remove(path);
+}
+
 } // namespace
 
 int main() {
@@ -769,6 +878,7 @@ int main() {
     testIgniteFeedbackMatchesWorldDamage();
     testBuildMathMatchesWorldHits();
     testBossCombatFlow();
+    testElitePackEventFlow();
 
     std::cout << "Passed: " << (checks - failures)
         << "  Failed: " << failures << '\n';

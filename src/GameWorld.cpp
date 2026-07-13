@@ -1882,7 +1882,7 @@ void GameWorld::noteElitePackEnemyDefeated(const Enemy& enemy) {
     if (eliteEventEnemiesRemaining_ <= 0) {
         event.completed = true;
         activeEliteEventIndex_ = -1;
-        eventStatusMessage_ = "Elite pack cleared";
+        eventStatusMessage_ = "Elite pack cleared - check nearby loot";
         eventStatusTimer_ = 2.0f;
     }
 }
