@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -925,6 +926,23 @@ void testEquipmentChangesCombatStats() {
     const int dmgAfter = skillDamage(SkillLibrary::spreadShot(), player.stats(), nullptr);
     expect(dmgAfter > dmgBefore, "weapon affixes increase skillDamage for projectiles");
     expect(player.stats().damageMultiplier > 1.0f, "player combined damageMultiplier > 1 after equip");
+
+    Item gatedWeapon;
+    gatedWeapon.baseId = "weapon.warhammer";
+    gatedWeapon.slot = EquipmentSlot::Weapon;
+    gatedWeapon.rarity = Rarity::Magic;
+    expect(player.requiredLevelForItem(gatedWeapon) == std::optional<int>(3),
+        "Player resolves the Item Base required level");
+    expect(!player.canEquipItem(gatedWeapon),
+        "level-one Player rejects a level-three Item Base");
+    while (player.level() < 3) {
+        player.gainExp(player.expToNextLevel());
+    }
+    expect(player.canEquipItem(gatedWeapon),
+        "Player accepts the gated Item Base at its required level");
+    gatedWeapon.baseId = "missing.base";
+    expect(!player.canEquipItem(gatedWeapon),
+        "Player rejects an unknown Item Base");
 }
 
 // --- Loot generation ---
@@ -1007,6 +1025,22 @@ void testItemBaseTypes() {
         expect(normalBaseCount >= 3,
             std::string(slotName(slot)) + " has at least three normal base types");
     }
+
+    const auto requiredLevel = [&bases](const std::string& id) {
+        const auto it = std::find_if(bases.begin(), bases.end(),
+            [&id](const ItemBaseDefinition& base) { return base.id == id; });
+        return it == bases.end() ? -1 : it->requiredLevel;
+    };
+    bool allRequirementsValid = true;
+    for (const auto& base : bases) {
+        allRequirementsValid = allRequirementsValid && base.requiredLevel >= 1;
+    }
+    expect(allRequirementsValid, "every Item Base has a positive level requirement");
+    expect(requiredLevel("weapon.rustbound-blade") == 1
+            && requiredLevel("armor.iron-vest") == 1
+            && requiredLevel("weapon.warhammer") == 3
+            && requiredLevel("ring.scavenger-loop") == 3,
+        "starter and high-tier Item Base requirements are data-driven");
 
     RandomService random(17);
     LootGenerator generator;

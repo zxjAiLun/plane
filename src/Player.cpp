@@ -162,6 +162,14 @@ bool Player::spendPassivePoint(std::size_t nodeIndex) {
     return true;
 }
 
+bool Player::canEquipItem(const Item& item) const {
+    return Equipment::canEquip(item, level_);
+}
+
+std::optional<int> Player::requiredLevelForItem(const Item& item) const {
+    return Equipment::requiredLevelFor(item);
+}
+
 std::optional<Item> Player::equipItem(Item item) {
     const int maxHpBefore = maxHp_;
     std::optional<Item> replaced = equipment_.equip(std::move(item));

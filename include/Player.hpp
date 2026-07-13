@@ -46,6 +46,8 @@ public:
     void applyUpgrade(UpgradeType type);
     bool canSpendTalentPoint() const;
     bool spendPassivePoint(std::size_t nodeIndex);
+    bool canEquipItem(const Item& item) const;
+    std::optional<int> requiredLevelForItem(const Item& item) const;
     std::optional<Item> equipItem(Item item);
     PlayerSaveState saveState() const;
     bool restoreState(const PlayerSaveState& state, const Vector2& bounds);

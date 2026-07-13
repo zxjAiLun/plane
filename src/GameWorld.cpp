@@ -61,11 +61,14 @@ bool validStatsForRestore(const Stats& stats) {
 }
 
 bool validItemForRestore(const Item& item) {
+    const auto* base = ItemBaseLibrary::find(item.baseId);
     if (static_cast<int>(item.slot) < 0
         || static_cast<int>(item.slot) >= static_cast<int>(EquipmentSlot::Count)
         || static_cast<int>(item.rarity) < 0
         || static_cast<int>(item.rarity) > static_cast<int>(Rarity::Rare)
         || item.itemLevel < 1
+        || base == nullptr
+        || base->slot != item.slot
         || !validStatsForRestore(item.stats)
         || !validStatsForRestore(item.implicitStats)) {
         return false;
@@ -2046,6 +2049,22 @@ void GameWorld::tryEquipInventoryItem(Input& input) {
     }
 
     const auto index = static_cast<std::size_t>(input.numberChoice() - 1);
+    const Item* candidate = inventory_.itemAt(index);
+    if (candidate == nullptr) {
+        return;
+    }
+
+    if (!player_.canEquipItem(*candidate)) {
+        const auto requiredLevel = player_.requiredLevelForItem(*candidate);
+        if (requiredLevel && player_.level() < *requiredLevel) {
+            eventStatusMessage_ = "Requires level " + std::to_string(*requiredLevel);
+        } else {
+            eventStatusMessage_ = "Cannot equip item";
+        }
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+
     if (auto item = inventory_.take(index)) {
         if (auto replaced = player_.equipItem(std::move(*item))) {
             // The candidate was removed first, so there is normally room for the

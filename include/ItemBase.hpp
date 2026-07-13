@@ -25,6 +25,7 @@ struct ItemBaseDefinition {
     Stats implicitStats;
     ItemBaseKind kind = ItemBaseKind::Normal;
     ItemBaseTheme theme = ItemBaseTheme::None;
+    int requiredLevel = 1;
 };
 
 class ItemBaseLibrary {
@@ -82,44 +83,44 @@ private:
         return {
             // Weapon bases: choose between general, projectile and area scaling.
             {"weapon.rustbound-blade", "Rustbound Blade", EquipmentSlot::Weapon,
-                makeStats(0, 1.0f, 1.05f), ItemBaseKind::Normal, ItemBaseTheme::None},
+                makeStats(0, 1.0f, 1.05f), ItemBaseKind::Normal, ItemBaseTheme::None, 1},
             {"weapon.hunter-bow", "Hunter's Bow", EquipmentSlot::Weapon,
-                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.06f), ItemBaseKind::Normal, ItemBaseTheme::None},
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.06f), ItemBaseKind::Normal, ItemBaseTheme::None, 2},
             {"weapon.warhammer", "Warhammer", EquipmentSlot::Weapon,
-                makeStats(0, 1.0f, 1.0f, 0.96f, 1.0f, 1.0f, 1.06f), ItemBaseKind::Normal, ItemBaseTheme::None},
+                makeStats(0, 1.0f, 1.0f, 0.96f, 1.0f, 1.0f, 1.06f), ItemBaseKind::Normal, ItemBaseTheme::None, 3},
 
             // Armor bases: trade life, armor and movement.
             {"armor.iron-vest", "Iron Vest", EquipmentSlot::Armor,
-                makeStats(4, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2), ItemBaseKind::Normal, ItemBaseTheme::None},
+                makeStats(4, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2), ItemBaseKind::Normal, ItemBaseTheme::None, 1},
             {"armor.scaled-mail", "Scaled Mail", EquipmentSlot::Armor,
-                makeStats(8), ItemBaseKind::Normal, ItemBaseTheme::None},
+                makeStats(8), ItemBaseKind::Normal, ItemBaseTheme::None, 2},
             {"armor.windweave", "Windweave", EquipmentSlot::Armor,
-                makeStats(2, 1.05f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1), ItemBaseKind::Normal, ItemBaseTheme::None},
+                makeStats(2, 1.05f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1), ItemBaseKind::Normal, ItemBaseTheme::None, 2},
 
             // Ring bases: general damage, attack speed or pickup range.
             {"ring.cinder-band", "Cinder Band", EquipmentSlot::Ring,
-                makeStats(0, 1.0f, 1.05f), ItemBaseKind::Normal, ItemBaseTheme::None},
+                makeStats(0, 1.0f, 1.05f), ItemBaseKind::Normal, ItemBaseTheme::None, 1},
             {"ring.quickband", "Quickband", EquipmentSlot::Ring,
-                makeStats(0, 1.0f, 1.0f, 1.06f), ItemBaseKind::Normal, ItemBaseTheme::None},
+                makeStats(0, 1.0f, 1.0f, 1.06f), ItemBaseKind::Normal, ItemBaseTheme::None, 2},
             {"ring.scavenger-loop", "Scavenger Loop", EquipmentSlot::Ring,
-                makeStats(0, 1.0f, 1.0f, 1.0f, 1.12f), ItemBaseKind::Normal, ItemBaseTheme::None},
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.12f), ItemBaseKind::Normal, ItemBaseTheme::None, 3},
 
             // Amulet bases: life, area damage or area radius.
             {"amulet.ironheart-pendant", "Ironheart Pendant", EquipmentSlot::Amulet,
-                makeStats(10), ItemBaseKind::Normal, ItemBaseTheme::None},
+                makeStats(10), ItemBaseKind::Normal, ItemBaseTheme::None, 1},
             {"amulet.sigil-of-focus", "Sigil of Focus", EquipmentSlot::Amulet,
-                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.07f), ItemBaseKind::Normal, ItemBaseTheme::None},
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.07f), ItemBaseKind::Normal, ItemBaseTheme::None, 2},
             {"amulet.wide-eyed-talisman", "Wide-Eyed Talisman", EquipmentSlot::Amulet,
-                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.08f), ItemBaseKind::Normal, ItemBaseTheme::None},
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.08f), ItemBaseKind::Normal, ItemBaseTheme::None, 3},
 
             // Boss relic bases keep a stable theme identity while their affix
             // contributions continue to scale with item level.
             {"boss.brimstone-brand", "Colossus Brand", EquipmentSlot::Weapon,
-                makeStats(0, 1.0f, 1.06f, 1.0f, 1.0f, 1.0f, 1.03f), ItemBaseKind::BossRelic, ItemBaseTheme::Brimstone},
+                makeStats(0, 1.0f, 1.06f, 1.0f, 1.0f, 1.0f, 1.03f), ItemBaseKind::BossRelic, ItemBaseTheme::Brimstone, 1},
             {"boss.storm-signet", "Herald's Signet", EquipmentSlot::Ring,
-                makeStats(0, 1.0f, 1.0f, 1.04f, 1.0f, 1.04f), ItemBaseKind::BossRelic, ItemBaseTheme::Storm},
+                makeStats(0, 1.0f, 1.0f, 1.04f, 1.0f, 1.04f), ItemBaseKind::BossRelic, ItemBaseTheme::Storm, 1},
             {"boss.brood-talisman", "Matriarch's Talisman", EquipmentSlot::Amulet,
-                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.04f, 1.04f), ItemBaseKind::BossRelic, ItemBaseTheme::Brood},
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.04f, 1.04f), ItemBaseKind::BossRelic, ItemBaseTheme::Brood, 1},
         };
     }
 };

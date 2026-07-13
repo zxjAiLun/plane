@@ -12,6 +12,7 @@
 #include "CombatMath.hpp"
 #include "GameWorld.hpp"
 #include "Input.hpp"
+#include "ItemBase.hpp"
 #include "LootGenerator.hpp"
 #include "MapRewardLibrary.hpp"
 #include "SaveService.hpp"
@@ -63,6 +64,24 @@ void pressKey(GameWorld& world, Input& input, sf::Keyboard::Key key) {
     input.handleKeyPressed(key);
     world.update(0.05f, input);
     input.handleKeyReleased(key);
+}
+
+Item makeBaseItem(const std::string& baseId) {
+    Item item;
+    const auto* base = ItemBaseLibrary::find(baseId);
+    if (base == nullptr) {
+        return item;
+    }
+
+    item.name = base->name;
+    item.slot = base->slot;
+    item.rarity = Rarity::Magic;
+    item.itemLevel = 1;
+    item.baseId = base->id;
+    item.baseName = base->name;
+    item.implicitStats = base->implicitStats;
+    item.stats = base->implicitStats;
+    return item;
 }
 
 void releaseMovement(Input& input) {
@@ -441,6 +460,75 @@ void testContinuousMapProgression() {
     }
 
     expect(world.mapLevel() == 6, "five transitions reach map level 6");
+    std::filesystem::remove(path);
+}
+
+void testItemBaseLevelRequirementWorldFlow() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_item_base_requirement_world_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(16501);
+    SaveData data;
+    std::string error;
+    const Item starterWeapon = makeBaseItem("weapon.rustbound-blade");
+    const Item gatedWeapon = makeBaseItem("weapon.warhammer");
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "item requirement fixture starts from a valid save");
+    data.player = world.player().saveState();
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Weapon)] = starterWeapon;
+    data.inventory.clear();
+    data.inventory.push_back(gatedWeapon);
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "item requirement fixture restores starter and gated weapons");
+
+    Input input;
+    pressKey(world, input, sf::Keyboard::Key::Tab);
+    const int selectedBefore = world.selectedInventoryIndex();
+    const int hpBefore = world.player().hp();
+    const auto& equippedBefore = world.player().equipment().itemInSlot(EquipmentSlot::Weapon);
+    expect(selectedBefore == 0 && equippedBefore
+            && equippedBefore->baseId == "weapon.rustbound-blade",
+        "level requirement fixture selects the gated item without changing equipment");
+
+    pressKey(world, input, sf::Keyboard::Key::Num1);
+    const auto& blockedEquipment = world.player().equipment().itemInSlot(EquipmentSlot::Weapon);
+    expect(world.inventory().size() == 1
+            && world.inventory().items().front().baseId == "weapon.warhammer"
+            && world.selectedInventoryIndex() == selectedBefore
+            && blockedEquipment && blockedEquipment->baseId == "weapon.rustbound-blade"
+            && world.player().hp() == hpBefore,
+        "under-level equip preserves the item, selection, equipment, and HP");
+    expect(world.eventStatusMessage() == "Requires level 3"
+            && world.eventStatusTimeRemaining() > 0.0f,
+        "under-level equip reports the required level");
+
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "level requirement fixture saves the blocked attempt");
+    data.player.level = 3;
+    data.player.exp = 0;
+    data.player.expToNextLevel = Config::BaseExpToLevel + 4;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "level requirement fixture raises the saved player level");
+
+    pressKey(world, input, sf::Keyboard::Key::Num1);
+    const auto& equippedGated = world.player().equipment().itemInSlot(EquipmentSlot::Weapon);
+    expect(equippedGated && equippedGated->baseId == "weapon.warhammer"
+            && world.inventory().size() == 1
+            && world.inventory().items().front().baseId == "weapon.rustbound-blade",
+        "at-level equip succeeds and returns the old weapon to Inventory");
+
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "item requirement fixture saves a valid equipped state");
+    data.inventory.front().baseId = "missing.base";
+    expect(SaveService::save(path, data, &error) && !world.loadRun(path),
+        "unknown Item Base is rejected without loading");
+    const auto& preservedEquipment = world.player().equipment().itemInSlot(EquipmentSlot::Weapon);
+    expect(preservedEquipment && preservedEquipment->baseId == "weapon.warhammer"
+            && world.inventory().size() == 1
+            && world.inventory().items().front().baseId == "weapon.rustbound-blade",
+        "rejected invalid Item Base leaves the current run untouched");
+
     std::filesystem::remove(path);
 }
 
@@ -1374,6 +1462,7 @@ int main() {
     testMapCompleteLoad();
     testPauseContextsAndFreeze();
     testContinuousMapProgression();
+    testItemBaseLevelRequirementWorldFlow();
     testFiveMapRealBossProgression();
     testGameOverRestartBoundary();
     testInvalidProgressionSaveDoesNotMutate();

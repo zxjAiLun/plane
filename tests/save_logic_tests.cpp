@@ -69,8 +69,8 @@ SaveData sampleData() {
     weapon.slot = EquipmentSlot::Weapon;
     weapon.rarity = Rarity::Rare;
     weapon.itemLevel = 5;
-    weapon.baseId = "weapon.blade";
-    weapon.baseName = "Iron Blade";
+    weapon.baseId = "weapon.rustbound-blade";
+    weapon.baseName = "Rustbound Blade";
     weapon.implicitStats.damageMultiplier = 1.05f;
     weapon.stats.damageMultiplier = 1.13f;
     weapon.affixes.push_back({

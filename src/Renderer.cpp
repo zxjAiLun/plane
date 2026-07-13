@@ -86,8 +86,25 @@ std::string statsSummary(const Stats& stats) {
     return summary;
 }
 
+std::optional<int> itemRequiredLevel(const Item& item) {
+    const auto* base = ItemBaseLibrary::find(item.baseId);
+    return base == nullptr ? std::nullopt : std::optional<int>(base->requiredLevel);
+}
+
+std::string itemRequirementSummary(const Item& item) {
+    const auto requiredLevel = itemRequiredLevel(item);
+    return requiredLevel
+        ? "Req Lv " + std::to_string(*requiredLevel)
+        : "Req Lv ?";
+}
+
+bool itemRequirementMet(const GameWorld& world, const Item& item) {
+    const auto requiredLevel = itemRequiredLevel(item);
+    return requiredLevel && world.player().level() >= *requiredLevel;
+}
+
 std::string itemSummary(const Item& item) {
-    return item.name + " " + statsSummary(item.stats);
+    return item.name + " " + itemRequirementSummary(item) + " " + statsSummary(item.stats);
 }
 
 std::string truncateText(const std::string& text, std::size_t maxLength) {
@@ -1323,7 +1340,11 @@ void Renderer::drawEquipment(const GameWorld& world) {
         const std::string line = std::string(slotName(slot)) + ": "
             + (item ? itemSummary(*item) : "Empty");
         drawText(truncateText(line, 36), {x, y}, 12,
-            item ? rarityColor(item->rarity) : sf::Color(150, 150, 150));
+            item
+                ? (itemRequirementMet(world, *item)
+                    ? rarityColor(item->rarity)
+                    : sf::Color(255, 90, 90))
+                : sf::Color(150, 150, 150));
         y += 17.0f;
     }
 }
@@ -1382,9 +1403,12 @@ void Renderer::drawInventory(const GameWorld& world) {
             && static_cast<int>(i) == selectedIndex;
         const bool isHovered = (i == hovered);
         const std::string line = (isSelected ? "> " : "") + std::to_string(i + 1) + ". "
-            + item.name + " [" + slotName(item.slot) + "] " + statsSummary(item.stats);
+            + item.name + " [" + slotName(item.slot) + "] "
+            + itemRequirementSummary(item) + " " + statsSummary(item.stats);
         sf::Color rowColor = rarityColor(item.rarity);
-        if (isSelected) {
+        if (!itemRequirementMet(world, item)) {
+            rowColor = sf::Color(255, 90, 90);
+        } else if (isSelected) {
             rowColor = sf::Color(255, 215, 90);
         } else if (isHovered) {
             rowColor = sf::Color::White;
@@ -1457,10 +1481,11 @@ void Renderer::drawItemDetailPanel(const GameWorld& world,
         {x, y}, 16, rarityColor(item.rarity));
     y += 20.0f;
 
-    drawText(truncateText(
-            "Slot: " + std::string(slotName(item.slot)) + "   iLvl: " + std::to_string(item.itemLevel),
-            bodyLimit),
-        {x, y}, 12, sf::Color(200, 210, 225));
+    const std::string requirementLine = "Slot: " + std::string(slotName(item.slot))
+        + "   iLvl: " + std::to_string(item.itemLevel)
+        + "   " + itemRequirementSummary(item);
+    drawText(truncateText(requirementLine, bodyLimit), {x, y}, 12,
+        itemRequirementMet(world, item) ? sf::Color(200, 210, 225) : sf::Color(255, 90, 90));
     y += 18.0f;
 
     if (!compact) {
@@ -2114,9 +2139,12 @@ void Renderer::drawMapCompleteInventoryPanel(const GameWorld& world) {
         const bool isSelected = !world.stashSelectionActive()
             && static_cast<int>(i) == selectedIndex;
         const std::string line = (isSelected ? "> " : "") + std::to_string(i + 1) + ". "
-            + item.name + " [" + slotName(item.slot) + "] " + statsSummary(item.stats);
+            + item.name + " [" + slotName(item.slot) + "] "
+            + itemRequirementSummary(item) + " " + statsSummary(item.stats);
         sf::Color rowColor = rarityColor(item.rarity);
-        if (isSelected) {
+        if (!itemRequirementMet(world, item)) {
+            rowColor = sf::Color(255, 90, 90);
+        } else if (isSelected) {
             rowColor = sf::Color(255, 215, 90);
         }
         drawText(truncateText(line, 36), {x, y}, 13, rowColor);

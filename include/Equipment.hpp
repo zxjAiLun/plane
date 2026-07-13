@@ -11,6 +11,18 @@
 
 class Equipment {
 public:
+    static std::optional<int> requiredLevelFor(const Item& item) {
+        const auto* base = ItemBaseLibrary::find(item.baseId);
+        return base == nullptr ? std::nullopt : std::optional<int>(base->requiredLevel);
+    }
+
+    static bool canEquip(const Item& item, int playerLevel) {
+        const auto* base = ItemBaseLibrary::find(item.baseId);
+        return base != nullptr
+            && base->slot == item.slot
+            && playerLevel >= base->requiredLevel;
+    }
+
     std::optional<Item> equip(Item item) {
         auto& equipped = equipped_[slotIndex(item.slot)];
         std::optional<Item> replaced = std::move(equipped);
