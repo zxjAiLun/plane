@@ -19,6 +19,25 @@ enum class PassiveNodeSize {
     Notable
 };
 
+enum class PassiveKeystone {
+    None,
+    VolleyDoctrine,
+    ConcentratedImpact,
+    SecondWind,
+    LoadedDice
+};
+
+inline const char* passiveKeystoneName(PassiveKeystone keystone) {
+    switch (keystone) {
+        case PassiveKeystone::None: return "None";
+        case PassiveKeystone::VolleyDoctrine: return "Volley Doctrine";
+        case PassiveKeystone::ConcentratedImpact: return "Concentrated Impact";
+        case PassiveKeystone::SecondWind: return "Second Wind";
+        case PassiveKeystone::LoadedDice: return "Loaded Dice";
+    }
+    return "Unknown";
+}
+
 struct PassiveNode {
     std::string name;
     std::string description;
@@ -28,6 +47,7 @@ struct PassiveNode {
     Vector2 treePosition;
     PassiveBranch branch = PassiveBranch::Projectile;
     PassiveNodeSize size = PassiveNodeSize::Small;
+    PassiveKeystone keystone = PassiveKeystone::None;
 };
 
 class PassiveTree {
@@ -38,28 +58,28 @@ public:
         nodes_[1] = {"Rapid Fire", "+6% attack speed", Stats{0, 1.0f, 1.0f, 1.06f, 1.0f}, 0, false, {135.0f, -78.0f}, PassiveBranch::Projectile, PassiveNodeSize::Small};
         nodes_[2] = {"Lethal Force", "+10% projectile damage", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.10f}, 1, false, {200.0f, -115.0f}, PassiveBranch::Projectile, PassiveNodeSize::Small};
         nodes_[3] = {"Quick Reload", "+8% attack speed", Stats{0, 1.0f, 1.0f, 1.08f, 1.0f}, 2, false, {260.0f, -150.0f}, PassiveBranch::Projectile, PassiveNodeSize::Small};
-        nodes_[4] = {"Annihilation", "+14% projectile damage", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.14f}, 3, false, {318.0f, -184.0f}, PassiveBranch::Projectile, PassiveNodeSize::Notable};
+        nodes_[4] = {"Volley Doctrine", "+2 projectiles, -25% projectile damage", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 0.75f, 1.0f, 1.0f, 0, 2, 1.0f, 1.0f, 1.0f}, 3, false, {318.0f, -184.0f}, PassiveBranch::Projectile, PassiveNodeSize::Notable, PassiveKeystone::VolleyDoctrine};
 
         // Area branch (5-9)
         nodes_[5] = {"Inner Blaze", "+8% area damage", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.08f}, -1, false, {-70.0f, -42.0f}, PassiveBranch::Area, PassiveNodeSize::Small};
         nodes_[6] = {"Widening Circle", "+8% area radius", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.08f}, 5, false, {-135.0f, -78.0f}, PassiveBranch::Area, PassiveNodeSize::Small};
         nodes_[7] = {"Blast Force", "+10% area damage", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.10f}, 6, false, {-200.0f, -115.0f}, PassiveBranch::Area, PassiveNodeSize::Small};
         nodes_[8] = {"Expanded Impact", "+10% area radius", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.10f}, 7, false, {-260.0f, -150.0f}, PassiveBranch::Area, PassiveNodeSize::Small};
-        nodes_[9] = {"Cataclysm", "+14% area damage", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.14f}, 8, false, {-318.0f, -184.0f}, PassiveBranch::Area, PassiveNodeSize::Notable};
+        nodes_[9] = {"Concentrated Impact", "+35% area damage, -25% area radius", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.35f, 0.75f}, 8, false, {-318.0f, -184.0f}, PassiveBranch::Area, PassiveNodeSize::Notable, PassiveKeystone::ConcentratedImpact};
 
         // Survival branch (10-14)
         nodes_[10] = {"Vigour", "+5 max HP", Stats{5, 1.0f, 1.0f, 1.0f, 1.0f}, -1, false, {-70.0f, 42.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
         nodes_[11] = {"Stone Skin", "+1 armor", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1}, 10, false, {-135.0f, 78.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
         nodes_[12] = {"Iron Heart", "+6 max HP and +1 armor", Stats{6, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1}, 11, false, {-200.0f, 115.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
         nodes_[13] = {"Wind Runner", "+8% move speed", Stats{0, 1.08f, 1.0f, 1.0f, 1.0f}, 12, false, {-260.0f, 150.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
-        nodes_[14] = {"Unyielding", "+8 max HP and +2 armor", Stats{8, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2}, 13, false, {-318.0f, 184.0f}, PassiveBranch::Survival, PassiveNodeSize::Notable};
+        nodes_[14] = {"Second Wind", "+50% life flask healing", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0, 0, 1.5f}, 13, false, {-318.0f, 184.0f}, PassiveBranch::Survival, PassiveNodeSize::Notable, PassiveKeystone::SecondWind};
 
         // Loot branch (15-19)
         nodes_[15] = {"Scavenger", "+15% pickup range", Stats{0, 1.0f, 1.0f, 1.0f, 1.15f}, -1, false, {70.0f, 42.0f}, PassiveBranch::Loot, PassiveNodeSize::Small};
         nodes_[16] = {"Hoarder", "+10% pickup range", Stats{0, 1.0f, 1.0f, 1.0f, 1.10f}, 15, false, {135.0f, 78.0f}, PassiveBranch::Loot, PassiveNodeSize::Small};
         nodes_[17] = {"Lucky Step", "+5% move speed", Stats{0, 1.05f, 1.0f, 1.0f, 1.0f}, 16, false, {200.0f, 115.0f}, PassiveBranch::Loot, PassiveNodeSize::Small};
         nodes_[18] = {"Far Reach", "+15% pickup range", Stats{0, 1.0f, 1.0f, 1.0f, 1.15f}, 17, false, {260.0f, 150.0f}, PassiveBranch::Loot, PassiveNodeSize::Small};
-        nodes_[19] = {"Magnetism", "+20% pickup range", Stats{0, 1.0f, 1.0f, 1.0f, 1.20f}, 18, false, {318.0f, 184.0f}, PassiveBranch::Loot, PassiveNodeSize::Notable};
+        nodes_[19] = {"Loaded Dice", "+25% item drops, +20% damage taken", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0, 0, 1.0f, 1.25f, 1.20f}, 18, false, {318.0f, 184.0f}, PassiveBranch::Loot, PassiveNodeSize::Notable, PassiveKeystone::LoadedDice};
     }
 
     bool allocate(std::size_t index) {
@@ -113,6 +133,33 @@ public:
             }
         }
         return count;
+    }
+
+    bool hasKeystone(PassiveKeystone keystone) const {
+        if (keystone == PassiveKeystone::None) {
+            return false;
+        }
+
+        for (const auto& node : nodes_) {
+            if (node.allocated && node.keystone == keystone) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    std::string keystoneSummary() const {
+        std::string summary;
+        for (const auto& node : nodes_) {
+            if (!node.allocated || node.keystone == PassiveKeystone::None) {
+                continue;
+            }
+            if (!summary.empty()) {
+                summary += ", ";
+            }
+            summary += passiveKeystoneName(node.keystone);
+        }
+        return summary.empty() ? "None" : summary;
     }
 
 private:

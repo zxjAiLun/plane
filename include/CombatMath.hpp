@@ -14,6 +14,33 @@ inline int mitigatedDamage(int rawDamage, int armor) {
     return std::max(1, rawDamage - armor);
 }
 
+inline int lifeFlaskHealAmount(int baseAmount, const Stats& stats) {
+    return std::max(0, static_cast<int>(std::ceil(
+        static_cast<float>(baseAmount) * stats.lifeFlaskEffectMultiplier
+    )));
+}
+
+inline int incomingDamage(int rawDamage, const Stats& stats) {
+    if (rawDamage <= 0) {
+        return 0;
+    }
+    return std::max(1, static_cast<int>(std::ceil(
+        static_cast<float>(rawDamage) * stats.incomingDamageMultiplier
+    )));
+}
+
+inline int itemDropChancePercent(
+    int baseChancePercent,
+    float mapQuantityMultiplier,
+    const Stats& stats
+) {
+    return std::clamp(static_cast<int>(
+        static_cast<float>(baseChancePercent)
+            * mapQuantityMultiplier
+            * stats.itemQuantityMultiplier
+    ), 0, 100);
+}
+
 inline int refilledFlaskCharges(int currentCharges, int maxCharges, int restoredCharges) {
     return std::clamp(currentCharges + std::max(0, restoredCharges), 0, maxCharges);
 }
@@ -71,6 +98,16 @@ inline int skillPierceCount(const SupportDefinition* support) {
 
 inline int skillProjectileCount(const SkillDefinition& skill, const SupportDefinition* support) {
     return std::max(1, skill.projectileCount + (support ? support->extraProjectileCount : 0));
+}
+
+inline int skillProjectileCount(
+    const SkillDefinition& skill,
+    const SupportDefinition* support,
+    const Stats& stats
+) {
+    return std::max(1, skill.projectileCount
+        + (support ? support->extraProjectileCount : 0)
+        + stats.projectileCountBonus);
 }
 
 inline float skillSpreadAngle(const SkillDefinition& skill, const SupportDefinition* support) {

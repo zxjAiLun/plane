@@ -178,7 +178,7 @@ private:
     void triggerElitePackEvent(std::size_t eventIndex);
     void openLootCacheEvent(MapEventInstance& event);
     void activateShrineEvent(MapEventInstance& event);
-    void dropItemsAround(const Vector2& center, int count);
+    int dropItemsAround(const Vector2& center, int count);
     int damageForPlayerSkill(const SkillDefinition& skill) const;
     float radiusForPlayerSkill(const SkillDefinition& skill) const;
     int pierceCountForPlayerSkill(const SkillDefinition& skill) const;

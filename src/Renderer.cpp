@@ -63,6 +63,18 @@ std::string statsSummary(const Stats& stats) {
     if (stats.areaRadiusMultiplier > 1.0f) {
         summary += "+" + std::to_string(multiplierPercent(stats.areaRadiusMultiplier)) + "% AREA ";
     }
+    if (stats.projectileCountBonus > 0) {
+        summary += "+" + std::to_string(stats.projectileCountBonus) + " PROJ ";
+    }
+    if (stats.lifeFlaskEffectMultiplier > 1.0f) {
+        summary += "+" + std::to_string(multiplierPercent(stats.lifeFlaskEffectMultiplier)) + "% FLASK ";
+    }
+    if (stats.itemQuantityMultiplier > 1.0f) {
+        summary += "+" + std::to_string(multiplierPercent(stats.itemQuantityMultiplier)) + "% DROP ";
+    }
+    if (stats.incomingDamageMultiplier > 1.0f) {
+        summary += "+" + std::to_string(multiplierPercent(stats.incomingDamageMultiplier)) + "% TAKEN ";
+    }
     if (stats.armor > 0) {
         summary += "+" + std::to_string(stats.armor) + " ARM ";
     }
@@ -84,6 +96,10 @@ Stats statsDelta(const Stats& next, const Stats& current) {
         next.areaDamageMultiplier / current.areaDamageMultiplier,
         next.areaRadiusMultiplier / current.areaRadiusMultiplier,
         next.armor - current.armor,
+        next.projectileCountBonus - current.projectileCountBonus,
+        next.lifeFlaskEffectMultiplier / current.lifeFlaskEffectMultiplier,
+        next.itemQuantityMultiplier / current.itemQuantityMultiplier,
+        next.incomingDamageMultiplier / current.incomingDamageMultiplier,
     };
 }
 
@@ -123,6 +139,22 @@ std::string statsDeltaSummary(const Stats& delta) {
     if (delta.armor != 0) {
         summary += (delta.armor > 0 ? "+" : "") + std::to_string(delta.armor) + " ARM ";
     }
+    if (delta.projectileCountBonus != 0) {
+        summary += (delta.projectileCountBonus > 0 ? "+" : "")
+            + std::to_string(delta.projectileCountBonus) + " PROJ ";
+    }
+    if (delta.lifeFlaskEffectMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.lifeFlaskEffectMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% FLASK ";
+    }
+    if (delta.itemQuantityMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.itemQuantityMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% DROP ";
+    }
+    if (delta.incomingDamageMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.incomingDamageMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% TAKEN ";
+    }
     return summary.empty() ? "No stat change" : summary;
 }
 
@@ -135,6 +167,10 @@ sf::Color deltaColor(const Stats& delta) {
         || delta.projectileDamageMultiplier > 1.0f
         || delta.areaDamageMultiplier > 1.0f
         || delta.areaRadiusMultiplier > 1.0f
+        || delta.projectileCountBonus > 0
+        || delta.lifeFlaskEffectMultiplier > 1.0f
+        || delta.itemQuantityMultiplier > 1.0f
+        || delta.incomingDamageMultiplier < 1.0f
         || delta.armor > 0;
     const bool negative = delta.maxHp < 0
         || delta.damageMultiplier < 1.0f
@@ -144,6 +180,10 @@ sf::Color deltaColor(const Stats& delta) {
         || delta.projectileDamageMultiplier < 1.0f
         || delta.areaDamageMultiplier < 1.0f
         || delta.areaRadiusMultiplier < 1.0f
+        || delta.projectileCountBonus < 0
+        || delta.lifeFlaskEffectMultiplier < 1.0f
+        || delta.itemQuantityMultiplier < 1.0f
+        || delta.incomingDamageMultiplier > 1.0f
         || delta.armor < 0;
 
     if (positive && !negative) {
@@ -275,13 +315,17 @@ std::string ailmentSummary(const AilmentDefinition& ailment) {
 }
 
 std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& stats, const SupportDefinition* support = nullptr) {
-    return "Base " + std::to_string(skill.baseDamage)
+    std::string summary = "Base " + std::to_string(skill.baseDamage)
         + "/" + std::to_string(static_cast<int>(skill.radius))
         + "/" + formatFloat(skill.cooldown, 2)
         + "  Actual " + std::to_string(effectiveSkillDamage(skill, stats, support))
         + "/" + std::to_string(static_cast<int>(effectiveSkillRadius(skill, stats, support)))
         + "/" + formatFloat(effectiveSkillCooldown(skill, stats, support), 2)
         + "  Mana " + formatFloat(skill.manaCost, 0);
+    if (skill.castType == SkillCastType::Projectile) {
+        summary += "  Proj " + std::to_string(skillProjectileCount(skill, support, stats));
+    }
+    return summary;
 }
 
 // Combined equipment stats if `candidate` were equipped into its own slot,
@@ -1319,7 +1363,10 @@ void Renderer::drawPassiveTree(const GameWorld& world) {
 
         drawText(passiveBranchName(node.branch) + " / " + status,
             {center.x - 350.0f, center.y + 218.0f}, 13, statusColor);
-        drawText(node.name + " - " + node.description,
+        const std::string keystoneLabel = node.keystone == PassiveKeystone::None
+            ? ""
+            : " [" + std::string(passiveKeystoneName(node.keystone)) + "]";
+        drawText(node.name + keystoneLabel + " - " + node.description,
             {center.x - 350.0f, center.y + 238.0f}, 14, passiveBranchColor(node.branch));
     } else {
         drawText("Hover a node to inspect it",

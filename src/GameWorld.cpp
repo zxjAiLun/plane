@@ -975,7 +975,10 @@ void GameWorld::tryUseLifeFlask(Input& input) {
         return;
     }
 
-    const int healed = player_.heal(Config::LifeFlaskHealAmount);
+    const int healed = player_.heal(lifeFlaskHealAmount(
+        Config::LifeFlaskHealAmount,
+        player_.stats()
+    ));
     if (healed <= 0) {
         return;
     }
@@ -1133,8 +1136,8 @@ void GameWorld::triggerElitePackEvent(std::size_t eventIndex) {
 void GameWorld::openLootCacheEvent(MapEventInstance& event) {
     event.triggered = true;
     event.completed = true;
-    dropItemsAround(event.position, 2);
-    eventStatusMessage_ = "Cache opened: 2 items dropped";
+    const int droppedCount = dropItemsAround(event.position, 2);
+    eventStatusMessage_ = "Cache opened: " + std::to_string(droppedCount) + " items dropped";
     eventStatusTimer_ = 2.0f;
 }
 
@@ -1146,14 +1149,19 @@ void GameWorld::activateShrineEvent(MapEventInstance& event) {
     eventStatusTimer_ = 2.0f;
 }
 
-void GameWorld::dropItemsAround(const Vector2& center, int count) {
-    for (int i = 0; i < count; ++i) {
+int GameWorld::dropItemsAround(const Vector2& center, int count) {
+    const int scaledCount = std::max(count, static_cast<int>(std::ceil(
+        static_cast<float>(count) * player_.stats().itemQuantityMultiplier
+    )));
+    for (int i = 0; i < scaledCount; ++i) {
         const float angle = static_cast<float>(i) * 2.39996323f;
         const float radius = i == 0 ? 0.0f : 24.0f + static_cast<float>(i) * 5.0f;
         const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
         droppedItems_.push_back(DroppedItem(center + offset, lootGenerator_.generate(itemLevelForMap())));
         ++mapItemsDropped_;
     }
+
+    return scaledCount;
 }
 
 int GameWorld::damageForPlayerSkill(const SkillDefinition& skill) const {
@@ -1170,7 +1178,7 @@ int GameWorld::pierceCountForPlayerSkill(const SkillDefinition& skill) const {
 }
 
 int GameWorld::projectileCountForPlayerSkill(const SkillDefinition& skill) const {
-    return skillProjectileCount(skill, skillBar_.support(skill.slot));
+    return skillProjectileCount(skill, skillBar_.support(skill.slot), player_.stats());
 }
 
 float GameWorld::spreadAngleForPlayerSkill(const SkillDefinition& skill) const {
@@ -1596,13 +1604,19 @@ void GameWorld::rewardEnemyKill(const Enemy& enemy) {
 
     const float eliteDropMultiplier = enemy.isBoss() ? bossDefinition_->dropMultiplier
         : definition.dropMultiplier;
-    const int dropChance = std::min(100, static_cast<int>(
-        Config::ItemDropChancePercent * mapModifier_.itemQuantityMultiplier
-        * eliteDropMultiplier));
+    const int dropChance = itemDropChancePercent(
+        Config::ItemDropChancePercent,
+        mapModifier_.itemQuantityMultiplier * eliteDropMultiplier,
+        player_.stats()
+    );
 
     int dropsToCreate = (std::rand() % 100) < dropChance ? 1 : 0;
     if (enemy.isBoss()) {
-        dropsToCreate = std::max(dropsToCreate, bossDefinition_->guaranteedDrops + mapModifier_.bossDropBonus);
+        const int guaranteedDrops = bossDefinition_->guaranteedDrops + mapModifier_.bossDropBonus;
+        const int scaledGuaranteedDrops = std::max(guaranteedDrops, static_cast<int>(std::ceil(
+            static_cast<float>(guaranteedDrops) * player_.stats().itemQuantityMultiplier
+        )));
+        dropsToCreate = std::max(dropsToCreate, scaledGuaranteedDrops);
     }
 
     for (int i = 0; i < dropsToCreate; ++i) {
@@ -1627,7 +1641,7 @@ void GameWorld::damagePlayer(int damage, const std::string& source) {
         return;
     }
 
-    playerHitDamage_ = player_.takeDamage(damage);
+    playerHitDamage_ = player_.takeDamage(incomingDamage(damage, player_.stats()));
     playerHitSource_ = source;
     playerHitEffectTimer_ = Config::PlayerHitEffectDuration;
     playerHitCooldown_ = Config::PlayerHitCooldown;
@@ -1878,7 +1892,8 @@ std::string GameWorld::passiveBuildSummary() const {
     return "Projectile " + std::to_string(tree.allocatedCount(PassiveBranch::Projectile))
         + " / Area " + std::to_string(tree.allocatedCount(PassiveBranch::Area))
         + " / Survival " + std::to_string(tree.allocatedCount(PassiveBranch::Survival))
-        + " / Loot " + std::to_string(tree.allocatedCount(PassiveBranch::Loot));
+        + " / Loot " + std::to_string(tree.allocatedCount(PassiveBranch::Loot))
+        + " / Keystone " + tree.keystoneSummary();
 }
 bool GameWorld::isSkillUnlocked(const std::string& name) const {
     return progression_.unlockedSkills.find(name) != progression_.unlockedSkills.end();

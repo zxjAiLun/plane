@@ -78,6 +78,103 @@ void testPassiveTreePrerequisitesAndStats() {
         "attack speed rises after Rapid Fire");
 }
 
+// --- Passive keystones ---
+void allocateBranchEndpoint(PassiveTree& tree, std::size_t rootIndex) {
+    for (std::size_t index = rootIndex; index < rootIndex + 4; ++index) {
+        expect(tree.allocate(index), "allocate Keystone prerequisite node " + std::to_string(index));
+    }
+}
+
+void testPassiveKeystones() {
+    section("Passive Tree Keystone tradeoffs");
+
+    PassiveTree empty;
+    const Stats emptyStats = empty.combinedStats();
+    expect(!empty.hasKeystone(PassiveKeystone::VolleyDoctrine),
+        "unallocated tree has no Projectile Keystone");
+    expect(emptyStats.projectileCountBonus == 0
+            && emptyStats.lifeFlaskEffectMultiplier == 1.0f
+            && emptyStats.itemQuantityMultiplier == 1.0f
+            && emptyStats.incomingDamageMultiplier == 1.0f,
+        "unallocated tree keeps Keystone modifiers at neutral values");
+
+    PassiveTree projectile;
+    allocateBranchEndpoint(projectile, 0);
+    expect(projectile.allocate(4), "allocate Volley Doctrine endpoint");
+    expect(projectile.nodes()[4].keystone == PassiveKeystone::VolleyDoctrine,
+        "Projectile endpoint uses Volley Doctrine data");
+    expect(projectile.hasKeystone(PassiveKeystone::VolleyDoctrine),
+        "allocated Projectile endpoint reports its Keystone");
+    const Stats projectileStats = projectile.combinedStats();
+    expect(projectileStats.projectileCountBonus == 2,
+        "Volley Doctrine adds two projectiles");
+    expect(projectileStats.projectileDamageMultiplier < 1.0f,
+        "Volley Doctrine applies its projectile damage penalty");
+    expect(!projectile.allocate(4), "allocated Projectile Keystone cannot be allocated twice");
+
+    const auto spread = SkillLibrary::spreadShot();
+    auto projectileDamageProbe = spread;
+    projectileDamageProbe.baseDamage = 10;
+    const auto volley = SupportLibrary::find("Volley");
+    expect(skillProjectileCount(spread, nullptr, projectileStats) == spread.projectileCount + 2,
+        "Volley Doctrine adds projectiles to the base skill");
+    expect(skillProjectileCount(spread, volley, projectileStats)
+            == spread.projectileCount + 2 + volley->extraProjectileCount,
+        "Volley Doctrine stacks with Volley Support");
+    expect(skillDamage(projectileDamageProbe, projectileStats, nullptr)
+            < skillDamage(projectileDamageProbe, Stats{}, nullptr),
+        "Volley Doctrine lowers projectile damage");
+    expect(skillDamage(SkillLibrary::meteor(), projectileStats, nullptr)
+            == skillDamage(SkillLibrary::meteor(), Stats{}, nullptr),
+        "Volley Doctrine does not change area skill damage");
+
+    PassiveTree area;
+    allocateBranchEndpoint(area, 5);
+    expect(area.allocate(9), "allocate Concentrated Impact endpoint");
+    expect(area.nodes()[9].keystone == PassiveKeystone::ConcentratedImpact,
+        "Area endpoint uses Concentrated Impact data");
+    const Stats areaStats = area.combinedStats();
+    expect(areaStats.areaDamageMultiplier > 1.0f,
+        "Concentrated Impact increases area damage");
+    expect(areaStats.areaRadiusMultiplier < 1.0f,
+        "Concentrated Impact reduces area radius");
+    expect(skillRadius(SkillLibrary::meteor(), areaStats, nullptr)
+            < skillRadius(SkillLibrary::meteor(), Stats{}, nullptr),
+        "Concentrated Impact reduces actual area radius");
+    expect(skillDamage(SkillLibrary::meteor(), areaStats, nullptr)
+            > skillDamage(SkillLibrary::meteor(), Stats{}, nullptr),
+        "Concentrated Impact increases actual area damage");
+    expect(skillDamage(spread, areaStats, nullptr) == skillDamage(spread, Stats{}, nullptr),
+        "Concentrated Impact does not change projectile damage");
+
+    PassiveTree survival;
+    allocateBranchEndpoint(survival, 10);
+    expect(survival.allocate(14), "allocate Second Wind endpoint");
+    expect(survival.nodes()[14].keystone == PassiveKeystone::SecondWind,
+        "Survival endpoint uses Second Wind data");
+    const Stats survivalStats = survival.combinedStats();
+    expect(std::abs(survivalStats.lifeFlaskEffectMultiplier - 1.5f) < 0.0001f,
+        "Second Wind increases life flask healing by 50 percent");
+    expect(lifeFlaskHealAmount(Config::LifeFlaskHealAmount, survivalStats)
+            > lifeFlaskHealAmount(Config::LifeFlaskHealAmount, Stats{}),
+        "Second Wind changes the actual life flask heal amount");
+
+    PassiveTree loot;
+    allocateBranchEndpoint(loot, 15);
+    expect(loot.allocate(19), "allocate Loaded Dice endpoint");
+    expect(loot.nodes()[19].keystone == PassiveKeystone::LoadedDice,
+        "Loot endpoint uses Loaded Dice data");
+    const Stats lootStats = loot.combinedStats();
+    expect(std::abs(lootStats.itemQuantityMultiplier - 1.25f) < 0.0001f,
+        "Loaded Dice increases item quantity by 25 percent");
+    expect(std::abs(lootStats.incomingDamageMultiplier - 1.20f) < 0.0001f,
+        "Loaded Dice increases incoming damage by 20 percent");
+    expect(itemDropChancePercent(35, 1.0f, lootStats) > itemDropChancePercent(35, 1.0f, Stats{}),
+        "Loaded Dice increases real item drop chance");
+    expect(incomingDamage(10, lootStats) > incomingDamage(10, Stats{}),
+        "Loaded Dice increases real incoming damage");
+}
+
 // --- Skill bar ---
 void testSkillBarAssignSkillAndSupport() {
     section("SkillBar assign skill/support compatibility");
@@ -785,6 +882,7 @@ int main() {
     std::cout << "ARPG pure-logic tests (shipped headers)\n";
 
     testPassiveTreePrerequisitesAndStats();
+    testPassiveKeystones();
     testSkillBarAssignSkillAndSupport();
     testManaResourceAndSkillCastGates();
     testCombatMathDamageRadiusPierce();

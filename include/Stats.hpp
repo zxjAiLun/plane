@@ -10,6 +10,10 @@ struct Stats {
     float areaDamageMultiplier = 1.0f;
     float areaRadiusMultiplier = 1.0f;
     int armor = 0;
+    int projectileCountBonus = 0;
+    float lifeFlaskEffectMultiplier = 1.0f;
+    float itemQuantityMultiplier = 1.0f;
+    float incomingDamageMultiplier = 1.0f;
 };
 
 inline Stats combineStats(const Stats& base, const Stats& bonus) {
@@ -23,5 +27,9 @@ inline Stats combineStats(const Stats& base, const Stats& bonus) {
         base.areaDamageMultiplier * bonus.areaDamageMultiplier,
         base.areaRadiusMultiplier * bonus.areaRadiusMultiplier,
         base.armor + bonus.armor,
+        base.projectileCountBonus + bonus.projectileCountBonus,
+        base.lifeFlaskEffectMultiplier * bonus.lifeFlaskEffectMultiplier,
+        base.itemQuantityMultiplier * bonus.itemQuantityMultiplier,
+        base.incomingDamageMultiplier * bonus.incomingDamageMultiplier,
     };
 }
