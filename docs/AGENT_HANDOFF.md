@@ -1,7 +1,11 @@
 # Mini ARPG 项目接手与开发手册
 
-更新日期：2026-07-12  
-当前基线：`arpg-prototype` / `d4879d5 Add ailment specialization supports`  
+更新日期：2026-07-13
+
+玩法代码基线：`d4879d5 Add ailment specialization supports`
+
+接手文档提交：`7201c35 Document ARPG architecture and development roadmap`
+
 目标：完成一个具有《流放之路 2》核心味道的单机 Mini ARPG 原型，而不是复刻完整商业游戏。
 
 ## 1. 文档用途与真相来源
@@ -17,6 +21,14 @@
 5. 历史聊天、旧计划和 commit message。
 
 旧设计文档可以提供灵感，但不能覆盖当前代码行为。开始任务前必须先运行 `git status --short`、阅读相关模块并搜索现有实现，禁止仅凭旧计划重复造功能。
+
+### 1.1 协作角色与完成门禁
+
+- 项目负责人（用户）：决定产品方向、任务优先级和玩法取舍。
+- 实现 Agent（hy3）：一次只实现一个已批准任务，完成代码、测试和手动验证，保持改动未提交。
+- 主 review Agent（Codex）：维护路线图和项目进度，审查完整 diff，修复行为/架构/风格问题，重新验证并创建最终 commit。
+
+hy3 报告“实现完成”只代表进入 review，不代表任务完成。只有主 review Agent 验收、必要修正、构建测试通过并提交后，任务才进入进度看板的已完成状态。hy3 不应自行扩展任务范围、修改路线图状态或把未 review 的实现作为下一任务基线。
 
 ## 2. 一分钟理解项目
 
