@@ -1143,7 +1143,9 @@ void Renderer::drawCombatFeedback(const GameWorld& world) {
                 ? std::clamp(feedback.timeRemaining / duration, 0.0f, 1.0f)
                 : 0.0f) * 165.0f
         );
-        const sf::Color color(255, 235, 150, alpha);
+        const sf::Color color = feedback.source == "Ignite"
+            ? sf::Color(255, 155, 90, alpha)
+            : sf::Color(255, 235, 150, alpha);
         const Vector2 textPosition(feedback.position.x, feedback.position.y - 24.0f - rise);
         drawCenteredText(
             "-" + std::to_string(feedback.damage) + " " + feedback.source,

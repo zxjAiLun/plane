@@ -104,14 +104,22 @@ void Enemy::moveBy(const Vector2& delta, const MapInstance& map) {
     position_ = map.resolveMovement(position_, radius_, delta);
 }
 
-void Enemy::updateAilments(float dt) {
+AilmentTickResult Enemy::updateAilments(float dt) {
+    AilmentTickResult result;
+    const float elapsed = std::max(0.0f, dt);
     if (igniteTimer_ > 0.0f) {
-        const float activeTime = std::min(dt, igniteTimer_);
-        igniteTimer_ = std::max(0.0f, igniteTimer_ - dt);
+        const float activeTime = std::min(elapsed, igniteTimer_);
+        igniteTimer_ = std::max(0.0f, igniteTimer_ - elapsed);
         igniteTickTimer_ -= activeTime;
         while (igniteTickTimer_ <= 0.0f && igniteTimer_ > 0.0f && !isDead()) {
-            takeDamage(igniteDamagePerTick_);
+            result.type = AilmentType::Ignite;
+            ++result.tickCount;
+            result.damage += takeDamage(igniteDamagePerTick_);
+            result.killed = isDead();
             igniteTickTimer_ += Config::AilmentTickInterval;
+            if (result.killed) {
+                break;
+            }
         }
         if (igniteTimer_ <= 0.0f) {
             igniteDamagePerTick_ = 0;
@@ -119,10 +127,12 @@ void Enemy::updateAilments(float dt) {
         }
     }
 
-    chillTimer_ = std::max(0.0f, chillTimer_ - dt);
+    chillTimer_ = std::max(0.0f, chillTimer_ - elapsed);
     if (chillTimer_ <= 0.0f) {
         chillSpeedMultiplier_ = 1.0f;
     }
+
+    return result;
 }
 
 int Enemy::takeDamage(int damage) {

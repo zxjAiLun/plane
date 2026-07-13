@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <string>
 
 #include "Config.hpp"
@@ -371,6 +372,95 @@ void testCombatFeedbackAndDeathClaim() {
         "expired combat feedback is removed from the world");
 }
 
+void testIgniteFeedbackMatchesWorldDamage() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_ignite_feedback_world_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(18001);
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Ignite feedback fixture starts from a valid run save");
+    data.mapLevel = 16;
+    data.player.hp = 1000;
+    data.player.upgradeStats.maxHp = 1000;
+    data.player.upgradeStats.damageMultiplier = 0.75f;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Ignite feedback fixture restores a high-life target map");
+
+    Input input;
+    advanceIntoTheField(world, input);
+    expect(!world.enemies().empty(), "Ignite feedback fixture reaches a live enemy");
+    const auto targetIt = std::find_if(
+        world.enemies().begin(),
+        world.enemies().end(),
+        [](const Enemy& enemy) {
+            return enemy.type() == EnemyType::Normal
+                || enemy.type() == EnemyType::Ranged;
+        }
+    );
+    expect(targetIt != world.enemies().end(),
+        "Ignite feedback fixture selects a Normal or Ranged target");
+    if (targetIt == world.enemies().end()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const Vector2 target = targetIt->position();
+    const Vector2 camera = world.cameraTopLeft();
+    const sf::Vector2i screenTarget(
+        static_cast<int>(std::lround(target.x - camera.x)),
+        static_cast<int>(std::lround(target.y - camera.y))
+    );
+    input.handleMousePressed(sf::Mouse::Button::Right, screenTarget);
+    world.update(0.05f, input);
+    expect(world.player().mana() < Config::PlayerMaxMana,
+        "Ignite feedback fixture casts the real Secondary skill");
+
+    std::map<int, int> hpBeforeTick;
+    for (const auto& enemy : world.enemies()) {
+        hpBeforeTick.emplace(enemy.id(), enemy.hp());
+    }
+    const int killsBeforeTick = world.mapKills();
+
+    input.update();
+    world.update(Config::AilmentTickInterval + 0.05f, input);
+
+    int igniteFeedbackDamage = 0;
+    for (const auto& feedback : world.combatFeedback()) {
+        if (feedback.source == "Ignite") {
+            igniteFeedbackDamage += feedback.damage;
+        }
+    }
+
+    int enemyHpLoss = 0;
+    int enemiesKilledByTick = 0;
+    for (const auto& before : hpBeforeTick) {
+        const auto current = std::find_if(
+            world.enemies().begin(),
+            world.enemies().end(),
+            [&before](const Enemy& enemy) { return enemy.id() == before.first; }
+        );
+        const int after = current == world.enemies().end() ? 0 : current->hp();
+        enemyHpLoss += std::max(0, before.second - after);
+        if (current == world.enemies().end()) {
+            ++enemiesKilledByTick;
+        }
+    }
+
+    expect(igniteFeedbackDamage > 0,
+        "real Ignite tick creates a distinct combat feedback source");
+    expect(igniteFeedbackDamage == enemyHpLoss,
+        "Ignite feedback damage equals the actual Enemy HP loss");
+    expect(enemiesKilledByTick > 0
+            && world.mapKills() - killsBeforeTick == enemiesKilledByTick,
+        "Ignite-killed enemies receive exactly one normal reward claim each");
+
+    std::filesystem::remove(path);
+}
+
 void testBuildMathMatchesWorldHits() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_build_math_world_test.bin";
@@ -676,6 +766,7 @@ int main() {
     testContinuousMapProgression();
     testInvalidProgressionSaveDoesNotMutate();
     testCombatFeedbackAndDeathClaim();
+    testIgniteFeedbackMatchesWorldDamage();
     testBuildMathMatchesWorldHits();
     testBossCombatFlow();
 

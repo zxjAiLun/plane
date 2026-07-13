@@ -666,8 +666,13 @@ void testSkillAilments() {
     Enemy enemy({0.0f, 0.0f}, 10, 1);
     enemy.applyIgnite(2, 2.0f);
     expect(enemy.isIgnited(), "Ignite is active after application");
-    enemy.updateAilments(Config::AilmentTickInterval);
-    expect(enemy.hp() == 8, "Ignite deals its configured tick damage");
+    const AilmentTickResult firstTick = enemy.updateAilments(Config::AilmentTickInterval);
+    expect(firstTick.type == AilmentType::Ignite
+            && firstTick.damage == 2
+            && firstTick.tickCount == 1
+            && !firstTick.killed
+            && enemy.hp() == 8,
+        "Ignite returns its actual configured tick damage");
 
     enemy.applyChill(0.55f, 1.5f);
     expect(enemy.isChilled(), "Chill is active after application");
@@ -680,6 +685,34 @@ void testSkillAilments() {
     expect(!enemy.isChilled(), "Chill expires after its duration");
     expect(std::abs(enemy.movementSpeedMultiplier() - 1.0f) < 0.0001f,
         "movement speed returns to normal after Chill expires");
+
+    Enemy overkillEnemy({0.0f, 0.0f}, 3, 1);
+    overkillEnemy.applyIgnite(8, 2.0f);
+    const AilmentTickResult overkillTick = overkillEnemy.updateAilments(
+        Config::AilmentTickInterval
+    );
+    expect(overkillTick.damage == 3 && overkillTick.killed && overkillEnemy.hp() == 0,
+        "Ignite tick damage clamps to remaining HP and reports the kill");
+    const AilmentTickResult deadTick = overkillEnemy.updateAilments(2.0f);
+    expect(deadTick.damage == 0 && deadTick.tickCount == 0,
+        "dead enemies cannot receive another Ignite tick");
+    expect(overkillEnemy.claimKillReward() && !overkillEnemy.claimKillReward(),
+        "Ignite-killed enemy still exposes a one-time reward claim");
+
+    Enemy chillOnlyEnemy({0.0f, 0.0f}, 10, 1);
+    chillOnlyEnemy.applyChill(0.55f, 2.0f);
+    const AilmentTickResult chillTick = chillOnlyEnemy.updateAilments(
+        Config::AilmentTickInterval
+    );
+    expect(chillTick.type == AilmentType::None && chillTick.damage == 0,
+        "Chill never produces damage feedback");
+
+    Enemy expiringEnemy({0.0f, 0.0f}, 10, 1);
+    expiringEnemy.applyIgnite(2, 1.0f);
+    expiringEnemy.updateAilments(1.0f);
+    const AilmentTickResult expiredTick = expiringEnemy.updateAilments(1.0f);
+    expect(!expiringEnemy.isIgnited() && expiredTick.damage == 0,
+        "Ignite expires without producing ticks after its duration");
 }
 
 // --- Ailment resistances and penetration ---

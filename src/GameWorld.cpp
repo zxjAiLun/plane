@@ -950,7 +950,10 @@ void GameWorld::updateObjects(float dt) {
         }
     }
     for (auto& enemy : enemies_) {
-        enemy.updateAilments(dt);
+        const AilmentTickResult ailmentTick = enemy.updateAilments(dt);
+        if (ailmentTick.type == AilmentType::Ignite && ailmentTick.damage > 0) {
+            addCombatFeedback(enemy.position(), ailmentTick.damage, "Ignite");
+        }
         if (enemy.isDead()) {
             rewardEnemyKill(enemy);
             continue;

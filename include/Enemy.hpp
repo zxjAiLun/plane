@@ -7,6 +7,13 @@
 
 class MapInstance;
 
+struct AilmentTickResult {
+    AilmentType type = AilmentType::None;
+    int damage = 0;
+    int tickCount = 0;
+    bool killed = false;
+};
+
 class Enemy {
 public:
     Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type = EnemyType::Normal,
@@ -20,7 +27,7 @@ public:
         float mapSpeedMultiplier
     );
     void moveBy(const Vector2& delta, const MapInstance& map);
-    void updateAilments(float dt);
+    AilmentTickResult updateAilments(float dt);
 
     int takeDamage(int damage);
     void applyIgnite(int damagePerTick, float duration);
