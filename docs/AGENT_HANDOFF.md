@@ -92,7 +92,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前纯逻辑测试基线：`902 passed / 0 failed`。
+当前纯逻辑测试基线：`913 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -109,6 +109,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 - `MapModifier.hpp`
 - `MapInstance.hpp`
 - `MapLayout.hpp`
+- `MapExploration.hpp`
 - `BossDefinition.hpp`
 - `CombatMath.hpp`
 
@@ -423,6 +424,7 @@ Renderer 已显示异常颜色和敌人状态环，Skill Panel 显示有效异�
 | `BossDash.hpp` | Boss 突进定义与无 SFML 状态机 | 目标快照、移动和一次性命中/完成状态必须可纯逻辑测试 |
 | `GroundHazard.hpp` | 持续地面危险定义、世界实例和 tick 生命周期 | 不直接修改 Player；伤害由 GameWorld 编排 |
 | `MapInstance.hpp` | 地图模板、障碍、区域、事件实例和移动解析 | 不处理玩家输入 |
+| `MapExploration.hpp` | 世界坐标到固定网格的探索揭示状态 | 只保存纯逻辑状态，不依赖 SFML 或 Renderer |
 | `MapModifier.hpp` | 下一图选项和风险收益倍率 | 数值必须能在 GameWorld 中找到实际应用点 |
 | `SkillLibrary.hpp` | 主动技能定义 | 不直接实现命中循环 |
 | `SupportLibrary.hpp` | Support 数据和兼容性 | 新 Support 必须有可观察行为和测试 |
@@ -733,23 +735,13 @@ Milestone C 验收：玩家会因为 base、implicit、affix、tier 和构筑方
 
 已知约束：BFS 是 40px 采样近似，只用于开发期验证，不保证任意未来几何都能表达连续碰撞可达性；复杂随机地牢和运行时寻路仍明确不在范围内。
 
-任务 D2：Minimap Reveal v1（下一项，交给 hy3）
+任务 D2：Minimap Reveal v1（完成：`bd4fc4d`）
 
-- 小地图只显示玩家探索过的区域。
-- Boss Gate 方向可以保留目标指示，但不直接暴露全部事件。
-- MapComplete 时可显示全图。
+- 小地图只显示玩家探索过的区域；未探索区域用暗色网格遮蔽。
+- Boss 未发现时保留有限目标标记，不展示完整 Boss Gate/Arena 细节或事件位置。
+- MapComplete 临时显示全图，不修改底层探索状态。
 
-实现约束：
-
-1. 开始前必须阅读 `MapInstance.hpp`、`MapLayout.hpp`、`GameWorld.hpp/.cpp`、`Renderer.hpp/.cpp` 和 `tests/arpg_logic_tests.cpp`；先运行 `git status --short`、现有测试和增量构建。
-2. 在 `MapInstance` 或等价的纯逻辑对象中保存探索状态；状态必须按世界坐标/固定网格可复现更新，不能在 Renderer 里用临时静态变量或自行推导另一份地图状态。
-3. 玩家周围只揭示有限半径；已探索区域保持揭示。未探索区域不得显示事件类型、障碍细节或 Boss Arena 内部细节；Boss Gate 只能通过目标指示或有限地图标记提供方向。
-4. 小地图渲染只读探索状态。Playing 隐藏未探索事件和障碍；MapComplete 为了结算复盘可显示全图，但不能修改探索状态。大地图世界渲染暂不加迷雾遮罩。
-5. 事件触发、Boss 触发、掉落、Stash、锻造、技能、天赋和 MapComplete 输入语义不得改变；不新增地图交互键，不重写布局选择和碰撞。
-6. 加无 SFML 纯逻辑测试：初始只有出生区可见；玩家移动后揭示相邻区域；探索状态单调不减少；事件/障碍在未揭示前不可见，MapComplete 全图视图不污染底层状态；reset/startNextMap 正确重置探索状态。
-7. UI 文本和小地图尺寸保持现有窗口兼容，不覆盖 Boss 血条、事件提示、Inventory、MapComplete 奖励和 Stash；不引入复杂地图编辑器、迷雾纹理或小地图点击。
-
-交付报告必须列出：改动文件、探索状态/API、揭示半径/网格规则、Playing 与 MapComplete 显示规则、测试数量、clean build、CTest、3 秒启动 smoke test、已知风险和 `git status --short`。代码保持未提交，交给主 review Agent 验收。
+实现结果：`MapExploration` 使用 60px 网格、300px 揭示半径，GameWorld 在移动/Dash 后更新状态，Renderer 只读绘制；reset/startNextMap 获得新地图时自动重置。纯逻辑基线提升至 913 条。
 
 任务 D3：Map Modifier 扩展 v2
 
@@ -792,9 +784,9 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 ## 13. 推荐的下一项任务
 
-建议立即交给 hy3：`Minimap Reveal v1`。
+建议立即交给 hy3：`Composable Map Modifiers v2`。
 
-原因：布局变体已经让地图空间有了路线差异，下一步只增加探索信息层，避免同时扩大地图生成、战斗和经济边界。完成揭示后再进入 D3 可组合地图 modifier；不要此时扩展商店、存档或新的装备槽。
+原因：地图布局和探索信息层已经稳定，下一步应增强地图风险/收益的组合深度，让连续刷图产生真实取舍；不要同时扩展商店、存档或新的装备槽。
 
 ### 13.1 已完成任务记录：Mana Resource v1
 
@@ -1002,35 +994,60 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 已知约束：BFS 是 40px 栅格采样，只用于验证预制数据，不保证未来任意连续几何的严格拓扑可达性；复杂随机地牢和运行时寻路仍不在范围内。
 
-### 13.9 hy3 实施任务：Minimap Reveal v1
+### 13.9 已完成任务记录：Minimap Reveal v1
 
-目标：在现有 9 个预制布局上增加有限探索揭示，让玩家必须通过移动认识地图；不改变地图几何、战斗和输入语义。
+代码已通过主 review 并提交为 `bd4fc4d Add minimap exploration reveal`。
+
+实现结果：
+
+- 新增无 SFML 的 `MapExploration`，使用 60px 固定网格和 300px 揭示半径保存探索状态；揭示集合只增不减，越界请求不会错误揭示地图边缘。
+- `MapInstance` 在新地图构造时揭示出生点，并提供只读探索状态；`GameWorld::movePlayerBy()` 在边界/障碍解析后更新玩家周围揭示区域，因此普通移动和 Dash 都能推进探索。
+- Playing 小地图用暗色网格遮蔽未探索区域，只绘制已揭示障碍和事件；Boss 未发现时保留一个有限目标标记，不显示 Boss Gate/Arena 细节。MapComplete 只在 Renderer 临时显示全图，不修改探索状态。
+- reset/startNextMap 通过重新构造 MapInstance 获得新探索状态；地图几何、事件、Boss、掉落、Stash、锻造和输入语义未改变。
+- HUD 小地图底部显示布局编号和探索百分比，未增加输入键。
+
+验收结果：clean build、CTest、直接逻辑测试、3 秒启动 smoke test 均通过；纯逻辑基线为 `913 passed / 0 failed`，工作区干净。
+
+已知约束：未探索区域只影响小地图可读性，大地图世界暂不增加迷雾遮罩；探索网格是显示层近似，不是地图寻路或碰撞网格。
+
+### 13.10 hy3 实施任务：Composable Map Modifiers v2
+
+目标：把当前“一张地图一个 modifier”升级为 2 个可组合的风险/收益词缀，让连续刷图在怪物、掉落和事件层面产生更明显的取舍；不改变地图布局、探索、Boss AI 和输入上下文。
 
 开始前必须阅读：
 
-- `include/MapInstance.hpp`、`include/MapLayout.hpp`：地图尺寸、出生点、障碍、事件、Boss 区域和当前布局。
-- `include/GameWorld.hpp`、`src/GameWorld.cpp`：reset/startNextMap 生命周期和 MapComplete 状态。
-- `include/Renderer.hpp`、`src/Renderer.cpp`：小地图、目标 HUD、Boss 血条和结算层级。
-- `tests/arpg_logic_tests.cpp`：无 SFML 纯逻辑测试风格。
+- `include/MapModifier.hpp`、`include/MapRewardLibrary.hpp`：当前 modifier、MapOption 和三选图数据来源。
+- `include/GameWorld.hpp/.cpp`：`mapModifier_` 的应用点，包括敌人生命/伤害、掉落、事件、Boss 和 MapComplete 生命周期。
+- `include/EnemyDefinition.hpp`、`include/EliteModifier.hpp`、`include/CombatMath.hpp`：现有遭遇权重、敌人伤害和异常相关计算，不能复制公式。
+- `include/MapInstance.hpp`、`include/MapLayout.hpp`、`include/MapExploration.hpp`：确认本任务不能绕过地图几何/探索状态。
+- `src/Renderer.cpp`：Map HUD、MapComplete 下一图选项和文本布局。
+- `tests/arpg_logic_tests.cpp`：现有 MapOption、地图奖励和真实缩放路径测试。
 
 必须实现：
 
-1. 在 `MapInstance` 或独立纯逻辑类型中保存探索状态；不要在 Renderer 使用静态可变状态，也不要复制一份地图坐标。状态用固定网格或世界坐标规则计算，必须可重复。
-2. 新地图开始时只揭示玩家出生点附近有限半径；玩家移动后揭示相邻区域，已探索区域单调保留，reset/startNextMap 正确重置。
-3. Playing 小地图只绘制已探索区域内的障碍和已发现事件；未探索区域不得显示事件类型、障碍细节或 Boss Arena 内部细节。Boss Gate 方向可保留简短目标指示，但不直接展示全图路线。
-4. MapComplete 可以显示全图用于复盘，但只能改变 Renderer 的显示模式，不能把全图状态写回探索状态；地面掉落、背包、Stash 和结算选择保持现有行为。
-5. 不新增输入键，不修改地图布局选择、`resolveMovement()`、事件触发、Boss、掉落、锻造、天赋、技能或 Support。大地图世界渲染暂不增加迷雾遮罩。
-6. 增加无 SFML 测试：初始有限揭示；移动揭示；揭示集合不减少；未探索事件/障碍不可见；MapComplete 全图视图不污染底层状态；reset/startNextMap 生命周期正确。
-7. 小地图和文字必须兼容现有窗口，不能遮挡 Boss 血条、事件提示、Inventory、MapComplete 奖励或 Stash；不做小地图点击、传送、寻路、迷雾纹理或地图编辑器。
+1. 将 `MapModifier` 拆成可组合的 `MapModifierDefinition` 数据项和当前地图的 `std::vector`/固定数组实例；每个 modifier 必须有稳定 id、名称、风险描述、收益描述和明确的数值字段或 enum/tag。禁止用名称字符串判断玩法。
+2. 下一图候选仍为 3 个；每个候选生成 2 个不重复 modifier，组合结果必须稳定可显示。第一张普通地图使用空 modifier 或明确的默认组合，不改变当前开局难度。
+3. 至少实现并接入 4 类 modifier：怪物速度/攻击压力、掉落数量、Elite/Charger 遭遇权重、事件奖励或异常抗性。每个 modifier 必须在真实 GameWorld 路径生效，不能只显示文案。
+4. 组合规则必须明确：同一字段的倍率相乘或相加要统一；怪物伤害、Boss 伤害、掉落数量、掉落等级、事件奖励和异常抗性不能在多个模块重复叠加。优先增加纯计算 helper，Renderer 复用同一结果。
+5. Boss 保底掉落、Boss relic、Loaded Dice、地图主题词缀偏置和当前 run Future Item Quantity 奖励必须继续生效；组合 modifier 不能吞掉物品、重复奖励或绕过背包/Stash 所有权保护。
+6. HUD 显示当前地图两个 modifier 的短摘要；MapComplete 三个下一图选项显示组合风险/收益和推荐等级。文本必须有长度上限或拆行，不得遮挡 Boss 血条、小地图、事件提示、奖励面板和 Stash。
+7. 输入和生命周期不变：Playing 数字键装备，P/K/V/F 等上下文保持原语义；reset 清空当前 modifier，startNextMap 只在按 `E` 后应用所选组合；MapComplete 仍可拾取、整理背包、使用 Stash 和锻造。
+8. 增加纯逻辑测试：候选 modifier 数量为 2 且不重复；同 seed/同 map level 生成结果稳定；每个 modifier 的真实数值路径生效；组合乘加规则正确；第一张默认图不额外增压；MapComplete 选择后下一图状态正确；现有地图布局/探索和掉落所有权回归通过。
 
-交付报告必须列出：改动文件、探索状态/API、揭示半径或网格规则、Playing/MapComplete 显示规则、测试数量、clean build、CTest、3 秒启动 smoke test、已知风险和 `git status --short`。代码保持未提交，交给主 review Agent 验收。
+明确不做：
+
+- 不做随机地形、迷雾规则、地图仓库、商店、存档、复杂词缀条件表达式或新 Boss 技能。
+- 不替换全项目 RNG；只沿用当前 MapOption 生成方式并保证组合选择不依赖当前时间。
+- 不提交代码，保持工作区未提交，交给主 review Agent 完成代码风格审查、修正、clean build、CTest、直接逻辑测试、3 秒启动 smoke test 后提交。
+
+交付报告必须列出：改动文件、modifier 数据/API、组合顺序和真实应用点、输入/生命周期影响、测试数量、clean build、CTest、启动 smoke test、已知风险和 `git status --short`。
 
 ## 14. 项目进度看板
 
 | 领域 | 状态 | 说明 |
 |---|---|---|
 | 主动战斗 | v1 完成 | 四槽技能、Support、异常、药瓶已形成基础构筑 |
-| 开放地图 | v1 完成 | 大地图、相机、障碍、事件和 Boss 路线已完成 |
+| 开放地图 | v1 完成 | 大地图、相机、预制布局、探索小地图、事件和 Boss 路线已完成 |
 | 怪物生态 | 可玩 | 近战、远程、精英、冲锋均有，pack 协同仍弱 |
 | Boss | v1 完成 | Brood 召唤、Brimstone 火区、Storm 锁定突进形成三种独立机制 |
 | 天赋盘 | v1 完成 | 20 节点、四个 Keystone、前置和 HUD/hover 反馈已完成 |
@@ -1040,6 +1057,6 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 经济/锻造 | v1 完成 | 分解、Forge Fragments、三种选择式词缀加工和当前 run Stash 已有 |
 | 存档 | 未开始 | 完成定义中的最大缺口 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 902 条通过，缺 UI 和端到端测试 |
+| 自动化测试 | 原型 | 纯逻辑 913 条通过，缺 UI 和端到端测试 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
