@@ -2,7 +2,7 @@
 
 更新日期：2026-07-13
 
-玩法代码基线：`700a760 Add Ignite combat feedback`
+玩法代码基线：`4d1c639 Improve elite and pack readability`
 
 本文档由主 review Agent 维护；代码与测试基线以当前 Git HEAD 为准。
 
@@ -94,7 +94,7 @@ cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\Tools\VsDevCmd.bat`" -arch=amd64 >nul 2>&1 && ctest --test-dir build --output-on-failure"
 ```
 
-当前测试基线：`arpg_logic_tests 953 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 119 passed / 0 failed`。
+当前测试基线：`arpg_logic_tests 957 passed / 0 failed`，`arpg_save_tests 11 passed / 0 failed`，`arpg_world_tests 127 passed / 0 failed`。
 
 NMake 在本项目中偶尔不会因纯头文件变更正确重编目标。修改以下 header-only 数据表或计算模块后，最终验收必须至少执行一次全量构建：
 
@@ -616,7 +616,7 @@ Review 严重级别：
 8. 关键操作、伤害、危险预警、奖励和装备变化均有清晰反馈。
 9. 构建、纯逻辑测试和关键手动流程有可重复验收方法。
 
-当前已满足 1、2 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，7 尚未实现，8、9 部分完成。天赋 Keystone、异常抗性、装备 Base/implicit、词缀 tags/weights、地图/Boss 掉落偏置、选择式锻造、当前 run Stash 和可复现 RNG 已经让构筑出现第一层真实取舍；存档、运行时地图生成和更完整的端到端验收仍未实现。
+当前已满足 1、2、7 的基础版，3、4、5、6 已形成可玩雏形但仍需深度和稳定性，8、9 部分完成。天赋 Keystone、异常抗性、装备 Base/implicit、词缀 tags/weights、地图/Boss 掉落偏置、选择式锻造、当前 run Stash 和可复现 RNG 已经让构筑出现第一层真实取舍；存档已经支持单 run 本地恢复，运行时地图生成和更完整的端到端验收仍未完成。
 
 ## 12. 后续路线图
 
@@ -1389,7 +1389,7 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 已知约束：同一帧内多个 Ignite tick 会聚合为一条反馈；反馈没有携带敌人 ID，当前需求只要求来源和实际总伤害可读。Renderer/UI 仍没有自动像素测试；后续 UI 任务必须保留 800x600 可读性检查。
 
-### 13.20 hy3 下一项实施任务：敌群与精英可读性 v2
+### 13.20 已完成任务记录：敌群与精英可读性 v2
 
 目标：让玩家在开放地图中能快速判断精英/精英包的危险、当前状态和潜在收益，形成“看见风险 -> 决定是否处理 -> 拾取价值”的 ARPG 反馈闭环。只增强现有 EnemyDefinition、EliteModifier、ElitePack 事件和 HUD/敌人标签，不新增敌人 AI、敌人类型或地图生成。
 
@@ -1432,13 +1432,68 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 
 完成定义：精英风险和事件进度在真实地图中可读，展示使用数据定义而非名称分支，ElitePack 状态/奖励不改变且测试与启动 smoke 通过；主 review Agent 完成 diff review、必要修正并提交后，才把本任务标记为完成。
 
+实现结果：
+
+- `EliteModifierDefinition` 增加数据化 `description`：Hardened、Swift、Volatile 分别描述生命、速度和死亡爆炸风险，None 保持空描述；没有改变任何 modifier 数值、颜色或奖励规则。
+- Renderer 新增统一的精英名称、风险摘要和焦点选择 helper。Playing HUD 会从只读 `world.enemies()` 选择 520 世界单位内距离玩家最近的 Elite/Boss，显示名称、当前 HP/max HP 和 modifier 风险；精英标签继续使用 `EnemyDefinition`/`EliteModifierDefinition` 数据。
+- ElitePack 进行中显示剩余数量和与活动事件位置最近的精英 modifier 摘要；完成提示改为 `Elite pack cleared - check nearby loot`，为地面奖励提供稳定上下文，不新增掉落来源字段或改变掉率。
+- 新增纯逻辑断言：三个 modifier 描述与数值数据一致，None 无描述，普通敌人不会保留 Elite modifier。
+- 新增真实 GameWorld ElitePack 测试：合法 SaveData fixture 通过真实移动进入事件，验证生成 1 Elite + 4 Normal、活动状态不计为完成，真实 Area 技能击杀五个事件敌人后才完成并显示掉落反馈。
+- 主 review 发现并修正了活动 ElitePack 摘要可能误读其他场上 Elite 的风险：现在按未完成 ElitePack 事件位置选择对应精英，不使用名称 switch。
+
+验收结果：
+
+- `arpg_logic_tests`：`957 passed / 0 failed`。
+- `arpg_save_tests`：`11 passed / 0 failed`。
+- `arpg_world_tests`：`127 passed / 0 failed`，其中包含 ElitePack 真实事件回归。
+- MSVC `cmake --build build --clean-first`、CTest `3/3`、三套测试直接运行和 `PlaneShooter.exe` 3 秒启动 smoke 全部通过。
+- 最终代码提交：`4d1c639 Improve elite and pack readability`。
+
+已知约束：当前仍没有 Renderer/UI 像素级自动测试；焦点目标是只读的最近目标，不提供锁定输入；掉落来源使用 ElitePack 完成短提示而不是为每个 `DroppedItem` 增加持久化 source 字段。后续若需要精确区分多个事件来源，应先设计不破坏存档版本的掉落来源模型。
+
+### 13.21 hy3 下一项实施任务：连续刷图完成度 v2
+
+目标：在继续增加新技能、Support 或敌人之前，证明当前系统可以稳定完成至少 5 张连续地图，并把“死亡、结算、拾取、背包/Stash、奖励、地图选择、存档恢复”做成可重复验收的完整 run。此任务优先补测试、状态边界和最小反馈，不扩展玩法内容。
+
+开始前必须阅读：
+
+- 本文档第 2、3、4、6、7、11、13.15、13.16、13.17、13.18、13.19、13.20 节；当前基线为 `957/11/127`，代码 HEAD 为 `4d1c639`。
+- `GameWorld::update()`、`startNextMap()`、`reset()`、`captureSaveData()`、`restoreFromSaveData()`、`MapComplete` 输入分支和 `SaveService` 版本/CRC 校验。
+- `tests/game_world_logic_tests.cpp` 中的连续地图、Boss 战、ElitePack、MapComplete 背包、奖励/地图选择测试；禁止复制已有 fixture，优先抽取共享的只读测试辅助。
+- `src/Renderer.cpp` 的 MapComplete、Pause、GameOver、Events、Inventory/Stash 面板；确认当前 UI 文案和窗口坐标，不重做面板布局。
+
+实施范围：
+
+1. 连续地图真实流程测试：从新 run 开始，使用合法 `SaveData` fixture 只提高测试容错和伤害，重复执行“移动到 Boss Arena -> 真实技能命中 -> Boss 死亡 -> 拾取/管理掉落 -> 选择奖励 -> 选择地图 -> `E` 进入下一图”至少 5 次。每一张地图都断言地图等级、布局/事件重置、地面旧掉落清理、玩家/装备/Inventory/Stash/天赋/技能与 Support 解锁保留。
+2. 失败与重试边界：通过公开行为或合法存档构造 GameOver，验证死亡不会进入 MapComplete、不会重复结算 Boss、`R`/Restart 会生成新 run 并清理旧地图状态；不得新增 debug kill、debug teleport 或测试专用生产 API。
+3. 存档阶段矩阵：覆盖 Playing、MapComplete、Paused 保存/加载；验证暂停保存恢复到正确 resume state，结算阶段未完成奖励/地图选择不能用 `E` 跳图，坏 CRC/未知版本/截断文件不会修改当前世界。
+4. 最小状态反馈修正：仅当测试发现用户无法判断“需要先拾取/选奖励/选地图/按 E”时，补一行稳定 HUD 文案；不得新增 UI 页面、输入键、奖励类型、地图类型或存档字段。
+5. 测试结构整理：如果现有 GameWorld fixture 重复，抽取命名清晰、只服务测试的 helper；生产代码不得为了测试暴露可写容器。所有新增断言必须验证实际状态变化，不只验证 getter 存在。
+
+强制约束：
+
+- 不新增技能、Support、Boss、敌人类型、地图事件、装备槽、货币、商店、loot filter、输入键或存档字段。
+- 不修改当前难度、Boss HP、掉率、经验、奖励数量、地图 modifier 和地图生成规则；发现平衡问题只记录。
+- 不把测试专用的瞬移、强制击杀或直接修改私有容器接口带入生产代码；只能通过合法 SaveData fixture 调整测试角色的生命、承伤、移动或伤害容错。
+- 不改变 `F` 最近拾取、Tab/Delete 背包管理、P/K 面板、MapComplete 数字键阶段和 Pause 输入优先级。
+- hy3 不提交代码、不修改本手册；交付完整 diff、测试数量、clean build、CTest、三套测试直接运行、启动 smoke 和未修复风险，保持工作区未提交。
+
+必须验证：
+
+- 运行 MSVC `cmake --build build --clean-first`、CTest `3/3`、三套测试直接运行和 `PlaneShooter.exe` 3 秒启动 smoke。
+- 新增至少一条 5 张地图连续真实流程断言、一条 GameOver/Restart 断言和一条 Pause/MapComplete 存档阶段断言；测试数量必须相对 `957/11/127` 增长。
+- 明确报告每一张地图的 Boss 击杀、奖励选择、地图选择、`E` 推进、状态重置和成长保留结果。
+- 手动检查 800x600：Playing HUD、MapComplete 奖励/地图选择、背包/Stash、Pause 和 GameOver 文案无关键遮挡；不要求像素级自动截图。
+
+完成定义：五张连续地图可通过真实流程完成，死亡/重开/暂停/结算/存档阶段边界有测试保护，旧掉落和 transient 状态不会泄漏到下一图；主 review Agent 完成 diff review、必要修正、全量验证并提交后，才更新进度看板。
+
 ## 14. 项目进度看板
 
 | 领域 | 状态 | 说明 |
 |---|---|---|
 | 主动战斗 | v1 完成 | 四槽技能、Support、异常、药瓶已形成基础构筑 |
 | 开放地图 | v1 完成 | 大地图、相机、预制布局、探索小地图、事件和 Boss 路线已完成 |
-| 怪物生态 | 可玩 | 近战、远程、精英、冲锋均有，pack 协同仍弱 |
+| 怪物生态 | v1 完成 | 近战、远程、精英、冲锋、ElitePack 均有，精英风险和事件进度已有数据化可读反馈 |
 | Boss | v1 完成 | Brood 召唤、Brimstone 火区、Storm 锁定突进形成三种独立机制 |
 | 天赋盘 | v1 完成 | 20 节点、四个 Keystone、前置和 HUD/hover 反馈已完成 |
 | 状态异常 | 可玩 | Ignite/Chill、Enemy/Boss 抗性、Support 穿透和 Ignite tick 反馈已有，异常种类仍少 |
@@ -1449,6 +1504,6 @@ Milestone E 验收：玩家可以关闭程序后继续 run，能稳定完成至�
 | 暂停/恢复 | v1 完成 | Pause 冻结模拟、Esc 上下文优先级、Save/Load/Restart/Quit 和 Input Help 已有 |
 | 连续刷图验收 | v1 完成 | 五次 MapComplete -> 选奖励 -> 选地图 -> E 推进、成长保留和非法阶段保护已有 |
 | 美术音频 | 原型 | 主要为 SFML 几何和文字 |
-| 自动化测试 | 原型 | 纯逻辑 953 条、存档 11 条、GameWorld 119 条通过；已覆盖真实移动进 Boss Arena、Projectile/Area 命中、Ignite tick、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
+| 自动化测试 | 原型 | 纯逻辑 957 条、存档 11 条、GameWorld 127 条通过；已覆盖真实移动进 Boss Arena、Projectile/Area 命中、Ignite tick、ElitePack、Boss 击杀和保底掉落，仍缺 Renderer/UI 像素级验收 |
 
 维护本表时只使用“未开始 / 原型 / 可玩 / v1 完成 / 完成”五种状态。每个 milestone 完成后由主 review Agent 更新本文档和基线 commit。
