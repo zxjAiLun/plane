@@ -5,6 +5,7 @@
 #include "DamageType.hpp"
 #include "EnemyDefinition.hpp"
 #include "Equipment.hpp"
+#include "BossRelicEffect.hpp"
 #include "Stats.hpp"
 #include "SkillBar.hpp"
 #include "SkillProgression.hpp"
@@ -143,6 +144,33 @@ bool itemRequirementMet(const GameWorld& world, const Item& item) {
 
 std::string itemSummary(const Item& item) {
     return item.name + " " + itemRequirementSummary(item) + " " + statsSummary(item.stats);
+}
+
+std::string bossRelicEffectSummary(const Item& item) {
+    if (item.rarity != Rarity::Unique) {
+        return {};
+    }
+
+    const auto* base = ItemBaseLibrary::find(item.baseId);
+    if (base == nullptr || base->kind != ItemBaseKind::BossRelic) {
+        return {};
+    }
+
+    const auto& effect = BossRelicEffectLibrary::forTheme(base->theme);
+    if (effect.type == BossRelicEffectType::None) {
+        return {};
+    }
+
+    return effect.name + " - " + effect.description;
+}
+
+ItemBaseTheme bossRelicTheme(BossLootTheme theme) {
+    switch (theme) {
+        case BossLootTheme::Brimstone: return ItemBaseTheme::Brimstone;
+        case BossLootTheme::Storm: return ItemBaseTheme::Storm;
+        case BossLootTheme::Brood: return ItemBaseTheme::Brood;
+    }
+    return ItemBaseTheme::None;
 }
 
 std::string truncateText(const std::string& text, std::size_t maxLength) {
@@ -2028,9 +2056,21 @@ void Renderer::drawItemDetailPanel(const GameWorld& world,
         y += 16.0f;
     }
 
+    const std::string effectSummary = bossRelicEffectSummary(item);
+    if (!effectSummary.empty()) {
+        drawText(truncateText("Effect: " + effectSummary, bodyLimit),
+            {x, y}, compact ? 10 : 11, sf::Color(255, 180, 80));
+        y += compact ? 15.0f : 16.0f;
+    }
+
     // Keep the full panel above the skill bar even for high-affix rare items.
     // The detail summary still reports how many affixes were omitted.
-    const std::size_t maxVisibleAffixes = compact ? 2 : 3;
+    // A Unique relic uses one line for its effect, so show one fewer affix and
+    // keep the panel height stable instead of pushing the skill preview away.
+    const std::size_t normalMaxVisibleAffixes = compact ? 2 : 3;
+    const std::size_t maxVisibleAffixes = effectSummary.empty()
+        ? normalMaxVisibleAffixes
+        : normalMaxVisibleAffixes - 1;
     const std::size_t affixCount = std::min(item.affixes.size(), maxVisibleAffixes);
     for (std::size_t index = 0; index < affixCount; ++index) {
         const auto& affix = item.affixes[index];
@@ -2568,8 +2608,10 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     drawText("Rare " + std::to_string(world.mapRareLeadersDefeated())
         + "  Leader drops " + std::to_string(world.mapRareLeaderItemsDropped()),
         {centerColumnX - 90.0f, 118.0f}, 10, sf::Color(255, 220, 160));
-    drawText(truncateText("Theme: " + world.bossDefinition().theme, 27),
-        {centerColumnX - 90.0f, 134.0f}, 10, sf::Color(210, 235, 255));
+    const auto& relicEffect = BossRelicEffectLibrary::forTheme(
+        bossRelicTheme(world.bossDefinition().lootTheme));
+    drawText(truncateText("Effect: " + relicEffect.name, 27),
+        {centerColumnX - 90.0f, 134.0f}, 10, sf::Color(255, 180, 80));
     drawText(truncateText("Relic: " + world.bossDefinition().lootRewardDescription, 27),
         {centerColumnX - 90.0f, 148.0f}, 9, sf::Color(255, 225, 145));
     if (!world.lastRareLeaderName().empty()) {

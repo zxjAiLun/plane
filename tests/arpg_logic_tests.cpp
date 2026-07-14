@@ -1511,6 +1511,9 @@ void testBossRelicEffects() {
             && molten.igniteDamageMultiplier > 1.0f
             && molten.igniteDurationMultiplier > 1.0f,
         "Brimstone relic defines a stronger Ignite effect");
+    expect(!molten.name.empty() && !molten.description.empty()
+            && std::string(rarityName(Rarity::Unique)) == "Unique",
+        "Unique relics expose a named effect for item details");
     expect(storm.type == BossRelicEffectType::StormChain
             && storm.lightningChainCount == 2
             && storm.lightningChainRadius > 0.0f
