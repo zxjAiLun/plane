@@ -19,7 +19,8 @@ enum class SupportKind {
     Barrage,
     Concentration,
     Echo,
-    Pinpoint
+    Pinpoint,
+    Toxicity
 };
 
 struct SupportDefinition {
@@ -43,6 +44,7 @@ struct SupportDefinition {
     int repeatCountBonus = 0;
     float shockMagnitudeMultiplier = 1.0f;
     int shockPenetration = 0;
+    int poisonPenetration = 0;
 };
 
 inline constexpr std::size_t SupportLinkCount = 2;
@@ -94,6 +96,29 @@ public:
                 0,
                 -20.0f
             },
+            {
+                SupportKind::Toxicity,
+                "Toxicity",
+                "+60% Poison damage, +25% duration, +20% Poison penetration",
+                1.0f,
+                1.0f,
+                1.0f,
+                0,
+                0,
+                0.0f,
+                0,
+                0.0f,
+                0.0f,
+                1.60f,
+                1.25f,
+                1.0f,
+                0,
+                0,
+                0,
+                1.0f,
+                0,
+                20
+            },
         };
         return supports;
     }
@@ -126,6 +151,8 @@ public:
                 return skill.ailment.type == AilmentType::Chill;
             case SupportKind::Conductivity:
                 return skill.ailment.type == AilmentType::Shock;
+            case SupportKind::Toxicity:
+                return skill.ailment.type == AilmentType::Poison;
             case SupportKind::Barrage:
                 return skill.castType == SkillCastType::Projectile;
             case SupportKind::Concentration:

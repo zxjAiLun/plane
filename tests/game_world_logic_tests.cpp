@@ -180,11 +180,13 @@ bool statsEqual(const Stats& first, const Stats& second) {
         && std::abs(first.projectileDamageMultiplier - second.projectileDamageMultiplier) < 0.0001f
         && std::abs(first.areaDamageMultiplier - second.areaDamageMultiplier) < 0.0001f
         && std::abs(first.areaRadiusMultiplier - second.areaRadiusMultiplier) < 0.0001f
+        && std::abs(first.poisonDamageMultiplier - second.poisonDamageMultiplier) < 0.0001f
         && first.armor == second.armor
         && first.projectileCountBonus == second.projectileCountBonus
         && std::abs(first.lifeFlaskEffectMultiplier - second.lifeFlaskEffectMultiplier) < 0.0001f
         && std::abs(first.itemQuantityMultiplier - second.itemQuantityMultiplier) < 0.0001f
-        && std::abs(first.incomingDamageMultiplier - second.incomingDamageMultiplier) < 0.0001f;
+        && std::abs(first.incomingDamageMultiplier - second.incomingDamageMultiplier) < 0.0001f
+        && first.poisonResistance == second.poisonResistance;
 }
 
 void testPauseContextsAndFreeze() {
@@ -1248,14 +1250,17 @@ void testExpandedSkillWorldHits() {
         "expanded skill fixture starts from a valid run save");
 
     const auto primaryIndex = static_cast<std::size_t>(SkillSlot::Primary);
+    const auto secondaryIndex = static_cast<std::size_t>(SkillSlot::Secondary);
     const auto utilityIndex = static_cast<std::size_t>(SkillSlot::Utility);
     data.unlockedSkills.insert("Arc Bolt");
+    data.unlockedSkills.insert("Toxic Burst");
     data.unlockedSkills.insert("Shockwave");
     data.unlockedSkills.insert("Aftershock");
     data.unlockedSupports.insert("Barrage");
     data.unlockedSupports.insert("Concentration");
     data.unlockedSupports.insert("Echo");
     data.skillBar.skills[primaryIndex] = "Arc Bolt";
+    data.skillBar.skills[secondaryIndex] = "Toxic Burst";
     data.skillBar.skills[utilityIndex] = "Shockwave";
     data.skillBar.supports[primaryIndex] = {"Barrage", ""};
     data.skillBar.supports[utilityIndex] = {"Concentration", "Echo"};
@@ -1275,6 +1280,7 @@ void testExpandedSkillWorldHits() {
     expect(SaveService::save(path, data, &error) && world.loadRun(path),
         "expanded skill fixture restores unlocks and links");
     expect(world.skillBar().definition(SkillSlot::Primary).name == "Arc Bolt"
+            && world.skillBar().definition(SkillSlot::Secondary).name == "Toxic Burst"
             && world.skillBar().definition(SkillSlot::Utility).name == "Shockwave"
             && world.skillBar().supportAt(SkillSlot::Primary, 0) != nullptr
             && world.skillBar().supportAt(SkillSlot::Primary, 0)->name == "Barrage"

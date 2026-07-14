@@ -18,12 +18,14 @@ inline int resistanceForDamageType(
     DamageType type,
     int fireResistance,
     int coldResistance,
-    int lightningResistance
+    int lightningResistance,
+    int poisonResistance = 0
 ) {
     switch (type) {
         case DamageType::Fire: return fireResistance;
         case DamageType::Cold: return coldResistance;
         case DamageType::Lightning: return lightningResistance;
+        case DamageType::Poison: return poisonResistance;
         case DamageType::Physical: break;
     }
     return 0;
@@ -34,7 +36,8 @@ inline int damageAfterResistance(
     DamageType type,
     int fireResistance,
     int coldResistance,
-    int lightningResistance
+    int lightningResistance,
+    int poisonResistance = 0
 ) {
     if (rawDamage <= 0) {
         return 0;
@@ -44,7 +47,7 @@ inline int damageAfterResistance(
     // the player's resistance below zero and should increase incoming damage.
     const int resistance = std::clamp(
         resistanceForDamageType(
-            type, fireResistance, coldResistance, lightningResistance
+            type, fireResistance, coldResistance, lightningResistance, poisonResistance
         ),
         -100,
         100
@@ -52,10 +55,8 @@ inline int damageAfterResistance(
     if (resistance >= 100) {
         return 0;
     }
-    return std::max(1, static_cast<int>(std::ceil(
-        static_cast<double>(rawDamage)
-            * (1.0 - static_cast<double>(resistance) / 100.0)
-    )));
+    const long long scaledDamage = static_cast<long long>(rawDamage) * (100 - resistance);
+    return std::max(1, static_cast<int>((scaledDamage + 99) / 100));
 }
 
 inline int lifeFlaskHealAmount(int baseAmount, const Stats& stats) {
@@ -80,7 +81,8 @@ inline int incomingDamage(
         type,
         stats.fireResistance,
         stats.coldResistance,
-        stats.lightningResistance
+        stats.lightningResistance,
+        stats.poisonResistance
     );
 }
 
@@ -146,6 +148,9 @@ inline int skillDamage(
             break;
         case DamageType::Lightning:
             damage *= stats.lightningDamageMultiplier;
+            break;
+        case DamageType::Poison:
+            damage *= stats.poisonDamageMultiplier;
             break;
         case DamageType::Physical:
             break;
@@ -344,6 +349,7 @@ inline AilmentDefinition skillAilment(
         ailment.ignitePenetration += support->ignitePenetration;
         ailment.chillPenetration += support->chillPenetration;
         ailment.shockPenetration += support->shockPenetration;
+        ailment.poisonPenetration += support->poisonPenetration;
         switch (ailment.type) {
             case AilmentType::Ignite:
                 ailment.damageMultiplier *= support->ailmentDamageMultiplier;
@@ -363,7 +369,11 @@ inline AilmentDefinition skillAilment(
                     2.0f
                 );
                 break;
+            case AilmentType::Poison:
+                ailment.damageMultiplier *= support->ailmentDamageMultiplier;
+                break;
             case AilmentType::None:
+            case AilmentType::Count:
                 break;
         }
     }
@@ -379,7 +389,8 @@ inline AilmentDefinition skillAilment(
 }
 
 inline int ailmentTickDamage(const AilmentDefinition& ailment, int hitDamage) {
-    if (ailment.type != AilmentType::Ignite || ailment.damageMultiplier <= 0.0f || hitDamage <= 0) {
+    if ((ailment.type != AilmentType::Ignite && ailment.type != AilmentType::Poison)
+        || ailment.damageMultiplier <= 0.0f || hitDamage <= 0) {
         return 0;
     }
 

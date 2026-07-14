@@ -179,8 +179,8 @@ public:
         return {};
     }
 
-    static const std::array<MapElementalChallengeDefinition, 3>& elementalChallenges() {
-        static const std::array<MapElementalChallengeDefinition, 3> challenges = {{
+    static const std::array<MapElementalChallengeDefinition, 4>& elementalChallenges() {
+        static const std::array<MapElementalChallengeDefinition, 4> challenges = {{
             {
                 "cinder-ward",
                 "Cinder Ward",
@@ -205,6 +205,15 @@ public:
                 "Players have -25% Lightning Resistance; monsters gain +15% Lightning Resistance",
                 "Lightning affixes are favored",
                 DamageType::Lightning,
+                25,
+                15
+            },
+            {
+                "venomtide",
+                "Venomtide",
+                "Players have -25% Poison Resistance; monsters gain +15% Poison Resistance",
+                "Poison affixes are favored",
+                DamageType::Poison,
                 25,
                 15
             }
@@ -388,7 +397,8 @@ public:
             },
             {
                 MapModifierLibrary::compose(
-                    mapLevel, {"gilded-cache", "elite-tide"}, "frostbite"
+                    mapLevel, {"gilded-cache", "elite-tide"},
+                    mapLevel >= 3 ? "venomtide" : "frostbite"
                 ),
                 "Pickup/Area bias, high item quantity and Elite pressure",
                 "Recommended level " + std::to_string(mapLevel + 1),

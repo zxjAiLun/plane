@@ -40,6 +40,7 @@ sf::Color damageTypeColor(DamageType type) {
         case DamageType::Fire: return sf::Color(255, 125, 45);
         case DamageType::Cold: return sf::Color(105, 225, 255);
         case DamageType::Lightning: return sf::Color(190, 145, 255);
+        case DamageType::Poison: return sf::Color(105, 220, 105);
         case DamageType::Physical: return sf::Color(255, 225, 105);
     }
     return sf::Color::White;
@@ -100,6 +101,9 @@ std::string statsSummary(const Stats& stats) {
     if (stats.lightningDamageMultiplier != 1.0f) {
         summary += multiplierText(stats.lightningDamageMultiplier) + " LIGHT DMG ";
     }
+    if (stats.poisonDamageMultiplier != 1.0f) {
+        summary += multiplierText(stats.poisonDamageMultiplier) + " POISON DMG ";
+    }
     if (stats.armor > 0) {
         summary += "+" + std::to_string(stats.armor) + " ARM ";
     }
@@ -111,6 +115,9 @@ std::string statsSummary(const Stats& stats) {
     }
     if (stats.lightningResistance > 0) {
         summary += std::to_string(stats.lightningResistance) + "% LIGHT RES ";
+    }
+    if (stats.poisonResistance > 0) {
+        summary += std::to_string(stats.poisonResistance) + "% POISON RES ";
     }
     return summary;
 }
@@ -172,6 +179,14 @@ Stats statsDelta(const Stats& next, const Stats& current) {
         next.lifeFlaskEffectMultiplier / current.lifeFlaskEffectMultiplier,
         next.itemQuantityMultiplier / current.itemQuantityMultiplier,
         next.incomingDamageMultiplier / current.incomingDamageMultiplier,
+        next.fireDamageMultiplier / current.fireDamageMultiplier,
+        next.coldDamageMultiplier / current.coldDamageMultiplier,
+        next.lightningDamageMultiplier / current.lightningDamageMultiplier,
+        next.poisonDamageMultiplier / current.poisonDamageMultiplier,
+        next.fireResistance - current.fireResistance,
+        next.coldResistance - current.coldResistance,
+        next.lightningResistance - current.lightningResistance,
+        next.poisonResistance - current.poisonResistance,
     };
 }
 
@@ -227,6 +242,38 @@ std::string statsDeltaSummary(const Stats& delta) {
         const int value = multiplierPercent(delta.incomingDamageMultiplier);
         summary += (value > 0 ? "+" : "") + std::to_string(value) + "% TAKEN ";
     }
+    if (delta.fireDamageMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.fireDamageMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% FIRE DMG ";
+    }
+    if (delta.coldDamageMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.coldDamageMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% COLD DMG ";
+    }
+    if (delta.lightningDamageMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.lightningDamageMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% LIGHT DMG ";
+    }
+    if (delta.poisonDamageMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.poisonDamageMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% POISON DMG ";
+    }
+    if (delta.fireResistance != 0) {
+        summary += (delta.fireResistance > 0 ? "+" : "")
+            + std::to_string(delta.fireResistance) + " FIRE RES ";
+    }
+    if (delta.coldResistance != 0) {
+        summary += (delta.coldResistance > 0 ? "+" : "")
+            + std::to_string(delta.coldResistance) + " COLD RES ";
+    }
+    if (delta.lightningResistance != 0) {
+        summary += (delta.lightningResistance > 0 ? "+" : "")
+            + std::to_string(delta.lightningResistance) + " LIGHT RES ";
+    }
+    if (delta.poisonResistance != 0) {
+        summary += (delta.poisonResistance > 0 ? "+" : "")
+            + std::to_string(delta.poisonResistance) + " POISON RES ";
+    }
     return summary.empty() ? "No stat change" : summary;
 }
 
@@ -243,7 +290,15 @@ sf::Color deltaColor(const Stats& delta) {
         || delta.lifeFlaskEffectMultiplier > 1.0f
         || delta.itemQuantityMultiplier > 1.0f
         || delta.incomingDamageMultiplier < 1.0f
-        || delta.armor > 0;
+        || delta.armor > 0
+        || delta.fireDamageMultiplier > 1.0f
+        || delta.coldDamageMultiplier > 1.0f
+        || delta.lightningDamageMultiplier > 1.0f
+        || delta.poisonDamageMultiplier > 1.0f
+        || delta.fireResistance > 0
+        || delta.coldResistance > 0
+        || delta.lightningResistance > 0
+        || delta.poisonResistance > 0;
     const bool negative = delta.maxHp < 0
         || delta.damageMultiplier < 1.0f
         || delta.attackSpeedMultiplier < 1.0f
@@ -256,7 +311,15 @@ sf::Color deltaColor(const Stats& delta) {
         || delta.lifeFlaskEffectMultiplier < 1.0f
         || delta.itemQuantityMultiplier < 1.0f
         || delta.incomingDamageMultiplier > 1.0f
-        || delta.armor < 0;
+        || delta.armor < 0
+        || delta.fireDamageMultiplier < 1.0f
+        || delta.coldDamageMultiplier < 1.0f
+        || delta.lightningDamageMultiplier < 1.0f
+        || delta.poisonDamageMultiplier < 1.0f
+        || delta.fireResistance < 0
+        || delta.coldResistance < 0
+        || delta.lightningResistance < 0
+        || delta.poisonResistance < 0;
 
     if (positive && !negative) {
         return sf::Color(120, 230, 140);
@@ -383,7 +446,14 @@ std::string ailmentSummary(const AilmentDefinition& ailment) {
                 + (ailment.shockPenetration > 0
                     ? " Pen " + std::to_string(ailment.shockPenetration) + "%"
                     : "");
+        case AilmentType::Poison:
+            return "Poison " + formatFloat(ailment.duration, 1) + "s "
+                + std::to_string(static_cast<int>(ailment.damageMultiplier * 100.0f)) + "% DoT"
+                + (ailment.poisonPenetration > 0
+                    ? " Pen " + std::to_string(ailment.poisonPenetration) + "%"
+                    : "");
         case AilmentType::None:
+        case AilmentType::Count:
             return "";
     }
 
@@ -851,13 +921,15 @@ void Renderer::render(const GameWorld& world) {
         + "%  AREA +" + std::to_string(multiplierPercent(stats.areaRadiusMultiplier))
         + "%  ARM " + std::to_string(stats.armor), 72),
         {16.0f, 84.0f}, 14, sf::Color(210, 220, 255));
-    std::string elementalLine = "ELEM F/C/L DMG "
+    std::string elementalLine = "ELEM F/C/L/P DMG "
         + std::to_string(multiplierPercent(stats.fireDamageMultiplier)) + "/"
         + std::to_string(multiplierPercent(stats.coldDamageMultiplier)) + "/"
-        + std::to_string(multiplierPercent(stats.lightningDamageMultiplier))
+        + std::to_string(multiplierPercent(stats.lightningDamageMultiplier)) + "/"
+        + std::to_string(multiplierPercent(stats.poisonDamageMultiplier))
         + "%  RES " + std::to_string(stats.fireResistance) + "/"
         + std::to_string(stats.coldResistance) + "/"
-        + std::to_string(stats.lightningResistance);
+        + std::to_string(stats.lightningResistance) + "/"
+        + std::to_string(stats.poisonResistance);
     if (!world.mapModifier().elementalChallengeId.empty()) {
         elementalLine += "  MAP "
             + std::string(damageTypeName(world.mapModifier().elementalChallengeType))
@@ -878,6 +950,10 @@ void Renderer::render(const GameWorld& world) {
         ailmentLine += "Shock +"
             + std::to_string(multiplierPercent(world.player().damageTakenMultiplier()))
             + "% " + formatFloat(world.player().shockTimeRemaining(), 1) + "s";
+    }
+    if (world.player().isPoisoned()) {
+        ailmentLine += "Poison x" + std::to_string(world.player().poisonStacks())
+            + " " + formatFloat(world.player().poisonTimeRemaining(), 1) + "s";
     }
     if (!ailmentLine.empty()) {
         drawText(truncateText("Status " + ailmentLine, 64),
@@ -1134,6 +1210,16 @@ void Renderer::drawPlayer(const GameWorld& world) {
         ring.setPosition(screenPosition);
         window_.draw(ring);
     }
+    if (player.isPoisoned()) {
+        const float radius = player.radius() + 20.0f;
+        sf::CircleShape ring(radius);
+        ring.setFillColor(sf::Color::Transparent);
+        ring.setOutlineColor(sf::Color(105, 220, 105, 220));
+        ring.setOutlineThickness(3.0f);
+        ring.setOrigin({radius, radius});
+        ring.setPosition(screenPosition);
+        window_.draw(ring);
+    }
 
     sf::CircleShape shape(player.radius());
     shape.setFillColor(hitProgress > 0.0f ? sf::Color(245, 105, 80) : sf::Color::Green);
@@ -1323,6 +1409,8 @@ void Renderer::drawProjectiles(const GameWorld& world) {
             color = sf::Color(255, 125, 45);
         } else if (projectile.ailment().type == AilmentType::Chill) {
             color = sf::Color(105, 225, 255);
+        } else if (projectile.ailment().type == AilmentType::Poison) {
+            color = sf::Color(105, 220, 105);
         }
         shape.setFillColor(color);
         shape.setOrigin({projectile.radius(), projectile.radius()});
@@ -1484,6 +1572,19 @@ void Renderer::drawEnemies(const GameWorld& world) {
             ring.setPosition(screenPosition);
             window_.draw(ring);
         }
+        if (enemy.isPoisoned()) {
+            const float ringRadius = enemy.radius()
+                + (enemy.isIgnited() ? 17.0f
+                    : enemy.isChilled() ? 13.0f
+                    : enemy.isShocked() ? 9.0f : 5.0f);
+            sf::CircleShape ring(ringRadius);
+            ring.setFillColor(sf::Color::Transparent);
+            ring.setOutlineColor(sf::Color(105, 220, 105, 235));
+            ring.setOutlineThickness(2.5f);
+            ring.setOrigin({ringRadius, ringRadius});
+            ring.setPosition(screenPosition);
+            window_.draw(ring);
+        }
 
         if (definition.outlineThickness > 0.0f) {
             const std::string label = enemyDisplayLabel(world, enemy);
@@ -1514,7 +1615,9 @@ void Renderer::drawCombatFeedback(const GameWorld& world) {
                 text = "-" + std::to_string(feedback.damage) + " " + feedback.source;
                 color = feedback.source == "Ignite"
                     ? sf::Color(255, 155, 90, alpha)
-                    : sf::Color(255, 235, 150, alpha);
+                    : feedback.source == "Poison"
+                        ? sf::Color(120, 225, 120, alpha)
+                        : sf::Color(255, 235, 150, alpha);
                 break;
             case CombatFeedbackType::PlayerHit:
                 text = "HIT -" + std::to_string(feedback.damage) + " " + feedback.source;
@@ -2247,6 +2350,7 @@ void Renderer::drawBossHealth(const GameWorld& world) {
     drawText("Fire Res " + std::to_string(world.bossDefinition().fireResistance)
         + "%  Cold Res " + std::to_string(world.bossDefinition().coldResistance)
         + "%  Light Res " + std::to_string(world.bossDefinition().lightningResistance)
+        + "%  Poison Res " + std::to_string(world.bossDefinition().poisonResistance)
         + "%  Shock Res " + std::to_string(world.bossDefinition().shockResistance) + "%",
         {position.x, detailY}, 11, sf::Color(220, 195, 175));
     detailY += 16.0f;

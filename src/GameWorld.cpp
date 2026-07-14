@@ -49,7 +49,9 @@ const char* ailmentTypeName(AilmentType type) {
         case AilmentType::Ignite: return "Ignite";
         case AilmentType::Chill: return "Chill";
         case AilmentType::Shock: return "Shock";
+        case AilmentType::Poison: return "Poison";
         case AilmentType::None: break;
+        case AilmentType::Count: break;
     }
     return "None";
 }
@@ -87,9 +89,11 @@ bool validStatsForRestore(const Stats& stats) {
         && positiveFinite(stats.fireDamageMultiplier)
         && positiveFinite(stats.coldDamageMultiplier)
         && positiveFinite(stats.lightningDamageMultiplier)
+        && positiveFinite(stats.poisonDamageMultiplier)
         && validResistance(stats.fireResistance)
         && validResistance(stats.coldResistance)
-        && validResistance(stats.lightningResistance);
+        && validResistance(stats.lightningResistance)
+        && validResistance(stats.poisonResistance);
 }
 
 bool statsMatchForRestore(const Stats& left, const Stats& right) {
@@ -112,9 +116,11 @@ bool statsMatchForRestore(const Stats& left, const Stats& right) {
         && close(left.fireDamageMultiplier, right.fireDamageMultiplier)
         && close(left.coldDamageMultiplier, right.coldDamageMultiplier)
         && close(left.lightningDamageMultiplier, right.lightningDamageMultiplier)
+        && close(left.poisonDamageMultiplier, right.poisonDamageMultiplier)
         && left.fireResistance == right.fireResistance
         && left.coldResistance == right.coldResistance
-        && left.lightningResistance == right.lightningResistance;
+        && left.lightningResistance == right.lightningResistance
+        && left.poisonResistance == right.poisonResistance;
 }
 
 int mapElementalResistanceAdjustment(
@@ -150,7 +156,7 @@ bool validItemForRestore(const Item& item) {
     for (const auto& affix : item.affixes) {
         if (affix.tier < 1
             || static_cast<int>(affix.stat) < 0
-            || static_cast<int>(affix.stat) > static_cast<int>(AffixStat::LightningResistance)
+            || static_cast<int>(affix.stat) > static_cast<int>(AffixStat::PoisonResistance)
             || !validStatsForRestore(affix.stats)) {
             return false;
         }
@@ -799,10 +805,17 @@ void GameWorld::updatePlaying(float dt, Input& input) {
 
     player_.update(dt);
     const AilmentTickResult playerAilmentTick = player_.updateAilments(dt);
-    if (playerAilmentTick.type == AilmentType::Ignite
-        && playerAilmentTick.damage > 0) {
+    const int playerIgniteDamage = playerAilmentTick.damageFor(AilmentType::Ignite);
+    if (playerIgniteDamage > 0) {
         addCombatFeedback(
-            player_.position(), playerAilmentTick.damage, "Ignite",
+            player_.position(), playerIgniteDamage, "Ignite",
+            CombatFeedbackType::PlayerHit
+        );
+    }
+    const int playerPoisonDamage = playerAilmentTick.damageFor(AilmentType::Poison);
+    if (playerPoisonDamage > 0) {
+        addCombatFeedback(
+            player_.position(), playerPoisonDamage, "Poison",
             CombatFeedbackType::PlayerHit
         );
     }
@@ -1076,8 +1089,13 @@ void GameWorld::updateObjects(float dt) {
     }
     for (auto& enemy : enemies_) {
         const AilmentTickResult ailmentTick = enemy.updateAilments(dt);
-        if (ailmentTick.type == AilmentType::Ignite && ailmentTick.damage > 0) {
-            addCombatFeedback(enemy.position(), ailmentTick.damage, "Ignite");
+        const int igniteDamage = ailmentTick.damageFor(AilmentType::Ignite);
+        if (igniteDamage > 0) {
+            addCombatFeedback(enemy.position(), igniteDamage, "Ignite");
+        }
+        const int poisonDamage = ailmentTick.damageFor(AilmentType::Poison);
+        if (poisonDamage > 0) {
+            addCombatFeedback(enemy.position(), poisonDamage, "Poison");
         }
         if (enemy.isDead()) {
             rewardEnemyKill(enemy);
@@ -1663,10 +1681,12 @@ int GameWorld::damageToEnemy(
     int fireResistance = EnemyLibrary::forType(enemy.type()).fireResistance;
     int coldResistance = EnemyLibrary::forType(enemy.type()).coldResistance;
     int lightningResistance = EnemyLibrary::forType(enemy.type()).lightningResistance;
+    int poisonResistance = EnemyLibrary::forType(enemy.type()).poisonResistance;
     if (enemy.isBoss()) {
         fireResistance = bossDefinition_->fireResistance;
         coldResistance = bossDefinition_->coldResistance;
         lightningResistance = bossDefinition_->lightningResistance;
+        poisonResistance = bossDefinition_->poisonResistance;
     }
     fireResistance += mapElementalResistanceAdjustment(
         mapModifier_, DamageType::Fire, true
@@ -1677,13 +1697,17 @@ int GameWorld::damageToEnemy(
     lightningResistance += mapElementalResistanceAdjustment(
         mapModifier_, DamageType::Lightning, true
     );
+    poisonResistance += mapElementalResistanceAdjustment(
+        mapModifier_, DamageType::Poison, true
+    );
 
     const int resistedDamage = damageAfterResistance(
         rawDamage,
         damageType,
         fireResistance,
         coldResistance,
-        lightningResistance
+        lightningResistance,
+        poisonResistance
     );
     const int shockedDamage = resistedDamage <= 0
         ? 0
@@ -2090,10 +2114,12 @@ void GameWorld::applySkillAilment(
     int igniteResistance = enemyDefinition.igniteResistance;
     int chillResistance = enemyDefinition.chillResistance;
     int shockResistance = enemyDefinition.shockResistance;
+    int poisonResistance = enemyDefinition.poisonResistance;
     if (enemy.isBoss()) {
         igniteResistance = bossDefinition_->igniteResistance;
         chillResistance = bossDefinition_->chillResistance;
         shockResistance = bossDefinition_->shockResistance;
+        poisonResistance = bossDefinition_->poisonResistance;
     }
 
     switch (ailment.type) {
@@ -2133,7 +2159,27 @@ void GameWorld::applySkillAilment(
                 CombatFeedbackType::Status
             );
             break;
+        case AilmentType::Poison:
+            {
+                const int tickDamage = ailmentTickDamageAfterResistance(
+                    ailmentTickDamage(ailment, hitDamage),
+                    std::clamp(poisonResistance + mapModifier_.ailmentResistanceBonus, 0, 100),
+                    ailment.poisonPenetration
+                );
+                if (tickDamage <= 0) {
+                    return;
+                }
+                enemy.applyPoison(tickDamage, ailment.duration);
+            }
+            addCombatFeedback(
+                enemy.position(),
+                0,
+                "Poison",
+                CombatFeedbackType::Status
+            );
+            break;
         case AilmentType::None:
+        case AilmentType::Count:
             break;
     }
 }
@@ -3303,6 +3349,9 @@ void GameWorld::damagePlayer(
     effectiveStats.lightningResistance += mapElementalResistanceAdjustment(
         mapModifier_, DamageType::Lightning, false
     );
+    effectiveStats.poisonResistance += mapElementalResistanceAdjustment(
+        mapModifier_, DamageType::Poison, false
+    );
     playerHitDamage_ = player_.takeDamage(incomingDamage(damage, effectiveStats, damageType));
     if (playerHitDamage_ <= 0) {
         return;
@@ -3335,7 +3384,8 @@ void GameWorld::applyPlayerAilment(
         damageType,
         effectiveStats.fireResistance,
         effectiveStats.coldResistance,
-        effectiveStats.lightningResistance
+        effectiveStats.lightningResistance,
+        effectiveStats.poisonResistance
     );
     bool applied = false;
     switch (ailment.type) {
@@ -3387,7 +3437,21 @@ void GameWorld::applyPlayerAilment(
             applied = true;
             break;
         }
+        case AilmentType::Poison: {
+            const int tickDamage = ailmentTickDamageAfterResistance(
+                ailmentTickDamage(ailment, hitDamage),
+                resistance,
+                ailment.poisonPenetration
+            );
+            if (tickDamage <= 0) {
+                return;
+            }
+            player_.applyPoison(tickDamage, ailment.duration);
+            applied = true;
+            break;
+        }
         case AilmentType::None:
+        case AilmentType::Count:
             return;
     }
 
@@ -3395,9 +3459,7 @@ void GameWorld::applyPlayerAilment(
         return;
     }
 
-    const char* statusName = ailment.type == AilmentType::Ignite
-        ? "Ignite"
-        : ailment.type == AilmentType::Chill ? "Chill" : "Shock";
+    const char* statusName = ailmentTypeName(ailment.type);
     addCombatFeedback(
         player_.position(),
         0,

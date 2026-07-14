@@ -69,6 +69,7 @@ struct BossDefinition {
     int fireResistance = 0;
     int coldResistance = 0;
     int shockResistance = 0;
+    int poisonResistance = 0;
 
     const BossSkillDefinition& skillForCast(std::size_t castIndex, bool enraged) const {
         static const BossSkillDefinition fallback;
@@ -185,7 +186,8 @@ private:
                 35,
                 35,
                 20,
-                35
+                35,
+                20
             },
             {
                 "Storm Herald",
@@ -245,7 +247,8 @@ private:
                 45,
                 20,
                 35,
-                45
+                45,
+                35
             },
             {
                 "Brood Matriarch",
@@ -265,13 +268,13 @@ private:
                 {
                     elementalSkill(
                         {BossSkillType::Projectile, "Acid Spray", Config::BossProjectileRadius, 1, 0.0f, 0.0f, 420.0f, 3, 28.0f},
-                        DamageType::Cold,
-                        {AilmentType::Chill, 2.0f, 0.0f, 0.65f}
+                        DamageType::Poison,
+                        {AilmentType::Poison, 2.5f, 0.35f}
                     ),
                     elementalSkill(
                         {BossSkillType::CircularAoe, "Nest Burst", 115.0f, 2, 0.55f, 0.25f, 0.0f, 1, 0.0f},
-                        DamageType::Cold,
-                        {AilmentType::Chill, 2.0f, 0.0f, 0.65f}
+                        DamageType::Poison,
+                        {AilmentType::Poison, 2.5f, 0.35f}
                     ),
                     {
                         BossSkillType::SummonAdds,
@@ -308,14 +311,15 @@ private:
                 EnemyType::Ranged,
                 2,
                 elementalHazard(
-                    {"Acid Nest", 120.0f, 8.0f, 0.75f, 2, DamageType::Cold},
-                    DamageType::Cold,
-                    {AilmentType::Chill, 2.0f, 0.0f, 0.65f}
+                    {"Acid Nest", 120.0f, 8.0f, 0.75f, 2, DamageType::Poison},
+                    DamageType::Poison,
+                    {AilmentType::Poison, 2.5f, 0.35f}
                 ),
                 30,
                 30,
                 30,
-                30
+                30,
+                45
             },
         };
     }

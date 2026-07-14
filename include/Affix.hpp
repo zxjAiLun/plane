@@ -16,5 +16,7 @@ enum class AffixStat {
     LightningDamageMultiplier,
     FireResistance,
     ColdResistance,
-    LightningResistance
+    LightningResistance,
+    PoisonDamageMultiplier,
+    PoisonResistance
 };

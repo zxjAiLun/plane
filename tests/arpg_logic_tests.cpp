@@ -142,7 +142,9 @@ bool statsEqual(const Stats& lhs, const Stats& rhs) {
         && lhs.projectileCountBonus == rhs.projectileCountBonus
         && std::abs(lhs.lifeFlaskEffectMultiplier - rhs.lifeFlaskEffectMultiplier) < 0.0001f
         && std::abs(lhs.itemQuantityMultiplier - rhs.itemQuantityMultiplier) < 0.0001f
-        && std::abs(lhs.incomingDamageMultiplier - rhs.incomingDamageMultiplier) < 0.0001f;
+        && std::abs(lhs.incomingDamageMultiplier - rhs.incomingDamageMultiplier) < 0.0001f
+        && std::abs(lhs.poisonDamageMultiplier - rhs.poisonDamageMultiplier) < 0.0001f
+        && lhs.poisonResistance == rhs.poisonResistance;
 }
 
 void section(const std::string& title) {
@@ -404,7 +406,7 @@ void testManaResourceAndSkillCastGates() {
         "Mana regeneration clamps at max Mana");
 
     const auto& skills = SkillLibrary::all();
-    expect(skills.size() == 12, "skill library exposes all twelve Mana-aware skills");
+    expect(skills.size() == 13, "skill library exposes all thirteen Mana-aware skills");
     const auto& primary = SkillLibrary::spreadShot();
     const auto& secondary = SkillLibrary::meteor();
     const auto& utility = SkillLibrary::pulse();
@@ -805,13 +807,30 @@ void testSkillAilments() {
     const SkillDefinition flare = SkillLibrary::flare();
     const SkillDefinition meteor = SkillLibrary::meteor();
     const SkillDefinition frostBomb = SkillLibrary::frostBomb();
+    const SkillDefinition toxicBurst = SkillLibrary::toxicBurst();
+    const auto* toxicity = SupportLibrary::find("Toxicity");
     expect(flare.ailment.type == AilmentType::Ignite, "Flare applies Ignite");
     expect(meteor.ailment.type == AilmentType::Ignite, "Meteor applies Ignite");
     expect(frostBomb.ailment.type == AilmentType::Chill, "Frost Bomb applies Chill");
+    expect(toxicBurst.damageType == DamageType::Poison
+            && toxicBurst.ailment.type == AilmentType::Poison,
+        "Toxic Burst deals Poison damage and applies Poison");
     expect(ailmentTickDamage(meteor.ailment, 4) == 2,
         "Ignite tick damage derives from the scaled hit damage");
     expect(ailmentTickDamage(frostBomb.ailment, 4) == 0,
         "Chill does not create damage-over-time ticks");
+    expect(ailmentTickDamage(toxicBurst.ailment, 4) == 2,
+        "Poison tick damage derives from the scaled hit damage");
+    const AilmentDefinition toxicityPoison = skillAilment(toxicBurst, toxicity);
+    expect(toxicity != nullptr
+            && toxicityPoison.damageMultiplier > toxicBurst.ailment.damageMultiplier
+            && toxicityPoison.poisonPenetration == 20,
+        "Toxicity increases Poison damage and penetration");
+    Stats poisonStats;
+    poisonStats.poisonDamageMultiplier = 1.50f;
+    expect(skillDamage(toxicBurst, poisonStats, nullptr)
+            > skillDamage(toxicBurst, Stats{}, nullptr),
+        "Poison specialization increases Poison skill damage");
 
     Enemy enemy({0.0f, 0.0f}, 10, 1);
     enemy.applyIgnite(2, 2.0f);
@@ -860,6 +879,26 @@ void testSkillAilments() {
         "dead enemies cannot receive another Ignite tick");
     expect(overkillEnemy.claimKillReward() && !overkillEnemy.claimKillReward(),
         "Ignite-killed enemy still exposes a one-time reward claim");
+
+    Enemy poisonedEnemy({0.0f, 0.0f}, 50, 1);
+    poisonedEnemy.applyPoison(2, 2.0f);
+    poisonedEnemy.applyPoison(3, 2.0f);
+    for (int stack = 2; stack < Config::MaxPoisonStacks; ++stack) {
+        poisonedEnemy.applyPoison(4, 2.0f);
+    }
+    poisonedEnemy.applyPoison(100, 2.0f);
+    const AilmentTickResult poisonTick = poisonedEnemy.updateAilments(
+        Config::AilmentTickInterval
+    );
+    expect(poisonedEnemy.isPoisoned()
+            && poisonedEnemy.poisonStacks() == Config::MaxPoisonStacks
+            && poisonTick.type == AilmentType::Poison
+            && poisonTick.damageFor(AilmentType::Poison) == 17
+            && poisonedEnemy.hp() == 33,
+        "Poison stacks cap at five applications and deal combined DoT");
+    poisonedEnemy.updateAilments(2.0f);
+    expect(!poisonedEnemy.isPoisoned() && poisonedEnemy.poisonStacks() == 0,
+        "Poison expires and clears its stack state");
 
     Enemy chillOnlyEnemy({0.0f, 0.0f}, 10, 1);
     chillOnlyEnemy.applyChill(0.55f, 2.0f);
@@ -917,6 +956,23 @@ void testPlayerAilments() {
             && std::abs(shocked.damageTakenMultiplier() - 1.0f) < 0.0001f,
         "Player Shock restores normal damage taken after expiry");
 
+    Player poisoned;
+    poisoned.applyPoison(2, 2.0f);
+    poisoned.applyPoison(3, 2.0f);
+    const int hpBeforePoison = poisoned.hp();
+    const AilmentTickResult playerPoisonTick = poisoned.updateAilments(
+        Config::AilmentTickInterval
+    );
+    expect(poisoned.hasAilment()
+            && poisoned.isPoisoned()
+            && poisoned.poisonStacks() == 2
+            && playerPoisonTick.damageFor(AilmentType::Poison) == 5
+            && poisoned.hp() == hpBeforePoison - 5,
+        "Player Poison applies stacked DoT and reports its damage type");
+    poisoned.updateAilments(2.0f);
+    expect(!poisoned.isPoisoned() && !poisoned.hasAilment(),
+        "Player Poison expires with the other transient ailments");
+
     Player restored;
     restored.applyIgnite(1, 2.0f);
     restored.applyChill(0.60f, 2.0f);
@@ -943,7 +999,7 @@ void testAilmentResistances() {
     expect(ranged.igniteResistance == 10 && ranged.chillResistance == 10,
         "Ranged enemies use the low ailment resistance baseline");
     expect(ranged.fireResistance == 10 && ranged.coldResistance == 10
-            && ranged.lightningResistance == 0,
+            && ranged.lightningResistance == 0 && ranged.poisonResistance == 10,
         "Ranged enemies expose separate direct elemental resistance data");
     expect(ranged.projectileDamageType == DamageType::Lightning
             && elite.contactDamageType == DamageType::Fire
@@ -978,6 +1034,9 @@ void testAilmentResistances() {
         "Storm exposes its Chill-heavy resistance profile");
     expect(bosses[2].igniteResistance == 30 && bosses[2].chillResistance == 30,
         "Brood exposes its balanced resistance profile");
+    expect(bosses[2].poisonResistance == 45
+            && damageAfterResistance(100, DamageType::Poison, 0, 0, 0, 45) == 55,
+        "Brood exposes Poison resistance and mitigates Poison damage");
     for (const auto& boss : bosses) {
         expect(boss.igniteResistance >= 0 && boss.igniteResistance <= 100
                 && boss.chillResistance >= 0 && boss.chillResistance <= 100,
@@ -1092,17 +1151,17 @@ void testBossElementalSkills() {
     );
     expect(broodProjectileIt != brood.skills.end(), "Brood Matriarch exposes Acid Spray");
     if (broodProjectileIt != brood.skills.end()) {
-        expect(broodProjectileIt->damageType == DamageType::Cold
-                && broodProjectileIt->ailment.type == AilmentType::Chill,
-            "Acid Spray uses the current Cold/Chill damage model");
+        expect(broodProjectileIt->damageType == DamageType::Poison
+                && broodProjectileIt->ailment.type == AilmentType::Poison,
+            "Acid Spray uses the Poison damage model");
     }
 
     expect(storm.enrageHazard.damageType == DamageType::Lightning
             && storm.enrageHazard.ailment.type == AilmentType::Shock,
         "Storm enrage hazard carries Lightning and Shock");
-    expect(brood.enrageHazard.damageType == DamageType::Cold
-            && brood.enrageHazard.ailment.type == AilmentType::Chill,
-        "Brood enrage hazard carries Cold and Chill");
+    expect(brood.enrageHazard.damageType == DamageType::Poison
+            && brood.enrageHazard.ailment.type == AilmentType::Poison,
+        "Brood enrage hazard carries Poison");
 }
 
 void testWardenProtectionMath() {
@@ -1433,6 +1492,14 @@ void testAffixTagsAndWeights() {
             case AffixStat::AreaRadiusMultiplier:
                 expect(hasTag(AffixTag::Area), affix.name + " maps area scaling to Area");
                 break;
+            case AffixStat::PoisonDamageMultiplier:
+                expect(hasTag(AffixTag::Damage),
+                    affix.name + " maps Poison damage to Damage");
+                break;
+            case AffixStat::PoisonResistance:
+                expect(hasTag(AffixTag::Survival),
+                    affix.name + " maps Poison resistance to Survival");
+                break;
             case AffixStat::Armor:
                 expect(hasTag(AffixTag::Armor) && hasTag(AffixTag::Survival),
                     affix.name + " maps armor to Armor and Survival");
@@ -1560,6 +1627,8 @@ void testCraftingChoiceOperations() {
             || item.affixes[0].stats.projectileDamageMultiplier != beforeImprove.projectileDamageMultiplier
             || item.affixes[0].stats.areaDamageMultiplier != beforeImprove.areaDamageMultiplier
             || item.affixes[0].stats.areaRadiusMultiplier != beforeImprove.areaRadiusMultiplier
+            || item.affixes[0].stats.poisonDamageMultiplier != beforeImprove.poisonDamageMultiplier
+            || item.affixes[0].stats.poisonResistance != beforeImprove.poisonResistance
             || item.affixes[0].stats.pickupRangeMultiplier != beforeImprove.pickupRangeMultiplier,
         "ImproveAffix changes only the target contribution");
     expect(item.baseId == baseId && item.baseName == baseName
@@ -1942,6 +2011,11 @@ void testMapOptionGeneration() {
             && options[0].modifier.playerElementalResistancePenalty >= 25
             && options[1].modifier.monsterElementalResistanceBonus >= 15,
         "map options expose three data-driven elemental resistance challenges");
+    const auto poisonOptions = MapOptionLibrary::generateOptions(3);
+    expect(poisonOptions[2].modifier.hasModifier("venomtide")
+            && poisonOptions[2].modifier.elementalChallengeType == DamageType::Poison
+            && poisonOptions[2].modifier.playerElementalResistancePenalty >= 25,
+        "higher-tier map options expose the Venomtide Poison challenge");
     expect(damageAfterResistance(
                 100,
                 options[0].modifier.elementalChallengeType,

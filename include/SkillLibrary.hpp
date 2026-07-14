@@ -126,6 +126,24 @@ public:
         return skill;
     }
 
+    static SkillDefinition toxicBurst() {
+        SkillDefinition skill = {
+            SkillSlot::Secondary,
+            SkillCastType::MouseTargetedArea,
+            "Toxic Burst",
+            Config::ToxicBurstCooldown,
+            Config::ToxicBurstRadius,
+            Config::ToxicBurstDamage,
+            Config::ToxicBurstEffectDuration,
+            1,
+            0.0f,
+            {AilmentType::Poison, 3.5f, 0.35f},
+            Config::ToxicBurstManaCost
+        };
+        skill.damageType = DamageType::Poison;
+        return skill;
+    }
+
     static SkillDefinition nova() {
         return {
             SkillSlot::Utility,
@@ -236,6 +254,7 @@ private:
             bladestorm(),
             shockwave(),
             aftershock(),
+            toxicBurst(),
             dash()
         };
     }

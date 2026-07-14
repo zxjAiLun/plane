@@ -35,6 +35,7 @@ public:
     void applyIgnite(int damagePerTick, float duration);
     void applyChill(float speedMultiplier, float duration);
     void applyShock(float damageTakenMultiplier, float duration);
+    void applyPoison(int damagePerTick, float duration);
     void kill();
     bool isDead() const;
     bool claimKillReward();
@@ -58,6 +59,8 @@ public:
     bool isIgnited() const;
     bool isChilled() const;
     bool isShocked() const;
+    bool isPoisoned() const;
+    int poisonStacks() const;
     float damageTakenMultiplier() const;
     float movementSpeedMultiplier() const;
     Vector2 chargeTargetPosition(float mapSpeedMultiplier = 1.0f) const;
@@ -91,6 +94,10 @@ private:
     float chillSpeedMultiplier_;
     float shockTimer_;
     float shockDamageTakenMultiplier_;
+    int poisonDamagePerTick_;
+    int poisonStacks_;
+    float poisonTimer_;
+    float poisonTickTimer_;
     bool killRewardClaimed_;
 
     inline static int nextId_ = 1;

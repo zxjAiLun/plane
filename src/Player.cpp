@@ -79,6 +79,10 @@ void Player::clearAilments() {
     chillSpeedMultiplier_ = 1.0f;
     shockTimer_ = 0.0f;
     shockDamageTakenMultiplier_ = 1.0f;
+    poisonDamagePerTick_ = 0;
+    poisonStacks_ = 0;
+    poisonTimer_ = 0.0f;
+    poisonTickTimer_ = 0.0f;
 }
 
 int Player::takeDamage(int damage) {
@@ -136,9 +140,8 @@ AilmentTickResult Player::updateAilments(float dt) {
         igniteTimer_ = std::max(0.0f, igniteTimer_ - elapsed);
         igniteTickTimer_ -= activeTime;
         while (igniteTickTimer_ <= 0.0f && igniteTimer_ > 0.0f && !isDead()) {
-            result.type = AilmentType::Ignite;
-            ++result.tickCount;
-            result.damage += takeDamage(igniteDamagePerTick_);
+            const int dealtDamage = takeDamage(igniteDamagePerTick_);
+            result.record(AilmentType::Ignite, dealtDamage);
             result.killed = isDead();
             igniteTickTimer_ += Config::AilmentTickInterval;
             if (result.killed) {
@@ -148,6 +151,26 @@ AilmentTickResult Player::updateAilments(float dt) {
         if (igniteTimer_ <= 0.0f) {
             igniteDamagePerTick_ = 0;
             igniteTickTimer_ = 0.0f;
+        }
+    }
+
+    if (poisonTimer_ > 0.0f) {
+        const float activeTime = std::min(elapsed, poisonTimer_);
+        poisonTimer_ = std::max(0.0f, poisonTimer_ - elapsed);
+        poisonTickTimer_ -= activeTime;
+        while (poisonTickTimer_ <= 0.0f && poisonTimer_ > 0.0f && !isDead()) {
+            const int dealtDamage = takeDamage(poisonDamagePerTick_);
+            result.record(AilmentType::Poison, dealtDamage);
+            result.killed = isDead();
+            poisonTickTimer_ += Config::AilmentTickInterval;
+            if (result.killed) {
+                break;
+            }
+        }
+        if (poisonTimer_ <= 0.0f) {
+            poisonDamagePerTick_ = 0;
+            poisonStacks_ = 0;
+            poisonTickTimer_ = 0.0f;
         }
     }
 
@@ -195,6 +218,22 @@ void Player::applyShock(float damageTakenMultiplier, float duration) {
         shockDamageTakenMultiplier_, damageTakenMultiplier
     );
     shockTimer_ = std::max(shockTimer_, duration);
+}
+
+void Player::applyPoison(int damagePerTick, float duration) {
+    if (damagePerTick <= 0 || duration <= 0.0f) {
+        return;
+    }
+
+    if (poisonStacks_ < Config::MaxPoisonStacks) {
+        ++poisonStacks_;
+        poisonDamagePerTick_ += damagePerTick;
+    }
+    poisonTimer_ = std::max(poisonTimer_, duration);
+    poisonTickTimer_ = std::min(poisonTickTimer_, Config::AilmentTickInterval);
+    if (poisonTickTimer_ <= 0.0f) {
+        poisonTickTimer_ = Config::AilmentTickInterval;
+    }
 }
 
 void Player::gainExp(int amount) {
@@ -314,9 +353,11 @@ bool Player::restoreState(const PlayerSaveState& state, const Vector2& bounds) {
         || !validPositiveMultiplier(state.upgradeStats.fireDamageMultiplier)
         || !validPositiveMultiplier(state.upgradeStats.coldDamageMultiplier)
         || !validPositiveMultiplier(state.upgradeStats.lightningDamageMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.poisonDamageMultiplier)
         || !validResistance(state.upgradeStats.fireResistance)
         || !validResistance(state.upgradeStats.coldResistance)
-        || !validResistance(state.upgradeStats.lightningResistance)) {
+        || !validResistance(state.upgradeStats.lightningResistance)
+        || !validResistance(state.upgradeStats.poisonResistance)) {
         return false;
     }
 
@@ -363,11 +404,14 @@ bool Player::isIgnited() const { return igniteTimer_ > 0.0f; }
 bool Player::isChilled() const { return chillTimer_ > 0.0f; }
 bool Player::isShocked() const { return shockTimer_ > 0.0f; }
 bool Player::hasAilment() const {
-    return isIgnited() || isChilled() || isShocked();
+    return isIgnited() || isChilled() || isShocked() || isPoisoned();
 }
+bool Player::isPoisoned() const { return poisonTimer_ > 0.0f; }
+int Player::poisonStacks() const { return poisonStacks_; }
 float Player::chillTimeRemaining() const { return chillTimer_; }
 float Player::shockTimeRemaining() const { return shockTimer_; }
 float Player::igniteTimeRemaining() const { return igniteTimer_; }
+float Player::poisonTimeRemaining() const { return poisonTimer_; }
 float Player::chillSpeedMultiplier() const { return chillSpeedMultiplier_; }
 float Player::damageTakenMultiplier() const { return shockDamageTakenMultiplier_; }
 int Player::hp() const { return hp_; }

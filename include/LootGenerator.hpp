@@ -410,6 +410,7 @@ private:
             {"Emberforged", true, EquipmentSlot::Weapon, AffixStat::FireDamageMultiplier, {0.04f, 0.07f, 0.10f}},
             {"of Frostbite", false, EquipmentSlot::Weapon, AffixStat::ColdDamageMultiplier, {0.04f, 0.07f, 0.10f}},
             {"Stormcharged", true, EquipmentSlot::Weapon, AffixStat::LightningDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"Venomforged", true, EquipmentSlot::Weapon, AffixStat::PoisonDamageMultiplier, {0.04f, 0.07f, 0.10f}},
 
             // Armor
             {"Sturdy", true, EquipmentSlot::Armor, AffixStat::MaxHp, {4.0f, 8.0f, 12.0f}},
@@ -423,6 +424,7 @@ private:
             {"Flameguard", true, EquipmentSlot::Armor, AffixStat::FireResistance, {4.0f, 8.0f, 12.0f}},
             {"Frostguard", true, EquipmentSlot::Armor, AffixStat::ColdResistance, {4.0f, 8.0f, 12.0f}},
             {"Stormguard", true, EquipmentSlot::Armor, AffixStat::LightningResistance, {4.0f, 8.0f, 12.0f}},
+            {"Venomguard", true, EquipmentSlot::Armor, AffixStat::PoisonResistance, {4.0f, 8.0f, 12.0f}},
 
             // Ring
             {"Glinting", true, EquipmentSlot::Ring, AffixStat::DamageMultiplier, {0.05f, 0.09f, 0.13f}},
@@ -453,6 +455,8 @@ private:
             {"of Blasting", false, EquipmentSlot::Amulet, AffixStat::AreaDamageMultiplier, {0.03f, 0.06f, 0.09f}},
             {"Wide", true, EquipmentSlot::Amulet, AffixStat::AreaRadiusMultiplier, {0.05f, 0.08f, 0.11f}},
             {"of Expansion", false, EquipmentSlot::Amulet, AffixStat::AreaRadiusMultiplier, {0.03f, 0.06f, 0.09f}},
+            {"Toxic", true, EquipmentSlot::Amulet, AffixStat::PoisonDamageMultiplier, {0.05f, 0.08f, 0.11f}},
+            {"of Antidotes", false, EquipmentSlot::Amulet, AffixStat::PoisonResistance, {4.0f, 8.0f, 12.0f}},
         };
 
         for (auto& affix : pool) {
@@ -488,10 +492,12 @@ private:
             case AffixStat::FireDamageMultiplier:
             case AffixStat::ColdDamageMultiplier:
             case AffixStat::LightningDamageMultiplier:
+            case AffixStat::PoisonDamageMultiplier:
                 return {AffixTag::Damage};
             case AffixStat::FireResistance:
             case AffixStat::ColdResistance:
             case AffixStat::LightningResistance:
+            case AffixStat::PoisonResistance:
                 return {AffixTag::Survival};
         }
         return {AffixTag::None};
@@ -511,10 +517,12 @@ private:
             case AffixStat::Armor: weight = 95; break;
             case AffixStat::FireDamageMultiplier:
             case AffixStat::ColdDamageMultiplier:
-            case AffixStat::LightningDamageMultiplier: weight = 85; break;
+            case AffixStat::LightningDamageMultiplier:
+            case AffixStat::PoisonDamageMultiplier: weight = 85; break;
             case AffixStat::FireResistance:
             case AffixStat::ColdResistance:
-            case AffixStat::LightningResistance: weight = 100; break;
+            case AffixStat::LightningResistance:
+            case AffixStat::PoisonResistance: weight = 100; break;
         }
         return affix.isPrefix ? weight + 10 : weight;
     }
@@ -688,6 +696,9 @@ private:
             case AffixStat::LightningDamageMultiplier:
                 stats.lightningDamageMultiplier += value;
                 break;
+            case AffixStat::PoisonDamageMultiplier:
+                stats.poisonDamageMultiplier += value;
+                break;
             case AffixStat::FireResistance:
                 stats.fireResistance += static_cast<int>(value);
                 break;
@@ -696,6 +707,9 @@ private:
                 break;
             case AffixStat::LightningResistance:
                 stats.lightningResistance += static_cast<int>(value);
+                break;
+            case AffixStat::PoisonResistance:
+                stats.poisonResistance += static_cast<int>(value);
                 break;
         }
         return stats;
@@ -770,6 +784,15 @@ private:
                     std::max(current.lightningResistance + 1,
                         static_cast<int>(std::ceil(current.lightningResistance * improvementMultiplier))));
                 break;
+            case AffixStat::PoisonDamageMultiplier:
+                improved.poisonDamageMultiplier = std::min(cap.poisonDamageMultiplier,
+                    1.0f + (current.poisonDamageMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::PoisonResistance:
+                improved.poisonResistance = std::min(cap.poisonResistance,
+                    std::max(current.poisonResistance + 1,
+                        static_cast<int>(std::ceil(current.poisonResistance * improvementMultiplier))));
+                break;
             case AffixStat::None:
                 break;
         }
@@ -795,7 +818,9 @@ private:
             && left.lightningDamageMultiplier == right.lightningDamageMultiplier
             && left.fireResistance == right.fireResistance
             && left.coldResistance == right.coldResistance
-            && left.lightningResistance == right.lightningResistance;
+            && left.lightningResistance == right.lightningResistance
+            && std::abs(left.poisonDamageMultiplier - right.poisonDamageMultiplier) < 0.0001f
+            && left.poisonResistance == right.poisonResistance;
     }
 
     static void refreshGeneratedName(Item& item) {

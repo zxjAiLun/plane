@@ -52,6 +52,11 @@ namespace Config {
     constexpr float SecondarySkillCooldown = 1.0f;
     constexpr float FlareManaCost = 8.0f;
     constexpr float FrostBombManaCost = 10.0f;
+    constexpr float ToxicBurstRadius = 105.0f;
+    constexpr int ToxicBurstDamage = 3;
+    constexpr float ToxicBurstCooldown = 1.35f;
+    constexpr float ToxicBurstManaCost = 11.0f;
+    constexpr float ToxicBurstEffectDuration = 0.25f;
     constexpr float SecondarySkillEffectDuration = 0.20f;
 
     constexpr float MeteorRadius = 110.0f;
@@ -90,6 +95,7 @@ namespace Config {
     constexpr float WardenDamageTakenMultiplier = 0.70f;
     constexpr float VolatileExplosionEffectDuration = 0.35f;
     constexpr float AilmentTickInterval = 1.0f;
+    constexpr int MaxPoisonStacks = 5;
     constexpr float ShrineBuffDuration = 20.0f;
     constexpr int ShrineDamageBonusPercent = 35;
     constexpr float ShrineDamageMultiplier = 1.0f

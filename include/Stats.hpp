@@ -20,6 +20,9 @@ struct Stats {
     int fireResistance = 0;
     int coldResistance = 0;
     int lightningResistance = 0;
+    // Keep new fields at the end so existing aggregate initializers remain valid.
+    float poisonDamageMultiplier = 1.0f;
+    int poisonResistance = 0;
 };
 
 inline Stats combineStats(const Stats& base, const Stats& bonus) {
@@ -43,5 +46,7 @@ inline Stats combineStats(const Stats& base, const Stats& bonus) {
         base.fireResistance + bonus.fireResistance,
         base.coldResistance + bonus.coldResistance,
         base.lightningResistance + bonus.lightningResistance,
+        base.poisonDamageMultiplier * bonus.poisonDamageMultiplier,
+        base.poisonResistance + bonus.poisonResistance,
     };
 }

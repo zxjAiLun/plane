@@ -47,6 +47,10 @@ Enemy::Enemy(
     , chillSpeedMultiplier_(1.0f)
     , shockTimer_(0.0f)
     , shockDamageTakenMultiplier_(1.0f)
+    , poisonDamagePerTick_(0)
+    , poisonStacks_(0)
+    , poisonTimer_(0.0f)
+    , poisonTickTimer_(0.0f)
     , killRewardClaimed_(false) {
 }
 
@@ -135,9 +139,8 @@ AilmentTickResult Enemy::updateAilments(float dt) {
         igniteTimer_ = std::max(0.0f, igniteTimer_ - elapsed);
         igniteTickTimer_ -= activeTime;
         while (igniteTickTimer_ <= 0.0f && igniteTimer_ > 0.0f && !isDead()) {
-            result.type = AilmentType::Ignite;
-            ++result.tickCount;
-            result.damage += takeDamage(igniteDamagePerTick_);
+            const int dealtDamage = takeDamage(igniteDamagePerTick_);
+            result.record(AilmentType::Ignite, dealtDamage);
             result.killed = isDead();
             igniteTickTimer_ += Config::AilmentTickInterval;
             if (result.killed) {
@@ -147,6 +150,26 @@ AilmentTickResult Enemy::updateAilments(float dt) {
         if (igniteTimer_ <= 0.0f) {
             igniteDamagePerTick_ = 0;
             igniteTickTimer_ = 0.0f;
+        }
+    }
+
+    if (poisonTimer_ > 0.0f) {
+        const float activeTime = std::min(elapsed, poisonTimer_);
+        poisonTimer_ = std::max(0.0f, poisonTimer_ - elapsed);
+        poisonTickTimer_ -= activeTime;
+        while (poisonTickTimer_ <= 0.0f && poisonTimer_ > 0.0f && !isDead()) {
+            const int dealtDamage = takeDamage(poisonDamagePerTick_);
+            result.record(AilmentType::Poison, dealtDamage);
+            result.killed = isDead();
+            poisonTickTimer_ += Config::AilmentTickInterval;
+            if (result.killed) {
+                break;
+            }
+        }
+        if (poisonTimer_ <= 0.0f) {
+            poisonDamagePerTick_ = 0;
+            poisonStacks_ = 0;
+            poisonTickTimer_ = 0.0f;
         }
     }
 
@@ -206,6 +229,22 @@ void Enemy::applyShock(float damageTakenMultiplier, float duration) {
     shockTimer_ = std::max(shockTimer_, duration);
 }
 
+void Enemy::applyPoison(int damagePerTick, float duration) {
+    if (damagePerTick <= 0 || duration <= 0.0f) {
+        return;
+    }
+
+    if (poisonStacks_ < Config::MaxPoisonStacks) {
+        ++poisonStacks_;
+        poisonDamagePerTick_ += damagePerTick;
+    }
+    poisonTimer_ = std::max(poisonTimer_, duration);
+    poisonTickTimer_ = std::min(poisonTickTimer_, Config::AilmentTickInterval);
+    if (poisonTickTimer_ <= 0.0f) {
+        poisonTickTimer_ = Config::AilmentTickInterval;
+    }
+}
+
 void Enemy::kill() {
     hp_ = 0;
 }
@@ -256,6 +295,8 @@ bool Enemy::isCharging() const { return chargeTimer_ > 0.0f; }
 bool Enemy::isIgnited() const { return igniteTimer_ > 0.0f; }
 bool Enemy::isChilled() const { return chillTimer_ > 0.0f; }
 bool Enemy::isShocked() const { return shockTimer_ > 0.0f; }
+bool Enemy::isPoisoned() const { return poisonTimer_ > 0.0f; }
+int Enemy::poisonStacks() const { return poisonStacks_; }
 float Enemy::damageTakenMultiplier() const {
     return isShocked() ? shockDamageTakenMultiplier_ : 1.0f;
 }
