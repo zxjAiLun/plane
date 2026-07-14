@@ -15,6 +15,7 @@ enum class SupportKind {
     Trailblazer,
     Combustion,
     DeepChill,
+    Conductivity,
     Barrage,
     Concentration,
     Echo,
@@ -40,6 +41,8 @@ struct SupportDefinition {
     int ignitePenetration = 0;
     int chillPenetration = 0;
     int repeatCountBonus = 0;
+    float shockMagnitudeMultiplier = 1.0f;
+    int shockPenetration = 0;
 };
 
 inline constexpr std::size_t SupportLinkCount = 2;
@@ -57,6 +60,7 @@ public:
             {SupportKind::Trailblazer, "Trailblazer", "Dash impact: area damage at landing", 1.0f, 1.0f, 1.25f, 0, 0, 0.0f, 2, 90.0f, 0.30f},
             {SupportKind::Combustion, "Combustion", "-25% hit damage, +80% Ignite damage, +25% duration", 0.75f, 1.0f, 1.0f, 0, 0, 0.0f, 0, 0.0f, 0.0f, 1.80f, 1.25f},
             {SupportKind::DeepChill, "Deep Chill", "+50% Chill duration, stronger Chill, +20% penetration, +15% cooldown", 1.0f, 1.0f, 1.15f, 0, 0, 0.0f, 0, 0.0f, 0.0f, 1.0f, 1.50f, 1.40f, 0, 20},
+            {SupportKind::Conductivity, "Conductivity", "+25% Shock effect, +20% Shock penetration, +20% duration", 1.0f, 1.0f, 1.0f, 0, 0, 0.0f, 0, 0.0f, 0.0f, 1.0f, 1.20f, 1.0f, 0, 0, 0, 1.25f, 20},
             {SupportKind::Barrage, "Barrage", "+1 projectile, wider spread, -12% damage", 0.88f, 1.0f, 1.0f, 0, 1, 12.0f},
             {SupportKind::Concentration, "Concentration", "+22% area damage, -22% radius, +12% cooldown", 1.22f, 0.78f, 1.12f},
             {
@@ -120,6 +124,8 @@ public:
                 return skill.ailment.type == AilmentType::Ignite;
             case SupportKind::DeepChill:
                 return skill.ailment.type == AilmentType::Chill;
+            case SupportKind::Conductivity:
+                return skill.ailment.type == AilmentType::Shock;
             case SupportKind::Barrage:
                 return skill.castType == SkillCastType::Projectile;
             case SupportKind::Concentration:

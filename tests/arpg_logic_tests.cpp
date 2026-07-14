@@ -354,6 +354,8 @@ void testSkillBarAssignSkillAndSupport() {
         "assign Arc Bolt to Primary");
     expect(expansionBar.assignSupport(SkillSlot::Primary, "Barrage"),
         "Barrage attaches to Arc Bolt");
+    expect(expansionBar.assignSupport(SkillSlot::Primary, "Conductivity", 1),
+        "Conductivity attaches to Shock skills");
     expect(!expansionBar.assignSupport(SkillSlot::Secondary, "Barrage"),
         "Barrage rejects non-Projectile skills");
     expect(!expansionBar.assignSupport(SkillSlot::Primary, "Concentration", 1),
@@ -557,6 +559,9 @@ void testCombatMathDamageRadiusPierce() {
     const SkillDefinition shockwave = SkillLibrary::shockwave();
     const SkillDefinition splitArrow = SkillLibrary::splitArrow();
     const SkillDefinition aftershock = SkillLibrary::aftershock();
+    expect(arcBolt.ailment.type == AilmentType::Shock
+            && std::abs(arcBolt.ailment.damageTakenMultiplier - 1.20f) < 0.0001f,
+        "Arc Bolt carries the base Shock effect");
     expect(arcBolt.slot == SkillSlot::Primary
             && arcBolt.castType == SkillCastType::Projectile
             && arcBolt.baseDamage == 3
@@ -829,6 +834,18 @@ void testSkillAilments() {
     expect(std::abs(enemy.movementSpeedMultiplier() - 1.0f) < 0.0001f,
         "movement speed returns to normal after Chill expires");
 
+    enemy.applyShock(1.20f, 2.0f);
+    expect(enemy.isShocked()
+            && std::abs(enemy.damageTakenMultiplier() - 1.20f) < 0.0001f,
+        "Shock increases damage taken while active");
+    enemy.applyShock(1.10f, 3.0f);
+    expect(std::abs(enemy.damageTakenMultiplier() - 1.20f) < 0.0001f,
+        "weaker Shock does not overwrite a stronger Shock");
+    enemy.updateAilments(3.1f);
+    expect(!enemy.isShocked()
+            && std::abs(enemy.damageTakenMultiplier() - 1.0f) < 0.0001f,
+        "Shock expires and restores normal damage taken");
+
     Enemy overkillEnemy({0.0f, 0.0f}, 3, 1);
     overkillEnemy.applyIgnite(8, 2.0f);
     const AilmentTickResult overkillTick = overkillEnemy.updateAilments(
@@ -926,6 +943,11 @@ void testAilmentResistances() {
         "Ignite penetration restores part of the resisted damage");
     expect(ailmentTickDamageAfterResistance(10, 100, 0) == 0,
         "full Ignite resistance prevents positive damage over time");
+
+    expect(std::abs(damageTakenMultiplierAfterResistance(1.20f, 0, 0) - 1.20f) < 0.0001f
+            && std::abs(damageTakenMultiplierAfterResistance(1.20f, 50, 0) - 1.10f) < 0.0001f
+            && std::abs(damageTakenMultiplierAfterResistance(1.20f, 0, 20) - 1.20f) < 0.0001f,
+        "Shock effect scales with resistance and penetration");
 
     expect(std::abs(chillSpeedMultiplierAfterResistance(0.55f, 0, 0) - 0.55f) < 0.0001f,
         "Chill is unchanged with zero resistance");

@@ -45,6 +45,8 @@ Enemy::Enemy(
     , igniteTickTimer_(0.0f)
     , chillTimer_(0.0f)
     , chillSpeedMultiplier_(1.0f)
+    , shockTimer_(0.0f)
+    , shockDamageTakenMultiplier_(1.0f)
     , killRewardClaimed_(false) {
 }
 
@@ -153,6 +155,11 @@ AilmentTickResult Enemy::updateAilments(float dt) {
         chillSpeedMultiplier_ = 1.0f;
     }
 
+    shockTimer_ = std::max(0.0f, shockTimer_ - elapsed);
+    if (shockTimer_ <= 0.0f) {
+        shockDamageTakenMultiplier_ = 1.0f;
+    }
+
     return result;
 }
 
@@ -186,6 +193,17 @@ void Enemy::applyChill(float speedMultiplier, float duration) {
 
     chillSpeedMultiplier_ = std::min(chillSpeedMultiplier_, speedMultiplier);
     chillTimer_ = std::max(chillTimer_, duration);
+}
+
+void Enemy::applyShock(float damageTakenMultiplier, float duration) {
+    if (damageTakenMultiplier <= 1.0f || duration <= 0.0f) {
+        return;
+    }
+
+    shockDamageTakenMultiplier_ = std::max(
+        shockDamageTakenMultiplier_, damageTakenMultiplier
+    );
+    shockTimer_ = std::max(shockTimer_, duration);
 }
 
 void Enemy::kill() {
@@ -237,6 +255,10 @@ bool Enemy::isSummoned() const { return summoned_; }
 bool Enemy::isCharging() const { return chargeTimer_ > 0.0f; }
 bool Enemy::isIgnited() const { return igniteTimer_ > 0.0f; }
 bool Enemy::isChilled() const { return chillTimer_ > 0.0f; }
+bool Enemy::isShocked() const { return shockTimer_ > 0.0f; }
+float Enemy::damageTakenMultiplier() const {
+    return isShocked() ? shockDamageTakenMultiplier_ : 1.0f;
+}
 float Enemy::movementSpeedMultiplier() const {
     return isChilled() ? chillSpeedMultiplier_ : 1.0f;
 }

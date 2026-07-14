@@ -41,6 +41,7 @@ public:
     int takeDamage(int damage);
     void applyIgnite(int damagePerTick, float duration);
     void applyChill(float speedMultiplier, float duration);
+    void applyShock(float damageTakenMultiplier, float duration);
     void kill();
     bool isDead() const;
     bool claimKillReward();
@@ -63,6 +64,8 @@ public:
     bool isCharging() const;
     bool isIgnited() const;
     bool isChilled() const;
+    bool isShocked() const;
+    float damageTakenMultiplier() const;
     float movementSpeedMultiplier() const;
     Vector2 chargeTargetPosition(float mapSpeedMultiplier = 1.0f) const;
     bool consumeChargeHit();
@@ -93,6 +96,8 @@ private:
     float igniteTickTimer_;
     float chillTimer_;
     float chillSpeedMultiplier_;
+    float shockTimer_;
+    float shockDamageTakenMultiplier_;
     bool killRewardClaimed_;
 
     inline static int nextId_ = 1;

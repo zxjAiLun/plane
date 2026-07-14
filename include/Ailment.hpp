@@ -3,7 +3,8 @@
 enum class AilmentType {
     None,
     Ignite,
-    Chill
+    Chill,
+    Shock
 };
 
 struct AilmentDefinition {
@@ -13,4 +14,6 @@ struct AilmentDefinition {
     float speedMultiplier = 1.0f;
     int ignitePenetration = 0;
     int chillPenetration = 0;
+    float damageTakenMultiplier = 1.0f;
+    int shockPenetration = 0;
 };

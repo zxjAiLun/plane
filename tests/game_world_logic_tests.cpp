@@ -1327,6 +1327,14 @@ void testExpandedSkillWorldHits() {
         world.bossDefinition().coldResistance,
         world.bossDefinition().lightningResistance
     );
+    const int expectedShockDamage = static_cast<int>(std::ceil(
+        static_cast<float>(expectedProjectileDamage)
+            * damageTakenMultiplierAfterResistance(
+                projectileSkill.ailment.damageTakenMultiplier,
+                world.bossDefinition().shockResistance,
+                0
+            )
+    ));
     const int bossHpBeforeProjectile = boss->hp();
     const std::size_t projectileFeedbackStart = world.combatFeedback().size();
     const sf::Vector2i bossScreen = worldToScreen(boss->position());
@@ -1338,20 +1346,27 @@ void testExpandedSkillWorldHits() {
     input.handleMouseReleased(sf::Mouse::Button::Left, bossScreen);
 
     int projectileFeedbackDamage = 0;
+    int projectileHitCount = 0;
     bool projectileFeedbackMatches = true;
     for (std::size_t index = projectileFeedbackStart;
         index < world.combatFeedback().size(); ++index) {
         const auto& feedback = world.combatFeedback()[index];
         if (feedback.source == projectileSkill.name) {
             projectileFeedbackDamage += feedback.damage;
+            const int expectedHitDamage = projectileHitCount == 0
+                ? expectedProjectileDamage : expectedShockDamage;
             projectileFeedbackMatches = projectileFeedbackMatches
-                && feedback.damage == expectedProjectileDamage;
+                && feedback.damage == expectedHitDamage;
+            ++projectileHitCount;
         }
     }
     boss = findBoss();
     const int bossHpAfterProjectile = boss == world.enemies().end() ? 0 : boss->hp();
-    expect(projectileFeedbackDamage > 0 && projectileFeedbackMatches,
-        "Arc Bolt real feedback uses CombatMath damage");
+    expect(projectileHitCount == 2 && projectileFeedbackMatches
+            && projectileFeedbackDamage == expectedProjectileDamage + expectedShockDamage,
+        "Arc Bolt real feedback includes Shock's increased follow-up hit");
+    expect(boss != world.enemies().end() && boss->isShocked(),
+        "Arc Bolt applies Shock through the real GameWorld path");
     expect(bossHpBeforeProjectile - bossHpAfterProjectile == projectileFeedbackDamage,
         "Arc Bolt feedback equals the Boss HP delta");
 
@@ -1368,9 +1383,19 @@ void testExpandedSkillWorldHits() {
 
     const auto& areaSkill = world.skillBar().definition(SkillSlot::Utility);
     const auto areaSupports = world.skillBar().supportDefinitionsFor(areaSkill);
-    const int expectedAreaDamage = skillDamage(
+    const int expectedAreaRawDamage = skillDamage(
         areaSkill, world.player().stats(), areaSupports
     );
+    const int expectedAreaResistedDamage = damageAfterResistance(
+        expectedAreaRawDamage,
+        areaSkill.damageType,
+        world.bossDefinition().fireResistance,
+        world.bossDefinition().coldResistance,
+        world.bossDefinition().lightningResistance
+    );
+    const int expectedAreaDamage = static_cast<int>(std::ceil(
+        static_cast<float>(expectedAreaResistedDamage) * boss->damageTakenMultiplier()
+    ));
     const float expectedAreaRadius = skillRadius(
         areaSkill, world.player().stats(), areaSupports
     );

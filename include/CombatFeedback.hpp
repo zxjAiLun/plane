@@ -8,7 +8,8 @@ enum class CombatFeedbackType {
     Damage,
     PlayerHit,
     SkillRejected,
-    Telegraph
+    Telegraph,
+    Status
 };
 
 struct CombatFeedback {

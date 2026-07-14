@@ -375,6 +375,14 @@ std::string ailmentSummary(const AilmentDefinition& ailment) {
                 + (ailment.chillPenetration > 0
                     ? " Pen " + std::to_string(ailment.chillPenetration) + "%"
                     : "");
+        case AilmentType::Shock:
+            return "Shock " + formatFloat(ailment.duration, 1) + "s +"
+                + std::to_string(static_cast<int>(
+                    (ailment.damageTakenMultiplier - 1.0f) * 100.0f
+                )) + "% taken"
+                + (ailment.shockPenetration > 0
+                    ? " Pen " + std::to_string(ailment.shockPenetration) + "%"
+                    : "");
         case AilmentType::None:
             return "";
     }
@@ -1402,6 +1410,17 @@ void Renderer::drawEnemies(const GameWorld& world) {
             ring.setPosition(screenPosition);
             window_.draw(ring);
         }
+        if (enemy.isShocked()) {
+            const float ringRadius = enemy.radius()
+                + (enemy.isIgnited() ? 13.0f : enemy.isChilled() ? 9.0f : 5.0f);
+            sf::CircleShape ring(ringRadius);
+            ring.setFillColor(sf::Color::Transparent);
+            ring.setOutlineColor(sf::Color(195, 145, 255, 235));
+            ring.setOutlineThickness(2.5f);
+            ring.setOrigin({ringRadius, ringRadius});
+            ring.setPosition(screenPosition);
+            window_.draw(ring);
+        }
 
         if (definition.outlineThickness > 0.0f) {
             const std::string label = enemyDisplayLabel(world, enemy);
@@ -1445,6 +1464,10 @@ void Renderer::drawCombatFeedback(const GameWorld& world) {
             case CombatFeedbackType::Telegraph:
                 text = "! " + feedback.source;
                 color = sf::Color(255, 120, 90, alpha);
+                break;
+            case CombatFeedbackType::Status:
+                text = feedback.source;
+                color = sf::Color(205, 155, 255, alpha);
                 break;
         }
         const Vector2 textPosition(feedback.position.x, feedback.position.y - 24.0f - rise);
@@ -2160,7 +2183,8 @@ void Renderer::drawBossHealth(const GameWorld& world) {
 
     drawText("Fire Res " + std::to_string(world.bossDefinition().fireResistance)
         + "%  Cold Res " + std::to_string(world.bossDefinition().coldResistance)
-        + "%  Light Res " + std::to_string(world.bossDefinition().lightningResistance) + "%",
+        + "%  Light Res " + std::to_string(world.bossDefinition().lightningResistance)
+        + "%  Shock Res " + std::to_string(world.bossDefinition().shockResistance) + "%",
         {position.x, detailY}, 11, sf::Color(220, 195, 175));
     detailY += 16.0f;
 

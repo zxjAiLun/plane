@@ -49,7 +49,7 @@ public:
             0.0f,
             1,
             0.0f,
-            {},
+            {AilmentType::Shock, 3.0f, 0.0f, 1.0f, 0, 0, 1.20f, 0},
             2.0f
         };
         skill.damageType = DamageType::Lightning;

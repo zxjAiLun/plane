@@ -1421,7 +1421,9 @@ void GameWorld::handleCollisions() {
                             : projectile.source()
                     );
                 }
-                applySkillAilment(enemy, projectile.ailment(), dealtDamage);
+                if (projectile.ailment().type != AilmentType::None && dealtDamage > 0) {
+                    applySkillAilment(enemy, projectile.ailment(), dealtDamage);
+                }
                 projectile.recordEnemyHit(enemy.id());
 
                 if (enemy.isDead()) {
@@ -1594,8 +1596,13 @@ int GameWorld::damageToEnemy(
         coldResistance,
         lightningResistance
     );
+    const int shockedDamage = resistedDamage <= 0
+        ? 0
+        : static_cast<int>(std::ceil(
+            static_cast<float>(resistedDamage) * enemy.damageTakenMultiplier()
+        ));
     if (enemy.isWarden()) {
-        return resistedDamage;
+        return shockedDamage;
     }
 
     const float auraRadiusSquared = Config::WardenAuraRadius * Config::WardenAuraRadius;
@@ -1607,14 +1614,14 @@ int GameWorld::damageToEnemy(
         const Vector2 offset = enemy.position() - protector.position();
         if (offset.lengthSquared() <= auraRadiusSquared) {
             return wardenProtectedDamage(
-                resistedDamage,
+                shockedDamage,
                 true,
                 Config::WardenDamageTakenMultiplier
             );
         }
     }
 
-    return resistedDamage;
+    return shockedDamage;
 }
 
 void GameWorld::handleBossProjectileCollisions() {
@@ -1900,7 +1907,7 @@ void GameWorld::dealAreaDamage(
             if (dealtDamage > 0) {
                 addCombatFeedback(enemy.position(), dealtDamage, source);
             }
-            if (ailment) {
+            if (ailment && dealtDamage > 0) {
                 applySkillAilment(enemy, *ailment, dealtDamage);
             }
 
@@ -1978,9 +1985,11 @@ void GameWorld::applySkillAilment(
     const auto& enemyDefinition = EnemyLibrary::forType(enemy.type());
     int igniteResistance = enemyDefinition.igniteResistance;
     int chillResistance = enemyDefinition.chillResistance;
+    int shockResistance = enemyDefinition.shockResistance;
     if (enemy.isBoss()) {
         igniteResistance = bossDefinition_->igniteResistance;
         chillResistance = bossDefinition_->chillResistance;
+        shockResistance = bossDefinition_->shockResistance;
     }
 
     switch (ailment.type) {
@@ -2002,6 +2011,22 @@ void GameWorld::applySkillAilment(
                     ailment.chillPenetration
                 ),
                 ailment.duration
+            );
+            break;
+        case AilmentType::Shock:
+            enemy.applyShock(
+                damageTakenMultiplierAfterResistance(
+                    ailment.damageTakenMultiplier,
+                    std::clamp(shockResistance + mapModifier_.ailmentResistanceBonus, 0, 100),
+                    ailment.shockPenetration
+                ),
+                ailment.duration
+            );
+            addCombatFeedback(
+                enemy.position(),
+                0,
+                "Shock",
+                CombatFeedbackType::Status
             );
             break;
         case AilmentType::None:

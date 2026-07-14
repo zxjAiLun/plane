@@ -66,6 +66,7 @@ struct BossDefinition {
     int lightningResistance = 0;
     int fireResistance = 0;
     int coldResistance = 0;
+    int shockResistance = 0;
 
     const BossSkillDefinition& skillForCast(std::size_t castIndex, bool enraged) const {
         static const BossSkillDefinition fallback;
@@ -153,7 +154,8 @@ private:
                 {"Enrage Magma", 135.0f, 8.0f, 0.75f, 2, DamageType::Fire},
                 35,
                 35,
-                20
+                20,
+                35
             },
             {
                 "Storm Herald",
@@ -199,7 +201,8 @@ private:
                 {"Storm Field", 140.0f, 8.0f, 0.75f, 2, DamageType::Lightning},
                 45,
                 20,
-                35
+                35,
+                45
             },
             {
                 "Brood Matriarch",
@@ -254,6 +257,7 @@ private:
                 EnemyType::Ranged,
                 2,
                 {"Acid Nest", 120.0f, 8.0f, 0.75f, 2, DamageType::Cold},
+                30,
                 30,
                 30,
                 30
