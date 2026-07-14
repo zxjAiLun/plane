@@ -21,7 +21,8 @@ Enemy::Enemy(
     int contactDamage,
     EnemyType type,
     EliteModifier eliteModifier,
-    int mapEventIndex
+    int mapEventIndex,
+    bool summoned
 )
     : position_(position)
     , id_(nextId_++)
@@ -32,6 +33,7 @@ Enemy::Enemy(
     , type_(type)
     , eliteModifier_(type == EnemyType::Elite ? eliteModifier : EliteModifier::None)
     , mapEventIndex_(mapEventIndex)
+    , summoned_(summoned)
     , attackCooldownTimer_(0.0f)
     , attackWindupTimer_(0.0f)
     , attackReady_(false)
@@ -110,7 +112,8 @@ void Enemy::update(
         return;
     }
 
-    if (isRanged() && toTarget.lengthSquared() <= definition.attackRange * definition.attackRange) {
+    if ((isRanged() || isSummoner())
+        && toTarget.lengthSquared() <= definition.attackRange * definition.attackRange) {
         return;
     }
 
@@ -227,6 +230,10 @@ bool Enemy::isCharger() const {
     return EnemyLibrary::forType(type_).attackStyle == EnemyAttackStyle::Charge;
 }
 bool Enemy::isWarden() const { return type_ == EnemyType::Warden; }
+bool Enemy::isSummoner() const {
+    return EnemyLibrary::forType(type_).attackStyle == EnemyAttackStyle::Summon;
+}
+bool Enemy::isSummoned() const { return summoned_; }
 bool Enemy::isCharging() const { return chargeTimer_ > 0.0f; }
 bool Enemy::isIgnited() const { return igniteTimer_ > 0.0f; }
 bool Enemy::isChilled() const { return chillTimer_ > 0.0f; }

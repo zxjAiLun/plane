@@ -1366,6 +1366,7 @@ void GameWorld::handleCollisions() {
         }
     }
 
+    std::vector<int> summonerIdsToProcess;
     for (auto& enemy : enemies_) {
         if (enemy.isDead()) {
             continue;
@@ -1392,6 +1393,13 @@ void GameWorld::handleCollisions() {
             continue;
         }
 
+        if (enemy.isSummoner()) {
+            if (enemy.consumeAttack()) {
+                summonerIdsToProcess.push_back(enemy.id());
+            }
+            continue;
+        }
+
         if (!enemy.consumeAttack()) {
             continue;
         }
@@ -1414,6 +1422,85 @@ void GameWorld::handleCollisions() {
             damagePlayer(enemy.contactDamage(), definition.name + " strike");
         }
     }
+
+    for (const int summonerId : summonerIdsToProcess) {
+        const auto summonerIt = std::find_if(
+            enemies_.begin(), enemies_.end(),
+            [summonerId](const Enemy& enemy) { return enemy.id() == summonerId; }
+        );
+        if (summonerIt == enemies_.end()) {
+            continue;
+        }
+
+        const int summonedCount = summonEnemyAdds(*summonerIt);
+        if (summonedCount > 0) {
+            eventStatusMessage_ = "Hexbinder summoned "
+                + std::to_string(summonedCount) + " minions";
+            eventStatusTimer_ = 1.5f;
+        }
+    }
+}
+
+int GameWorld::summonEnemyAdds(Enemy& summoner) {
+    if (!summoner.isSummoner() || map_.bossTriggered() || map_.bossDefeated()) {
+        return 0;
+    }
+
+    const auto& summonerDefinition = EnemyLibrary::forType(summoner.type());
+    const int activeMinions = static_cast<int>(std::count_if(
+        enemies_.begin(), enemies_.end(),
+        [](const Enemy& enemy) { return enemy.isSummoned() && !enemy.isDead(); }
+    ));
+    const int availableSlots = std::max(0, Config::MaxSummonerMinions - activeMinions);
+    const int summonCount = std::min(availableSlots, std::max(0, summonerDefinition.summonCount));
+    if (summonCount <= 0) {
+        return 0;
+    }
+
+    const EnemyType summonType = summonerDefinition.summonType;
+    const auto& definition = EnemyLibrary::forType(summonType);
+    const auto& modifierDefinition = EliteModifierLibrary::forModifier(EliteModifier::None);
+    const Vector2 summonerPosition = summoner.position();
+    const int mapEventIndex = summoner.mapEventIndex();
+    static const Vector2 offsets[] = {
+        {-Config::SummonerMinionSpreadRadius, 0.0f},
+        {Config::SummonerMinionSpreadRadius, 0.0f},
+        {0.0f, -Config::SummonerMinionSpreadRadius},
+        {0.0f, Config::SummonerMinionSpreadRadius},
+    };
+
+    int spawnedCount = 0;
+    const int offsetCount = static_cast<int>(sizeof(offsets) / sizeof(offsets[0]));
+    for (int index = 0; index < summonCount; ++index) {
+        const Vector2 desiredPosition = summonerPosition
+            + offsets[index % offsetCount];
+        const Vector2 position = map_.resolveMovement(
+            desiredPosition,
+            Config::EnemyRadius * definition.radiusMultiplier,
+            Vector2()
+        );
+        if (map_.intersectsObstacle(position, Config::EnemyRadius * definition.radiusMultiplier)) {
+            continue;
+        }
+
+        const int hp = std::max(1, static_cast<int>(std::ceil(
+            enemyHpForMap() * definition.hpMultiplier * modifierDefinition.hpMultiplier
+        )));
+        const int damage = enemyDamageForMap()
+            + definition.damageBonus + modifierDefinition.damageBonus;
+        enemies_.emplace_back(
+            position,
+            hp,
+            damage,
+            summonType,
+            EliteModifier::None,
+            mapEventIndex,
+            true
+        );
+        ++spawnedCount;
+    }
+
+    return spawnedCount;
 }
 
 int GameWorld::damageToEnemy(const Enemy& enemy, int rawDamage) const {
@@ -3048,8 +3135,9 @@ EnemyType GameWorld::nextMapEnemyType() {
         encounter.chargerWeight + mapModifier_.chargerWeightBonus
     );
     const int wardenWeight = std::max(0, encounter.wardenWeight + mapLevel_ / 2);
+    const int summonerWeight = std::max(0, encounter.summonerWeight + mapLevel_ / 3);
     const int totalWeight = normalWeight + rangedWeight + chargerWeight
-        + eliteWeight + wardenWeight;
+        + eliteWeight + wardenWeight + summonerWeight;
     const int roll = random_.nextInt(0, totalWeight - 1);
 
     if (roll < eliteWeight) {
@@ -3063,6 +3151,9 @@ EnemyType GameWorld::nextMapEnemyType() {
     }
     if (roll < eliteWeight + rangedWeight + chargerWeight + wardenWeight) {
         return EnemyType::Warden;
+    }
+    if (roll < eliteWeight + rangedWeight + chargerWeight + wardenWeight + summonerWeight) {
+        return EnemyType::Summoner;
     }
     return EnemyType::Normal;
 }

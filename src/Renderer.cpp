@@ -533,6 +533,31 @@ const Enemy* focusedEliteEnemy(const GameWorld& world) {
     return focused;
 }
 
+const Enemy* focusedSummonerEnemy(const GameWorld& world) {
+    constexpr float FocusRange = 620.0f;
+    const float rangeSquared = FocusRange * FocusRange;
+    const Vector2 playerPosition = world.player().position();
+    const Enemy* focused = nullptr;
+    float closestDistanceSquared = 0.0f;
+
+    for (const auto& enemy : world.enemies()) {
+        if (!enemy.isSummoner() || enemy.isDead()) {
+            continue;
+        }
+
+        const float distanceSquared = (enemy.position() - playerPosition).lengthSquared();
+        if (distanceSquared > rangeSquared
+            || (focused != nullptr && distanceSquared >= closestDistanceSquared)) {
+            continue;
+        }
+
+        focused = &enemy;
+        closestDistanceSquared = distanceSquared;
+    }
+
+    return focused;
+}
+
 std::string activeElitePackModifierDescription(const GameWorld& world) {
     if (world.activeEliteEventEnemiesRemaining() <= 0) {
         return "";
@@ -732,6 +757,20 @@ void Renderer::render(const GameWorld& world) {
             focusLine += " | " + modifierDescription;
         }
         drawText(truncateText(focusLine, 34), {16.0f, hudY}, 14, sf::Color(255, 215, 160));
+        hudY += 18.0f;
+    }
+    if (const Enemy* summoner = focusedSummonerEnemy(world)) {
+        const int activeMinions = static_cast<int>(std::count_if(
+            world.enemies().begin(), world.enemies().end(),
+            [](const Enemy& enemy) { return enemy.isSummoned() && !enemy.isDead(); }
+        ));
+        const std::string priorityLine = "Priority: " + enemyDisplayLabel(world, *summoner)
+            + " HP " + std::to_string(std::max(0, summoner->hp()))
+            + "/" + std::to_string(std::max(0, summoner->maxHp()))
+            + " | Minions " + std::to_string(activeMinions)
+            + "/" + std::to_string(Config::MaxSummonerMinions);
+        drawText(truncateText(priorityLine, 34), {16.0f, hudY}, 14,
+            sf::Color(230, 170, 255));
         hudY += 18.0f;
     }
     const std::string pickupPrompt = world.pickupPrompt();
@@ -1237,9 +1276,11 @@ void Renderer::drawEnemies(const GameWorld& world) {
                 window_.draw(target);
             } else {
             sf::CircleShape warning(enemy.attackRange());
-            sf::Color warningColor = enemy.isRanged()
-                ? sf::Color(255, 220, 75, 210)
-                : sf::Color(255, 110, 75, 210);
+            sf::Color warningColor = enemy.isSummoner()
+                ? sf::Color(220, 125, 255, 220)
+                : enemy.isRanged()
+                    ? sf::Color(255, 220, 75, 210)
+                    : sf::Color(255, 110, 75, 210);
             if (enemy.eliteModifier() != EliteModifier::None) {
                 warningColor = sf::Color(
                     modifier.outlineColor.r,
@@ -1248,10 +1289,12 @@ void Renderer::drawEnemies(const GameWorld& world) {
                     220
                 );
             }
+            const float warningRadius = enemy.isSummoner() ? 34.0f : enemy.attackRange();
+            warning.setRadius(warningRadius);
             warning.setFillColor(sf::Color(warningColor.r, warningColor.g, warningColor.b, 28));
             warning.setOutlineColor(warningColor);
             warning.setOutlineThickness(enemy.isElite() ? 3.0f : 2.0f);
-            warning.setOrigin({enemy.attackRange(), enemy.attackRange()});
+            warning.setOrigin({warningRadius, warningRadius});
             warning.setPosition(screenPosition);
             window_.draw(warning);
             }
@@ -1266,7 +1309,7 @@ void Renderer::drawEnemies(const GameWorld& world) {
             shape.setOutlineThickness(definition.outlineThickness);
         }
 
-        if (enemy.isElite() && !enemy.isBoss()) {
+        if ((enemy.isElite() || enemy.isSummoner()) && !enemy.isBoss()) {
             const float barWidth = enemy.radius() * 2.0f;
             const float hpRatio = enemy.maxHp() > 0
                 ? static_cast<float>(std::max(0, enemy.hp())) / static_cast<float>(enemy.maxHp())
@@ -1278,7 +1321,9 @@ void Renderer::drawEnemies(const GameWorld& world) {
             window_.draw(background);
 
             sf::RectangleShape fill({barWidth * hpRatio, 4.0f});
-            fill.setFillColor(enemyColor(modifier.outlineColor));
+            fill.setFillColor(enemy.eliteModifier() == EliteModifier::None
+                ? enemyColor(definition.outlineColor)
+                : enemyColor(modifier.outlineColor));
             fill.setOrigin({barWidth * 0.5f, 2.0f});
             fill.setPosition({screenPosition.x - barWidth * (1.0f - hpRatio) * 0.5f,
                 screenPosition.y - enemy.radius() - 8.0f});

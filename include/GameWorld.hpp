@@ -182,6 +182,7 @@ private:
     void updateEnemyProjectiles(float dt);
     void spawnEnemies(float dt);
     void handleCollisions();
+    int summonEnemyAdds(Enemy& summoner);
     int damageToEnemy(const Enemy& enemy, int rawDamage) const;
     void handleBossProjectileCollisions();
     void handleEnemyProjectileCollisions();

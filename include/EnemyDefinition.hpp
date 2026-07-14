@@ -18,6 +18,7 @@ enum class EnemyAttackStyle {
     Melee,
     Projectile,
     Charge,
+    Summon,
     Boss
 };
 
@@ -45,6 +46,8 @@ struct EnemyDefinition {
     float chargeDuration = 0.0f;
     int igniteResistance = 0;
     int chillResistance = 0;
+    EnemyType summonType = EnemyType::Normal;
+    int summonCount = 0;
 };
 
 class EnemyLibrary {
@@ -54,8 +57,8 @@ public:
         return definitions[static_cast<std::size_t>(type)];
     }
 
-    static const std::array<EnemyDefinition, 6>& all() {
-        static const std::array<EnemyDefinition, 6> definitions = {{
+    static const std::array<EnemyDefinition, 7>& all() {
+        static const std::array<EnemyDefinition, 7> definitions = {{
             {
                 EnemyType::Normal,
                 "Feral",
@@ -197,6 +200,33 @@ public:
                 0.0f,
                 25,
                 20
+            },
+            {
+                EnemyType::Summoner,
+                "Hexbinder",
+                1.05f,
+                1.80f,
+                1,
+                320,
+                3,
+                1.60f,
+                50,
+                1,
+                EnemyAttackStyle::Summon,
+                420.0f,
+                0.60f,
+                3.80f,
+                0.0f,
+                0.0f,
+                {195, 80, 220},
+                {245, 170, 255},
+                2.5f,
+                1.0f,
+                0.0f,
+                20,
+                20,
+                EnemyType::Normal,
+                2
             },
         }};
 

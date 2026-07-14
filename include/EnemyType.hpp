@@ -6,5 +6,6 @@ enum class EnemyType {
     Elite,
     Boss,
     Charger,
-    Warden
+    Warden,
+    Summoner
 };

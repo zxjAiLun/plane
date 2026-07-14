@@ -24,7 +24,8 @@ public:
         int contactDamage,
         EnemyType type,
         EliteModifier eliteModifier,
-        int mapEventIndex
+        int mapEventIndex,
+        bool summoned = false
     );
 
     void update(float dt, const Vector2& targetPosition, const MapInstance& map);
@@ -57,6 +58,8 @@ public:
     bool isRanged() const;
     bool isCharger() const;
     bool isWarden() const;
+    bool isSummoner() const;
+    bool isSummoned() const;
     bool isCharging() const;
     bool isIgnited() const;
     bool isChilled() const;
@@ -78,6 +81,7 @@ private:
     EnemyType type_;
     EliteModifier eliteModifier_;
     int mapEventIndex_;
+    bool summoned_;
     float attackCooldownTimer_;
     float attackWindupTimer_;
     bool attackReady_;

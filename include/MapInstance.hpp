@@ -167,6 +167,7 @@ struct MapEncounterProfile {
     std::string threatDescription = "Balanced melee packs";
     int chargerWeight = 0;
     int wardenWeight = 0;
+    int summonerWeight = 0;
 };
 
 struct MapTemplateDefinition {
@@ -206,19 +207,19 @@ private:
                 "Ashen Causeway",
                 "Ash and stone",
                 {{24, 28, 30}, {65, 70, 72}, {120, 70, 40}, {120, 35, 35}, {40, 110, 70}},
-                {50, 20, 15, "Mixed melee, charger and Warden patrols", 10, 5}
+                {50, 20, 15, "Mixed melee, charger and Warden patrols", 10, 5, 0}
             },
             {
                 "Stormscar Expanse",
                 "Rain and shattered glass",
                 {{20, 29, 38}, {52, 72, 92}, {75, 115, 145}, {46, 72, 125}, {42, 95, 110}},
-                {17, 45, 15, "Ranged pressure, chargers and Warden anchors", 15, 8}
+                {12, 45, 15, "Ranged pressure, chargers and Summoner anchors", 15, 8, 5}
             },
             {
                 "Venom Hollow",
                 "Acid and overgrowth",
                 {{23, 38, 31}, {55, 82, 61}, {105, 125, 55}, {92, 68, 35}, {42, 110, 70}},
-                {25, 20, 30, "Elite patrols, chargers and Warden anchors", 15, 10}
+                {20, 20, 25, "Elite patrols, chargers and Summoner anchors", 15, 10, 10}
             },
         };
     }

@@ -841,6 +841,7 @@ void testAilmentResistances() {
     const auto& elite = EnemyLibrary::forType(EnemyType::Elite);
     const auto& charger = EnemyLibrary::forType(EnemyType::Charger);
     const auto& warden = EnemyLibrary::forType(EnemyType::Warden);
+    const auto& summoner = EnemyLibrary::forType(EnemyType::Summoner);
     expect(normal.igniteResistance == 0 && normal.chillResistance == 0,
         "Normal enemies have no ailment resistance");
     expect(ranged.igniteResistance == 10 && ranged.chillResistance == 10,
@@ -857,6 +858,11 @@ void testAilmentResistances() {
     expect(wardenEnemy.isWarden() && wardenEnemy.isElite()
             && !wardenEnemy.isRanged() && !wardenEnemy.isCharger(),
         "Warden exposes a defensive melee enemy role");
+    expect(summoner.name == "Hexbinder"
+            && summoner.attackStyle == EnemyAttackStyle::Summon
+            && summoner.summonType == EnemyType::Normal
+            && summoner.summonCount == 2,
+        "Hexbinder exposes a data-driven summon role");
 
     const auto& bosses = BossLibrary::all();
     expect(bosses[0].igniteResistance == 35 && bosses[0].chillResistance == 20,
@@ -939,6 +945,27 @@ void testWardenProtectionMath() {
         "Warden protection never reduces a positive hit below one");
     expect(wardenProtectedDamage(-5, true, 0.70f) == 0,
         "non-positive damage remains harmless");
+}
+
+void testSummonerStateMachine() {
+    section("Summoner state machine");
+
+    MapInstance map;
+    Enemy summoner({400.0f, 400.0f}, 30, 2, EnemyType::Summoner);
+    expect(summoner.isSummoner() && !summoner.isRanged() && !summoner.isElite(),
+        "Hexbinder is a support enemy rather than a ranged or elite enemy");
+
+    summoner.update(0.1f, {700.0f, 400.0f}, map);
+    expect(summoner.isAttackWindingUp(),
+        "Hexbinder begins a summon windup inside its casting range");
+    summoner.update(0.6f, {700.0f, 400.0f}, map);
+    expect(summoner.consumeAttack(),
+        "Hexbinder exposes a completed summon cast through consumeAttack");
+
+    Enemy summoned({450.0f, 400.0f}, 10, 1, EnemyType::Normal,
+        EliteModifier::None, -1, true);
+    expect(summoned.isSummoned() && !summoned.isElite(),
+        "summoned minions carry an explicit summoned marker");
 }
 
 // --- Armor mitigation via Player (shipped path) ---
@@ -1476,7 +1503,7 @@ void testChargerStateMachine() {
             mapTemplate.name + " includes Charger encounters");
         expect(encounter.normalWeight + encounter.rangedWeight
                 + encounter.eliteWeight + encounter.chargerWeight
-                + encounter.wardenWeight == 100,
+                + encounter.wardenWeight + encounter.summonerWeight == 100,
             mapTemplate.name + " encounter weights total 100");
     }
 }
@@ -2205,6 +2232,7 @@ int main() {
     testSkillAilments();
     testAilmentResistances();
     testWardenProtectionMath();
+    testSummonerStateMachine();
     testPlayerArmorMitigation();
     testEquipmentChangesCombatStats();
     testLootGeneration();
