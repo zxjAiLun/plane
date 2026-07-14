@@ -1046,6 +1046,65 @@ void testAilmentResistances() {
         "Enemy ailment lifecycle uses the resistance-adjusted Chill speed");
 }
 
+// --- Boss elemental skill definitions ---
+void testBossElementalSkills() {
+    section("Boss elemental skills and hazards");
+
+    const auto& brimstone = BossLibrary::forMapLevel(1);
+    const auto magmaIt = std::find_if(
+        brimstone.skills.begin(), brimstone.skills.end(),
+        [](const BossSkillDefinition& skill) { return skill.name == "Magma Slam"; }
+    );
+    expect(magmaIt != brimstone.skills.end(), "Brimstone exposes its elemental slam");
+    if (magmaIt != brimstone.skills.end()) {
+        expect(magmaIt->damageType == DamageType::Fire
+                && magmaIt->ailment.type == AilmentType::Ignite,
+            "Magma Slam deals Fire damage and applies Ignite");
+        expect(magmaIt->groundHazard.damageType == DamageType::Fire
+                && magmaIt->groundHazard.ailment.type == AilmentType::Ignite,
+            "Magma Pool preserves the same Fire/Ignite identity");
+    }
+
+    const auto& storm = BossLibrary::forMapLevel(2);
+    const auto stormProjectileIt = std::find_if(
+        storm.skills.begin(), storm.skills.end(),
+        [](const BossSkillDefinition& skill) { return skill.name == "Lightning Spear"; }
+    );
+    const auto stormDashIt = std::find_if(
+        storm.skills.begin(), storm.skills.end(),
+        [](const BossSkillDefinition& skill) { return skill.name == "Tempest Rush"; }
+    );
+    expect(stormProjectileIt != storm.skills.end() && stormDashIt != storm.skills.end(),
+        "Storm Herald exposes its projectile and dash skills");
+    if (stormProjectileIt != storm.skills.end() && stormDashIt != storm.skills.end()) {
+        expect(stormProjectileIt->damageType == DamageType::Lightning
+                && stormProjectileIt->ailment.type == AilmentType::Shock,
+            "Lightning Spear deals Lightning damage and applies Shock");
+        expect(stormDashIt->damageType == DamageType::Lightning
+                && stormDashIt->ailment.type == AilmentType::Shock,
+            "Tempest Rush deals Lightning damage and applies Shock");
+    }
+
+    const auto& brood = BossLibrary::forMapLevel(3);
+    const auto broodProjectileIt = std::find_if(
+        brood.skills.begin(), brood.skills.end(),
+        [](const BossSkillDefinition& skill) { return skill.name == "Acid Spray"; }
+    );
+    expect(broodProjectileIt != brood.skills.end(), "Brood Matriarch exposes Acid Spray");
+    if (broodProjectileIt != brood.skills.end()) {
+        expect(broodProjectileIt->damageType == DamageType::Cold
+                && broodProjectileIt->ailment.type == AilmentType::Chill,
+            "Acid Spray uses the current Cold/Chill damage model");
+    }
+
+    expect(storm.enrageHazard.damageType == DamageType::Lightning
+            && storm.enrageHazard.ailment.type == AilmentType::Shock,
+        "Storm enrage hazard carries Lightning and Shock");
+    expect(brood.enrageHazard.damageType == DamageType::Cold
+            && brood.enrageHazard.ailment.type == AilmentType::Chill,
+        "Brood enrage hazard carries Cold and Chill");
+}
+
 void testWardenProtectionMath() {
     section("Warden protection math");
 
@@ -2402,6 +2461,7 @@ int main() {
     testSkillAilments();
     testPlayerAilments();
     testAilmentResistances();
+    testBossElementalSkills();
     testWardenProtectionMath();
     testSummonerStateMachine();
     testPlayerArmorMitigation();

@@ -1495,6 +1495,7 @@ void testBossCombatFlow() {
 
     bool bossHpReduced = false;
     bool telegraphFeedbackObserved = false;
+    bool elementalBossWarningObserved = false;
     bool playerHitFeedbackObserved = false;
     bool enrageObserved = false;
     bool enrageAddsObserved = false;
@@ -1538,6 +1539,8 @@ void testBossCombatFlow() {
                 return feedback.type == CombatFeedbackType::Telegraph;
             }
         );
+        elementalBossWarningObserved = elementalBossWarningObserved
+            || world.bossSkillWarning().find("[Fire/Ignite]") != std::string::npos;
         playerHitFeedbackObserved = playerHitFeedbackObserved || std::any_of(
             world.combatFeedback().begin(),
             world.combatFeedback().end(),
@@ -1565,6 +1568,8 @@ void testBossCombatFlow() {
     expect(bossHpReduced, "Boss HP decreases on the same hit that creates feedback");
     expect(telegraphFeedbackObserved,
         "Boss telegraph creates a typed feedback record from the real Boss state");
+    expect(elementalBossWarningObserved,
+        "Brimstone Boss warning exposes its Fire/Ignite skill identity");
     expect(playerHitFeedbackObserved,
         "player damage creates a typed PlayerHit feedback record");
     expect(enrageObserved, "Boss enters its data-driven enrage phase");
@@ -1658,6 +1663,16 @@ void testElementalEnemyProjectileFlow() {
         "ranged enemy projectile reaches the player collision path");
     expect(shockObserved,
         "Lightning projectile applies Shock to the player after resistance");
+
+    const int flaskChargesBefore = world.lifeFlaskCharges();
+    input.handleKeyPressed(sf::Keyboard::Key::G);
+    world.update(0.05f, input);
+    input.handleKeyReleased(sf::Keyboard::Key::G);
+    expect(!world.player().hasAilment(),
+        "life flask clears the active elemental ailment");
+    expect(world.lifeFlaskCharges() == flaskChargesBefore - 1
+            && world.lifeFlaskStatusMessage().find("cleansed") != std::string::npos,
+        "life flask consumes one charge and reports the cleanse");
     std::filesystem::remove(path);
 }
 

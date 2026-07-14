@@ -64,6 +64,7 @@ public:
     bool isIgnited() const;
     bool isChilled() const;
     bool isShocked() const;
+    bool hasAilment() const;
     float chillTimeRemaining() const;
     float shockTimeRemaining() const;
     float igniteTimeRemaining() const;

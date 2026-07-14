@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 
+#include "Ailment.hpp"
 #include "DamageType.hpp"
 #include "Vector2.hpp"
 
@@ -14,6 +15,7 @@ struct GroundHazardDefinition {
     float tickInterval = 0.0f;
     int damage = 0;
     DamageType damageType = DamageType::Physical;
+    AilmentDefinition ailment;
 
     bool isValid() const {
         return !source.empty()

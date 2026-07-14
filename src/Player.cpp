@@ -362,6 +362,9 @@ float Player::moveSpeed() const {
 bool Player::isIgnited() const { return igniteTimer_ > 0.0f; }
 bool Player::isChilled() const { return chillTimer_ > 0.0f; }
 bool Player::isShocked() const { return shockTimer_ > 0.0f; }
+bool Player::hasAilment() const {
+    return isIgnited() || isChilled() || isShocked();
+}
 float Player::chillTimeRemaining() const { return chillTimer_; }
 float Player::shockTimeRemaining() const { return shockTimer_; }
 float Player::igniteTimeRemaining() const { return igniteTimer_; }

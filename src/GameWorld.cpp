@@ -44,6 +44,28 @@ void mergeLootBias(LootBias& target, const LootBias& extra) {
     add(extra.secondaryTag, extra.secondaryWeightMultiplier);
 }
 
+const char* ailmentTypeName(AilmentType type) {
+    switch (type) {
+        case AilmentType::Ignite: return "Ignite";
+        case AilmentType::Chill: return "Chill";
+        case AilmentType::Shock: return "Shock";
+        case AilmentType::None: break;
+    }
+    return "None";
+}
+
+std::string bossSkillWarningText(const BossSkillDefinition& skill) {
+    std::string warning = "Boss casting: " + skill.name;
+    if (skill.damageType != DamageType::Physical) {
+        warning += " [" + std::string(damageTypeName(skill.damageType));
+        if (skill.ailment.type != AilmentType::None) {
+            warning += "/" + std::string(ailmentTypeName(skill.ailment.type));
+        }
+        warning += "]";
+    }
+    return warning;
+}
+
 bool positiveFinite(float value) {
     return std::isfinite(value) && value > 0.0f;
 }
@@ -1081,7 +1103,8 @@ void GameWorld::updateGroundHazards(float dt) {
             damagePlayer(
                 hazard.definition().damage,
                 hazard.definition().source,
-                hazard.definition().damageType
+                hazard.definition().damageType,
+                hazard.definition().ailment
             );
         }
     }
@@ -1134,7 +1157,8 @@ void GameWorld::updateBossSkills(float dt) {
                     damagePlayer(
                         bossAoeSkill_.damage,
                         bossAoeSkill_.name,
-                        bossAoeSkill_.damageType
+                        bossAoeSkill_.damageType,
+                        bossAoeSkill_.ailment
                     );
                 }
                 if (bossAoeSkill_.groundHazard.isValid()) {
@@ -1253,6 +1277,7 @@ void GameWorld::updateBossSkills(float dt) {
                     bossSkillDamage(skill.damage),
                     skill.name,
                     skill.damageType,
+                    skill.ailment,
                     true
                 });
             }
@@ -1310,7 +1335,8 @@ void GameWorld::updateBossDash(float dt, Enemy& boss) {
         damagePlayer(
             bossDashSkill_.damage,
             bossDashSkill_.name,
-            bossDashSkill_.damageType
+            bossDashSkill_.damageType,
+            bossDashSkill_.ailment
         );
     }
 
@@ -1700,7 +1726,8 @@ void GameWorld::handleBossProjectileCollisions() {
             damagePlayer(
                 projectile.damage,
                 projectile.source,
-                projectile.damageType
+                projectile.damageType,
+                projectile.ailment
             );
             projectile.alive = false;
         }
@@ -1933,12 +1960,17 @@ void GameWorld::tryUseLifeFlask(Input& input) {
         Config::LifeFlaskHealAmount,
         player_.stats()
     ));
-    if (healed <= 0) {
+    const bool cleansed = player_.hasAilment();
+    if (healed <= 0 && !cleansed) {
         return;
     }
 
     --lifeFlaskCharges_;
-    lifeFlaskStatusMessage_ = "Life flask: +" + std::to_string(healed) + " HP";
+    if (cleansed) {
+        player_.clearAilments();
+    }
+    lifeFlaskStatusMessage_ = "Life flask: +" + std::to_string(healed) + " HP"
+        + (cleansed ? " | ailments cleansed" : "");
     lifeFlaskStatusTimer_ = 1.5f;
 }
 
@@ -3666,13 +3698,13 @@ float GameWorld::eventStatusTimeRemaining() const { return eventStatusTimer_; }
 int GameWorld::activeEliteEventEnemiesRemaining() const { return mapEventEnemiesRemaining_; }
 std::string GameWorld::bossSkillWarning() const {
     if (bossDashState_.isTelegraphing() && !bossDashSkill_.name.empty()) {
-        return "Boss casting: " + bossDashSkill_.name;
+        return bossSkillWarningText(bossDashSkill_);
     }
     if (bossAoeTelegraphTimer_ <= 0.0f || bossAoeSkill_.name.empty()) {
         return "";
     }
 
-    return "Boss casting: " + bossAoeSkill_.name;
+    return bossSkillWarningText(bossAoeSkill_);
 }
 bool GameWorld::bossEnraged() const { return bossEnraged_; }
 std::string GameWorld::bossPhaseSummary() const {

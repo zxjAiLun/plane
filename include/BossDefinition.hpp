@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "Ailment.hpp"
 #include "BossDash.hpp"
 #include "Config.hpp"
 #include "EnemyType.hpp"
@@ -37,6 +38,7 @@ struct BossSkillDefinition {
     GroundHazardDefinition groundHazard;
     BossDashDefinition dash;
     DamageType damageType = DamageType::Physical;
+    AilmentDefinition ailment;
 };
 
 struct BossDefinition {
@@ -100,6 +102,26 @@ public:
     }
 
 private:
+    static BossSkillDefinition elementalSkill(
+        BossSkillDefinition skill,
+        DamageType damageType,
+        AilmentDefinition ailment
+    ) {
+        skill.damageType = damageType;
+        skill.ailment = ailment;
+        return skill;
+    }
+
+    static GroundHazardDefinition elementalHazard(
+        GroundHazardDefinition hazard,
+        DamageType damageType,
+        AilmentDefinition ailment
+    ) {
+        hazard.damageType = damageType;
+        hazard.ailment = ailment;
+        return hazard;
+    }
+
     static std::vector<BossDefinition> buildBosses() {
         return {
             {
@@ -118,7 +140,7 @@ private:
                 "Alternates magma slams and flame spears",
                 "Repeated magma slams",
                 {
-                    {
+                    elementalSkill({
                         BossSkillType::CircularAoe,
                         "Magma Slam",
                         Config::BossAoeRadius,
@@ -130,9 +152,13 @@ private:
                         0.0f,
                         EnemyType::Normal,
                         0,
-                        {"Magma Pool", 105.0f, 5.0f, 0.75f, 1}
-                    },
-                    {
+                        elementalHazard(
+                            {"Magma Pool", 105.0f, 5.0f, 0.75f, 1},
+                            DamageType::Fire,
+                            {AilmentType::Ignite, 2.5f, 0.20f}
+                        )
+                    }, DamageType::Fire, {AilmentType::Ignite, 2.5f, 0.20f}),
+                    elementalSkill({
                         BossSkillType::Projectile,
                         "Flame Spear",
                         Config::BossProjectileRadius,
@@ -142,7 +168,7 @@ private:
                         Config::BossProjectileSpeed,
                         1,
                         0.0f
-                    },
+                    }, DamageType::Fire, {AilmentType::Ignite, 2.5f, 0.20f}),
                 },
                 {0, 1},
                 {0, 0, 1},
@@ -151,7 +177,11 @@ private:
                 "Molten core exposed: Ravagers join the burning arena",
                 EnemyType::Charger,
                 2,
-                {"Enrage Magma", 135.0f, 8.0f, 0.75f, 2, DamageType::Fire},
+                elementalHazard(
+                    {"Enrage Magma", 135.0f, 8.0f, 0.75f, 2, DamageType::Fire},
+                    DamageType::Fire,
+                    {AilmentType::Ignite, 2.5f, 0.20f}
+                ),
                 35,
                 35,
                 20,
@@ -173,9 +203,17 @@ private:
                 "Lightning spears and a telegraphed tempest rush",
                 "Rapid spear pressure with repeated tempest rushes",
                 {
-                    {BossSkillType::Projectile, "Lightning Spear", Config::BossProjectileRadius, 2, 0.0f, 0.0f, 520.0f, 1, 0.0f},
-                    {BossSkillType::CircularAoe, "Thundercall", 150.0f, 3, 0.50f, 0.25f, 0.0f, 1, 0.0f},
-                    {
+                    elementalSkill(
+                        {BossSkillType::Projectile, "Lightning Spear", Config::BossProjectileRadius, 2, 0.0f, 0.0f, 520.0f, 1, 0.0f},
+                        DamageType::Lightning,
+                        {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.15f}
+                    ),
+                    elementalSkill(
+                        {BossSkillType::CircularAoe, "Thundercall", 150.0f, 3, 0.50f, 0.25f, 0.0f, 1, 0.0f},
+                        DamageType::Lightning,
+                        {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.15f}
+                    ),
+                    elementalSkill({
                         BossSkillType::Dash,
                         "Tempest Rush",
                         52.0f,
@@ -189,7 +227,8 @@ private:
                         0,
                         {},
                         {340.0f, 680.0f}
-                    },
+                    }, DamageType::Lightning,
+                        {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.15f}),
                 },
                 {0, 2, 0, 1},
                 {2, 0, 0, 2, 1},
@@ -198,7 +237,11 @@ private:
                 "Storm eye opened: Spitters join the lightning field",
                 EnemyType::Ranged,
                 2,
-                {"Storm Field", 140.0f, 8.0f, 0.75f, 2, DamageType::Lightning},
+                elementalHazard(
+                    {"Storm Field", 140.0f, 8.0f, 0.75f, 2, DamageType::Lightning},
+                    DamageType::Lightning,
+                    {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.15f}
+                ),
                 45,
                 20,
                 35,
@@ -220,8 +263,16 @@ private:
                 "Acid spray, nest bursts, and brooding hatchlings",
                 "Rapid acid pressure with ranged broodlings",
                 {
-                    {BossSkillType::Projectile, "Acid Spray", Config::BossProjectileRadius, 1, 0.0f, 0.0f, 420.0f, 3, 28.0f},
-                    {BossSkillType::CircularAoe, "Nest Burst", 115.0f, 2, 0.55f, 0.25f, 0.0f, 1, 0.0f},
+                    elementalSkill(
+                        {BossSkillType::Projectile, "Acid Spray", Config::BossProjectileRadius, 1, 0.0f, 0.0f, 420.0f, 3, 28.0f},
+                        DamageType::Cold,
+                        {AilmentType::Chill, 2.0f, 0.0f, 0.65f}
+                    ),
+                    elementalSkill(
+                        {BossSkillType::CircularAoe, "Nest Burst", 115.0f, 2, 0.55f, 0.25f, 0.0f, 1, 0.0f},
+                        DamageType::Cold,
+                        {AilmentType::Chill, 2.0f, 0.0f, 0.65f}
+                    ),
                     {
                         BossSkillType::SummonAdds,
                         "Hatch Broodlings",
@@ -256,7 +307,11 @@ private:
                 "Brood unleashed: Acid pools spread beneath the nest",
                 EnemyType::Ranged,
                 2,
-                {"Acid Nest", 120.0f, 8.0f, 0.75f, 2, DamageType::Cold},
+                elementalHazard(
+                    {"Acid Nest", 120.0f, 8.0f, 0.75f, 2, DamageType::Cold},
+                    DamageType::Cold,
+                    {AilmentType::Chill, 2.0f, 0.0f, 0.65f}
+                ),
                 30,
                 30,
                 30,

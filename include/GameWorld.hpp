@@ -40,6 +40,7 @@ struct BossProjectile {
     int damage = 0;
     std::string source;
     DamageType damageType = DamageType::Physical;
+    AilmentDefinition ailment;
     bool alive = true;
 };
 
