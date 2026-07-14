@@ -4,6 +4,7 @@
 #include "MapInstance.hpp"
 
 #include <algorithm>
+#include <utility>
 
 Enemy::Enemy(
     const Vector2& position,
@@ -12,7 +13,18 @@ Enemy::Enemy(
     EnemyType type,
     EliteModifier eliteModifier
 )
-    : Enemy(position, hp, contactDamage, type, eliteModifier, -1, false, -1) {
+    : Enemy(
+        position,
+        hp,
+        contactDamage,
+        type,
+        eliteModifier,
+        -1,
+        false,
+        -1,
+        EliteModifier::None,
+        false
+    ) {
 }
 
 Enemy::Enemy(
@@ -23,7 +35,13 @@ Enemy::Enemy(
     EliteModifier eliteModifier,
     int mapEventIndex,
     bool summoned,
-    int fieldPackIndex
+    int fieldPackIndex,
+    EliteModifier secondaryEliteModifier,
+    bool rare,
+    std::string displayName,
+    float rewardDropMultiplier,
+    int bonusDropCount,
+    int rewardExperienceMultiplier
 )
     : position_(position)
     , id_(nextId_++)
@@ -33,9 +51,15 @@ Enemy::Enemy(
     , contactDamage_(contactDamage)
     , type_(type)
     , eliteModifier_(type == EnemyType::Elite ? eliteModifier : EliteModifier::None)
+    , secondaryEliteModifier_(type == EnemyType::Elite ? secondaryEliteModifier : EliteModifier::None)
     , mapEventIndex_(mapEventIndex)
     , summoned_(summoned)
     , fieldPackIndex_(fieldPackIndex)
+    , rare_(type == EnemyType::Elite && rare)
+    , displayName_(std::move(displayName))
+    , rewardDropMultiplier_(std::max(1.0f, rewardDropMultiplier))
+    , bonusDropCount_(std::max(0, bonusDropCount))
+    , rewardExperienceMultiplier_(std::max(1, rewardExperienceMultiplier))
     , attackCooldownTimer_(0.0f)
     , attackWindupTimer_(0.0f)
     , attackReady_(false)
@@ -80,7 +104,7 @@ void Enemy::update(
 
     const auto& definition = EnemyLibrary::forType(type_);
     attackCooldownTimer_ = std::max(0.0f, attackCooldownTimer_ - dt);
-    const float speedMultiplier = EliteModifierLibrary::forModifier(eliteModifier_).speedMultiplier
+    const float speedMultiplier = eliteSpeedMultiplier()
         * safeMapSpeedMultiplier * movementSpeedMultiplier();
 
     if (chargeTimer_ > 0.0f) {
@@ -349,6 +373,21 @@ bool Enemy::isElite() const {
     return type_ == EnemyType::Elite || type_ == EnemyType::Boss || isWarden();
 }
 bool Enemy::isBoss() const { return type_ == EnemyType::Boss; }
+bool Enemy::isRare() const { return rare_; }
 EliteModifier Enemy::eliteModifier() const { return eliteModifier_; }
+EliteModifier Enemy::secondaryEliteModifier() const { return secondaryEliteModifier_; }
+const std::string& Enemy::displayName() const { return displayName_; }
+int Enemy::ailmentResistanceBonus() const {
+    return EliteModifierLibrary::forModifier(eliteModifier_).ailmentResistanceBonus
+        + EliteModifierLibrary::forModifier(secondaryEliteModifier_).ailmentResistanceBonus;
+}
+float Enemy::rewardDropMultiplier() const { return rewardDropMultiplier_; }
+int Enemy::bonusDropCount() const { return bonusDropCount_; }
+int Enemy::rewardExperienceMultiplier() const { return rewardExperienceMultiplier_; }
 int Enemy::mapEventIndex() const { return mapEventIndex_; }
 int Enemy::fieldPackIndex() const { return fieldPackIndex_; }
+
+float Enemy::eliteSpeedMultiplier() const {
+    return EliteModifierLibrary::forModifier(eliteModifier_).speedMultiplier
+        * EliteModifierLibrary::forModifier(secondaryEliteModifier_).speedMultiplier;
+}

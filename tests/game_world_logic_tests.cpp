@@ -130,6 +130,27 @@ bool moveAxisTo(GameWorld& world, Input& input, bool horizontal, float target) {
 }
 
 bool moveToBoss(GameWorld& world, Input& input) {
+    if (!world.bossGateUnlocked()) {
+        const auto path = std::filesystem::temp_directory_path()
+            / ("plane_fight_boss_gate_fixture_"
+                + std::to_string(world.runSeed()) + ".bin");
+        std::filesystem::remove(path);
+        SaveData data;
+        std::string error;
+        if (world.saveRun(path) && SaveService::load(path, data, &error)) {
+            data.fieldPacksCleared = world.fieldPacksRequired();
+            data.state = SavedRunState::Playing;
+            data.mapRewardChosen = false;
+            data.nextMapOptionChosen = false;
+            data.selectedMapRewardOption = -1;
+            data.selectedNextMapOption = -1;
+            if (SaveService::save(path, data, &error)) {
+                world.loadRun(path);
+            }
+        }
+        std::filesystem::remove(path);
+    }
+
     const Vector2 bossCenter = world.map().bossCenter();
     if (!moveAxisTo(world, input, true, bossCenter.x)) {
         return false;
@@ -253,6 +274,37 @@ void testPauseContextsAndFreeze() {
     menuWorld.reset(14002);
     expect(!menuWorld.quitRequested(), "reset clears a pending quit request");
     std::filesystem::remove(savePath);
+}
+
+void testBossGateProgression() {
+    GameWorld world(12501);
+    Input input;
+    expect(!world.bossGateUnlocked(),
+        "a fresh map starts with its Boss Gate locked");
+    expect(world.mapObjective().find("Clear field packs") != std::string::npos,
+        "a locked map objective points to field pack progress");
+
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_boss_gate_progress_test.bin";
+    std::filesystem::remove(path);
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Boss Gate progress fixture starts from a valid save");
+    data.fieldPacksCleared = world.fieldPacksRequired();
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Boss Gate progress fixture restores the required field progress");
+    expect(world.bossGateUnlocked()
+            && world.mapObjective() == "Explore the field",
+        "required field progress unlocks the Boss Gate objective path");
+    expect(world.fieldPacksCleared() == world.fieldPacksRequired(),
+        "Boss Gate field progress is capped at the required threshold");
+    expect(world.saveRun(path), "Boss Gate progress can be saved after unlocking");
+    SaveData restored;
+    expect(SaveService::load(path, restored, &error)
+            && restored.fieldPacksCleared == world.fieldPacksRequired(),
+        "Boss Gate progress survives a save round-trip");
+    std::filesystem::remove(path);
 }
 
 void testSaveLoadRoundTrip() {
@@ -1081,6 +1133,7 @@ void testBuildMathMatchesWorldHits() {
     data.player.upgradeStats.attackSpeedMultiplier = 2.0f;
     data.player.mana = Config::PlayerMaxMana;
     data.state = SavedRunState::Playing;
+    data.fieldPacksCleared = Config::BossGateRequiredFieldPacks;
     data.mapRewardChosen = false;
     data.nextMapOptionChosen = false;
     data.selectedMapRewardOption = -1;
@@ -1518,6 +1571,7 @@ void testBossCombatFlow() {
     data.player.upgradeStats.areaDamageMultiplier = 2.0f;
     data.player.mana = data.player.mana > 0.0f ? data.player.mana : Config::PlayerMaxMana;
     data.state = SavedRunState::Playing;
+    data.fieldPacksCleared = Config::BossGateRequiredFieldPacks;
     data.mapRewardChosen = false;
     data.nextMapOptionChosen = false;
     data.selectedMapRewardOption = -1;
@@ -2233,6 +2287,7 @@ int main() {
     testCorruptLoadDoesNotMutate();
     testMapCompleteLoad();
     testPauseContextsAndFreeze();
+    testBossGateProgression();
     testContinuousMapProgression();
     testItemBaseLevelRequirementWorldFlow();
     testFiveMapRealBossProgression();

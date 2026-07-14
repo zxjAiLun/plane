@@ -22,10 +22,18 @@ std::optional<Enemy> EnemySpawner::trySpawn(
     int contactDamage,
     EnemyType type,
     EliteModifier eliteModifier,
-    int fieldPackIndex
+    int fieldPackIndex,
+    EliteModifier secondaryEliteModifier,
+    bool rare,
+    const std::string& displayName,
+    float rewardDropMultiplier,
+    int bonusDropCount,
+    int rewardExperienceMultiplier
 ) {
     return trySpawn(
-        hp, contactDamage, type, eliteModifier, RandomService::legacy(), fieldPackIndex
+        hp, contactDamage, type, eliteModifier, RandomService::legacy(), fieldPackIndex,
+        secondaryEliteModifier, rare, displayName, rewardDropMultiplier,
+        bonusDropCount, rewardExperienceMultiplier
     );
 }
 
@@ -35,7 +43,13 @@ std::optional<Enemy> EnemySpawner::trySpawn(
     EnemyType type,
     EliteModifier eliteModifier,
     RandomService& random,
-    int fieldPackIndex
+    int fieldPackIndex,
+    EliteModifier secondaryEliteModifier,
+    bool rare,
+    const std::string& displayName,
+    float rewardDropMultiplier,
+    int bonusDropCount,
+    int rewardExperienceMultiplier
 ) {
     if (spawnTimer_.isReady()) {
         spawnTimer_.reset();
@@ -65,7 +79,22 @@ std::optional<Enemy> EnemySpawner::trySpawn(
 
         Vector2 position(x, y);
 
-        return Enemy(position, hp, contactDamage, type, eliteModifier, -1, false, fieldPackIndex);
+        return Enemy(
+            position,
+            hp,
+            contactDamage,
+            type,
+            eliteModifier,
+            -1,
+            false,
+            fieldPackIndex,
+            secondaryEliteModifier,
+            rare,
+            displayName,
+            rewardDropMultiplier,
+            bonusDropCount,
+            rewardExperienceMultiplier
+        );
     }
     return std::nullopt;
 }
@@ -78,7 +107,13 @@ std::optional<Enemy> EnemySpawner::trySpawnNear(
     int contactDamage,
     EnemyType type,
     EliteModifier eliteModifier,
-    int fieldPackIndex
+    int fieldPackIndex,
+    EliteModifier secondaryEliteModifier,
+    bool rare,
+    const std::string& displayName,
+    float rewardDropMultiplier,
+    int bonusDropCount,
+    int rewardExperienceMultiplier
 ) {
     return trySpawnNear(
         playerPosition,
@@ -89,7 +124,13 @@ std::optional<Enemy> EnemySpawner::trySpawnNear(
         type,
         eliteModifier,
         RandomService::legacy(),
-        fieldPackIndex
+        fieldPackIndex,
+        secondaryEliteModifier,
+        rare,
+        displayName,
+        rewardDropMultiplier,
+        bonusDropCount,
+        rewardExperienceMultiplier
     );
 }
 
@@ -102,7 +143,13 @@ std::optional<Enemy> EnemySpawner::trySpawnNear(
     EnemyType type,
     EliteModifier eliteModifier,
     RandomService& random,
-    int fieldPackIndex
+    int fieldPackIndex,
+    EliteModifier secondaryEliteModifier,
+    bool rare,
+    const std::string& displayName,
+    float rewardDropMultiplier,
+    int bonusDropCount,
+    int rewardExperienceMultiplier
 ) {
     if (!spawnTimer_.isReady()) {
         return std::nullopt;
@@ -125,7 +172,20 @@ std::optional<Enemy> EnemySpawner::trySpawnNear(
         position.y = std::clamp(position.y, Config::EnemyRadius, worldSize.y - Config::EnemyRadius);
 
         Enemy enemy(
-            position, hp, contactDamage, type, eliteModifier, -1, false, fieldPackIndex
+            position,
+            hp,
+            contactDamage,
+            type,
+            eliteModifier,
+            -1,
+            false,
+            fieldPackIndex,
+            secondaryEliteModifier,
+            rare,
+            displayName,
+            rewardDropMultiplier,
+            bonusDropCount,
+            rewardExperienceMultiplier
         );
         if (!map.intersectsObstacle(enemy.position(), enemy.radius())) {
             return enemy;

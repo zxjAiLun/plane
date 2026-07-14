@@ -144,8 +144,13 @@ public:
     int skillLevel(const std::string& name) const;
     int supportLevel(const std::string& name) const;
     std::string fieldPackName() const;
+    std::string fieldPackLeaderName() const;
+    std::string fieldPackLeaderDescription() const;
     int pendingFieldPackEnemies() const;
     int fieldPackEnemiesRemaining() const;
+    int fieldPacksCleared() const;
+    int fieldPacksRequired() const;
+    bool bossGateUnlocked() const;
 
     GameState state() const;
     int score() const;
@@ -334,6 +339,15 @@ private:
     std::string fieldPackName_;
     bool fieldPackStarted_ = false;
     int activeFieldPackId_ = -1;
+    int activeFieldPackSpawnedCount_ = 0;
+    int activeFieldPackLeaderIndex_ = -1;
+    std::string activeFieldPackLeaderName_;
+    std::string activeFieldPackLeaderDescription_;
+    EliteModifier activeFieldPackLeaderModifier_ = EliteModifier::None;
+    EliteModifier activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
+    float activeFieldPackLeaderDropMultiplier_ = 1.0f;
+    int activeFieldPackLeaderBonusDrops_ = 0;
+    int activeFieldPackLeaderExperienceMultiplier_ = 1;
     LootBias activeFieldPackLootBias_;
     int activeFieldPackRewardDrops_ = 0;
     SkillBar skillBar_;
@@ -390,6 +404,7 @@ private:
     int mapItemsDropped_;
     int mapBossItemsDropped_;
     int mapItemsPickedUp_;
+    int fieldPacksCleared_;
     bool mapRewardChosen_;
     bool nextMapOptionChosen_;
     bool passiveTreeOpen_;

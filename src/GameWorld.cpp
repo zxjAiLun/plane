@@ -45,6 +45,16 @@ void mergeLootBias(LootBias& target, const LootBias& extra) {
     add(extra.secondaryTag, extra.secondaryWeightMultiplier);
 }
 
+float eliteHpMultiplier(EliteModifier primary, EliteModifier secondary) {
+    return EliteModifierLibrary::forModifier(primary).hpMultiplier
+        * EliteModifierLibrary::forModifier(secondary).hpMultiplier;
+}
+
+int eliteDamageBonus(EliteModifier primary, EliteModifier secondary) {
+    return EliteModifierLibrary::forModifier(primary).damageBonus
+        + EliteModifierLibrary::forModifier(secondary).damageBonus;
+}
+
 const char* ailmentTypeName(AilmentType type) {
     switch (type) {
         case AilmentType::Ignite: return "Ignite";
@@ -265,6 +275,7 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , mapItemsDropped_(0)
     , mapBossItemsDropped_(0)
     , mapItemsPickedUp_(0)
+    , fieldPacksCleared_(0)
     , mapRewardChosen_(false)
     , nextMapOptionChosen_(false)
     , passiveTreeOpen_(false)
@@ -488,6 +499,7 @@ SaveData GameWorld::captureSaveData() const {
     data.mapItemsDropped = mapItemsDropped_;
     data.mapBossItemsDropped = mapBossItemsDropped_;
     data.mapItemsPickedUp = mapItemsPickedUp_;
+    data.fieldPacksCleared = fieldPacksCleared_;
     data.lifeFlaskCharges = lifeFlaskCharges_;
     data.unlockedSkills = progression_.unlockedSkills;
     data.unlockedSupports = progression_.unlockedSupports;
@@ -554,6 +566,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
         || data.survivalTime < 0.0f
         || !validFloat(data.itemQuantityRewardMultiplier)
         || data.itemQuantityRewardMultiplier <= 0.0f
+        || data.fieldPacksCleared < 0
         || !validLevelMap(data.skillLevels, data.unlockedSkills)
         || !validLevelMap(data.supportLevels, data.unlockedSupports)
         || data.lifeFlaskCharges < 0
@@ -738,6 +751,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     mapItemsDropped_ = data.mapItemsDropped;
     mapBossItemsDropped_ = data.mapBossItemsDropped;
     mapItemsPickedUp_ = data.mapItemsPickedUp;
+    fieldPacksCleared_ = std::min(data.fieldPacksCleared, Config::BossGateRequiredFieldPacks);
     lifeFlaskCharges_ = data.lifeFlaskCharges;
     state_ = data.state == SavedRunState::MapComplete
         ? GameState::MapComplete
@@ -758,6 +772,15 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     fieldPackName_.clear();
     fieldPackStarted_ = false;
     activeFieldPackId_ = -1;
+    activeFieldPackSpawnedCount_ = 0;
+    activeFieldPackLeaderIndex_ = -1;
+    activeFieldPackLeaderName_.clear();
+    activeFieldPackLeaderDescription_.clear();
+    activeFieldPackLeaderModifier_ = EliteModifier::None;
+    activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
+    activeFieldPackLeaderDropMultiplier_ = 1.0f;
+    activeFieldPackLeaderBonusDrops_ = 0;
+    activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     currentWave_ = 0;
@@ -927,7 +950,17 @@ void GameWorld::updatePlaying(float dt, Input& input) {
 }
 
 void GameWorld::movePlayerBy(const Vector2& delta) {
-    player_.setPosition(map_.resolveMovement(player_.position(), player_.radius(), delta));
+    Vector2 nextPosition = map_.resolveMovement(player_.position(), player_.radius(), delta);
+    if (!bossGateUnlocked()) {
+        const Vector2 fromBoss = nextPosition - map_.bossCenter();
+        const float arenaBoundary = Config::BossArenaRadius + player_.radius() + 2.0f;
+        if (fromBoss.lengthSquared() < arenaBoundary * arenaBoundary) {
+            const Vector2 direction = fromBoss.lengthSquared() > 0.0f
+                ? fromBoss.normalized() : Vector2(0.0f, 1.0f);
+            nextPosition = map_.bossCenter() + direction * arenaBoundary;
+        }
+    }
+    player_.setPosition(nextPosition);
     map_.revealAround(player_.position());
 }
 
@@ -958,6 +991,15 @@ void GameWorld::reset(std::uint64_t runSeed) {
     fieldPackName_.clear();
     fieldPackStarted_ = false;
     activeFieldPackId_ = -1;
+    activeFieldPackSpawnedCount_ = 0;
+    activeFieldPackLeaderIndex_ = -1;
+    activeFieldPackLeaderName_.clear();
+    activeFieldPackLeaderDescription_.clear();
+    activeFieldPackLeaderModifier_ = EliteModifier::None;
+    activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
+    activeFieldPackLeaderDropMultiplier_ = 1.0f;
+    activeFieldPackLeaderBonusDrops_ = 0;
+    activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     skillBar_.reset();
@@ -999,6 +1041,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     mapItemsDropped_ = 0;
     mapBossItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
+    fieldPacksCleared_ = 0;
     nextMapOptionChosen_ = false;
     mapRewardChosen_ = false;
     currentMapOption_ = MapOptionLibrary::defaultOption();
@@ -1082,6 +1125,15 @@ void GameWorld::startNextMap() {
     fieldPackName_.clear();
     fieldPackStarted_ = false;
     activeFieldPackId_ = -1;
+    activeFieldPackSpawnedCount_ = 0;
+    activeFieldPackLeaderIndex_ = -1;
+    activeFieldPackLeaderName_.clear();
+    activeFieldPackLeaderDescription_.clear();
+    activeFieldPackLeaderModifier_ = EliteModifier::None;
+    activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
+    activeFieldPackLeaderDropMultiplier_ = 1.0f;
+    activeFieldPackLeaderBonusDrops_ = 0;
+    activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     applySkillProgression();
@@ -1093,6 +1145,7 @@ void GameWorld::startNextMap() {
     mapItemsDropped_ = 0;
     mapBossItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
+    fieldPacksCleared_ = 0;
     mapRewardChosen_ = false;
     nextMapOptionChosen_ = false;
     selectedNextMapOption_ = -1;
@@ -1516,19 +1569,33 @@ void GameWorld::spawnEnemies(float dt) {
     spawner_.update(dt);
     const EnemyType type = nextMapEnemyType();
     const auto& definition = EnemyLibrary::forType(type);
-    const EliteModifier modifier = type == EnemyType::Elite ? randomEliteModifier() : EliteModifier::None;
-    const auto& modifierDefinition = EliteModifierLibrary::forModifier(modifier);
+    const bool isLeader = type == EnemyType::Elite
+        && activeFieldPackSpawnedCount_ == activeFieldPackLeaderIndex_;
+    const EliteModifier modifier = isLeader
+        ? activeFieldPackLeaderModifier_
+        : type == EnemyType::Elite ? randomEliteModifier() : EliteModifier::None;
+    const EliteModifier secondaryModifier = isLeader
+        ? activeFieldPackLeaderSecondaryModifier_ : EliteModifier::None;
     const int hp = std::max(1, static_cast<int>(std::ceil(
-        enemyHpForMap() * definition.hpMultiplier * modifierDefinition.hpMultiplier
+        enemyHpForMap() * definition.hpMultiplier * eliteHpMultiplier(modifier, secondaryModifier)
     )));
-    const int damage = enemyDamageForMap() + definition.damageBonus + modifierDefinition.damageBonus;
+    const int damage = enemyDamageForMap() + definition.damageBonus
+        + eliteDamageBonus(modifier, secondaryModifier);
 
     if (auto enemy = spawner_.trySpawnNear(
             player_.position(), map_.size(), map_, hp, damage, type, modifier,
-            random_, activeFieldPackId_
+            random_,
+            activeFieldPackId_,
+            secondaryModifier,
+            isLeader,
+            isLeader ? activeFieldPackLeaderName_ : "",
+            isLeader ? activeFieldPackLeaderDropMultiplier_ : 1.0f,
+            isLeader ? activeFieldPackLeaderBonusDrops_ : 0,
+            isLeader ? activeFieldPackLeaderExperienceMultiplier_ : 1
         )) {
         enemies_.push_back(*enemy);
         fieldPackStarted_ = true;
+        ++activeFieldPackSpawnedCount_;
         if (!pendingFieldPack_.empty()) {
             pendingFieldPack_.erase(pendingFieldPack_.begin());
         }
@@ -2174,6 +2241,7 @@ void GameWorld::applySkillAilment(
     int chillResistance = enemyDefinition.chillResistance;
     int shockResistance = enemyDefinition.shockResistance;
     int poisonResistance = enemyDefinition.poisonResistance;
+    const int eliteAilmentResistance = enemy.ailmentResistanceBonus();
     if (enemy.isBoss()) {
         igniteResistance = bossDefinition_->igniteResistance;
         chillResistance = bossDefinition_->chillResistance;
@@ -2186,7 +2254,12 @@ void GameWorld::applySkillAilment(
             enemy.applyIgnite(
                 ailmentTickDamageAfterResistance(
                     ailmentTickDamage(ailment, hitDamage),
-                    std::clamp(igniteResistance + mapModifier_.ailmentResistanceBonus, 0, 100),
+                    std::clamp(
+                        igniteResistance + eliteAilmentResistance
+                            + mapModifier_.ailmentResistanceBonus,
+                        0,
+                        100
+                    ),
                     ailment.ignitePenetration
                 ),
                 ailment.duration
@@ -2196,7 +2269,12 @@ void GameWorld::applySkillAilment(
             enemy.applyChill(
                 chillSpeedMultiplierAfterResistance(
                     ailment.speedMultiplier,
-                    std::clamp(chillResistance + mapModifier_.ailmentResistanceBonus, 0, 100),
+                    std::clamp(
+                        chillResistance + eliteAilmentResistance
+                            + mapModifier_.ailmentResistanceBonus,
+                        0,
+                        100
+                    ),
                     ailment.chillPenetration
                 ),
                 ailment.duration
@@ -2206,7 +2284,12 @@ void GameWorld::applySkillAilment(
             enemy.applyShock(
                 damageTakenMultiplierAfterResistance(
                     ailment.damageTakenMultiplier,
-                    std::clamp(shockResistance + mapModifier_.ailmentResistanceBonus, 0, 100),
+                    std::clamp(
+                        shockResistance + eliteAilmentResistance
+                            + mapModifier_.ailmentResistanceBonus,
+                        0,
+                        100
+                    ),
                     ailment.shockPenetration
                 ),
                 ailment.duration
@@ -2222,7 +2305,12 @@ void GameWorld::applySkillAilment(
             {
                 const int tickDamage = ailmentTickDamageAfterResistance(
                     ailmentTickDamage(ailment, hitDamage),
-                    std::clamp(poisonResistance + mapModifier_.ailmentResistanceBonus, 0, 100),
+                    std::clamp(
+                        poisonResistance + eliteAilmentResistance
+                            + mapModifier_.ailmentResistanceBonus,
+                        0,
+                        100
+                    ),
                     ailment.poisonPenetration
                 );
                 if (tickDamage <= 0) {
@@ -2391,6 +2479,15 @@ void GameWorld::triggerElitePackEvent(std::size_t eventIndex) {
     fieldPackName_.clear();
     fieldPackStarted_ = false;
     activeFieldPackId_ = -1;
+    activeFieldPackSpawnedCount_ = 0;
+    activeFieldPackLeaderIndex_ = -1;
+    activeFieldPackLeaderName_.clear();
+    activeFieldPackLeaderDescription_.clear();
+    activeFieldPackLeaderModifier_ = EliteModifier::None;
+    activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
+    activeFieldPackLeaderDropMultiplier_ = 1.0f;
+    activeFieldPackLeaderBonusDrops_ = 0;
+    activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     spawner_.reset();
@@ -2422,6 +2519,15 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
     fieldPackName_.clear();
     fieldPackStarted_ = false;
     activeFieldPackId_ = -1;
+    activeFieldPackSpawnedCount_ = 0;
+    activeFieldPackLeaderIndex_ = -1;
+    activeFieldPackLeaderName_.clear();
+    activeFieldPackLeaderDescription_.clear();
+    activeFieldPackLeaderModifier_ = EliteModifier::None;
+    activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
+    activeFieldPackLeaderDropMultiplier_ = 1.0f;
+    activeFieldPackLeaderBonusDrops_ = 0;
+    activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     spawner_.reset();
@@ -3493,17 +3599,25 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
 
     const auto& definition = EnemyLibrary::forType(enemy.type());
 
-    const auto& eliteModifier = EliteModifierLibrary::forModifier(enemy.eliteModifier());
-    if (eliteModifier.deathBurstRadius > 0.0f) {
+    const auto applyDeathBurst = [&](EliteModifier modifier) {
+        const auto& definition = EliteModifierLibrary::forModifier(modifier);
+        if (definition.deathBurstRadius <= 0.0f) {
+            return;
+        }
+
         volatileExplosionCenter_ = enemy.position();
-        volatileExplosionRadius_ = eliteModifier.deathBurstRadius;
+        volatileExplosionRadius_ = definition.deathBurstRadius;
         volatileExplosionTimer_ = Config::VolatileExplosionEffectDuration;
         if (Collision::circleCircle(
                 player_.position(), player_.radius(),
                 volatileExplosionCenter_, volatileExplosionRadius_
             )) {
-                damagePlayer(eliteModifier.deathBurstDamage, eliteModifier.name + " explosion");
+            damagePlayer(definition.deathBurstDamage, definition.name + " explosion");
         }
+    };
+    applyDeathBurst(enemy.eliteModifier());
+    if (enemy.secondaryEliteModifier() != enemy.eliteModifier()) {
+        applyDeathBurst(enemy.secondaryEliteModifier());
     }
 
     if (enemy.isBoss()) {
@@ -3525,7 +3639,8 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
     ++mapKills_;
     score_ += definition.scoreReward;
 
-    const int exp = Config::ExpPerKill * definition.expMultiplier;
+    const int exp = Config::ExpPerKill * definition.expMultiplier
+        * enemy.rewardExperienceMultiplier();
     player_.gainExp(exp);
     mapExperienceGained_ += exp;
 
@@ -3539,7 +3654,7 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
     }
 
     const float eliteDropMultiplier = enemy.isBoss() ? bossDefinition_->dropMultiplier
-        : definition.dropMultiplier;
+        : definition.dropMultiplier * enemy.rewardDropMultiplier();
     const int dropChance = itemDropChancePercent(
         Config::ItemDropChancePercent,
         mapModifier_.itemQuantityMultiplier * eliteDropMultiplier,
@@ -3547,6 +3662,9 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
     );
 
     int dropsToCreate = random_.chance(dropChance) ? 1 : 0;
+    if (enemy.isRare()) {
+        dropsToCreate = std::max(dropsToCreate, enemy.bonusDropCount());
+    }
     if (enemy.isBoss()) {
         const int guaranteedDrops = bossDefinition_->guaranteedDrops + mapModifier_.bossDropBonus;
         const int scaledGuaranteedDrops = std::max(guaranteedDrops, static_cast<int>(std::ceil(
@@ -3605,10 +3723,27 @@ void GameWorld::noteFieldPackEnemyDefeated(const Enemy& enemy) {
         1.0f,
         activeFieldPackLootBias_
     );
+    const bool gateWasUnlocked = bossGateUnlocked();
+    fieldPacksCleared_ = std::min(
+        fieldPacksCleared_ + 1,
+        fieldPacksRequired()
+    );
     eventStatusMessage_ = fieldPackName_ + " cleared: "
         + std::to_string(droppedCount) + " items dropped";
+    if (!gateWasUnlocked && bossGateUnlocked()) {
+        eventStatusMessage_ += " | Boss Gate unlocked";
+    }
     eventStatusTimer_ = 2.0f;
     activeFieldPackId_ = -1;
+    activeFieldPackSpawnedCount_ = 0;
+    activeFieldPackLeaderIndex_ = -1;
+    activeFieldPackLeaderName_.clear();
+    activeFieldPackLeaderDescription_.clear();
+    activeFieldPackLeaderModifier_ = EliteModifier::None;
+    activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
+    activeFieldPackLeaderDropMultiplier_ = 1.0f;
+    activeFieldPackLeaderBonusDrops_ = 0;
+    activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     fieldPackStarted_ = false;
@@ -3849,6 +3984,19 @@ EnemyType GameWorld::nextMapEnemyType() {
         replaceNormalWith(EnemyType::Elite, mapModifier_.eliteWeightBonus);
         replaceNormalWith(EnemyType::Charger, mapModifier_.chargerWeightBonus);
         activeFieldPackId_ = fieldPackSequence_;
+        activeFieldPackSpawnedCount_ = 0;
+        activeFieldPackLeaderIndex_ = std::clamp(
+            pack.leaderIndex,
+            -1,
+            static_cast<int>(pendingFieldPack_.size()) - 1
+        );
+        activeFieldPackLeaderName_ = pack.leaderName;
+        activeFieldPackLeaderDescription_ = pack.leaderDescription;
+        activeFieldPackLeaderModifier_ = pack.leaderModifiers[0];
+        activeFieldPackLeaderSecondaryModifier_ = pack.leaderModifiers[1];
+        activeFieldPackLeaderDropMultiplier_ = pack.leaderDropMultiplier;
+        activeFieldPackLeaderBonusDrops_ = pack.leaderBonusDrops;
+        activeFieldPackLeaderExperienceMultiplier_ = pack.leaderExperienceMultiplier;
         activeFieldPackLootBias_ = pack.lootBias;
         activeFieldPackRewardDrops_ = pack.clearRewardDrops;
         fieldPackName_ = pack.name;
@@ -3860,7 +4008,8 @@ EnemyType GameWorld::nextMapEnemyType() {
 }
 
 bool GameWorld::shouldSpawnBoss() const {
-    return !map_.bossTriggered()
+    return bossGateUnlocked()
+        && !map_.bossTriggered()
         && map_.areaForPlayer(player_.position()) == MapArea::BossArena;
 }
 
@@ -3986,6 +4135,14 @@ std::string GameWorld::mapObjective() const {
         return "Defeat Boss";
     }
 
+    if (!bossGateUnlocked()) {
+        return currentMapArea() == MapArea::BossGate || currentMapArea() == MapArea::BossArena
+            ? "Boss Gate Locked - clear " + std::to_string(fieldPacksCleared_)
+                + "/" + std::to_string(fieldPacksRequired())
+            : "Clear field packs " + std::to_string(fieldPacksCleared_)
+                + "/" + std::to_string(fieldPacksRequired());
+    }
+
     switch (currentMapArea()) {
         case MapArea::Start:
             return "Explore the field";
@@ -4056,6 +4213,10 @@ int GameWorld::supportLevel(const std::string& name) const {
     return it == progression_.supportLevels.end() ? 1 : it->second;
 }
 std::string GameWorld::fieldPackName() const { return fieldPackName_; }
+std::string GameWorld::fieldPackLeaderName() const { return activeFieldPackLeaderName_; }
+std::string GameWorld::fieldPackLeaderDescription() const {
+    return activeFieldPackLeaderDescription_;
+}
 int GameWorld::pendingFieldPackEnemies() const {
     return static_cast<int>(pendingFieldPack_.size());
 }
@@ -4072,6 +4233,11 @@ int GameWorld::fieldPackEnemiesRemaining() const {
         }
     ));
     return livingEnemies + static_cast<int>(pendingFieldPack_.size());
+}
+int GameWorld::fieldPacksCleared() const { return fieldPacksCleared_; }
+int GameWorld::fieldPacksRequired() const { return Config::BossGateRequiredFieldPacks; }
+bool GameWorld::bossGateUnlocked() const {
+    return fieldPacksCleared_ >= fieldPacksRequired() || mapEventsCompleted() > 0;
 }
 GameState GameWorld::state() const { return state_; }
 bool GameWorld::quitRequested() const { return quitRequested_; }

@@ -657,6 +657,7 @@ void writeSaveData(Writer& writer, const SaveData& data) {
     writer.integer(data.mapItemsDropped);
     writer.integer(data.mapBossItemsDropped);
     writer.integer(data.mapItemsPickedUp);
+    writer.integer(data.fieldPacksCleared);
     writer.integer(data.lifeFlaskCharges);
     writeSet(writer, data.unlockedSkills);
     writeSet(writer, data.unlockedSupports);
@@ -696,7 +697,8 @@ bool readSaveData(
     bool hasElementalChallengeFields,
     bool hasPoisonFields,
     std::size_t passiveNodeCount,
-    bool hasGemProgression
+    bool hasGemProgression,
+    bool hasFieldPackProgress
 ) {
     int state = 0;
     if (!reader.integer(state)
@@ -721,6 +723,7 @@ bool readSaveData(
             return false;
         }
     }
+    data.fieldPacksCleared = 0;
     if (!reader.integer(data.selectedNextMapOption)
         || !reader.integer(data.selectedMapRewardOption)
         || !reader.boolean(data.nextMapOptionChosen)
@@ -732,6 +735,7 @@ bool readSaveData(
         || !reader.integer(data.mapItemsDropped)
         || !reader.integer(data.mapBossItemsDropped)
         || !reader.integer(data.mapItemsPickedUp)
+        || (hasFieldPackProgress && !reader.integer(data.fieldPacksCleared))
         || !reader.integer(data.lifeFlaskCharges)
         || !readSet(reader, data.unlockedSkills)
         || !readSet(reader, data.unlockedSupports)
@@ -906,7 +910,7 @@ bool SaveService::load(const std::filesystem::path& path,
         || !file.integer(payloadLength) || !file.integer(expectedCrc)
         || magic != SaveData::Magic
         || (version != 3U && version != 4U && version != 5U
-            && version != 6U && version != SaveData::Version)
+            && version != 6U && version != 7U && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");
         return false;
@@ -926,7 +930,8 @@ bool SaveService::load(const std::filesystem::path& path,
             version >= 4U,
             version >= 5U,
             version >= 6U ? PassiveTree::NodeCount : PassiveTree::LegacyNodeCount,
-            version >= 7U
+            version >= 7U,
+            version >= 8U
         )) {
         setError(error, "invalid save payload");
         return false;

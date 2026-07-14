@@ -8,6 +8,7 @@ namespace Config {
     constexpr float StartSafeRadius = 220.0f;
     constexpr float BossGateRadius = 380.0f;
     constexpr float BossArenaRadius = 260.0f;
+    constexpr int BossGateRequiredFieldPacks = 2;
 
     constexpr float PlayerSpeed = 300.0f;
     constexpr float PlayerRadius = 20.0f;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "Ailment.hpp"
 #include "EnemyType.hpp"
 #include "EliteModifier.hpp"
@@ -19,7 +21,13 @@ public:
         EliteModifier eliteModifier,
         int mapEventIndex,
         bool summoned = false,
-        int fieldPackIndex = -1
+        int fieldPackIndex = -1,
+        EliteModifier secondaryEliteModifier = EliteModifier::None,
+        bool rare = false,
+        std::string displayName = {},
+        float rewardDropMultiplier = 1.0f,
+        int bonusDropCount = 0,
+        int rewardExperienceMultiplier = 1
     );
 
     void update(float dt, const Vector2& targetPosition, const MapInstance& map);
@@ -79,11 +87,20 @@ public:
     bool consumeChargeHit();
     bool isElite() const;
     bool isBoss() const;
+    bool isRare() const;
     EliteModifier eliteModifier() const;
+    EliteModifier secondaryEliteModifier() const;
+    const std::string& displayName() const;
+    int ailmentResistanceBonus() const;
+    float rewardDropMultiplier() const;
+    int bonusDropCount() const;
+    int rewardExperienceMultiplier() const;
     int mapEventIndex() const;
     int fieldPackIndex() const;
 
 private:
+    float eliteSpeedMultiplier() const;
+
     Vector2 position_;
     int id_;
     float radius_;
@@ -92,9 +109,15 @@ private:
     int contactDamage_;
     EnemyType type_;
     EliteModifier eliteModifier_;
+    EliteModifier secondaryEliteModifier_;
     int mapEventIndex_;
     bool summoned_;
     int fieldPackIndex_;
+    bool rare_;
+    std::string displayName_;
+    float rewardDropMultiplier_;
+    int bonusDropCount_;
+    int rewardExperienceMultiplier_;
     float attackCooldownTimer_;
     float attackWindupTimer_;
     bool attackReady_;

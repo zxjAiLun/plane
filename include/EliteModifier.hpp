@@ -23,6 +23,7 @@ struct EliteModifierDefinition {
     float deathBurstRadius = 0.0f;
     int deathBurstDamage = 0;
     EnemyColor outlineColor;
+    int ailmentResistanceBonus = 0;
 };
 
 class EliteModifierLibrary {
@@ -33,10 +34,10 @@ public:
 
     static const std::array<EliteModifierDefinition, 4>& all() {
         static const std::array<EliteModifierDefinition, 4> definitions = {{
-            {EliteModifier::None, "", "", 1.0f, 1.0f, 0, 0.0f, 0, {255, 220, 120}},
-            {EliteModifier::Hardened, "Hardened", "+60% maximum life", 1.60f, 1.0f, 0, 0.0f, 0, {105, 185, 255}},
-            {EliteModifier::Swift, "Swift", "+45% movement speed", 1.0f, 1.45f, 0, 0.0f, 0, {255, 235, 95}},
-            {EliteModifier::Volatile, "Volatile", "82 radius death burst for 2 damage", 1.0f, 1.0f, 0, 82.0f, 2, {255, 125, 55}},
+            {EliteModifier::None, "", "", 1.0f, 1.0f, 0, 0.0f, 0, {255, 220, 120}, 0},
+            {EliteModifier::Hardened, "Hardened", "+60% maximum life and +20% ailment resistance", 1.60f, 1.0f, 0, 0.0f, 0, {105, 185, 255}, 20},
+            {EliteModifier::Swift, "Swift", "+45% movement speed", 1.0f, 1.45f, 0, 0.0f, 0, {255, 235, 95}, 0},
+            {EliteModifier::Volatile, "Volatile", "82 radius death burst for 2 damage", 1.0f, 1.0f, 0, 82.0f, 2, {255, 125, 55}, 0},
         }};
         return definitions;
     }

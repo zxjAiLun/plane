@@ -99,6 +99,7 @@ SaveData sampleData() {
     data.droppedItems.push_back({{500.0f, 500.0f}, weapon});
     data.itemQuantityRewardMultiplier = 1.15f;
     data.forgeFragments = 7;
+    data.fieldPacksCleared = 2;
     data.mapEvents = {
         {MapEventType::LootCache, true, true},
         {MapEventType::ElitePack, true, true},
@@ -164,6 +165,8 @@ void testFileValidation(const std::filesystem::path& path) {
             && restored.stash.size() == 1
             && restored.droppedItems.size() == 1,
         "round-trip preserves run, map, progression and exploration");
+    expect(restored.fieldPacksCleared == data.fieldPacksCleared,
+        "round-trip preserves Boss Gate field progress");
 
     std::vector<unsigned char> bytes = readBytes(path);
     expect(bytes.size() > 16, "save has a versioned header and payload");

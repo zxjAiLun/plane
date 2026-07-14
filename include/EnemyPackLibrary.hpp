@@ -6,6 +6,7 @@
 #include <string>
 
 #include "EnemyType.hpp"
+#include "EliteModifier.hpp"
 #include "LootBias.hpp"
 
 struct EnemyPackDefinition {
@@ -16,6 +17,15 @@ struct EnemyPackDefinition {
     int enemyCount = 0;
     LootBias lootBias;
     int clearRewardDrops = 1;
+    int leaderIndex = -1;
+    std::string leaderName;
+    std::string leaderDescription;
+    std::array<EliteModifier, 2> leaderModifiers{
+        EliteModifier::None, EliteModifier::None
+    };
+    float leaderDropMultiplier = 1.0f;
+    int leaderBonusDrops = 0;
+    int leaderExperienceMultiplier = 1;
 };
 
 class EnemyPackLibrary {
@@ -32,7 +42,15 @@ public:
                 {EnemyType::Normal, EnemyType::Normal, EnemyType::Normal,
                  EnemyType::Charger, EnemyType::Elite, EnemyType::Normal},
                 6,
-                {AffixTag::Damage, 1.35f, AffixTag::Armor, 1.15f}
+                {AffixTag::Damage, 1.35f, AffixTag::Armor, 1.15f},
+                1,
+                4,
+                "Cinderjaw",
+                "A swift hardened line captain that survives focused fire",
+                {EliteModifier::Hardened, EliteModifier::Swift},
+                2.0f,
+                1,
+                2
             },
             {
                 "ashen-warden-court",
@@ -41,7 +59,15 @@ public:
                 {EnemyType::Warden, EnemyType::Normal, EnemyType::Normal,
                  EnemyType::Normal, EnemyType::Charger, EnemyType::Elite},
                 6,
-                {AffixTag::Survival, 1.35f, AffixTag::Armor, 1.20f}
+                {AffixTag::Survival, 1.35f, AffixTag::Armor, 1.20f},
+                1,
+                5,
+                "Ashen Bulwark",
+                "A volatile hardened commander guarded by a Warden court",
+                {EliteModifier::Hardened, EliteModifier::Volatile},
+                2.0f,
+                1,
+                2
             },
             {
                 "ashen-last-stand",
@@ -50,25 +76,49 @@ public:
                 {EnemyType::Elite, EnemyType::Normal, EnemyType::Normal,
                  EnemyType::Charger, EnemyType::Warden, EnemyType::Normal},
                 6,
-                {AffixTag::Damage, 1.40f, AffixTag::Area, 1.15f}
+                {AffixTag::Damage, 1.40f, AffixTag::Area, 1.15f},
+                1,
+                0,
+                "Last Ember",
+                "A volatile captain that accelerates when the formation breaks",
+                {EliteModifier::Swift, EliteModifier::Volatile},
+                2.0f,
+                1,
+                2
             },
             {
                 "storm-spitter-screen",
                 "Spitter Screen",
                 "Ranged pressure forces movement through the open field",
-                {EnemyType::Ranged, EnemyType::Ranged, EnemyType::Normal,
+                {EnemyType::Ranged, EnemyType::Ranged, EnemyType::Elite,
                  EnemyType::Ranged, EnemyType::Charger, EnemyType::Summoner},
                 6,
-                {AffixTag::Projectile, 1.40f, AffixTag::AttackSpeed, 1.15f}
+                {AffixTag::Projectile, 1.40f, AffixTag::AttackSpeed, 1.15f},
+                1,
+                2,
+                "Storm Herald",
+                "A swift hardened artillery leader with a long-range screen",
+                {EliteModifier::Swift, EliteModifier::Hardened},
+                2.0f,
+                1,
+                2
             },
             {
                 "storm-anchor-patrol",
                 "Anchor Patrol",
                 "A Hexbinder creates a protected ranged position",
                 {EnemyType::Summoner, EnemyType::Ranged, EnemyType::Ranged,
-                 EnemyType::Normal, EnemyType::Charger, EnemyType::Normal},
+                 EnemyType::Elite, EnemyType::Charger, EnemyType::Normal},
                 6,
-                {AffixTag::Lightning, 1.35f, AffixTag::Projectile, 1.20f}
+                {AffixTag::Lightning, 1.35f, AffixTag::Projectile, 1.20f},
+                1,
+                3,
+                "Anchor of Glass",
+                "A hardened volatile anchor that protects a crossfire nest",
+                {EliteModifier::Hardened, EliteModifier::Volatile},
+                2.0f,
+                1,
+                2
             },
             {
                 "storm-crossfire",
@@ -77,16 +127,32 @@ public:
                 {EnemyType::Ranged, EnemyType::Charger, EnemyType::Ranged,
                  EnemyType::Normal, EnemyType::Elite, EnemyType::Ranged},
                 6,
-                {AffixTag::AttackSpeed, 1.35f, AffixTag::Projectile, 1.20f}
+                {AffixTag::AttackSpeed, 1.35f, AffixTag::Projectile, 1.20f},
+                1,
+                4,
+                "Crossfire Prime",
+                "A swift volatile captain that collapses the ranged wing",
+                {EliteModifier::Swift, EliteModifier::Volatile},
+                2.0f,
+                1,
+                2
             },
             {
                 "venom-overgrowth",
                 "Overgrowth",
                 "Mixed elemental threats with a durable Warden",
-                {EnemyType::Warden, EnemyType::Normal, EnemyType::Charger,
+                {EnemyType::Warden, EnemyType::Elite, EnemyType::Charger,
                  EnemyType::Normal, EnemyType::Summoner, EnemyType::Normal},
                 6,
-                {AffixTag::Poison, 1.40f, AffixTag::Area, 1.15f}
+                {AffixTag::Poison, 1.40f, AffixTag::Area, 1.15f},
+                1,
+                1,
+                "Rotbloom Keeper",
+                "A hardened volatile guardian rooted in toxic growth",
+                {EliteModifier::Hardened, EliteModifier::Volatile},
+                2.0f,
+                1,
+                2
             },
             {
                 "venom-hunter-nest",
@@ -95,7 +161,15 @@ public:
                 {EnemyType::Summoner, EnemyType::Charger, EnemyType::Charger,
                  EnemyType::Normal, EnemyType::Elite, EnemyType::Normal},
                 6,
-                {AffixTag::Poison, 1.35f, AffixTag::Damage, 1.20f}
+                {AffixTag::Poison, 1.35f, AffixTag::Damage, 1.20f},
+                1,
+                4,
+                "Venom Fang",
+                "A swift hardened hunter that drives the pack forward",
+                {EliteModifier::Swift, EliteModifier::Hardened},
+                2.0f,
+                1,
+                2
             },
             {
                 "venom-bloom-guard",
@@ -104,7 +178,15 @@ public:
                 {EnemyType::Elite, EnemyType::Warden, EnemyType::Normal,
                  EnemyType::Normal, EnemyType::Charger, EnemyType::Summoner},
                 6,
-                {AffixTag::Poison, 1.45f, AffixTag::Survival, 1.15f}
+                {AffixTag::Poison, 1.45f, AffixTag::Survival, 1.15f},
+                1,
+                0,
+                "Bloom Matriarch",
+                "A hardened volatile leader that protects the final growth",
+                {EliteModifier::Hardened, EliteModifier::Volatile},
+                2.0f,
+                1,
+                2
             }
         }};
         return packs;

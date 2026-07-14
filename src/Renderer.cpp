@@ -646,12 +646,32 @@ std::string enemyDisplayLabel(const GameWorld& world, const Enemy& enemy) {
     }
 
     const auto& definition = EnemyLibrary::forType(enemy.type());
+    if (enemy.isRare() && !enemy.displayName().empty()) {
+        return "Rare " + enemy.displayName();
+    }
+
     const auto& modifier = EliteModifierLibrary::forModifier(enemy.eliteModifier());
     return modifier.name.empty() ? definition.name : modifier.name + " " + definition.name;
 }
 
 std::string eliteModifierDescription(const Enemy& enemy) {
-    return EliteModifierLibrary::forModifier(enemy.eliteModifier()).description;
+    const auto append = [](std::string& result, EliteModifier modifier) {
+        const auto& definition = EliteModifierLibrary::forModifier(modifier);
+        if (definition.description.empty()) {
+            return;
+        }
+        if (!result.empty()) {
+            result += " | ";
+        }
+        result += definition.name + ": " + definition.description;
+    };
+
+    std::string result;
+    append(result, enemy.eliteModifier());
+    if (enemy.secondaryEliteModifier() != enemy.eliteModifier()) {
+        append(result, enemy.secondaryEliteModifier());
+    }
+    return result;
 }
 
 const Enemy* focusedEliteEnemy(const GameWorld& world) {
@@ -872,6 +892,13 @@ void Renderer::render(const GameWorld& world) {
         + "/" + std::to_string(world.mapEventsTotal()),
         {16.0f, hudY}, 14, sf::Color(210, 255, 210));
     hudY += 18.0f;
+    const bool gateUnlocked = world.bossGateUnlocked();
+    drawText("Field Progress " + std::to_string(world.fieldPacksCleared())
+        + "/" + std::to_string(world.fieldPacksRequired())
+        + (gateUnlocked ? " | Boss Gate Unlocked" : " | Boss Gate Locked"),
+        {16.0f, hudY}, 14,
+        gateUnlocked ? sf::Color(150, 245, 175) : sf::Color(255, 170, 130));
+    hudY += 18.0f;
     const std::string encounterStatus = mapEncounterStatus(world);
     if (!encounterStatus.empty()) {
         drawText(truncateText("Encounter: " + encounterStatus, 34),
@@ -879,8 +906,12 @@ void Renderer::render(const GameWorld& world) {
         hudY += 18.0f;
     }
     if (world.fieldPackEnemiesRemaining() > 0) {
-        drawText(truncateText("Pack: " + world.fieldPackName()
-                + " (" + std::to_string(world.fieldPackEnemiesRemaining()) + " left)", 34),
+        std::string packLine = "Pack: " + world.fieldPackName()
+            + " (" + std::to_string(world.fieldPackEnemiesRemaining()) + " left)";
+        if (!world.fieldPackLeaderName().empty()) {
+            packLine += " | Rare: " + world.fieldPackLeaderName();
+        }
+        drawText(truncateText(packLine, 34),
             {16.0f, hudY}, 14, sf::Color(210, 205, 255));
         hudY += 18.0f;
     }
@@ -1144,8 +1175,11 @@ void Renderer::drawMap(const GameWorld& world) {
 
     const sf::Vector2f bossCenter = worldToScreen(world, map.bossCenter());
     sf::CircleShape gate(Config::BossGateRadius);
-    gate.setFillColor(mapColor(palette.bossGate, 35));
-    gate.setOutlineColor(mapColor(palette.bossGate, 130));
+    const sf::Color gateColor = world.bossGateUnlocked()
+        ? mapColor(palette.bossGate)
+        : sf::Color(170, 75, 75);
+    gate.setFillColor(sf::Color(gateColor.r, gateColor.g, gateColor.b, 35));
+    gate.setOutlineColor(sf::Color(gateColor.r, gateColor.g, gateColor.b, 150));
     gate.setOutlineThickness(3.0f);
     gate.setOrigin({Config::BossGateRadius, Config::BossGateRadius});
     gate.setPosition(bossCenter);
@@ -1552,10 +1586,13 @@ void Renderer::drawEnemies(const GameWorld& world) {
         sf::RectangleShape shape({enemy.radius() * 2, enemy.radius() * 2});
         shape.setFillColor(enemyColor(definition.fillColor));
         if (definition.outlineThickness > 0.0f) {
-            shape.setOutlineColor(enemy.eliteModifier() == EliteModifier::None
+            shape.setOutlineColor(enemy.isRare()
+                ? sf::Color(255, 220, 90)
+                : enemy.eliteModifier() == EliteModifier::None
                 ? enemyColor(definition.outlineColor)
                 : enemyColor(modifier.outlineColor));
-            shape.setOutlineThickness(definition.outlineThickness);
+            shape.setOutlineThickness(enemy.isRare()
+                ? definition.outlineThickness + 1.5f : definition.outlineThickness);
         }
 
         if ((enemy.isElite() || enemy.isSummoner()) && !enemy.isBoss()) {
@@ -1570,7 +1607,9 @@ void Renderer::drawEnemies(const GameWorld& world) {
             window_.draw(background);
 
             sf::RectangleShape fill({barWidth * hpRatio, 4.0f});
-            fill.setFillColor(enemy.eliteModifier() == EliteModifier::None
+            fill.setFillColor(enemy.isRare()
+                ? sf::Color(255, 220, 90)
+                : enemy.eliteModifier() == EliteModifier::None
                 ? enemyColor(definition.outlineColor)
                 : enemyColor(modifier.outlineColor));
             fill.setOrigin({barWidth * 0.5f, 2.0f});
@@ -1630,7 +1669,9 @@ void Renderer::drawEnemies(const GameWorld& world) {
         if (definition.outlineThickness > 0.0f) {
             const std::string label = enemyDisplayLabel(world, enemy);
             drawCenteredText(label, {screenPosition.x, screenPosition.y - enemy.radius() - 18.0f},
-                11, enemy.eliteModifier() == EliteModifier::None
+                11, enemy.isRare()
+                    ? sf::Color(255, 220, 90)
+                    : enemy.eliteModifier() == EliteModifier::None
                     ? enemyColor(definition.outlineColor)
                     : enemyColor(modifier.outlineColor));
         }

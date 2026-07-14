@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <string>
 #include "Enemy.hpp"
 #include "RandomService.hpp"
 #include "Timer.hpp"
@@ -14,14 +15,23 @@ public:
 
     void update(float dt);
     std::optional<Enemy> trySpawn(int hp, int contactDamage, EnemyType type = EnemyType::Normal,
-        EliteModifier eliteModifier = EliteModifier::None, int fieldPackIndex = -1);
+        EliteModifier eliteModifier = EliteModifier::None, int fieldPackIndex = -1,
+        EliteModifier secondaryEliteModifier = EliteModifier::None, bool rare = false,
+        const std::string& displayName = {}, float rewardDropMultiplier = 1.0f,
+        int bonusDropCount = 0, int rewardExperienceMultiplier = 1);
     std::optional<Enemy> trySpawn(
         int hp,
         int contactDamage,
         EnemyType type,
         EliteModifier eliteModifier,
         RandomService& random,
-        int fieldPackIndex = -1
+        int fieldPackIndex = -1,
+        EliteModifier secondaryEliteModifier = EliteModifier::None,
+        bool rare = false,
+        const std::string& displayName = {},
+        float rewardDropMultiplier = 1.0f,
+        int bonusDropCount = 0,
+        int rewardExperienceMultiplier = 1
     );
     std::optional<Enemy> trySpawnNear(
         const Vector2& playerPosition,
@@ -31,7 +41,13 @@ public:
         int contactDamage,
         EnemyType type = EnemyType::Normal,
         EliteModifier eliteModifier = EliteModifier::None,
-        int fieldPackIndex = -1
+        int fieldPackIndex = -1,
+        EliteModifier secondaryEliteModifier = EliteModifier::None,
+        bool rare = false,
+        const std::string& displayName = {},
+        float rewardDropMultiplier = 1.0f,
+        int bonusDropCount = 0,
+        int rewardExperienceMultiplier = 1
     );
     std::optional<Enemy> trySpawnNear(
         const Vector2& playerPosition,
@@ -42,7 +58,13 @@ public:
         EnemyType type,
         EliteModifier eliteModifier,
         RandomService& random,
-        int fieldPackIndex = -1
+        int fieldPackIndex = -1,
+        EliteModifier secondaryEliteModifier = EliteModifier::None,
+        bool rare = false,
+        const std::string& displayName = {},
+        float rewardDropMultiplier = 1.0f,
+        int bonusDropCount = 0,
+        int rewardExperienceMultiplier = 1
     );
 
     void setSpawnInterval(float interval);

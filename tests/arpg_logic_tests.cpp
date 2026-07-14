@@ -1781,8 +1781,8 @@ void testEliteModifierDefinitions() {
         "None modifier leaves elite base stats unchanged");
     expect(hardened.hpMultiplier > 1.0f && hardened.speedMultiplier == 1.0f,
         "Hardened increases life without increasing speed");
-    expect(hardened.description == "+60% maximum life",
-        "Hardened risk description matches its life multiplier");
+    expect(hardened.description == "+60% maximum life and +20% ailment resistance",
+        "Hardened risk description matches its life and resistance effects");
     expect(swift.speedMultiplier > 1.0f && swift.hpMultiplier == 1.0f,
         "Swift increases speed without increasing life");
     expect(swift.description == "+45% movement speed",
@@ -2592,7 +2592,16 @@ void testEnemyPackLibrary() {
         expect(!pack.id.empty() && !pack.name.empty()
                 && pack.enemyCount == static_cast<int>(pack.enemies.size())
                 && pack.clearRewardDrops > 0
-                && pack.lootBias.primaryTag != AffixTag::None,
+                && pack.lootBias.primaryTag != AffixTag::None
+                && pack.leaderIndex >= 0
+                && pack.leaderIndex < pack.enemyCount
+                && pack.enemies[static_cast<std::size_t>(pack.leaderIndex)] == EnemyType::Elite
+                && !pack.leaderName.empty()
+                && !pack.leaderDescription.empty()
+                && pack.leaderModifiers[0] != EliteModifier::None
+                && pack.leaderDropMultiplier > 1.0f
+                && pack.leaderBonusDrops > 0
+                && pack.leaderExperienceMultiplier > 1,
             "field pack has a complete composition: " + pack.name);
     }
 
