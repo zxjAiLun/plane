@@ -143,6 +143,8 @@ public:
     bool isSupportUnlocked(const std::string& name) const;
     int skillLevel(const std::string& name) const;
     int supportLevel(const std::string& name) const;
+    std::string fieldPackName() const;
+    int pendingFieldPackEnemies() const;
 
     GameState state() const;
     int score() const;
@@ -320,6 +322,10 @@ private:
     Stash stash_;
     LootGenerator lootGenerator_;
     EnemySpawner spawner_;
+    std::vector<EnemyType> pendingFieldPack_;
+    int fieldPackSequence_ = 0;
+    std::string fieldPackName_;
+    bool fieldPackStarted_ = false;
     SkillBar skillBar_;
     MapInstance map_;
     RunProgression progression_;

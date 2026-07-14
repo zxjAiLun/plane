@@ -21,6 +21,7 @@
 #include "EliteModifier.hpp"
 #include "Enemy.hpp"
 #include "EnemyDefinition.hpp"
+#include "EnemyPackLibrary.hpp"
 #include "EnemySpawner.hpp"
 #include "Equipment.hpp"
 #include "GroundHazard.hpp"
@@ -2582,6 +2583,35 @@ void testGemProgression() {
     }), "map level rewards include a skill gem upgrade");
 }
 
+void testEnemyPackLibrary() {
+    section("Data-driven field enemy packs");
+
+    const auto& packs = EnemyPackLibrary::all();
+    expect(packs.size() == 9, "three map themes expose three field packs each");
+    for (const auto& pack : packs) {
+        expect(!pack.id.empty() && !pack.name.empty()
+                && pack.enemyCount == static_cast<int>(pack.enemies.size()),
+            "field pack has a complete composition: " + pack.name);
+    }
+
+    const auto& ashen = EnemyPackLibrary::forMap(0, 1, 0);
+    const auto& storm = EnemyPackLibrary::forMap(1, 1, 0);
+    const auto& venom = EnemyPackLibrary::forMap(2, 1, 0);
+    const auto hasType = [](const EnemyPackDefinition& pack, EnemyType type) {
+        return std::find(pack.enemies.begin(), pack.enemies.end(), type)
+            != pack.enemies.end();
+    };
+    expect(hasType(ashen, EnemyType::Charger) && hasType(ashen, EnemyType::Elite),
+        "Ashen packs combine melee pressure with an elite node");
+    expect(hasType(storm, EnemyType::Ranged) && hasType(storm, EnemyType::Summoner),
+        "Storm packs combine ranged pressure with a summoner anchor");
+    expect(hasType(venom, EnemyType::Warden) && hasType(venom, EnemyType::Charger),
+        "Venom packs combine a defensive anchor with chargers");
+    expect(EnemyPackLibrary::forMap(0, 1, 0).id
+            != EnemyPackLibrary::forMap(0, 1, 1).id,
+        "field pack sequence rotates within a map theme");
+}
+
 // --- Passive + equip pipeline matches Player.recalculateStats ---
 void testPassiveAndEquipPipeline() {
     section("Passive + equip pipeline via Player");
@@ -2703,6 +2733,7 @@ int main() {
     testMapExploration();
     testMapRewardGeneration();
     testGemProgression();
+    testEnemyPackLibrary();
     testPassiveAndEquipPipeline();
     testItemContainers();
 

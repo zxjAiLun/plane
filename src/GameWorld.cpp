@@ -3,6 +3,7 @@
 #include "CombatMath.hpp"
 #include "Config.hpp"
 #include "EnemyDefinition.hpp"
+#include "EnemyPackLibrary.hpp"
 #include "MapScaling.hpp"
 
 #include <algorithm>
@@ -752,6 +753,10 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     groundHazards_.clear();
     droppedItems_ = std::move(restoredDroppedItems);
     spawner_.reset();
+    pendingFieldPack_.clear();
+    fieldPackSequence_ = 0;
+    fieldPackName_.clear();
+    fieldPackStarted_ = false;
     currentWave_ = 0;
     enemiesSpawnedInWave_ = 0;
     resetBossDash();
@@ -945,6 +950,10 @@ void GameWorld::reset(std::uint64_t runSeed) {
     inventory_.clear();
     stash_.clear();
     spawner_.reset();
+    pendingFieldPack_.clear();
+    fieldPackSequence_ = 0;
+    fieldPackName_.clear();
+    fieldPackStarted_ = false;
     skillBar_.reset();
     initializeRunProgression();
     applySkillProgression();
@@ -1062,6 +1071,10 @@ void GameWorld::startNextMap() {
     groundHazards_.clear();
     droppedItems_.clear();
     spawner_.reset();
+    pendingFieldPack_.clear();
+    fieldPackSequence_ = 0;
+    fieldPackName_.clear();
+    fieldPackStarted_ = false;
     applySkillProgression();
     state_ = GameState::Playing;
     resumeState_ = GameState::Playing;
@@ -1471,7 +1484,8 @@ void GameWorld::updateEnemyProjectiles(float dt) {
 void GameWorld::spawnEnemies(float dt) {
     triggerBossIfNeeded();
 
-    if (map_.bossDefeated() || map_.bossTriggered()) {
+    if (map_.bossDefeated() || map_.bossTriggered()
+        || (activeMapEventIndex_ >= 0 && mapEventEnemiesRemaining_ > 0)) {
         return;
     }
 
@@ -1498,6 +1512,10 @@ void GameWorld::spawnEnemies(float dt) {
             player_.position(), map_.size(), map_, hp, damage, type, modifier, random_
         )) {
         enemies_.push_back(*enemy);
+        fieldPackStarted_ = true;
+        if (!pendingFieldPack_.empty()) {
+            pendingFieldPack_.erase(pendingFieldPack_.begin());
+        }
         ++enemiesSpawnedInWave_;
     }
 }
@@ -2353,6 +2371,9 @@ void GameWorld::triggerElitePackEvent(std::size_t eventIndex) {
     }
 
     event.triggered = true;
+    pendingFieldPack_.clear();
+    fieldPackName_.clear();
+    spawner_.reset();
     activeMapEventIndex_ = static_cast<int>(eventIndex);
     mapEventEnemiesRemaining_ = 5;
     eventStatusMessage_ = "Elite pack awakened";
@@ -2377,6 +2398,9 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
     }
 
     event.triggered = true;
+    pendingFieldPack_.clear();
+    fieldPackName_.clear();
+    spawner_.reset();
     switch (encounter.type) {
         case MapEncounterType::EnhancedCache: {
             const int droppedCount = dropItemsAround(
@@ -3728,38 +3752,43 @@ EliteModifier GameWorld::randomEliteModifier() {
 }
 
 EnemyType GameWorld::nextMapEnemyType() {
-    const auto& encounter = map_.definition().encounter;
-    const int eliteWeight = std::min(
-        45, encounter.eliteWeight + mapLevel_ * 2 + mapModifier_.eliteWeightBonus
-    );
-    const int normalWeight = std::max(1, encounter.normalWeight - (eliteWeight - encounter.eliteWeight));
-    const int rangedWeight = std::max(0, encounter.rangedWeight);
-    const int chargerWeight = std::max(
-        0,
-        encounter.chargerWeight + mapModifier_.chargerWeightBonus
-    );
-    const int wardenWeight = std::max(0, encounter.wardenWeight + mapLevel_ / 2);
-    const int summonerWeight = std::max(0, encounter.summonerWeight + mapLevel_ / 3);
-    const int totalWeight = normalWeight + rangedWeight + chargerWeight
-        + eliteWeight + wardenWeight + summonerWeight;
-    const int roll = random_.nextInt(0, totalWeight - 1);
+    if (pendingFieldPack_.empty()) {
+        const auto& pack = EnemyPackLibrary::forMap(
+            map_.templateIndex(), mapLevel_, fieldPackSequence_
+        );
+        const int packSize = std::clamp(
+            pack.enemyCount,
+            0,
+            static_cast<int>(pack.enemies.size())
+        );
+        pendingFieldPack_.assign(
+            pack.enemies.begin(),
+            pack.enemies.begin() + packSize
+        );
 
-    if (roll < eliteWeight) {
-        return EnemyType::Elite;
+        const auto replaceNormalWith = [this](EnemyType replacement, int bonus) {
+            const int replacementCount = std::min(
+                2, (std::max(0, bonus) + 5) / 6
+            );
+            int replaced = 0;
+            for (auto& type : pendingFieldPack_) {
+                if (replaced >= replacementCount) {
+                    break;
+                }
+                if (type == EnemyType::Normal) {
+                    type = replacement;
+                    ++replaced;
+                }
+            }
+        };
+        replaceNormalWith(EnemyType::Elite, mapModifier_.eliteWeightBonus);
+        replaceNormalWith(EnemyType::Charger, mapModifier_.chargerWeightBonus);
+        fieldPackName_ = pack.name;
+        fieldPackStarted_ = false;
+        ++fieldPackSequence_;
     }
-    if (roll < eliteWeight + rangedWeight) {
-        return EnemyType::Ranged;
-    }
-    if (roll < eliteWeight + rangedWeight + chargerWeight) {
-        return EnemyType::Charger;
-    }
-    if (roll < eliteWeight + rangedWeight + chargerWeight + wardenWeight) {
-        return EnemyType::Warden;
-    }
-    if (roll < eliteWeight + rangedWeight + chargerWeight + wardenWeight + summonerWeight) {
-        return EnemyType::Summoner;
-    }
-    return EnemyType::Normal;
+
+    return pendingFieldPack_.empty() ? EnemyType::Normal : pendingFieldPack_.front();
 }
 
 bool GameWorld::shouldSpawnBoss() const {
@@ -3958,6 +3987,10 @@ int GameWorld::supportLevel(const std::string& name) const {
     const auto it = progression_.supportLevels.find(name);
     return it == progression_.supportLevels.end() ? 1 : it->second;
 }
+std::string GameWorld::fieldPackName() const { return fieldPackName_; }
+int GameWorld::pendingFieldPackEnemies() const {
+    return static_cast<int>(pendingFieldPack_.size());
+}
 GameState GameWorld::state() const { return state_; }
 bool GameWorld::quitRequested() const { return quitRequested_; }
 int GameWorld::score() const { return score_; }
@@ -4043,5 +4076,10 @@ float GameWorld::currentSpawnInterval() const {
     constexpr float intervalPerMapLevel = 0.04f;
     constexpr float minimumInterval = 0.25f;
 
-    return std::max(minimumInterval, startInterval - (mapLevel_ - 1) * intervalPerMapLevel);
+    const float baseInterval = std::max(
+        minimumInterval, startInterval - (mapLevel_ - 1) * intervalPerMapLevel
+    );
+    return pendingFieldPack_.empty() || !fieldPackStarted_
+        ? baseInterval
+        : std::min(baseInterval, Config::EnemyPackSpawnSpacing);
 }

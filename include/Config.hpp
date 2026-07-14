@@ -85,6 +85,7 @@ namespace Config {
     constexpr int BossProjectileDamage = 1;
 
     constexpr float EnemySpawnInterval = 1.0f;
+    constexpr float EnemyPackSpawnSpacing = 0.45f;
     constexpr int MaxActiveEnemies = 28;
     constexpr int MaxBossSummonedEnemies = 10;
     constexpr int MaxSummonerMinions = 6;
