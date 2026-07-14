@@ -1533,6 +1533,13 @@ void testBossSummonDefinitions() {
     section("Boss summon definitions and population cap");
 
     const auto& bosses = BossLibrary::all();
+    for (const auto& boss : bosses) {
+        expect(!boss.enrageTransitionDescription.empty()
+                && boss.enrageSummonCount > 0
+                && boss.enrageHazard.isValid(),
+            boss.name + " defines a data-driven enrage transition");
+    }
+
     const auto broodIt = std::find_if(
         bosses.begin(), bosses.end(),
         [](const BossDefinition& boss) { return boss.name == "Brood Matriarch"; }

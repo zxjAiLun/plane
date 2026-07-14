@@ -177,6 +177,7 @@ private:
     void updateGroundHazards(float dt);
     void updateBossSkills(float dt);
     void updateBossDash(float dt, Enemy& boss);
+    void triggerBossEnrage(Enemy& boss);
     int summonBossAdds(const Enemy& boss, const BossSkillDefinition& skill);
     void updateBossProjectiles(float dt);
     void updateEnemyProjectiles(float dt);

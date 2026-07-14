@@ -1044,8 +1044,14 @@ void GameWorld::updateBossSkills(float dt) {
         : 0.0f;
     if (!bossEnraged_ && hpRatio <= bossDefinition_->enrageHealthRatio) {
         bossEnraged_ = true;
-        eventStatusMessage_ = "Boss enraged: " + bossDefinition_->name;
-        eventStatusTimer_ = 2.0f;
+        triggerBossEnrage(*boss);
+        // Enrage may append reinforcements to enemies_, invalidating the
+        // pointer returned by activeBoss(). Reacquire it before continuing
+        // the boss pattern update.
+        boss = activeBoss();
+        if (!boss) {
+            return;
+        }
         bossSkillTimer_ = std::min(bossSkillTimer_, bossSkillInterval());
     }
 
@@ -1189,6 +1195,35 @@ void GameWorld::updateBossSkills(float dt) {
 
     ++bossSkillIndex_;
     bossSkillTimer_ = bossSkillInterval();
+}
+
+void GameWorld::triggerBossEnrage(Enemy& boss) {
+    const Vector2 bossPosition = boss.position();
+    int summonedCount = 0;
+    if (bossDefinition_->enrageSummonCount > 0) {
+        BossSkillDefinition enrageSummon;
+        enrageSummon.type = BossSkillType::SummonAdds;
+        enrageSummon.name = "Enrage reinforcements";
+        enrageSummon.radius = 120.0f;
+        enrageSummon.summonType = bossDefinition_->enrageSummonType;
+        enrageSummon.summonCount = bossDefinition_->enrageSummonCount;
+        summonedCount = summonBossAdds(boss, enrageSummon);
+    }
+
+    if (bossDefinition_->enrageHazard.isValid()) {
+        GroundHazardDefinition hazard = bossDefinition_->enrageHazard;
+        hazard.damage = bossSkillDamage(hazard.damage);
+        groundHazards_.emplace_back(bossPosition, std::move(hazard));
+    }
+
+    eventStatusMessage_ = "Boss enraged: " + bossDefinition_->name;
+    if (!bossDefinition_->enrageTransitionDescription.empty()) {
+        eventStatusMessage_ += " - " + bossDefinition_->enrageTransitionDescription;
+    }
+    if (summonedCount > 0) {
+        eventStatusMessage_ += " (" + std::to_string(summonedCount) + " adds)";
+    }
+    eventStatusTimer_ = 3.0f;
 }
 
 void GameWorld::updateBossDash(float dt, Enemy& boss) {
@@ -3386,9 +3421,15 @@ std::string GameWorld::bossSkillWarning() const {
 }
 bool GameWorld::bossEnraged() const { return bossEnraged_; }
 std::string GameWorld::bossPhaseSummary() const {
-    return bossEnraged_
-        ? "Enraged: " + bossDefinition_->enragedPatternDescription
-        : "Pattern: " + bossDefinition_->patternDescription;
+    if (!bossEnraged_) {
+        return "Pattern: " + bossDefinition_->patternDescription;
+    }
+
+    std::string summary = "Enraged: " + bossDefinition_->enragedPatternDescription;
+    if (!bossDefinition_->enrageTransitionDescription.empty()) {
+        summary += " | " + bossDefinition_->enrageTransitionDescription;
+    }
+    return summary;
 }
 
 std::string GameWorld::pickupPrompt() const {

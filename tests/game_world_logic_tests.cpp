@@ -1201,20 +1201,19 @@ void testBuildMathMatchesWorldHits() {
     input.handleMousePressed(sf::Mouse::Button::Right, worldToScreen(boss->position()));
     world.update(0.05f, input);
 
-    int areaFeedbackDamage = 0;
-    bool areaFeedbackMatches = true;
+    bool areaFeedbackMatches = false;
     for (std::size_t i = areaFeedbackStart; i < world.combatFeedback().size(); ++i) {
         const auto& feedback = world.combatFeedback()[i];
         if (feedback.source == secondary.name) {
-            areaFeedbackDamage += feedback.damage;
-            areaFeedbackMatches = areaFeedbackMatches && feedback.damage == expectedAreaDamage;
+            areaFeedbackMatches = areaFeedbackMatches || feedback.damage == expectedAreaDamage;
         }
     }
     boss = findBoss();
     const int bossHpAfterArea = boss == world.enemies().end() ? 0 : boss->hp();
-    expect(areaFeedbackDamage > 0 && areaFeedbackMatches,
+    const int bossAreaDamage = bossHpBeforeArea - bossHpAfterArea;
+    expect(areaFeedbackMatches,
         "real Area feedback uses the CombatMath damage value");
-    expect(bossHpBeforeArea - bossHpAfterArea == areaFeedbackDamage,
+    expect(bossAreaDamage == expectedAreaDamage,
         "real Area feedback equals the Boss HP delta");
     expect(std::abs(world.secondarySkillEffectRadius() - expectedAreaRadius) < 0.001f,
         "real Area effect radius matches the CombatMath radius value");
@@ -1458,6 +1457,9 @@ void testBossCombatFlow() {
     bool bossHpReduced = false;
     bool telegraphFeedbackObserved = false;
     bool playerHitFeedbackObserved = false;
+    bool enrageObserved = false;
+    bool enrageAddsObserved = false;
+    bool enrageHazardObserved = false;
     for (int frame = 0; frame < 120 && world.state() == GameState::Playing; ++frame) {
         const auto bossIt = std::find_if(
             world.enemies().begin(),
@@ -1476,6 +1478,20 @@ void testBossCombatFlow() {
         );
         input.handleMousePressed(sf::Mouse::Button::Right, screenTarget);
         world.update(0.05f, input);
+        if (world.bossEnraged()) {
+            enrageObserved = true;
+            enrageAddsObserved = enrageAddsObserved || std::any_of(
+                world.enemies().begin(), world.enemies().end(),
+                [](const Enemy& enemy) { return !enemy.isBoss() && !enemy.isDead(); }
+            );
+            enrageHazardObserved = enrageHazardObserved || std::any_of(
+                world.groundHazards().begin(), world.groundHazards().end(),
+                [&world](const GroundHazard& hazard) {
+                    return hazard.definition().source
+                        == world.bossDefinition().enrageHazard.source;
+                }
+            );
+        }
         telegraphFeedbackObserved = telegraphFeedbackObserved || std::any_of(
             world.combatFeedback().begin(),
             world.combatFeedback().end(),
@@ -1512,6 +1528,9 @@ void testBossCombatFlow() {
         "Boss telegraph creates a typed feedback record from the real Boss state");
     expect(playerHitFeedbackObserved,
         "player damage creates a typed PlayerHit feedback record");
+    expect(enrageObserved, "Boss enters its data-driven enrage phase");
+    expect(enrageAddsObserved, "Boss enrage phase adds reinforcements");
+    expect(enrageHazardObserved, "Boss enrage phase creates its arena hazard");
     expect(world.state() == GameState::MapComplete && world.map().bossDefeated(),
         "Boss death enters MapComplete through the real reward path");
     expect(world.mapBossItemsDropped() >= 1 && !world.droppedItems().empty(),

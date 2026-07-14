@@ -58,6 +58,10 @@ struct BossDefinition {
     std::vector<std::size_t> enragedSkillOrder;
     int igniteResistance = 0;
     int chillResistance = 0;
+    std::string enrageTransitionDescription;
+    EnemyType enrageSummonType = EnemyType::Normal;
+    int enrageSummonCount = 0;
+    GroundHazardDefinition enrageHazard;
 
     const BossSkillDefinition& skillForCast(std::size_t castIndex, bool enraged) const {
         static const BossSkillDefinition fallback;
@@ -138,7 +142,11 @@ private:
                 {0, 1},
                 {0, 0, 1},
                 35,
-                20
+                20,
+                "Molten core exposed: Ravagers join the burning arena",
+                EnemyType::Charger,
+                2,
+                {"Enrage Magma", 135.0f, 8.0f, 0.75f, 2}
             },
             {
                 "Storm Herald",
@@ -177,7 +185,11 @@ private:
                 {0, 2, 0, 1},
                 {2, 0, 0, 2, 1},
                 20,
-                35
+                35,
+                "Storm eye opened: Spitters join the lightning field",
+                EnemyType::Ranged,
+                2,
+                {"Storm Field", 140.0f, 8.0f, 0.75f, 2}
             },
             {
                 "Brood Matriarch",
@@ -227,7 +239,11 @@ private:
                 {0, 2, 1, 0},
                 {0, 3, 0, 2, 1},
                 30,
-                30
+                30,
+                "Brood unleashed: Acid pools spread beneath the nest",
+                EnemyType::Ranged,
+                2,
+                {"Acid Nest", 120.0f, 8.0f, 0.75f, 2}
             },
         };
     }
