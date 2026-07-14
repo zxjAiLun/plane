@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "Ailment.hpp"
+#include "DamageType.hpp"
 #include "Vector2.hpp"
 
 class Projectile {
@@ -14,7 +15,8 @@ public:
         int damage,
         int pierceCount = 0,
         AilmentDefinition ailment = {},
-        std::string source = {}
+        std::string source = {},
+        DamageType damageType = DamageType::Physical
     );
 
     void update(float dt, const Vector2& worldSize);
@@ -24,6 +26,7 @@ public:
     int damage() const;
     const AilmentDefinition& ailment() const;
     const std::string& source() const;
+    DamageType damageType() const;
     bool hasHitEnemy(int enemyId) const;
     void recordEnemyHit(int enemyId);
 
@@ -37,6 +40,7 @@ private:
     int damage_;
     AilmentDefinition ailment_;
     std::string source_;
+    DamageType damageType_;
     int remainingPierces_;
     std::vector<int> hitEnemyIds_;
     bool alive_;

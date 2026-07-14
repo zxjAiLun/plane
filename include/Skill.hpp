@@ -3,6 +3,7 @@
 #include <string>
 
 #include "Ailment.hpp"
+#include "DamageType.hpp"
 
 enum class SkillSlot {
     Primary,
@@ -31,4 +32,5 @@ struct SkillDefinition {
     float spreadAngle = 0.0f;
     AilmentDefinition ailment;
     float manaCost = 0.0f;
+    DamageType damageType = DamageType::Physical;
 };

@@ -407,6 +407,9 @@ private:
             {"of Blasting", false, EquipmentSlot::Weapon, AffixStat::AreaDamageMultiplier, {0.04f, 0.07f, 0.10f}},
             {"Wide", true, EquipmentSlot::Weapon, AffixStat::AreaRadiusMultiplier, {0.05f, 0.09f, 0.13f}},
             {"of Expansion", false, EquipmentSlot::Weapon, AffixStat::AreaRadiusMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"Emberforged", true, EquipmentSlot::Weapon, AffixStat::FireDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"of Frostbite", false, EquipmentSlot::Weapon, AffixStat::ColdDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"Stormcharged", true, EquipmentSlot::Weapon, AffixStat::LightningDamageMultiplier, {0.04f, 0.07f, 0.10f}},
 
             // Armor
             {"Sturdy", true, EquipmentSlot::Armor, AffixStat::MaxHp, {4.0f, 8.0f, 12.0f}},
@@ -417,6 +420,9 @@ private:
             {"of Bulwark", false, EquipmentSlot::Armor, AffixStat::Armor, {1.0f, 1.0f, 2.0f}},
             {"of Haste", false, EquipmentSlot::Armor, AffixStat::MoveSpeedMultiplier, {0.04f, 0.07f, 0.10f}},
             {"of Reach", false, EquipmentSlot::Armor, AffixStat::PickupRangeMultiplier, {0.08f, 0.14f, 0.20f}},
+            {"Flameguard", true, EquipmentSlot::Armor, AffixStat::FireResistance, {4.0f, 8.0f, 12.0f}},
+            {"Frostguard", true, EquipmentSlot::Armor, AffixStat::ColdResistance, {4.0f, 8.0f, 12.0f}},
+            {"Stormguard", true, EquipmentSlot::Armor, AffixStat::LightningResistance, {4.0f, 8.0f, 12.0f}},
 
             // Ring
             {"Glinting", true, EquipmentSlot::Ring, AffixStat::DamageMultiplier, {0.05f, 0.09f, 0.13f}},
@@ -479,6 +485,14 @@ private:
                 return {AffixTag::Area};
             case AffixStat::Armor:
                 return {AffixTag::Armor, AffixTag::Survival};
+            case AffixStat::FireDamageMultiplier:
+            case AffixStat::ColdDamageMultiplier:
+            case AffixStat::LightningDamageMultiplier:
+                return {AffixTag::Damage};
+            case AffixStat::FireResistance:
+            case AffixStat::ColdResistance:
+            case AffixStat::LightningResistance:
+                return {AffixTag::Survival};
         }
         return {AffixTag::None};
     }
@@ -495,6 +509,12 @@ private:
             case AffixStat::AreaDamageMultiplier:
             case AffixStat::AreaRadiusMultiplier: weight = 90; break;
             case AffixStat::Armor: weight = 95; break;
+            case AffixStat::FireDamageMultiplier:
+            case AffixStat::ColdDamageMultiplier:
+            case AffixStat::LightningDamageMultiplier: weight = 85; break;
+            case AffixStat::FireResistance:
+            case AffixStat::ColdResistance:
+            case AffixStat::LightningResistance: weight = 100; break;
         }
         return affix.isPrefix ? weight + 10 : weight;
     }
@@ -659,6 +679,24 @@ private:
             case AffixStat::Armor:
                 stats.armor += static_cast<int>(value);
                 break;
+            case AffixStat::FireDamageMultiplier:
+                stats.fireDamageMultiplier += value;
+                break;
+            case AffixStat::ColdDamageMultiplier:
+                stats.coldDamageMultiplier += value;
+                break;
+            case AffixStat::LightningDamageMultiplier:
+                stats.lightningDamageMultiplier += value;
+                break;
+            case AffixStat::FireResistance:
+                stats.fireResistance += static_cast<int>(value);
+                break;
+            case AffixStat::ColdResistance:
+                stats.coldResistance += static_cast<int>(value);
+                break;
+            case AffixStat::LightningResistance:
+                stats.lightningResistance += static_cast<int>(value);
+                break;
         }
         return stats;
     }
@@ -705,6 +743,33 @@ private:
                     std::max(current.armor + 1,
                         static_cast<int>(std::ceil(current.armor * improvementMultiplier))));
                 break;
+            case AffixStat::FireDamageMultiplier:
+                improved.fireDamageMultiplier = std::min(cap.fireDamageMultiplier,
+                    1.0f + (current.fireDamageMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::ColdDamageMultiplier:
+                improved.coldDamageMultiplier = std::min(cap.coldDamageMultiplier,
+                    1.0f + (current.coldDamageMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::LightningDamageMultiplier:
+                improved.lightningDamageMultiplier = std::min(cap.lightningDamageMultiplier,
+                    1.0f + (current.lightningDamageMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::FireResistance:
+                improved.fireResistance = std::min(cap.fireResistance,
+                    std::max(current.fireResistance + 1,
+                        static_cast<int>(std::ceil(current.fireResistance * improvementMultiplier))));
+                break;
+            case AffixStat::ColdResistance:
+                improved.coldResistance = std::min(cap.coldResistance,
+                    std::max(current.coldResistance + 1,
+                        static_cast<int>(std::ceil(current.coldResistance * improvementMultiplier))));
+                break;
+            case AffixStat::LightningResistance:
+                improved.lightningResistance = std::min(cap.lightningResistance,
+                    std::max(current.lightningResistance + 1,
+                        static_cast<int>(std::ceil(current.lightningResistance * improvementMultiplier))));
+                break;
             case AffixStat::None:
                 break;
         }
@@ -724,7 +789,13 @@ private:
             && left.projectileCountBonus == right.projectileCountBonus
             && left.lifeFlaskEffectMultiplier == right.lifeFlaskEffectMultiplier
             && left.itemQuantityMultiplier == right.itemQuantityMultiplier
-            && left.incomingDamageMultiplier == right.incomingDamageMultiplier;
+            && left.incomingDamageMultiplier == right.incomingDamageMultiplier
+            && left.fireDamageMultiplier == right.fireDamageMultiplier
+            && left.coldDamageMultiplier == right.coldDamageMultiplier
+            && left.lightningDamageMultiplier == right.lightningDamageMultiplier
+            && left.fireResistance == right.fireResistance
+            && left.coldResistance == right.coldResistance
+            && left.lightningResistance == right.lightningResistance;
     }
 
     static void refreshGeneratedName(Item& item) {

@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 
+#include "DamageType.hpp"
 #include "Vector2.hpp"
 
 struct GroundHazardDefinition {
@@ -12,6 +13,7 @@ struct GroundHazardDefinition {
     float duration = 0.0f;
     float tickInterval = 0.0f;
     int damage = 0;
+    DamageType damageType = DamageType::Physical;
 
     bool isValid() const {
         return !source.empty()

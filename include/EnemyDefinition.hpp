@@ -48,6 +48,9 @@ struct EnemyDefinition {
     int chillResistance = 0;
     EnemyType summonType = EnemyType::Normal;
     int summonCount = 0;
+    int fireResistance = 0;
+    int coldResistance = 0;
+    int lightningResistance = 0;
 };
 
 class EnemyLibrary {
@@ -103,7 +106,12 @@ public:
                 1.0f,
                 0.0f,
                 10,
-                10
+                10,
+                EnemyType::Normal,
+                0,
+                10,
+                10,
+                0
             },
             {
                 EnemyType::Elite,
@@ -128,7 +136,12 @@ public:
                 1.0f,
                 0.0f,
                 15,
-                15
+                15,
+                EnemyType::Normal,
+                0,
+                15,
+                15,
+                0
             },
             {
                 EnemyType::Boss,
@@ -174,7 +187,12 @@ public:
                 4.80f,
                 0.42f,
                 15,
-                10
+                10,
+                EnemyType::Normal,
+                0,
+                15,
+                10,
+                0
             },
             {
                 EnemyType::Warden,
@@ -199,7 +217,12 @@ public:
                 1.0f,
                 0.0f,
                 25,
-                20
+                20,
+                EnemyType::Normal,
+                0,
+                25,
+                20,
+                0
             },
             {
                 EnemyType::Summoner,
@@ -226,7 +249,10 @@ public:
                 20,
                 20,
                 EnemyType::Normal,
-                2
+                2,
+                20,
+                20,
+                0
             },
         }};
 

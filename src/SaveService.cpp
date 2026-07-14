@@ -162,6 +162,12 @@ void writeStats(Writer& writer, const Stats& stats) {
     writer.real(stats.lifeFlaskEffectMultiplier);
     writer.real(stats.itemQuantityMultiplier);
     writer.real(stats.incomingDamageMultiplier);
+    writer.real(stats.fireDamageMultiplier);
+    writer.real(stats.coldDamageMultiplier);
+    writer.real(stats.lightningDamageMultiplier);
+    writer.integer(stats.fireResistance);
+    writer.integer(stats.coldResistance);
+    writer.integer(stats.lightningResistance);
 }
 
 bool readStats(Reader& reader, Stats& stats) {
@@ -177,7 +183,13 @@ bool readStats(Reader& reader, Stats& stats) {
         && reader.integer(stats.projectileCountBonus)
         && reader.real(stats.lifeFlaskEffectMultiplier)
         && reader.real(stats.itemQuantityMultiplier)
-        && reader.real(stats.incomingDamageMultiplier);
+        && reader.real(stats.incomingDamageMultiplier)
+        && reader.real(stats.fireDamageMultiplier)
+        && reader.real(stats.coldDamageMultiplier)
+        && reader.real(stats.lightningDamageMultiplier)
+        && reader.integer(stats.fireResistance)
+        && reader.integer(stats.coldResistance)
+        && reader.integer(stats.lightningResistance);
 }
 
 void writeVector2(Writer& writer, const Vector2& position) {
@@ -258,7 +270,7 @@ bool readItem(Reader& reader, Item& item) {
         }
         if (!reader.string(affix.id)
             || !reader.integer(stat)
-            || !validEnumValue(stat, 0, static_cast<int>(AffixStat::Armor))
+            || !validEnumValue(stat, 0, static_cast<int>(AffixStat::LightningResistance))
             || !reader.boolean(affix.isPrefix)) {
             return false;
         }

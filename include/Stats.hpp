@@ -14,6 +14,12 @@ struct Stats {
     float lifeFlaskEffectMultiplier = 1.0f;
     float itemQuantityMultiplier = 1.0f;
     float incomingDamageMultiplier = 1.0f;
+    float fireDamageMultiplier = 1.0f;
+    float coldDamageMultiplier = 1.0f;
+    float lightningDamageMultiplier = 1.0f;
+    int fireResistance = 0;
+    int coldResistance = 0;
+    int lightningResistance = 0;
 };
 
 inline Stats combineStats(const Stats& base, const Stats& bonus) {
@@ -31,5 +37,11 @@ inline Stats combineStats(const Stats& base, const Stats& bonus) {
         base.lifeFlaskEffectMultiplier * bonus.lifeFlaskEffectMultiplier,
         base.itemQuantityMultiplier * bonus.itemQuantityMultiplier,
         base.incomingDamageMultiplier * bonus.incomingDamageMultiplier,
+        base.fireDamageMultiplier * bonus.fireDamageMultiplier,
+        base.coldDamageMultiplier * bonus.coldDamageMultiplier,
+        base.lightningDamageMultiplier * bonus.lightningDamageMultiplier,
+        base.fireResistance + bonus.fireResistance,
+        base.coldResistance + bonus.coldResistance,
+        base.lightningResistance + bonus.lightningResistance,
     };
 }

@@ -510,6 +510,32 @@ void testCombatMathDamageRadiusPierce() {
     const int areaBase = skillDamage(area, Stats{}, nullptr);
     expect(areaDmg > areaBase, "area damage scales with areaDamageMultiplier");
 
+    expect(SkillLibrary::arcBolt().damageType == DamageType::Lightning
+            && SkillLibrary::flare().damageType == DamageType::Fire
+            && SkillLibrary::frostBomb().damageType == DamageType::Cold,
+        "elemental skills expose their data-driven damage types");
+    Stats elementalStats;
+    elementalStats.fireDamageMultiplier = 1.25f;
+    elementalStats.coldDamageMultiplier = 1.35f;
+    elementalStats.lightningDamageMultiplier = 1.45f;
+    expect(skillDamage(SkillLibrary::flare(), elementalStats, nullptr)
+            > skillDamage(SkillLibrary::flare(), Stats{}, nullptr)
+            && skillDamage(SkillLibrary::frostBomb(), elementalStats, nullptr)
+                > skillDamage(SkillLibrary::frostBomb(), Stats{}, nullptr)
+            && skillDamage(SkillLibrary::arcBolt(), elementalStats, nullptr)
+                > skillDamage(SkillLibrary::arcBolt(), Stats{}, nullptr),
+        "elemental damage multipliers affect their matching skills");
+    expect(damageAfterResistance(100, DamageType::Fire, 40, 0, 0) == 60,
+        "Fire resistance mitigates Fire damage");
+    expect(damageAfterResistance(100, DamageType::Cold, 0, 40, 0) == 60,
+        "Cold resistance mitigates Cold damage");
+    expect(damageAfterResistance(100, DamageType::Lightning, 0, 0, 40) == 60,
+        "Lightning resistance mitigates Lightning damage");
+    expect(damageAfterResistance(100, DamageType::Physical, 100, 100, 100) == 100,
+        "elemental resistance does not mitigate Physical damage");
+    expect(damageAfterResistance(100, DamageType::Fire, 100, 0, 0) == 0,
+        "full elemental resistance prevents matching damage");
+
     const int quickcastDmg = skillDamage(area, stats, quickcast);
     expect(quickcastDmg < areaDmg, "Quickcast support reduces damage via damageMultiplier");
 
@@ -846,6 +872,9 @@ void testAilmentResistances() {
         "Normal enemies have no ailment resistance");
     expect(ranged.igniteResistance == 10 && ranged.chillResistance == 10,
         "Ranged enemies use the low ailment resistance baseline");
+    expect(ranged.fireResistance == 10 && ranged.coldResistance == 10
+            && ranged.lightningResistance == 0,
+        "Ranged enemies expose separate direct elemental resistance data");
     expect(elite.igniteResistance == 15 && elite.chillResistance == 15,
         "Elite enemies use the elevated ailment resistance baseline");
     expect(charger.igniteResistance == 15 && charger.chillResistance == 10,
@@ -867,6 +896,9 @@ void testAilmentResistances() {
     const auto& bosses = BossLibrary::all();
     expect(bosses[0].igniteResistance == 35 && bosses[0].chillResistance == 20,
         "Brimstone exposes its Ignite-heavy resistance profile");
+    expect(bosses[0].fireResistance == 35 && bosses[0].coldResistance == 20
+            && bosses[0].lightningResistance == 35,
+        "Brimstone exposes its direct elemental resistance profile");
     expect(bosses[1].igniteResistance == 20 && bosses[1].chillResistance == 35,
         "Storm exposes its Chill-heavy resistance profile");
     expect(bosses[2].igniteResistance == 30 && bosses[2].chillResistance == 30,

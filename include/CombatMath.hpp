@@ -14,19 +14,72 @@ inline int mitigatedDamage(int rawDamage, int armor) {
     return std::max(1, rawDamage - armor);
 }
 
+inline int resistanceForDamageType(
+    DamageType type,
+    int fireResistance,
+    int coldResistance,
+    int lightningResistance
+) {
+    switch (type) {
+        case DamageType::Fire: return fireResistance;
+        case DamageType::Cold: return coldResistance;
+        case DamageType::Lightning: return lightningResistance;
+        case DamageType::Physical: break;
+    }
+    return 0;
+}
+
+inline int damageAfterResistance(
+    int rawDamage,
+    DamageType type,
+    int fireResistance,
+    int coldResistance,
+    int lightningResistance
+) {
+    if (rawDamage <= 0) {
+        return 0;
+    }
+
+    const int resistance = std::clamp(
+        resistanceForDamageType(
+            type, fireResistance, coldResistance, lightningResistance
+        ),
+        0,
+        100
+    );
+    if (resistance >= 100) {
+        return 0;
+    }
+    return std::max(1, static_cast<int>(std::ceil(
+        static_cast<double>(rawDamage)
+            * (1.0 - static_cast<double>(resistance) / 100.0)
+    )));
+}
+
 inline int lifeFlaskHealAmount(int baseAmount, const Stats& stats) {
     return std::max(0, static_cast<int>(std::ceil(
         static_cast<float>(baseAmount) * stats.lifeFlaskEffectMultiplier
     )));
 }
 
-inline int incomingDamage(int rawDamage, const Stats& stats) {
+inline int incomingDamage(
+    int rawDamage,
+    const Stats& stats,
+    DamageType type = DamageType::Physical
+) {
     if (rawDamage <= 0) {
         return 0;
     }
-    return std::max(1, static_cast<int>(std::ceil(
+    const int scaledDamage = std::max(1, static_cast<int>(std::ceil(
         static_cast<float>(rawDamage) * stats.incomingDamageMultiplier
     )));
+    return damageAfterResistance(
+        scaledDamage,
+        type,
+        stats.fireResistance,
+        stats.coldResistance,
+        stats.lightningResistance
+    );
 }
 
 inline int wardenProtectedDamage(int rawDamage, bool protectedByWarden, float damageMultiplier) {
@@ -79,6 +132,20 @@ inline int skillDamage(
             damage *= stats.areaDamageMultiplier;
             break;
         case SkillCastType::Dash:
+            break;
+    }
+
+    switch (skill.damageType) {
+        case DamageType::Fire:
+            damage *= stats.fireDamageMultiplier;
+            break;
+        case DamageType::Cold:
+            damage *= stats.coldDamageMultiplier;
+            break;
+        case DamageType::Lightning:
+            damage *= stats.lightningDamageMultiplier;
+            break;
+        case DamageType::Physical:
             break;
     }
 

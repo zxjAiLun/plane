@@ -1190,8 +1190,15 @@ void testBuildMathMatchesWorldHits() {
 
     const auto& secondary = world.skillBar().definition(SkillSlot::Secondary);
     const auto secondarySupports = world.skillBar().supportDefinitionsFor(secondary);
-    const int expectedAreaDamage = skillDamage(
+    const int expectedAreaRawDamage = skillDamage(
         secondary, world.player().stats(), secondarySupports
+    );
+    const int expectedAreaDamage = damageAfterResistance(
+        expectedAreaRawDamage,
+        secondary.damageType,
+        world.bossDefinition().fireResistance,
+        world.bossDefinition().coldResistance,
+        world.bossDefinition().lightningResistance
     );
     const float expectedAreaRadius = skillRadius(
         secondary, world.player().stats(), secondarySupports
@@ -1310,8 +1317,15 @@ void testExpandedSkillWorldHits() {
 
     const auto& projectileSkill = world.skillBar().definition(SkillSlot::Primary);
     const auto projectileSupports = world.skillBar().supportDefinitionsFor(projectileSkill);
-    const int expectedProjectileDamage = skillDamage(
+    const int expectedProjectileRawDamage = skillDamage(
         projectileSkill, world.player().stats(), projectileSupports
+    );
+    const int expectedProjectileDamage = damageAfterResistance(
+        expectedProjectileRawDamage,
+        projectileSkill.damageType,
+        world.bossDefinition().fireResistance,
+        world.bossDefinition().coldResistance,
+        world.bossDefinition().lightningResistance
     );
     const int bossHpBeforeProjectile = boss->hp();
     const std::size_t projectileFeedbackStart = world.combatFeedback().size();

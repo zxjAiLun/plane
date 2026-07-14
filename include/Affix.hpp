@@ -10,5 +10,11 @@ enum class AffixStat {
     ProjectileDamageMultiplier,
     AreaDamageMultiplier,
     AreaRadiusMultiplier,
-    Armor
+    Armor,
+    FireDamageMultiplier,
+    ColdDamageMultiplier,
+    LightningDamageMultiplier,
+    FireResistance,
+    ColdResistance,
+    LightningResistance
 };

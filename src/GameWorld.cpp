@@ -49,6 +49,9 @@ bool positiveFinite(float value) {
 }
 
 bool validStatsForRestore(const Stats& stats) {
+    const auto validResistance = [](int value) {
+        return value >= 0 && value <= 100;
+    };
     return positiveFinite(stats.moveSpeedMultiplier)
         && positiveFinite(stats.damageMultiplier)
         && positiveFinite(stats.attackSpeedMultiplier)
@@ -58,7 +61,13 @@ bool validStatsForRestore(const Stats& stats) {
         && positiveFinite(stats.areaRadiusMultiplier)
         && positiveFinite(stats.lifeFlaskEffectMultiplier)
         && positiveFinite(stats.itemQuantityMultiplier)
-        && positiveFinite(stats.incomingDamageMultiplier);
+        && positiveFinite(stats.incomingDamageMultiplier)
+        && positiveFinite(stats.fireDamageMultiplier)
+        && positiveFinite(stats.coldDamageMultiplier)
+        && positiveFinite(stats.lightningDamageMultiplier)
+        && validResistance(stats.fireResistance)
+        && validResistance(stats.coldResistance)
+        && validResistance(stats.lightningResistance);
 }
 
 bool statsMatchForRestore(const Stats& left, const Stats& right) {
@@ -77,7 +86,13 @@ bool statsMatchForRestore(const Stats& left, const Stats& right) {
         && left.projectileCountBonus == right.projectileCountBonus
         && close(left.lifeFlaskEffectMultiplier, right.lifeFlaskEffectMultiplier)
         && close(left.itemQuantityMultiplier, right.itemQuantityMultiplier)
-        && close(left.incomingDamageMultiplier, right.incomingDamageMultiplier);
+        && close(left.incomingDamageMultiplier, right.incomingDamageMultiplier)
+        && close(left.fireDamageMultiplier, right.fireDamageMultiplier)
+        && close(left.coldDamageMultiplier, right.coldDamageMultiplier)
+        && close(left.lightningDamageMultiplier, right.lightningDamageMultiplier)
+        && left.fireResistance == right.fireResistance
+        && left.coldResistance == right.coldResistance
+        && left.lightningResistance == right.lightningResistance;
 }
 
 bool validItemForRestore(const Item& item) {
@@ -98,7 +113,7 @@ bool validItemForRestore(const Item& item) {
     for (const auto& affix : item.affixes) {
         if (affix.tier < 1
             || static_cast<int>(affix.stat) < 0
-            || static_cast<int>(affix.stat) > static_cast<int>(AffixStat::Armor)
+            || static_cast<int>(affix.stat) > static_cast<int>(AffixStat::LightningResistance)
             || !validStatsForRestore(affix.stats)) {
             return false;
         }
@@ -1020,7 +1035,11 @@ void GameWorld::updateGroundHazards(float dt) {
         }
 
         for (int tick = 0; tick < elapsedTicks; ++tick) {
-            damagePlayer(hazard.definition().damage, hazard.definition().source);
+            damagePlayer(
+                hazard.definition().damage,
+                hazard.definition().source,
+                hazard.definition().damageType
+            );
         }
     }
 
@@ -1069,7 +1088,11 @@ void GameWorld::updateBossSkills(float dt) {
                         player_.position(), player_.radius(),
                         bossAoeCenter_, bossAoeSkill_.radius
                     )) {
-                    damagePlayer(bossAoeSkill_.damage, bossAoeSkill_.name);
+                    damagePlayer(
+                        bossAoeSkill_.damage,
+                        bossAoeSkill_.name,
+                        bossAoeSkill_.damageType
+                    );
                 }
                 if (bossAoeSkill_.groundHazard.isValid()) {
                     groundHazards_.emplace_back(
@@ -1186,6 +1209,7 @@ void GameWorld::updateBossSkills(float dt) {
                     skill.radius,
                     bossSkillDamage(skill.damage),
                     skill.name,
+                    skill.damageType,
                     true
                 });
             }
@@ -1240,7 +1264,11 @@ void GameWorld::updateBossDash(float dt, Enemy& boss) {
             player_.position(), player_.radius(),
             boss.position(), bossDashSkill_.radius
         ) && bossDashState_.consumeHit()) {
-        damagePlayer(bossDashSkill_.damage, bossDashSkill_.name);
+        damagePlayer(
+            bossDashSkill_.damage,
+            bossDashSkill_.name,
+            bossDashSkill_.damageType
+        );
     }
 
     if (bossDashState_.consumeCompletion()) {
@@ -1380,7 +1408,9 @@ void GameWorld::handleCollisions() {
                     continue;
                 }
 
-                const int mitigatedDamage = damageToEnemy(enemy, projectile.damage());
+                const int mitigatedDamage = damageToEnemy(
+                    enemy, projectile.damage(), projectile.damageType()
+                );
                 const int dealtDamage = enemy.takeDamage(mitigatedDamage);
                 if (dealtDamage > 0) {
                     addCombatFeedback(
@@ -1450,6 +1480,7 @@ void GameWorld::handleCollisions() {
                     definition.projectileRadius,
                     enemy.contactDamage(),
                     definition.name + " shot",
+                    DamageType::Physical,
                     true
                 });
             }
@@ -1538,13 +1569,33 @@ int GameWorld::summonEnemyAdds(Enemy& summoner) {
     return spawnedCount;
 }
 
-int GameWorld::damageToEnemy(const Enemy& enemy, int rawDamage) const {
+int GameWorld::damageToEnemy(
+    const Enemy& enemy,
+    int rawDamage,
+    DamageType damageType
+) const {
     if (rawDamage <= 0 || enemy.isDead()) {
         return 0;
     }
 
+    int fireResistance = EnemyLibrary::forType(enemy.type()).fireResistance;
+    int coldResistance = EnemyLibrary::forType(enemy.type()).coldResistance;
+    int lightningResistance = EnemyLibrary::forType(enemy.type()).lightningResistance;
+    if (enemy.isBoss()) {
+        fireResistance = bossDefinition_->fireResistance;
+        coldResistance = bossDefinition_->coldResistance;
+        lightningResistance = bossDefinition_->lightningResistance;
+    }
+
+    const int resistedDamage = damageAfterResistance(
+        rawDamage,
+        damageType,
+        fireResistance,
+        coldResistance,
+        lightningResistance
+    );
     if (enemy.isWarden()) {
-        return rawDamage;
+        return resistedDamage;
     }
 
     const float auraRadiusSquared = Config::WardenAuraRadius * Config::WardenAuraRadius;
@@ -1556,14 +1607,14 @@ int GameWorld::damageToEnemy(const Enemy& enemy, int rawDamage) const {
         const Vector2 offset = enemy.position() - protector.position();
         if (offset.lengthSquared() <= auraRadiusSquared) {
             return wardenProtectedDamage(
-                rawDamage,
+                resistedDamage,
                 true,
                 Config::WardenDamageTakenMultiplier
             );
         }
     }
 
-    return rawDamage;
+    return resistedDamage;
 }
 
 void GameWorld::handleBossProjectileCollisions() {
@@ -1576,7 +1627,7 @@ void GameWorld::handleBossProjectileCollisions() {
                 player_.position(), player_.radius(),
                 projectile.position, projectile.radius
             )) {
-            damagePlayer(projectile.damage, projectile.source);
+            damagePlayer(projectile.damage, projectile.source, projectile.damageType);
             projectile.alive = false;
         }
     }
@@ -1592,7 +1643,7 @@ void GameWorld::handleEnemyProjectileCollisions() {
                 player_.position(), player_.radius(),
                 projectile.position, projectile.radius
             )) {
-            damagePlayer(projectile.damage, projectile.source);
+            damagePlayer(projectile.damage, projectile.source, projectile.damageType);
             projectile.alive = false;
         }
     }
@@ -1660,7 +1711,8 @@ void GameWorld::tryCastMovementSkill(Input& input) {
             dashImpactRadius_,
             supportAreaDamage(*support, player_.stats(), shrineMultiplier),
             nullptr,
-            skillBar_.definition(SkillSlot::Movement).name
+            skillBar_.definition(SkillSlot::Movement).name,
+            DamageType::Physical
         );
     }
 }
@@ -1681,7 +1733,8 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
             radiusForPlayerSkill(skill),
             damageForPlayerSkill(skill),
             &ailment,
-            skill.name
+            skill.name,
+            skill.damageType
         );
     }
     novaEffectTimer_ = skill.effectDuration;
@@ -1703,7 +1756,8 @@ void GameWorld::tryCastSecondarySkill(Input& input) {
             radiusForPlayerSkill(skill),
             damageForPlayerSkill(skill),
             &ailment,
-            skill.name
+            skill.name,
+            skill.damageType
         );
     }
     secondarySkillEffectPosition_ = aimPosition_;
@@ -1733,7 +1787,7 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
     if (projectileCount <= 1 || spreadAngle <= 0.0f) {
         projectiles_.push_back(Projectile(
             player_.position(), direction * Config::ProjectileSpeed, damage,
-            pierceCountForPlayerSkill(skill), ailment, skill.name
+            pierceCountForPlayerSkill(skill), ailment, skill.name, skill.damageType
         ));
         return;
     }
@@ -1756,7 +1810,8 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
             damage,
             pierceCountForPlayerSkill(skill),
             ailment,
-            skill.name
+            skill.name,
+            skill.damageType
         ));
     }
 }
@@ -1828,7 +1883,8 @@ void GameWorld::dealAreaDamage(
     float radius,
     int damage,
     const AilmentDefinition* ailment,
-    const std::string& source
+    const std::string& source,
+    DamageType damageType
 ) {
     for (auto& enemy : enemies_) {
         if (enemy.isDead()) {
@@ -1839,7 +1895,7 @@ void GameWorld::dealAreaDamage(
                 center, radius,
                 enemy.position(), enemy.radius()
             )) {
-            const int mitigatedDamage = damageToEnemy(enemy, damage);
+            const int mitigatedDamage = damageToEnemy(enemy, damage, damageType);
             const int dealtDamage = enemy.takeDamage(mitigatedDamage);
             if (dealtDamage > 0) {
                 addCombatFeedback(enemy.position(), dealtDamage, source);
@@ -3098,12 +3154,16 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
     noteMapEventEnemyDefeated(enemy);
 }
 
-void GameWorld::damagePlayer(int damage, const std::string& source) {
+void GameWorld::damagePlayer(
+    int damage,
+    const std::string& source,
+    DamageType damageType
+) {
     if (playerHitCooldown_ > 0.0f) {
         return;
     }
 
-    playerHitDamage_ = player_.takeDamage(incomingDamage(damage, player_.stats()));
+    playerHitDamage_ = player_.takeDamage(incomingDamage(damage, player_.stats(), damageType));
     if (playerHitDamage_ <= 0) {
         return;
     }

@@ -10,7 +10,8 @@ Projectile::Projectile(
     int damage,
     int pierceCount,
     AilmentDefinition ailment,
-    std::string source
+    std::string source,
+    DamageType damageType
 )
     : position_(position)
     , velocity_(velocity)
@@ -18,6 +19,7 @@ Projectile::Projectile(
     , damage_(damage)
     , ailment_(ailment)
     , source_(std::move(source))
+    , damageType_(damageType)
     , remainingPierces_(pierceCount)
     , hitEnemyIds_()
     , alive_(true) {
@@ -39,6 +41,7 @@ float Projectile::radius() const { return radius_; }
 int Projectile::damage() const { return damage_; }
 const AilmentDefinition& Projectile::ailment() const { return ailment_; }
 const std::string& Projectile::source() const { return source_; }
+DamageType Projectile::damageType() const { return damageType_; }
 bool Projectile::hasHitEnemy(int enemyId) const {
     return std::find(hitEnemyIds_.begin(), hitEnemyIds_.end(), enemyId) != hitEnemyIds_.end();
 }

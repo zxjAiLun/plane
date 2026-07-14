@@ -1,3 +1,4 @@
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -84,6 +85,12 @@ SaveData sampleData() {
     });
     weapon.stats = combineStats(weapon.implicitStats, weapon.affixes.front().stats);
     data.player = Player().saveState();
+    data.player.upgradeStats.fireDamageMultiplier = 1.12f;
+    data.player.upgradeStats.coldDamageMultiplier = 1.08f;
+    data.player.upgradeStats.lightningDamageMultiplier = 1.16f;
+    data.player.upgradeStats.fireResistance = 18;
+    data.player.upgradeStats.coldResistance = 24;
+    data.player.upgradeStats.lightningResistance = 12;
     data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Weapon)] = weapon;
     data.inventory.push_back(weapon);
     data.stash.push_back(weapon);
@@ -130,6 +137,12 @@ void testFileValidation(const std::filesystem::path& path) {
             && restored.exploredCells == data.exploredCells
             && restored.player.equipment[0]->affixes[0].id
                 == "projectile_damage_t2"
+            && std::abs(restored.player.upgradeStats.fireDamageMultiplier - 1.12f) < 0.0001f
+            && std::abs(restored.player.upgradeStats.coldDamageMultiplier - 1.08f) < 0.0001f
+            && std::abs(restored.player.upgradeStats.lightningDamageMultiplier - 1.16f) < 0.0001f
+            && restored.player.upgradeStats.fireResistance == 18
+            && restored.player.upgradeStats.coldResistance == 24
+            && restored.player.upgradeStats.lightningResistance == 12
             && restored.skillBar.skills[0] == "Arc Bolt"
             && restored.skillBar.skills[2] == "Shockwave"
             && restored.skillBar.supports[0][0] == "Pierce"

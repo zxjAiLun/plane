@@ -204,6 +204,9 @@ bool Player::restoreState(const PlayerSaveState& state, const Vector2& bounds) {
     const auto validPositiveMultiplier = [](float value) {
         return std::isfinite(value) && value > 0.0f;
     };
+    const auto validResistance = [](int value) {
+        return value >= 0 && value <= 100;
+    };
     if (!std::isfinite(state.position.x) || !std::isfinite(state.position.y)
         || state.level < 1 || state.exp < 0 || state.expToNextLevel < 1
         || state.talentPoints < 0 || state.hp < 0
@@ -217,7 +220,13 @@ bool Player::restoreState(const PlayerSaveState& state, const Vector2& bounds) {
         || !validPositiveMultiplier(state.upgradeStats.areaRadiusMultiplier)
         || !validPositiveMultiplier(state.upgradeStats.lifeFlaskEffectMultiplier)
         || !validPositiveMultiplier(state.upgradeStats.itemQuantityMultiplier)
-        || !validPositiveMultiplier(state.upgradeStats.incomingDamageMultiplier)) {
+        || !validPositiveMultiplier(state.upgradeStats.incomingDamageMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.fireDamageMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.coldDamageMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.lightningDamageMultiplier)
+        || !validResistance(state.upgradeStats.fireResistance)
+        || !validResistance(state.upgradeStats.coldResistance)
+        || !validResistance(state.upgradeStats.lightningResistance)) {
         return false;
     }
 

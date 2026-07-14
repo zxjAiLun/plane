@@ -39,7 +39,7 @@ public:
     }
 
     static SkillDefinition arcBolt() {
-        return {
+        SkillDefinition skill = {
             SkillSlot::Primary,
             SkillCastType::Projectile,
             "Arc Bolt",
@@ -52,6 +52,8 @@ public:
             {},
             2.0f
         };
+        skill.damageType = DamageType::Lightning;
+        return skill;
     }
 
     static SkillDefinition splitArrow() {
@@ -71,7 +73,7 @@ public:
     }
 
     static SkillDefinition flare() {
-        return {
+        SkillDefinition skill = {
             SkillSlot::Secondary,
             SkillCastType::MouseTargetedArea,
             "Flare",
@@ -84,10 +86,12 @@ public:
             {AilmentType::Ignite, 2.5f, 0.50f},
             Config::FlareManaCost
         };
+        skill.damageType = DamageType::Fire;
+        return skill;
     }
 
     static SkillDefinition meteor() {
-        return {
+        SkillDefinition skill = {
             SkillSlot::Secondary,
             SkillCastType::MouseTargetedArea,
             "Meteor",
@@ -100,10 +104,12 @@ public:
             {AilmentType::Ignite, 3.5f, 0.50f},
             Config::MeteorManaCost
         };
+        skill.damageType = DamageType::Fire;
+        return skill;
     }
 
     static SkillDefinition frostBomb() {
-        return {
+        SkillDefinition skill = {
             SkillSlot::Secondary,
             SkillCastType::MouseTargetedArea,
             "Frost Bomb",
@@ -116,6 +122,8 @@ public:
             {AilmentType::Chill, 2.5f, 0.0f, 0.55f},
             Config::FrostBombManaCost
         };
+        skill.damageType = DamageType::Cold;
+        return skill;
     }
 
     static SkillDefinition nova() {

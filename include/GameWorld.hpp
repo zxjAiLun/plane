@@ -39,6 +39,7 @@ struct BossProjectile {
     float radius = 0.0f;
     int damage = 0;
     std::string source;
+    DamageType damageType = DamageType::Physical;
     bool alive = true;
 };
 
@@ -48,6 +49,7 @@ struct EnemyProjectile {
     float radius = 0.0f;
     int damage = 0;
     std::string source;
+    DamageType damageType = DamageType::Physical;
     bool alive = true;
 };
 
@@ -184,7 +186,11 @@ private:
     void spawnEnemies(float dt);
     void handleCollisions();
     int summonEnemyAdds(Enemy& summoner);
-    int damageToEnemy(const Enemy& enemy, int rawDamage) const;
+    int damageToEnemy(
+        const Enemy& enemy,
+        int rawDamage,
+        DamageType damageType = DamageType::Physical
+    ) const;
     void handleBossProjectileCollisions();
     void handleEnemyProjectileCollisions();
     void removeDeadObjects();
@@ -208,7 +214,8 @@ private:
         float radius,
         int damage,
         const AilmentDefinition* ailment = nullptr,
-        const std::string& source = ""
+        const std::string& source = "",
+        DamageType damageType = DamageType::Physical
     );
     void applySkillAilment(Enemy& enemy, const AilmentDefinition& ailment, int hitDamage);
     void updateMapEvents(float dt, Input& input);
@@ -253,7 +260,11 @@ private:
     void generateNextMapOptions();
     void initializeRunProgression();
     void rewardEnemyKill(Enemy& enemy);
-    void damagePlayer(int damage, const std::string& source);
+    void damagePlayer(
+        int damage,
+        const std::string& source,
+        DamageType damageType = DamageType::Physical
+    );
     Enemy* activeBoss();
     void resetBossDash();
     float bossSkillInterval() const;

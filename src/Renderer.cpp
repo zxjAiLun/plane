@@ -2,6 +2,7 @@
 #include "InputBinding.hpp"
 #include "CombatMath.hpp"
 #include "Config.hpp"
+#include "DamageType.hpp"
 #include "EnemyDefinition.hpp"
 #include "Equipment.hpp"
 #include "Stats.hpp"
@@ -32,6 +33,16 @@ sf::Color enemyColor(const EnemyColor& color) {
 
 sf::Color mapColor(const MapColor& color, std::uint8_t alpha = 255) {
     return sf::Color(color.r, color.g, color.b, alpha);
+}
+
+sf::Color damageTypeColor(DamageType type) {
+    switch (type) {
+        case DamageType::Fire: return sf::Color(255, 125, 45);
+        case DamageType::Cold: return sf::Color(105, 225, 255);
+        case DamageType::Lightning: return sf::Color(190, 145, 255);
+        case DamageType::Physical: return sf::Color(255, 225, 105);
+    }
+    return sf::Color::White;
 }
 
 int multiplierPercent(float multiplier) {
@@ -80,8 +91,26 @@ std::string statsSummary(const Stats& stats) {
     if (stats.incomingDamageMultiplier != 1.0f) {
         summary += multiplierText(stats.incomingDamageMultiplier) + " TAKEN ";
     }
+    if (stats.fireDamageMultiplier != 1.0f) {
+        summary += multiplierText(stats.fireDamageMultiplier) + " FIRE DMG ";
+    }
+    if (stats.coldDamageMultiplier != 1.0f) {
+        summary += multiplierText(stats.coldDamageMultiplier) + " COLD DMG ";
+    }
+    if (stats.lightningDamageMultiplier != 1.0f) {
+        summary += multiplierText(stats.lightningDamageMultiplier) + " LIGHT DMG ";
+    }
     if (stats.armor > 0) {
         summary += "+" + std::to_string(stats.armor) + " ARM ";
+    }
+    if (stats.fireResistance > 0) {
+        summary += std::to_string(stats.fireResistance) + "% FIRE RES ";
+    }
+    if (stats.coldResistance > 0) {
+        summary += std::to_string(stats.coldResistance) + "% COLD RES ";
+    }
+    if (stats.lightningResistance > 0) {
+        summary += std::to_string(stats.lightningResistance) + "% LIGHT RES ";
     }
     return summary;
 }
@@ -360,7 +389,8 @@ std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& sta
         + "  Actual " + std::to_string(effectiveSkillDamage(skill, stats, supports))
         + "/" + std::to_string(static_cast<int>(effectiveSkillRadius(skill, stats, supports)))
         + "/" + formatFloat(effectiveSkillCooldown(skill, stats, supports), 2)
-        + "  Mana " + formatFloat(skill.manaCost, 0);
+        + "  Mana " + formatFloat(skill.manaCost, 0)
+        + "  " + damageTypeName(skill.damageType);
     if (skill.castType == SkillCastType::Projectile) {
         summary += "  Proj " + std::to_string(skillProjectileCount(skill, supports, stats));
     }
@@ -807,6 +837,14 @@ void Renderer::render(const GameWorld& world) {
         + "%  AREA +" + std::to_string(multiplierPercent(stats.areaRadiusMultiplier))
         + "%  ARM " + std::to_string(stats.armor), 72),
         {16.0f, 84.0f}, 14, sf::Color(210, 220, 255));
+    drawText("ELEM F/C/L DMG "
+        + std::to_string(multiplierPercent(stats.fireDamageMultiplier)) + "/"
+        + std::to_string(multiplierPercent(stats.coldDamageMultiplier)) + "/"
+        + std::to_string(multiplierPercent(stats.lightningDamageMultiplier))
+        + "%  RES " + std::to_string(stats.fireResistance) + "/"
+        + std::to_string(stats.coldResistance) + "/"
+        + std::to_string(stats.lightningResistance),
+        {450.0f, 84.0f}, 12, sf::Color(235, 195, 150));
     drawSkillBar(world);
     drawEquipment(world);
     drawInventory(world);
@@ -988,10 +1026,15 @@ void Renderer::drawGroundHazards(const GameWorld& world) {
             150.0f + 90.0f * tickProgress
         );
         const sf::Vector2f screenPosition = worldToScreen(world, hazard.position());
+        const sf::Color elementColor = damageTypeColor(definition.damageType);
+        sf::Color fillColor = elementColor;
+        fillColor.a = 55;
+        sf::Color outlineColor = elementColor;
+        outlineColor.a = outlineAlpha;
 
         sf::CircleShape shape(definition.radius);
-        shape.setFillColor(sf::Color(190, 45, 15, 55));
-        shape.setOutlineColor(sf::Color(255, 125, 35, outlineAlpha));
+        shape.setFillColor(fillColor);
+        shape.setOutlineColor(outlineColor);
         shape.setOutlineThickness(4.0f + 2.0f * tickProgress);
         shape.setOrigin({definition.radius, definition.radius});
         shape.setPosition(screenPosition);
@@ -1206,7 +1249,7 @@ void Renderer::drawAimIndicator(const GameWorld& world) {
 void Renderer::drawProjectiles(const GameWorld& world) {
     for (const auto& projectile : world.projectiles()) {
         sf::CircleShape shape(projectile.radius());
-        sf::Color color = sf::Color::Yellow;
+        sf::Color color = damageTypeColor(projectile.damageType());
         if (projectile.ailment().type == AilmentType::Ignite) {
             color = sf::Color(255, 125, 45);
         } else if (projectile.ailment().type == AilmentType::Chill) {
@@ -1222,8 +1265,10 @@ void Renderer::drawProjectiles(const GameWorld& world) {
 void Renderer::drawBossProjectiles(const GameWorld& world) {
     for (const auto& projectile : world.bossProjectiles()) {
         sf::CircleShape shape(projectile.radius);
-        shape.setFillColor(sf::Color(255, 90, 45));
-        shape.setOutlineColor(sf::Color(255, 210, 120));
+        shape.setFillColor(damageTypeColor(projectile.damageType));
+        sf::Color outline = damageTypeColor(projectile.damageType);
+        outline.a = 220;
+        shape.setOutlineColor(outline);
         shape.setOutlineThickness(2.0f);
         shape.setOrigin({projectile.radius, projectile.radius});
         shape.setPosition(worldToScreen(world, projectile.position));
@@ -2113,8 +2158,9 @@ void Renderer::drawBossHealth(const GameWorld& world) {
         world.bossEnraged() ? sf::Color(255, 175, 95) : sf::Color(230, 210, 175));
     detailY += 17.0f;
 
-    drawText("Ignite Res " + std::to_string(world.bossDefinition().igniteResistance)
-        + "%  Chill Res " + std::to_string(world.bossDefinition().chillResistance) + "%",
+    drawText("Fire Res " + std::to_string(world.bossDefinition().fireResistance)
+        + "%  Cold Res " + std::to_string(world.bossDefinition().coldResistance)
+        + "%  Light Res " + std::to_string(world.bossDefinition().lightningResistance) + "%",
         {position.x, detailY}, 11, sf::Color(220, 195, 175));
     detailY += 16.0f;
 
