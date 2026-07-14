@@ -26,6 +26,8 @@ struct EnemyPackDefinition {
     float leaderDropMultiplier = 1.0f;
     int leaderBonusDrops = 0;
     int leaderExperienceMultiplier = 1;
+    LootBias leaderLootBias;
+    std::string leaderRewardDescription;
 };
 
 class EnemyPackLibrary {
@@ -49,8 +51,10 @@ public:
                 "A hardened empowered line captain that survives focused fire",
                 {EliteModifier::Hardened, EliteModifier::Empowered},
                 2.0f,
-                1,
-                2
+                2,
+                2,
+                {AffixTag::Damage, 1.70f, AffixTag::Armor, 1.25f},
+                "Damage / Armor weighted | 2 guaranteed drops"
             },
             {
                 "ashen-warden-court",
@@ -66,8 +70,10 @@ public:
                 "A rejuvenating hardened commander guarded by a Warden court",
                 {EliteModifier::Hardened, EliteModifier::Rejuvenating},
                 2.0f,
-                1,
-                2
+                2,
+                2,
+                {AffixTag::Survival, 1.70f, AffixTag::Armor, 1.25f},
+                "Survival / Armor weighted | 2 guaranteed drops"
             },
             {
                 "ashen-last-stand",
@@ -84,7 +90,9 @@ public:
                 {EliteModifier::Swift, EliteModifier::Stormbound},
                 2.0f,
                 1,
-                2
+                2,
+                {AffixTag::Fire, 1.70f, AffixTag::Area, 1.25f},
+                "Fire / Area weighted | 1 guaranteed drop"
             },
             {
                 "storm-spitter-screen",
@@ -100,8 +108,10 @@ public:
                 "A stormbound empowered artillery leader with a long-range screen",
                 {EliteModifier::Stormbound, EliteModifier::Empowered},
                 2.0f,
-                1,
-                2
+                2,
+                2,
+                {AffixTag::Lightning, 1.75f, AffixTag::Projectile, 1.30f},
+                "Lightning / Projectile weighted | 2 guaranteed drops"
             },
             {
                 "storm-anchor-patrol",
@@ -118,7 +128,9 @@ public:
                 {EliteModifier::Hardened, EliteModifier::Stormbound},
                 2.0f,
                 1,
-                2
+                2,
+                {AffixTag::Lightning, 1.70f, AffixTag::Armor, 1.25f},
+                "Lightning / Armor weighted | 1 guaranteed drop"
             },
             {
                 "storm-crossfire",
@@ -134,8 +146,10 @@ public:
                 "A swift stormbound captain that collapses the ranged wing",
                 {EliteModifier::Swift, EliteModifier::Stormbound},
                 2.0f,
-                1,
-                2
+                2,
+                2,
+                {AffixTag::Projectile, 1.70f, AffixTag::AttackSpeed, 1.25f},
+                "Projectile / Attack Speed weighted | 2 guaranteed drops"
             },
             {
                 "venom-overgrowth",
@@ -151,8 +165,10 @@ public:
                 "A hardened rejuvenating guardian rooted in toxic growth",
                 {EliteModifier::Hardened, EliteModifier::Rejuvenating},
                 2.0f,
-                1,
-                2
+                2,
+                2,
+                {AffixTag::Poison, 1.75f, AffixTag::Area, 1.25f},
+                "Poison / Area weighted | 2 guaranteed drops"
             },
             {
                 "venom-hunter-nest",
@@ -169,7 +185,9 @@ public:
                 {EliteModifier::Swift, EliteModifier::Empowered},
                 2.0f,
                 1,
-                2
+                2,
+                {AffixTag::Poison, 1.70f, AffixTag::Damage, 1.25f},
+                "Poison / Damage weighted | 1 guaranteed drop"
             },
             {
                 "venom-bloom-guard",
@@ -185,8 +203,10 @@ public:
                 "A rejuvenating volatile leader that protects the final growth",
                 {EliteModifier::Rejuvenating, EliteModifier::Volatile},
                 2.0f,
-                1,
-                2
+                2,
+                2,
+                {AffixTag::Poison, 1.80f, AffixTag::Survival, 1.30f},
+                "Poison / Survival weighted | 2 guaranteed drops"
             }
         }};
         return packs;

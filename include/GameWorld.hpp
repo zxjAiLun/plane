@@ -150,6 +150,7 @@ public:
     std::string fieldPackName() const;
     std::string fieldPackLeaderName() const;
     std::string fieldPackLeaderDescription() const;
+    std::string fieldPackLeaderRewardDescription() const;
     int pendingFieldPackEnemies() const;
     int fieldPackEnemiesRemaining() const;
     int fieldPacksCleared() const;
@@ -169,6 +170,10 @@ public:
     int mapItemsDropped() const;
     int mapBossItemsDropped() const;
     int mapItemsPickedUp() const;
+    int mapRareLeadersDefeated() const;
+    int mapRareLeaderItemsDropped() const;
+    std::string lastRareLeaderName() const;
+    std::string lastRareLeaderRewardDescription() const;
     std::string nearbyEventPrompt() const;
     int focusedDroppedItemIndex() const;
     std::string pickupPrompt() const;
@@ -352,12 +357,14 @@ private:
     int activeFieldPackLeaderIndex_ = -1;
     std::string activeFieldPackLeaderName_;
     std::string activeFieldPackLeaderDescription_;
+    std::string activeFieldPackLeaderRewardDescription_;
     EliteModifier activeFieldPackLeaderModifier_ = EliteModifier::None;
     EliteModifier activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
     float activeFieldPackLeaderDropMultiplier_ = 1.0f;
     int activeFieldPackLeaderBonusDrops_ = 0;
     int activeFieldPackLeaderExperienceMultiplier_ = 1;
     LootBias activeFieldPackLootBias_;
+    LootBias activeFieldPackLeaderLootBias_;
     int activeFieldPackRewardDrops_ = 0;
     SkillBar skillBar_;
     MapInstance map_;
@@ -424,6 +431,10 @@ private:
     int mapItemsDropped_;
     int mapBossItemsDropped_;
     int mapItemsPickedUp_;
+    int mapRareLeadersDefeated_;
+    int mapRareLeaderItemsDropped_;
+    std::string lastRareLeaderName_;
+    std::string lastRareLeaderRewardDescription_;
     int fieldPacksCleared_;
     bool mapRewardChosen_;
     bool nextMapOptionChosen_;

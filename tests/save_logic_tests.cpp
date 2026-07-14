@@ -100,6 +100,10 @@ SaveData sampleData() {
     data.itemQuantityRewardMultiplier = 1.15f;
     data.forgeFragments = 7;
     data.fieldPacksCleared = 2;
+    data.mapRareLeadersDefeated = 3;
+    data.mapRareLeaderItemsDropped = 5;
+    data.lastRareLeaderName = "Storm Herald";
+    data.lastRareLeaderRewardDescription = "Lightning / Projectile weighted | 2 guaranteed drops";
     data.mapEvents = {
         {MapEventType::LootCache, true, true},
         {MapEventType::ElitePack, true, true},
@@ -167,6 +171,11 @@ void testFileValidation(const std::filesystem::path& path) {
         "round-trip preserves run, map, progression and exploration");
     expect(restored.fieldPacksCleared == data.fieldPacksCleared,
         "round-trip preserves Boss Gate field progress");
+    expect(restored.mapRareLeadersDefeated == data.mapRareLeadersDefeated
+            && restored.mapRareLeaderItemsDropped == data.mapRareLeaderItemsDropped
+            && restored.lastRareLeaderName == data.lastRareLeaderName
+            && restored.lastRareLeaderRewardDescription == data.lastRareLeaderRewardDescription,
+        "round-trip preserves rare leader settlement statistics");
 
     std::vector<unsigned char> bytes = readBytes(path);
     expect(bytes.size() > 16, "save has a versioned header and payload");

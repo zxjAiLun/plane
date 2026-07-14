@@ -275,6 +275,10 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , mapItemsDropped_(0)
     , mapBossItemsDropped_(0)
     , mapItemsPickedUp_(0)
+    , mapRareLeadersDefeated_(0)
+    , mapRareLeaderItemsDropped_(0)
+    , lastRareLeaderName_()
+    , lastRareLeaderRewardDescription_()
     , fieldPacksCleared_(0)
     , mapRewardChosen_(false)
     , nextMapOptionChosen_(false)
@@ -499,6 +503,10 @@ SaveData GameWorld::captureSaveData() const {
     data.mapItemsDropped = mapItemsDropped_;
     data.mapBossItemsDropped = mapBossItemsDropped_;
     data.mapItemsPickedUp = mapItemsPickedUp_;
+    data.mapRareLeadersDefeated = mapRareLeadersDefeated_;
+    data.mapRareLeaderItemsDropped = mapRareLeaderItemsDropped_;
+    data.lastRareLeaderName = lastRareLeaderName_;
+    data.lastRareLeaderRewardDescription = lastRareLeaderRewardDescription_;
     data.fieldPacksCleared = fieldPacksCleared_;
     data.lifeFlaskCharges = lifeFlaskCharges_;
     data.unlockedSkills = progression_.unlockedSkills;
@@ -567,6 +575,8 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
         || !validFloat(data.itemQuantityRewardMultiplier)
         || data.itemQuantityRewardMultiplier <= 0.0f
         || data.fieldPacksCleared < 0
+        || data.mapRareLeadersDefeated < 0
+        || data.mapRareLeaderItemsDropped < 0
         || !validLevelMap(data.skillLevels, data.unlockedSkills)
         || !validLevelMap(data.supportLevels, data.unlockedSupports)
         || data.lifeFlaskCharges < 0
@@ -751,6 +761,10 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     mapItemsDropped_ = data.mapItemsDropped;
     mapBossItemsDropped_ = data.mapBossItemsDropped;
     mapItemsPickedUp_ = data.mapItemsPickedUp;
+    mapRareLeadersDefeated_ = std::max(0, data.mapRareLeadersDefeated);
+    mapRareLeaderItemsDropped_ = std::max(0, data.mapRareLeaderItemsDropped);
+    lastRareLeaderName_ = data.lastRareLeaderName;
+    lastRareLeaderRewardDescription_ = data.lastRareLeaderRewardDescription;
     fieldPacksCleared_ = std::min(data.fieldPacksCleared, Config::BossGateRequiredFieldPacks);
     lifeFlaskCharges_ = data.lifeFlaskCharges;
     state_ = data.state == SavedRunState::MapComplete
@@ -776,12 +790,14 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     activeFieldPackLeaderIndex_ = -1;
     activeFieldPackLeaderName_.clear();
     activeFieldPackLeaderDescription_.clear();
+    activeFieldPackLeaderRewardDescription_.clear();
     activeFieldPackLeaderModifier_ = EliteModifier::None;
     activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
     activeFieldPackLeaderDropMultiplier_ = 1.0f;
     activeFieldPackLeaderBonusDrops_ = 0;
     activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
+    activeFieldPackLeaderLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     currentWave_ = 0;
     enemiesSpawnedInWave_ = 0;
@@ -997,12 +1013,14 @@ void GameWorld::reset(std::uint64_t runSeed) {
     activeFieldPackLeaderIndex_ = -1;
     activeFieldPackLeaderName_.clear();
     activeFieldPackLeaderDescription_.clear();
+    activeFieldPackLeaderRewardDescription_.clear();
     activeFieldPackLeaderModifier_ = EliteModifier::None;
     activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
     activeFieldPackLeaderDropMultiplier_ = 1.0f;
     activeFieldPackLeaderBonusDrops_ = 0;
     activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
+    activeFieldPackLeaderLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     skillBar_.reset();
     initializeRunProgression();
@@ -1044,6 +1062,10 @@ void GameWorld::reset(std::uint64_t runSeed) {
     mapItemsDropped_ = 0;
     mapBossItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
+    mapRareLeadersDefeated_ = 0;
+    mapRareLeaderItemsDropped_ = 0;
+    lastRareLeaderName_.clear();
+    lastRareLeaderRewardDescription_.clear();
     fieldPacksCleared_ = 0;
     nextMapOptionChosen_ = false;
     mapRewardChosen_ = false;
@@ -1133,12 +1155,14 @@ void GameWorld::startNextMap() {
     activeFieldPackLeaderIndex_ = -1;
     activeFieldPackLeaderName_.clear();
     activeFieldPackLeaderDescription_.clear();
+    activeFieldPackLeaderRewardDescription_.clear();
     activeFieldPackLeaderModifier_ = EliteModifier::None;
     activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
     activeFieldPackLeaderDropMultiplier_ = 1.0f;
     activeFieldPackLeaderBonusDrops_ = 0;
     activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
+    activeFieldPackLeaderLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     applySkillProgression();
     state_ = GameState::Playing;
@@ -1149,6 +1173,10 @@ void GameWorld::startNextMap() {
     mapItemsDropped_ = 0;
     mapBossItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
+    mapRareLeadersDefeated_ = 0;
+    mapRareLeaderItemsDropped_ = 0;
+    lastRareLeaderName_.clear();
+    lastRareLeaderRewardDescription_.clear();
     fieldPacksCleared_ = 0;
     mapRewardChosen_ = false;
     nextMapOptionChosen_ = false;
@@ -2661,12 +2689,14 @@ void GameWorld::triggerElitePackEvent(std::size_t eventIndex) {
     activeFieldPackLeaderIndex_ = -1;
     activeFieldPackLeaderName_.clear();
     activeFieldPackLeaderDescription_.clear();
+    activeFieldPackLeaderRewardDescription_.clear();
     activeFieldPackLeaderModifier_ = EliteModifier::None;
     activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
     activeFieldPackLeaderDropMultiplier_ = 1.0f;
     activeFieldPackLeaderBonusDrops_ = 0;
     activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
+    activeFieldPackLeaderLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     resetRareLeaderEffects();
     spawner_.reset();
@@ -2702,12 +2732,14 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
     activeFieldPackLeaderIndex_ = -1;
     activeFieldPackLeaderName_.clear();
     activeFieldPackLeaderDescription_.clear();
+    activeFieldPackLeaderRewardDescription_.clear();
     activeFieldPackLeaderModifier_ = EliteModifier::None;
     activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
     activeFieldPackLeaderDropMultiplier_ = 1.0f;
     activeFieldPackLeaderBonusDrops_ = 0;
     activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
+    activeFieldPackLeaderLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     resetRareLeaderEffects();
     spawner_.reset();
@@ -3861,6 +3893,14 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         if (enemy.fieldPackIndex() == activeFieldPackId_) {
             mergeLootBias(dropBias, activeFieldPackLootBias_);
         }
+        if (enemy.isRare() && enemy.fieldPackIndex() == activeFieldPackId_) {
+            // Rare leader themes are the primary identity of leader drops. Merge
+            // existing map/pack bias into that profile so leader tags cannot be
+            // discarded when the two generic bias slots are already occupied.
+            LootBias leaderBias = activeFieldPackLeaderLootBias_;
+            mergeLootBias(leaderBias, dropBias);
+            dropBias = leaderBias;
+        }
         if (enemy.isBoss()) {
             mergeLootBias(dropBias, bossLootBias(bossDefinition_->lootTheme));
         }
@@ -3872,6 +3912,16 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         if (enemy.isBoss()) {
             ++mapBossItemsDropped_;
         }
+    }
+
+    if (enemy.isRare() && enemy.fieldPackIndex() == activeFieldPackId_) {
+        ++mapRareLeadersDefeated_;
+        mapRareLeaderItemsDropped_ += dropsToCreate;
+        lastRareLeaderName_ = enemy.displayName();
+        lastRareLeaderRewardDescription_ = activeFieldPackLeaderRewardDescription_;
+        eventStatusMessage_ = enemy.displayName() + " defeated: "
+            + activeFieldPackLeaderRewardDescription_;
+        eventStatusTimer_ = 2.5f;
     }
 
     noteMapEventEnemyDefeated(enemy);
@@ -3910,6 +3960,9 @@ void GameWorld::noteFieldPackEnemyDefeated(const Enemy& enemy) {
     );
     eventStatusMessage_ = fieldPackName_ + " cleared: "
         + std::to_string(droppedCount) + " items dropped";
+    if (enemy.isRare() && !lastRareLeaderRewardDescription_.empty()) {
+        eventStatusMessage_ += " | " + enemy.displayName() + " defeated";
+    }
     if (!gateWasUnlocked && bossGateUnlocked()) {
         eventStatusMessage_ += " | Boss Gate unlocked";
     }
@@ -3919,12 +3972,14 @@ void GameWorld::noteFieldPackEnemyDefeated(const Enemy& enemy) {
     activeFieldPackLeaderIndex_ = -1;
     activeFieldPackLeaderName_.clear();
     activeFieldPackLeaderDescription_.clear();
+    activeFieldPackLeaderRewardDescription_.clear();
     activeFieldPackLeaderModifier_ = EliteModifier::None;
     activeFieldPackLeaderSecondaryModifier_ = EliteModifier::None;
     activeFieldPackLeaderDropMultiplier_ = 1.0f;
     activeFieldPackLeaderBonusDrops_ = 0;
     activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
+    activeFieldPackLeaderLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     resetRareLeaderEffects();
     fieldPackStarted_ = false;
@@ -4174,12 +4229,14 @@ EnemyType GameWorld::nextMapEnemyType() {
         );
         activeFieldPackLeaderName_ = pack.leaderName;
         activeFieldPackLeaderDescription_ = pack.leaderDescription;
+        activeFieldPackLeaderRewardDescription_ = pack.leaderRewardDescription;
         activeFieldPackLeaderModifier_ = pack.leaderModifiers[0];
         activeFieldPackLeaderSecondaryModifier_ = pack.leaderModifiers[1];
         activeFieldPackLeaderDropMultiplier_ = pack.leaderDropMultiplier;
         activeFieldPackLeaderBonusDrops_ = pack.leaderBonusDrops;
         activeFieldPackLeaderExperienceMultiplier_ = pack.leaderExperienceMultiplier;
         activeFieldPackLootBias_ = pack.lootBias;
+        activeFieldPackLeaderLootBias_ = pack.leaderLootBias;
         activeFieldPackRewardDrops_ = pack.clearRewardDrops;
         fieldPackName_ = pack.name;
         fieldPackStarted_ = false;
@@ -4413,6 +4470,9 @@ std::string GameWorld::fieldPackLeaderName() const { return activeFieldPackLeade
 std::string GameWorld::fieldPackLeaderDescription() const {
     return activeFieldPackLeaderDescription_;
 }
+std::string GameWorld::fieldPackLeaderRewardDescription() const {
+    return activeFieldPackLeaderRewardDescription_;
+}
 int GameWorld::pendingFieldPackEnemies() const {
     return static_cast<int>(pendingFieldPack_.size());
 }
@@ -4453,6 +4513,12 @@ int GameWorld::mapExperienceGained() const { return mapExperienceGained_; }
 int GameWorld::mapItemsDropped() const { return mapItemsDropped_; }
 int GameWorld::mapBossItemsDropped() const { return mapBossItemsDropped_; }
 int GameWorld::mapItemsPickedUp() const { return mapItemsPickedUp_; }
+int GameWorld::mapRareLeadersDefeated() const { return mapRareLeadersDefeated_; }
+int GameWorld::mapRareLeaderItemsDropped() const { return mapRareLeaderItemsDropped_; }
+std::string GameWorld::lastRareLeaderName() const { return lastRareLeaderName_; }
+std::string GameWorld::lastRareLeaderRewardDescription() const {
+    return lastRareLeaderRewardDescription_;
+}
 std::string GameWorld::nearbyEventPrompt() const { return nearbyEventPrompt_; }
 float GameWorld::shrineBuffTimeRemaining() const { return shrineBuffTimer_; }
 float GameWorld::inventoryFullPromptTimeRemaining() const { return inventoryFullTimer_; }

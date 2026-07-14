@@ -10,6 +10,7 @@
 
 #include "Config.hpp"
 #include "CombatMath.hpp"
+#include "EnemyPackLibrary.hpp"
 #include "GameWorld.hpp"
 #include "Input.hpp"
 #include "ItemBase.hpp"
@@ -344,6 +345,8 @@ void testRareLeaderCombatEffects() {
     );
     expect(rareLeaderSpawned,
         "Storm field pack spawns its data-driven rare leader and secondary modifier");
+    expect(world.fieldPackLeaderRewardDescription().find("Lightning") != std::string::npos,
+        "Storm rare leader exposes its Lightning / Projectile reward tendency");
 
     bool telegraphObserved = false;
     bool telegraphFeedbackObserved = false;
@@ -364,6 +367,38 @@ void testRareLeaderCombatEffects() {
     expect(world.rareLeaderAoeRadius() > 0.0f,
         "Stormbound exposes its strike radius to the renderer");
     std::filesystem::remove(path);
+}
+
+void testRareLeaderRewardProfiles() {
+    const auto& packs = EnemyPackLibrary::all();
+    expect(packs.size() == EnemyPackLibrary::ThemeCount * EnemyPackLibrary::PacksPerTheme,
+        "every field pack has a data-driven rare leader profile");
+
+    const bool allProfilesComplete = std::all_of(
+        packs.begin(),
+        packs.end(),
+        [](const EnemyPackDefinition& pack) {
+            return pack.leaderIndex >= 0
+                && pack.leaderLootBias.primaryTag != AffixTag::None
+                && pack.leaderRewardDescription.find("weighted") != std::string::npos
+                && pack.leaderBonusDrops >= 1;
+        }
+    );
+    expect(allProfilesComplete,
+        "rare leader profiles define loot bias, reward text, and a guaranteed drop count");
+
+    const auto& storm = EnemyPackLibrary::forMap(1, 1, 0);
+    expect(storm.leaderName == "Storm Herald"
+            && storm.leaderLootBias.primaryTag == AffixTag::Lightning
+            && storm.leaderLootBias.secondaryTag == AffixTag::Projectile
+            && storm.leaderBonusDrops == 2,
+        "Storm Herald guarantees two Lightning / Projectile-biased drops");
+
+    const auto& lastStand = EnemyPackLibrary::forMap(0, 1, 2);
+    expect(lastStand.leaderName == "Last Ember"
+            && lastStand.leaderLootBias.primaryTag == AffixTag::Fire
+            && lastStand.leaderBonusDrops == 1,
+        "Last Ember uses a distinct Fire / Area reward profile");
 }
 
 void testSaveLoadRoundTrip() {
@@ -2355,6 +2390,7 @@ int main() {
     testPauseContextsAndFreeze();
     testBossGateProgression();
     testRareLeaderCombatEffects();
+    testRareLeaderRewardProfiles();
     testContinuousMapProgression();
     testItemBaseLevelRequirementWorldFlow();
     testFiveMapRealBossProgression();

@@ -915,6 +915,12 @@ void Renderer::render(const GameWorld& world) {
         drawText(truncateText(packLine, 34),
             {16.0f, hudY}, 14, sf::Color(210, 205, 255));
         hudY += 18.0f;
+        if (!world.fieldPackLeaderRewardDescription().empty()) {
+            drawText(truncateText("Rare loot: "
+                    + world.fieldPackLeaderRewardDescription(), 34),
+                {16.0f, hudY}, 12, sf::Color(255, 220, 150));
+            hudY += 16.0f;
+        }
     }
     if (!world.rareLeaderSkillWarning().empty()) {
         drawText(truncateText(world.rareLeaderSkillWarning(), 34),
@@ -2548,7 +2554,7 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     drawCenteredText(truncateText(phaseText, 28), {centerColumnX, 24.0f}, 14,
         sf::Color(255, 240, 180));
 
-    drawBox({centerColumnX, 100.0f}, {190.0f, 100.0f}, sf::Color::Green);
+    drawBox({centerColumnX, 100.0f}, {190.0f, 130.0f}, sf::Color::Green);
     drawText(truncateText("BOSS: " + world.bossDefinition().name, 27),
         {centerColumnX - 90.0f, 58.0f}, 14, sf::Color::White);
     drawText("Kills " + std::to_string(world.mapKills())
@@ -2558,8 +2564,18 @@ void Renderer::drawMapComplete(const GameWorld& world) {
         + "  Boss " + std::to_string(world.mapBossItemsDropped())
         + "  F " + std::to_string(world.mapItemsPickedUp()),
         {centerColumnX - 90.0f, 100.0f}, 11, sf::Color::White);
+    drawText("Rare " + std::to_string(world.mapRareLeadersDefeated())
+        + "  Leader drops " + std::to_string(world.mapRareLeaderItemsDropped()),
+        {centerColumnX - 90.0f, 118.0f}, 10, sf::Color(255, 220, 160));
+    drawText(truncateText("Theme: " + world.bossDefinition().theme, 27),
+        {centerColumnX - 90.0f, 134.0f}, 10, sf::Color(210, 235, 255));
     drawText(truncateText("Relic: " + world.bossDefinition().lootRewardDescription, 27),
-        {centerColumnX - 90.0f, 118.0f}, 10, sf::Color(255, 225, 145));
+        {centerColumnX - 90.0f, 148.0f}, 9, sf::Color(255, 225, 145));
+    if (!world.lastRareLeaderName().empty()) {
+        drawText(truncateText("Rare: " + world.lastRareLeaderName()
+                + " | " + world.lastRareLeaderRewardDescription(), 27),
+            {centerColumnX - 90.0f, 160.0f}, 9, sf::Color(255, 205, 140));
+    }
 
     // Left-side pickup guidance (always available during MapComplete):
     // looting runs concurrently with reward / next-map selection, so the player
