@@ -445,15 +445,20 @@ void writeModifier(Writer& writer, const MapModifier& modifier) {
     writer.real(modifier.lootBiasWeightMultiplier);
     writer.integer(static_cast<int>(modifier.secondaryLootBiasTag));
     writer.real(modifier.secondaryLootBiasWeightMultiplier);
+    writer.string(modifier.elementalChallengeId);
+    writer.integer(static_cast<int>(modifier.elementalChallengeType));
+    writer.integer(modifier.playerElementalResistancePenalty);
+    writer.integer(modifier.monsterElementalResistanceBonus);
     writer.integer(modifier.componentCount);
     for (int index = 0; index < modifier.componentCount; ++index) {
         writeModifierDefinition(writer, modifier.components[static_cast<std::size_t>(index)]);
     }
 }
 
-bool readModifier(Reader& reader, MapModifier& modifier) {
+bool readModifier(Reader& reader, MapModifier& modifier, bool hasElementalChallengeFields) {
     int lootTag = 0;
     int secondaryTag = 0;
+    int elementalChallengeType = 0;
     if (!reader.string(modifier.name)
         || !reader.string(modifier.description)
         || !reader.string(modifier.rewardDescription)
@@ -473,13 +478,37 @@ bool readModifier(Reader& reader, MapModifier& modifier) {
         || !reader.real(modifier.lootBiasWeightMultiplier)
         || !reader.integer(secondaryTag)
         || !reader.real(modifier.secondaryLootBiasWeightMultiplier)
-        || !reader.integer(modifier.componentCount)
-        || modifier.componentCount < 0
-        || modifier.componentCount > 2
         || !validEnumValue(lootTag, 0, static_cast<int>(AffixTag::Armor))
         || !validEnumValue(secondaryTag, 0, static_cast<int>(AffixTag::Armor))) {
         return false;
     }
+
+    if (hasElementalChallengeFields) {
+        if (!reader.string(modifier.elementalChallengeId)
+            || !reader.integer(elementalChallengeType)
+            || !reader.integer(modifier.playerElementalResistancePenalty)
+            || !reader.integer(modifier.monsterElementalResistanceBonus)
+            || !validEnumValue(
+                elementalChallengeType,
+                static_cast<int>(DamageType::Physical),
+                static_cast<int>(DamageType::Lightning)
+            )) {
+            return false;
+        }
+        modifier.elementalChallengeType = static_cast<DamageType>(elementalChallengeType);
+    } else {
+        modifier.elementalChallengeId.clear();
+        modifier.elementalChallengeType = DamageType::Physical;
+        modifier.playerElementalResistancePenalty = 0;
+        modifier.monsterElementalResistanceBonus = 0;
+    }
+
+    if (!reader.integer(modifier.componentCount)
+        || modifier.componentCount < 0
+        || modifier.componentCount > 2) {
+        return false;
+    }
+
     modifier.lootBiasTag = static_cast<AffixTag>(lootTag);
     modifier.secondaryLootBiasTag = static_cast<AffixTag>(secondaryTag);
     modifier.components = {};
@@ -498,8 +527,8 @@ void writeMapOption(Writer& writer, const MapOption& option) {
     writer.integer(option.templateIndex);
 }
 
-bool readMapOption(Reader& reader, MapOption& option) {
-    return readModifier(reader, option.modifier)
+bool readMapOption(Reader& reader, MapOption& option, bool hasElementalChallengeFields) {
+    return readModifier(reader, option.modifier, hasElementalChallengeFields)
         && reader.string(option.rewardDescription)
         && reader.string(option.recommendedLevel)
         && reader.integer(option.templateIndex);
@@ -608,7 +637,7 @@ void writeSaveData(Writer& writer, const SaveData& data) {
     writer.raw(data.exploredCells);
 }
 
-bool readSaveData(Reader& reader, SaveData& data) {
+bool readSaveData(Reader& reader, SaveData& data, bool hasElementalChallengeFields) {
     int state = 0;
     if (!reader.integer(state)
         || !validEnumValue(state, 0, static_cast<int>(SavedRunState::MapComplete))
@@ -618,12 +647,12 @@ bool readSaveData(Reader& reader, SaveData& data) {
         || data.mapLevel < 1
         || !reader.integer(data.mapTemplateIndex)
         || !reader.integer(data.mapLayoutIndex)
-        || !readMapOption(reader, data.currentMapOption)) {
+        || !readMapOption(reader, data.currentMapOption, hasElementalChallengeFields)) {
         return false;
     }
     data.state = static_cast<SavedRunState>(state);
     for (auto& option : data.nextMapOptions) {
-        if (!readMapOption(reader, option)) {
+        if (!readMapOption(reader, option, hasElementalChallengeFields)) {
             return false;
         }
     }
@@ -807,7 +836,8 @@ bool SaveService::load(const std::filesystem::path& path,
     std::uint32_t expectedCrc = 0;
     if (!file.integer(magic) || !file.integer(version)
         || !file.integer(payloadLength) || !file.integer(expectedCrc)
-        || magic != SaveData::Magic || version != SaveData::Version
+        || magic != SaveData::Magic
+        || (version != 3U && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");
         return false;
@@ -821,7 +851,7 @@ bool SaveService::load(const std::filesystem::path& path,
 
     Reader payloadReader(payload);
     SaveData restored;
-    if (!readSaveData(payloadReader, restored)) {
+    if (!readSaveData(payloadReader, restored, version >= SaveData::Version)) {
         setError(error, "invalid save payload");
         return false;
     }

@@ -537,6 +537,8 @@ void testCombatMathDamageRadiusPierce() {
         "elemental resistance does not mitigate Physical damage");
     expect(damageAfterResistance(100, DamageType::Fire, 100, 0, 0) == 0,
         "full elemental resistance prevents matching damage");
+    expect(damageAfterResistance(100, DamageType::Fire, -25, 0, 0) == 125,
+        "negative elemental resistance increases matching damage");
 
     const int quickcastDmg = skillDamage(area, stats, quickcast);
     expect(quickcastDmg < areaDmg, "Quickcast support reduces damage via damageMultiplier");
@@ -1816,6 +1818,30 @@ void testMapOptionGeneration() {
             && options[2].modifier.eventRewardMultiplier > 1.0f
             && options[2].modifier.itemLevelBonus > 0,
         "third map composition exposes encounter and item level effects");
+    expect(options[0].modifier.hasModifier("cinder-ward")
+            && options[1].modifier.hasModifier("stormbound")
+            && options[2].modifier.hasModifier("frostbite")
+            && options[0].modifier.elementalChallengeType == DamageType::Fire
+            && options[1].modifier.elementalChallengeType == DamageType::Lightning
+            && options[2].modifier.elementalChallengeType == DamageType::Cold
+            && options[0].modifier.playerElementalResistancePenalty >= 25
+            && options[1].modifier.monsterElementalResistanceBonus >= 15,
+        "map options expose three data-driven elemental resistance challenges");
+    expect(damageAfterResistance(
+                100,
+                options[0].modifier.elementalChallengeType,
+                -options[0].modifier.playerElementalResistancePenalty,
+                0,
+                0
+            ) > 100
+            && damageAfterResistance(
+                100,
+                options[0].modifier.elementalChallengeType,
+                options[0].modifier.monsterElementalResistanceBonus,
+                0,
+                0
+            ) < 100,
+        "elemental map challenge penalties and monster resistance affect matching damage");
 
     const auto repeatedOptions = MapOptionLibrary::generateOptions(2);
     expect(repeatedOptions[0].modifier.name == options[0].modifier.name

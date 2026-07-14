@@ -500,13 +500,19 @@ std::string rewardStatPreview(const MapRewardDefinition& reward, const GameWorld
 
 std::string mapOptionSummary(const MapOption& option) {
     const auto& modifier = option.modifier;
-    return "MHP+" + std::to_string(multiplierPercent(modifier.monsterHpMultiplier))
+    std::string summary = "MHP+" + std::to_string(multiplierPercent(modifier.monsterHpMultiplier))
         + " MD+" + std::to_string(modifier.monsterDamageBonus)
         + " E+" + std::to_string(modifier.eliteWeightBonus)
         + " BHP+" + std::to_string(multiplierPercent(modifier.bossHpMultiplier))
         + " BD+" + std::to_string(multiplierPercent(modifier.bossDamageMultiplier))
         + " IQ+" + std::to_string(multiplierPercent(modifier.itemQuantityMultiplier))
         + " IL+" + std::to_string(modifier.itemLevelBonus);
+    if (!modifier.elementalChallengeId.empty()) {
+        summary += " " + std::string(damageTypeName(modifier.elementalChallengeType))
+            + " RES-" + std::to_string(modifier.playerElementalResistancePenalty)
+            + " MRES+" + std::to_string(modifier.monsterElementalResistanceBonus);
+    }
+    return summary;
 }
 
 sf::Color mapEventColor(const MapEventInstance& event) {

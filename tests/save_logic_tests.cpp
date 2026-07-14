@@ -133,6 +133,14 @@ void testFileValidation(const std::filesystem::path& path) {
             && restored.mapLevel == data.mapLevel
             && restored.currentMapOption.modifier.name
                 == data.currentMapOption.modifier.name
+            && restored.currentMapOption.modifier.elementalChallengeId
+                == data.currentMapOption.modifier.elementalChallengeId
+            && restored.currentMapOption.modifier.elementalChallengeType
+                == data.currentMapOption.modifier.elementalChallengeType
+            && restored.currentMapOption.modifier.playerElementalResistancePenalty
+                == data.currentMapOption.modifier.playerElementalResistancePenalty
+            && restored.currentMapOption.modifier.monsterElementalResistanceBonus
+                == data.currentMapOption.modifier.monsterElementalResistanceBonus
             && restored.unlockedSupports == data.unlockedSupports
             && restored.exploredCells == data.exploredCells
             && restored.player.equipment[0]->affixes[0].id

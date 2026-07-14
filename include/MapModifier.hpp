@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <string>
 
+#include "DamageType.hpp"
 #include "LootBias.hpp"
 
 struct MapModifierEffect {
@@ -34,6 +35,16 @@ struct MapModifierDefinition {
     MapModifierEffect effect;
 };
 
+struct MapElementalChallengeDefinition {
+    std::string id;
+    std::string name;
+    std::string riskDescription;
+    std::string rewardDescription;
+    DamageType damageType = DamageType::Physical;
+    int playerResistancePenalty = 0;
+    int monsterResistanceBonus = 0;
+};
+
 struct MapModifier {
     std::string name = "Quiet Coast";
     std::string description = "No modifier";
@@ -56,6 +67,10 @@ struct MapModifier {
     float secondaryLootBiasWeightMultiplier = 1.0f;
     std::array<MapModifierDefinition, 2> components{};
     int componentCount = 0;
+    std::string elementalChallengeId;
+    DamageType elementalChallengeType = DamageType::Physical;
+    int playerElementalResistancePenalty = 0;
+    int monsterElementalResistanceBonus = 0;
 
     LootBias lootBias() const {
         return {
@@ -67,6 +82,9 @@ struct MapModifier {
     }
 
     bool hasModifier(const std::string& id) const {
+        if (elementalChallengeId == id) {
+            return true;
+        }
         for (int index = 0; index < componentCount; ++index) {
             if (components[static_cast<std::size_t>(index)].id == id) {
                 return true;
@@ -161,9 +179,43 @@ public:
         return {};
     }
 
+    static const std::array<MapElementalChallengeDefinition, 3>& elementalChallenges() {
+        static const std::array<MapElementalChallengeDefinition, 3> challenges = {{
+            {
+                "cinder-ward",
+                "Cinder Ward",
+                "Players have -25% Fire Resistance; monsters gain +15% Fire Resistance",
+                "Fire affixes are favored",
+                DamageType::Fire,
+                25,
+                15
+            },
+            {
+                "frostbite",
+                "Frostbite",
+                "Players have -25% Cold Resistance; monsters gain +15% Cold Resistance",
+                "Cold affixes are favored",
+                DamageType::Cold,
+                25,
+                15
+            },
+            {
+                "stormbound",
+                "Stormbound",
+                "Players have -25% Lightning Resistance; monsters gain +15% Lightning Resistance",
+                "Lightning affixes are favored",
+                DamageType::Lightning,
+                25,
+                15
+            }
+        }};
+        return challenges;
+    }
+
     static MapModifier compose(
         int mapLevel,
-        const std::array<const char*, 2>& modifierIds
+        const std::array<const char*, 2>& modifierIds,
+        const char* elementalChallengeId = nullptr
     ) {
         MapModifier result;
         const int normalizedLevel = std::max(1, mapLevel);
@@ -187,11 +239,23 @@ public:
         }
 
         applyLevelScaling(result, normalizedLevel);
+        addElementalChallenge(result, elementalChallengeId, normalizedLevel);
         return result;
     }
 
     static const MapModifierDefinition* find(const std::string& id) {
         for (const auto& definition : all()) {
+            if (definition.id == id) {
+                return &definition;
+            }
+        }
+        return nullptr;
+    }
+
+    static const MapElementalChallengeDefinition* findElementalChallenge(
+        const std::string& id
+    ) {
+        for (const auto& definition : elementalChallenges()) {
             if (definition.id == id) {
                 return &definition;
             }
@@ -252,6 +316,32 @@ private:
         }
     }
 
+    static void addElementalChallenge(
+        MapModifier& target,
+        const char* challengeId,
+        int mapLevel
+    ) {
+        if (challengeId == nullptr || challengeId[0] == '\0') {
+            return;
+        }
+
+        const auto* definition = findElementalChallenge(challengeId);
+        if (definition == nullptr) {
+            return;
+        }
+
+        const int levels = std::max(0, mapLevel - 1);
+        target.elementalChallengeId = definition->id;
+        target.elementalChallengeType = definition->damageType;
+        target.playerElementalResistancePenalty = definition->playerResistancePenalty
+            + levels * 2;
+        target.monsterElementalResistanceBonus = definition->monsterResistanceBonus
+            + levels * 2;
+        target.name += " + " + definition->name;
+        target.description += " + " + definition->riskDescription;
+        target.rewardDescription += " + " + definition->rewardDescription;
+    }
+
     static void applyLevelScaling(MapModifier& modifier, int mapLevel) {
         const int levels = mapLevel - 1;
         if (levels <= 0) {
@@ -281,19 +371,25 @@ public:
     static std::array<MapOption, 3> generateOptions(int mapLevel) {
         return {{
             {
-                MapModifierLibrary::compose(mapLevel, {"swift-hunt", "hardened-front"}),
+                MapModifierLibrary::compose(
+                    mapLevel, {"swift-hunt", "hardened-front"}, "cinder-ward"
+                ),
                 "Event quantity and Survival affix bias",
                 "Recommended level " + std::to_string(mapLevel),
                 0
             },
             {
-                MapModifierLibrary::compose(mapLevel, {"frenzied-march", "blood-tax"}),
+                MapModifierLibrary::compose(
+                    mapLevel, {"frenzied-march", "blood-tax"}, "stormbound"
+                ),
                 "Damage bias, richer drops and Boss pressure",
                 "Recommended level " + std::to_string(mapLevel + 1),
                 1
             },
             {
-                MapModifierLibrary::compose(mapLevel, {"gilded-cache", "elite-tide"}),
+                MapModifierLibrary::compose(
+                    mapLevel, {"gilded-cache", "elite-tide"}, "frostbite"
+                ),
                 "Pickup/Area bias, high item quantity and Elite pressure",
                 "Recommended level " + std::to_string(mapLevel + 1),
                 2

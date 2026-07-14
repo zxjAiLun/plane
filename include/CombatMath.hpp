@@ -40,11 +40,13 @@ inline int damageAfterResistance(
         return 0;
     }
 
+    // Negative resistance is intentional: elemental map challenges can reduce
+    // the player's resistance below zero and should increase incoming damage.
     const int resistance = std::clamp(
         resistanceForDamageType(
             type, fireResistance, coldResistance, lightningResistance
         ),
-        0,
+        -100,
         100
     );
     if (resistance >= 100) {

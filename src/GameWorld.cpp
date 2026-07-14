@@ -95,6 +95,21 @@ bool statsMatchForRestore(const Stats& left, const Stats& right) {
         && left.lightningResistance == right.lightningResistance;
 }
 
+int mapElementalResistanceAdjustment(
+    const MapModifier& modifier,
+    DamageType damageType,
+    bool monsterResistance
+) {
+    if (modifier.elementalChallengeId.empty()
+        || modifier.elementalChallengeType != damageType) {
+        return 0;
+    }
+
+    return monsterResistance
+        ? modifier.monsterElementalResistanceBonus
+        : -modifier.playerElementalResistancePenalty;
+}
+
 bool validItemForRestore(const Item& item) {
     const auto* base = ItemBaseLibrary::find(item.baseId);
     if (static_cast<int>(item.slot) < 0
@@ -152,8 +167,26 @@ bool validModifierForRestore(const MapModifier& modifier) {
         || !positiveFinite(modifier.eventRewardMultiplier)
         || !positiveFinite(modifier.lootBiasWeightMultiplier)
         || !positiveFinite(modifier.secondaryLootBiasWeightMultiplier)
-        || modifier.componentCount < 0 || modifier.componentCount > 2) {
+        || modifier.componentCount < 0 || modifier.componentCount > 2
+        || modifier.playerElementalResistancePenalty < 0
+        || modifier.playerElementalResistancePenalty > 100
+        || modifier.monsterElementalResistanceBonus < 0
+        || modifier.monsterElementalResistanceBonus > 100) {
         return false;
+    }
+    if (modifier.elementalChallengeId.empty()) {
+        if (modifier.elementalChallengeType != DamageType::Physical
+            || modifier.playerElementalResistancePenalty != 0
+            || modifier.monsterElementalResistanceBonus != 0) {
+            return false;
+        }
+    } else {
+        const auto* challenge = MapModifierLibrary::findElementalChallenge(
+            modifier.elementalChallengeId
+        );
+        if (challenge == nullptr || modifier.elementalChallengeType != challenge->damageType) {
+            return false;
+        }
     }
     for (int index = 0; index < modifier.componentCount; ++index) {
         if (!validModifierEffectForRestore(
@@ -1588,6 +1621,15 @@ int GameWorld::damageToEnemy(
         coldResistance = bossDefinition_->coldResistance;
         lightningResistance = bossDefinition_->lightningResistance;
     }
+    fireResistance += mapElementalResistanceAdjustment(
+        mapModifier_, DamageType::Fire, true
+    );
+    coldResistance += mapElementalResistanceAdjustment(
+        mapModifier_, DamageType::Cold, true
+    );
+    lightningResistance += mapElementalResistanceAdjustment(
+        mapModifier_, DamageType::Lightning, true
+    );
 
     const int resistedDamage = damageAfterResistance(
         rawDamage,
@@ -3188,7 +3230,17 @@ void GameWorld::damagePlayer(
         return;
     }
 
-    playerHitDamage_ = player_.takeDamage(incomingDamage(damage, player_.stats(), damageType));
+    Stats effectiveStats = player_.stats();
+    effectiveStats.fireResistance += mapElementalResistanceAdjustment(
+        mapModifier_, DamageType::Fire, false
+    );
+    effectiveStats.coldResistance += mapElementalResistanceAdjustment(
+        mapModifier_, DamageType::Cold, false
+    );
+    effectiveStats.lightningResistance += mapElementalResistanceAdjustment(
+        mapModifier_, DamageType::Lightning, false
+    );
+    playerHitDamage_ = player_.takeDamage(incomingDamage(damage, effectiveStats, damageType));
     if (playerHitDamage_ <= 0) {
         return;
     }
