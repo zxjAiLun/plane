@@ -1230,6 +1230,8 @@ void testExpandedSkillWorldHits() {
     GameWorld world(20001);
     expect(!world.isSkillUnlocked("Arc Bolt")
             && !world.isSkillUnlocked("Shockwave")
+            && !world.isSkillUnlocked("Split Arrow")
+            && !world.isSkillUnlocked("Aftershock")
             && !world.isSupportUnlocked("Barrage")
             && !world.isSupportUnlocked("Concentration"),
         "expanded skills and Supports start locked");
@@ -1243,6 +1245,7 @@ void testExpandedSkillWorldHits() {
     const auto utilityIndex = static_cast<std::size_t>(SkillSlot::Utility);
     data.unlockedSkills.insert("Arc Bolt");
     data.unlockedSkills.insert("Shockwave");
+    data.unlockedSkills.insert("Aftershock");
     data.unlockedSupports.insert("Barrage");
     data.unlockedSupports.insert("Concentration");
     data.skillBar.skills[primaryIndex] = "Arc Bolt";
@@ -1380,6 +1383,17 @@ void testExpandedSkillWorldHits() {
     expect(std::abs(world.novaEffectRadius() - expectedAreaRadius) < 0.001f,
         "Shockwave real radius matches CombatMath");
     input.handleKeyReleased(sf::Keyboard::Key::Q);
+
+    // F7 extends the ten number-key entries and is interpreted as a skill
+    // assignment only while the Skill Panel owns the input context.
+    input.handleKeyPressed(sf::Keyboard::Key::K);
+    world.update(0.05f, input);
+    input.handleKeyPressed(sf::Keyboard::Key::F7);
+    world.update(0.05f, input);
+    expect(world.skillBar().definition(SkillSlot::Utility).name == "Aftershock",
+        "Skill Panel F7 assigns the eleventh skill entry");
+    input.handleKeyPressed(sf::Keyboard::Key::K);
+    world.update(0.05f, input);
 
     std::filesystem::remove(path);
 }

@@ -268,6 +268,16 @@ std::string passiveKeyLabel(std::size_t index) {
     return "F" + std::to_string(index - 9);
 }
 
+std::string skillChoiceLabel(std::size_t index) {
+    if (index < 9) {
+        return std::to_string(index + 1);
+    }
+    if (index == 9) {
+        return "0";
+    }
+    return "F" + std::to_string(index - 3);
+}
+
 std::string skillSlotName(SkillSlot slot) {
     switch (slot) {
         case SkillSlot::Primary: return "Primary";
@@ -1779,7 +1789,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
 
     drawBox({center.x, center.y}, {760.0f, 560.0f}, sf::Color(24, 30, 40));
     drawCenteredText("Skill Panel", {center.x, center.y - 248.0f}, 24, sf::Color::White);
-    drawCenteredText("1-10 assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
+    drawCenteredText("1-0 / F7-F8 assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
         {center.x, center.y - 220.0f}, 14, sf::Color(210, 230, 255));
 
     const SkillSlot slots[] = {
@@ -1816,8 +1826,8 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         const std::string state = equipped ? "Equipped" : unlocked ? "Available" : "Locked";
         const std::string marker = equipped ? "> " : "  ";
         const float columnX = i % 2 == 0 ? leftColumn : rightColumn;
-        const float rowY = skillsY + 22.0f + static_cast<float>(i / 2) * 44.0f;
-        drawText(marker + std::to_string(i + 1) + ". " + skill.name + " [" + state + "]",
+        const float rowY = skillsY + 22.0f + static_cast<float>(i / 2) * 40.0f;
+        drawText(marker + skillChoiceLabel(i) + ". " + skill.name + " [" + state + "]",
             {columnX, rowY}, 14, color);
         drawText("     " + skillSlotName(skill.slot) + " / " + skillCastTypeName(skill.castType),
             {columnX, rowY + 17.0f}, 11,
@@ -1841,7 +1851,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         SkillSlot::Utility,
         SkillSlot::Movement
     };
-    const float supportY = center.y + 110.0f;
+    const float supportY = center.y + 138.0f;
     drawText("Supports  E equipped A available L locked  |  F1-F4 cycle  |  F5/F6 link",
         {leftColumn, supportY}, 11, sf::Color::White);
     for (std::size_t i = 0; i < 4; ++i) {

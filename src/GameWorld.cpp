@@ -2262,12 +2262,23 @@ void GameWorld::updatePassiveTreeHover(const Input& input) {
 }
 
 void GameWorld::tryAssignSkill(Input& input) {
-    if (!skillPanelOpen_ || input.numberChoice() <= 0) {
+    if (!skillPanelOpen_) {
         return;
     }
 
     const auto& skills = SkillLibrary::all();
-    const auto index = static_cast<std::size_t>(input.numberChoice() - 1);
+    int skillIndex = input.numberChoice() - 1;
+    const int functionChoice = input.functionChoice();
+    if (skillIndex < 0 && functionChoice >= 7 && functionChoice <= 8) {
+        // Number keys cover the first ten entries. F7/F8 extend the panel to
+        // the two entries that cannot fit in the 1-0 key range.
+        skillIndex = functionChoice + 3;
+    }
+    if (skillIndex < 0) {
+        return;
+    }
+
+    const auto index = static_cast<std::size_t>(skillIndex);
     if (index >= skills.size()) {
         return;
     }

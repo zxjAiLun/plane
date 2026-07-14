@@ -362,6 +362,11 @@ void testSkillBarAssignSkillAndSupport() {
         "assign Shockwave to Utility");
     expect(expansionBar.assignSupport(SkillSlot::Utility, "Concentration"),
         "Concentration attaches to Shockwave");
+
+    expect(expansionBar.assignSkill(SkillSlot::Primary, "Split Arrow"),
+        "assign Split Arrow to Primary");
+    expect(expansionBar.assignSkill(SkillSlot::Utility, "Aftershock"),
+        "assign Aftershock to Utility");
 }
 
 // --- Mana resource ---
@@ -397,13 +402,15 @@ void testManaResourceAndSkillCastGates() {
         "Mana regeneration clamps at max Mana");
 
     const auto& skills = SkillLibrary::all();
-    expect(skills.size() == 10, "skill library exposes all ten Mana-aware skills");
+    expect(skills.size() == 12, "skill library exposes all twelve Mana-aware skills");
     const auto& primary = SkillLibrary::spreadShot();
     const auto& secondary = SkillLibrary::meteor();
     const auto& utility = SkillLibrary::pulse();
     const auto& movement = SkillLibrary::dash();
     const auto& arcBolt = SkillLibrary::arcBolt();
     const auto& shockwave = SkillLibrary::shockwave();
+    const auto& splitArrow = SkillLibrary::splitArrow();
+    const auto& aftershock = SkillLibrary::aftershock();
     expect(primary.manaCost > 0.0f && primary.manaCost < secondary.manaCost,
         "Primary has a lower Mana cost than Meteor");
     expect(secondary.manaCost > 0.0f && utility.manaCost > 0.0f,
@@ -412,6 +419,14 @@ void testManaResourceAndSkillCastGates() {
     expect(std::abs(arcBolt.manaCost - 2.0f) < 0.0001f
             && std::abs(shockwave.manaCost - 6.0f) < 0.0001f,
         "Arc Bolt and Shockwave expose their fixed Mana costs");
+    expect(splitArrow.slot == SkillSlot::Primary
+            && splitArrow.castType == SkillCastType::Projectile
+            && splitArrow.projectileCount == 5
+            && splitArrow.baseDamage == 1
+            && aftershock.slot == SkillSlot::Utility
+            && aftershock.castType == SkillCastType::SelfCenteredArea
+            && aftershock.baseDamage == 5,
+        "Split Arrow and Aftershock expose their intended build roles");
     expect(std::abs(SkillLibrary::flare().manaCost - Config::FlareManaCost) < 0.0001f,
         "Flare exposes its configured Mana cost");
     expect(std::abs(SkillLibrary::meteor().manaCost - Config::MeteorManaCost) < 0.0001f,
@@ -511,6 +526,8 @@ void testCombatMathDamageRadiusPierce() {
 
     const SkillDefinition arcBolt = SkillLibrary::arcBolt();
     const SkillDefinition shockwave = SkillLibrary::shockwave();
+    const SkillDefinition splitArrow = SkillLibrary::splitArrow();
+    const SkillDefinition aftershock = SkillLibrary::aftershock();
     expect(arcBolt.slot == SkillSlot::Primary
             && arcBolt.castType == SkillCastType::Projectile
             && arcBolt.baseDamage == 3
@@ -521,6 +538,13 @@ void testCombatMathDamageRadiusPierce() {
             && shockwave.baseDamage == 3
             && std::abs(shockwave.radius - 120.0f) < 0.0001f,
         "Shockwave exposes its fixed Area definition");
+    expect(splitArrow.slot == SkillSlot::Primary
+            && splitArrow.castType == SkillCastType::Projectile
+            && skillProjectileCount(splitArrow, nullptr) == 5
+            && aftershock.slot == SkillSlot::Utility
+            && aftershock.castType == SkillCastType::SelfCenteredArea
+            && skillRadius(aftershock, Stats{}, nullptr) == aftershock.radius,
+        "new skills use the existing Projectile and Area combat paths");
     Stats areaSpecializationOnly;
     areaSpecializationOnly.areaDamageMultiplier = 1.60f;
     Stats projectileSpecializationOnly;
@@ -1974,6 +1998,26 @@ void testMapRewardGeneration() {
                 return option.skillName == arcBoltName;
             }),
         "locked Arc Bolt remains eligible for an unlock reward");
+
+    const std::string splitArrowName = SkillLibrary::splitArrow().name;
+    const std::string aftershockName = SkillLibrary::aftershock().name;
+    std::set<std::string> allSkillsExceptNew = allSkills;
+    allSkillsExceptNew.erase(splitArrowName);
+    allSkillsExceptNew.erase(aftershockName);
+    RandomService newSkillRandom(102);
+    const auto newSkillRewards = MapRewardLibrary::generateOptions(
+        allSkillsExceptNew, allSupports, newSkillRandom
+    );
+    expect(std::any_of(newSkillRewards.begin(), newSkillRewards.end(),
+            [&splitArrowName](const MapRewardDefinition& option) {
+                return option.skillName == splitArrowName;
+            })
+            && std::any_of(newSkillRewards.begin(), newSkillRewards.end(),
+            [&aftershockName](const MapRewardDefinition& option) {
+                return option.skillName == aftershockName;
+            }),
+        "new skills remain eligible for map unlock rewards");
+
     RandomService noRepeatRandom(101);
     const auto noRepeatRewards = MapRewardLibrary::generateOptions(
         allSkills, allSupports, noRepeatRandom

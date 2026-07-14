@@ -25,6 +25,11 @@ namespace Config {
     constexpr float PrimarySkillManaCost = 2.0f;
     constexpr int SpreadShotProjectileCount = 3;
     constexpr float SpreadShotSpreadAngle = 30.0f;
+    constexpr float SplitArrowCooldown = 0.55f;
+    constexpr float SplitArrowManaCost = 4.0f;
+    constexpr int SplitArrowDamage = 1;
+    constexpr int SplitArrowProjectileCount = 5;
+    constexpr float SplitArrowSpreadAngle = 40.0f;
 
     constexpr float DashDistance = 120.0f;
     constexpr float DashCooldown = 0.8f;
@@ -55,6 +60,11 @@ namespace Config {
     constexpr float MeteorManaCost = 12.0f;
     constexpr float BladestormManaCost = 10.0f;
     constexpr float MeteorEffectDuration = 0.30f;
+    constexpr float AftershockRadius = 125.0f;
+    constexpr int AftershockDamage = 5;
+    constexpr float AftershockCooldown = 2.6f;
+    constexpr float AftershockManaCost = 14.0f;
+    constexpr float AftershockEffectDuration = 0.35f;
 
     constexpr float EnemySpeed = 120.0f;
     constexpr float EnemyRadius = 20.0f;

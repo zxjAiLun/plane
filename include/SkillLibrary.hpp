@@ -54,6 +54,22 @@ public:
         };
     }
 
+    static SkillDefinition splitArrow() {
+        return {
+            SkillSlot::Primary,
+            SkillCastType::Projectile,
+            "Split Arrow",
+            Config::SplitArrowCooldown,
+            0.0f,
+            Config::SplitArrowDamage,
+            0.0f,
+            Config::SplitArrowProjectileCount,
+            Config::SplitArrowSpreadAngle,
+            {},
+            Config::SplitArrowManaCost
+        };
+    }
+
     static SkillDefinition flare() {
         return {
             SkillSlot::Secondary,
@@ -166,6 +182,22 @@ public:
         };
     }
 
+    static SkillDefinition aftershock() {
+        return {
+            SkillSlot::Utility,
+            SkillCastType::SelfCenteredArea,
+            "Aftershock",
+            Config::AftershockCooldown,
+            Config::AftershockRadius,
+            Config::AftershockDamage,
+            Config::AftershockEffectDuration,
+            1,
+            0.0f,
+            {},
+            Config::AftershockManaCost
+        };
+    }
+
     static SkillDefinition dash() {
         return {
             SkillSlot::Movement,
@@ -187,6 +219,7 @@ private:
         return {
             spreadShot(),
             arcBolt(),
+            splitArrow(),
             flare(),
             meteor(),
             frostBomb(),
@@ -194,6 +227,7 @@ private:
             pulse(),
             bladestorm(),
             shockwave(),
+            aftershock(),
             dash()
         };
     }
