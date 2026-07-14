@@ -967,6 +967,11 @@ void Renderer::render(const GameWorld& world) {
         drawText(truncateText("Status " + ailmentLine, 64),
             {450.0f, 102.0f}, 12, sf::Color(255, 180, 210));
     }
+    const std::string relicSummary = world.bossRelicEffectSummary();
+    if (relicSummary != "None") {
+        drawText(truncateText("Relics: " + relicSummary, 38),
+            {450.0f, 120.0f}, 12, sf::Color(255, 225, 145));
+    }
     drawSkillBar(world);
     drawEquipment(world);
     drawInventory(world);
@@ -2141,9 +2146,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
             unlocked ? sf::Color(190, 205, 220) : sf::Color(105, 112, 122));
         const auto supports = world.skillBar().supportDefinitionsFor(skill);
         std::string summary = skillEffectiveSummary(skill, world.player().stats(), supports);
-        const std::string ailment = ailmentSummary(
-            skillAilment(skill, supports)
-        );
+        const std::string ailment = ailmentSummary(world.effectiveSkillAilment(skill));
         if (!ailment.empty()) {
             summary += "  " + ailment;
         }

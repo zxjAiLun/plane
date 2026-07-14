@@ -1448,6 +1448,58 @@ void testExpandedSkillWorldHits() {
     std::filesystem::remove(path);
 }
 
+void testBossRelicEffectsInWorld() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_boss_relic_effect_world_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(21001);
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Boss relic effect fixture starts from a valid run save");
+
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Weapon)] =
+        makeBaseItem("boss.brimstone-brand");
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Ring)] =
+        makeBaseItem("boss.storm-signet");
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Amulet)] =
+        makeBaseItem("boss.brood-talisman");
+    data.unlockedSkills.insert("Flare");
+    data.unlockedSkills.insert("Toxic Burst");
+    data.skillBar.skills[static_cast<std::size_t>(SkillSlot::Secondary)] = "Flare";
+    data.player.mana = Config::PlayerMaxMana;
+    data.state = SavedRunState::Playing;
+    const bool relicSaveSucceeded = SaveService::save(path, data, &error);
+    SaveData relicRoundTrip;
+    const bool relicLoadSucceeded = SaveService::load(path, relicRoundTrip, &error);
+    expect(relicSaveSucceeded && relicLoadSucceeded && world.loadRun(path),
+        "Boss relic effect fixture restores all three relics");
+    expect(world.bossRelicEffectSummary().find("Molten Core") != std::string::npos
+            && world.bossRelicEffectSummary().find("Storm Chain") != std::string::npos
+            && world.bossRelicEffectSummary().find("Brood Bloom") != std::string::npos,
+        "equipped relics expose all three combat effects");
+
+    const auto fireAilment = world.effectiveSkillAilment(
+        world.skillBar().definition(SkillSlot::Secondary)
+    );
+    expect(std::abs(fireAilment.damageMultiplier - 0.625f) < 0.0001f
+            && std::abs(fireAilment.duration - 3.125f) < 0.0001f,
+        "Brimstone relic modifies the effective Fire skill Ignite");
+
+    data.skillBar.skills[static_cast<std::size_t>(SkillSlot::Secondary)] = "Toxic Burst";
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Boss relic effect fixture switches to Toxic Burst");
+    const auto poisonAilment = world.effectiveSkillAilment(
+        world.skillBar().definition(SkillSlot::Secondary)
+    );
+    expect(poisonAilment.poisonSpreadRadius >= 150.0f
+            && poisonAilment.poisonSpreadMultiplier >= 0.50f,
+        "Brood relic adds Poison spread to the effective skill");
+
+    std::filesystem::remove(path);
+}
+
 void testBossCombatFlow() {
     const auto path = std::filesystem::temp_directory_path() / "plane_fight_boss_combat_test.bin";
     std::filesystem::remove(path);
@@ -2192,6 +2244,7 @@ int main() {
     testIgniteFeedbackMatchesWorldDamage();
     testBuildMathMatchesWorldHits();
     testExpandedSkillWorldHits();
+    testBossRelicEffectsInWorld();
     testBossCombatFlow();
     testElementalEnemyProjectileFlow();
     testElitePackEventFlow();

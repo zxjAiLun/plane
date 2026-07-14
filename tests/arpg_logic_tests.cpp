@@ -13,6 +13,7 @@
 
 #include "BossDash.hpp"
 #include "BossDefinition.hpp"
+#include "BossRelicEffect.hpp"
 #include "CombatMath.hpp"
 #include "Config.hpp"
 #include "Crafting.hpp"
@@ -1496,6 +1497,31 @@ void testItemBaseTypes() {
         "Brimstone relic adds a level-scaled Fire bonus");
 }
 
+void testBossRelicEffects() {
+    section("Boss relic effect definitions");
+
+    const auto& molten = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Brimstone);
+    const auto& storm = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Storm);
+    const auto& brood = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Brood);
+    const auto& none = BossRelicEffectLibrary::forTheme(ItemBaseTheme::None);
+
+    expect(molten.type == BossRelicEffectType::MoltenCore
+            && molten.igniteDamageMultiplier > 1.0f
+            && molten.igniteDurationMultiplier > 1.0f,
+        "Brimstone relic defines a stronger Ignite effect");
+    expect(storm.type == BossRelicEffectType::StormChain
+            && storm.lightningChainCount == 2
+            && storm.lightningChainRadius > 0.0f
+            && storm.lightningChainDamageMultiplier < 1.0f,
+        "Storm relic defines a bounded Lightning chain");
+    expect(brood.type == BossRelicEffectType::BroodBloom
+            && brood.poisonSpreadRadius > 0.0f
+            && brood.poisonSpreadMultiplier > 0.0f,
+        "Brood relic defines a Poison death spread");
+    expect(none.type == BossRelicEffectType::None && none.name.empty(),
+        "non-relic themes have no Boss relic effect");
+}
+
 // --- Affix tags, weights and themed selection ---
 void testAffixTagsAndWeights() {
     section("Affix tags, weights and themed selection");
@@ -2611,6 +2637,7 @@ int main() {
     testEquipmentChangesCombatStats();
     testLootGeneration();
     testItemBaseTypes();
+    testBossRelicEffects();
     testAffixTagsAndWeights();
     testCraftingChoiceOperations();
     testEliteModifierDefinitions();

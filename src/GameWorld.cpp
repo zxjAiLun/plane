@@ -1511,6 +1511,9 @@ void GameWorld::handleCollisions() {
                 if (projectile.ailment().type != AilmentType::None && dealtDamage > 0) {
                     applySkillAilment(enemy, projectile.ailment(), dealtDamage);
                 }
+                if (projectile.damageType() == DamageType::Lightning && dealtDamage > 0) {
+                    triggerStormChain(enemy, dealtDamage, projectile.ailment());
+                }
                 projectile.recordEnemyHit(enemy.id());
 
                 if (enemy.isDead()) {
@@ -2554,7 +2557,103 @@ float GameWorld::spreadAngleForPlayerSkill(const SkillDefinition& skill) const {
 }
 
 AilmentDefinition GameWorld::ailmentForPlayerSkill(const SkillDefinition& skill) const {
-    return skillAilment(skill, skillBar_.supportDefinitionsFor(skill));
+    AilmentDefinition ailment = skillAilment(skill, skillBar_.supportDefinitionsFor(skill));
+    if (skill.damageType == DamageType::Fire
+        && ailment.type == AilmentType::Ignite
+        && hasBossRelicTheme(ItemBaseTheme::Brimstone)) {
+        const auto& effect = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Brimstone);
+        ailment.damageMultiplier *= effect.igniteDamageMultiplier;
+        ailment.duration *= effect.igniteDurationMultiplier;
+    }
+    if (skill.damageType == DamageType::Poison
+        && ailment.type == AilmentType::Poison
+        && hasBossRelicTheme(ItemBaseTheme::Brood)) {
+        const auto& effect = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Brood);
+        ailment.poisonSpreadRadius = std::max(
+            ailment.poisonSpreadRadius, effect.poisonSpreadRadius
+        );
+        ailment.poisonSpreadMultiplier = std::max(
+            ailment.poisonSpreadMultiplier, effect.poisonSpreadMultiplier
+        );
+    }
+    return ailment;
+}
+
+AilmentDefinition GameWorld::effectiveSkillAilment(const SkillDefinition& skill) const {
+    return ailmentForPlayerSkill(skill);
+}
+
+bool GameWorld::hasBossRelicTheme(ItemBaseTheme theme) const {
+    for (const auto& item : player_.equipment().items()) {
+        if (!item) {
+            continue;
+        }
+
+        const auto* base = ItemBaseLibrary::find(item->baseId);
+        if (base != nullptr && base->theme == theme) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void GameWorld::triggerStormChain(
+    const Enemy& source,
+    int sourceDamage,
+    const AilmentDefinition& ailment
+) {
+    if (sourceDamage <= 0 || !hasBossRelicTheme(ItemBaseTheme::Storm)) {
+        return;
+    }
+
+    const auto& effect = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Storm);
+    if (effect.lightningChainCount <= 0 || effect.lightningChainRadius <= 0.0f) {
+        return;
+    }
+
+    std::vector<int> hitIds{source.id()};
+    Vector2 chainOrigin = source.position();
+    for (int jump = 0; jump < effect.lightningChainCount; ++jump) {
+        Enemy* target = nullptr;
+        float closestDistanceSquared = effect.lightningChainRadius * effect.lightningChainRadius;
+        for (auto& enemy : enemies_) {
+            if (enemy.isDead()
+                || std::find(hitIds.begin(), hitIds.end(), enemy.id()) != hitIds.end()) {
+                continue;
+            }
+
+            const float distanceSquared = (enemy.position() - chainOrigin).lengthSquared();
+            if (distanceSquared > closestDistanceSquared) {
+                continue;
+            }
+
+            target = &enemy;
+            closestDistanceSquared = distanceSquared;
+        }
+
+        if (target == nullptr) {
+            break;
+        }
+
+        const int chainDamage = std::max(1, static_cast<int>(std::ceil(
+            static_cast<float>(sourceDamage) * effect.lightningChainDamageMultiplier
+        )));
+        const int dealtDamage = target->takeDamage(
+            damageToEnemy(*target, chainDamage, DamageType::Lightning)
+        );
+        if (dealtDamage > 0) {
+            addCombatFeedback(target->position(), dealtDamage, effect.name);
+            if (ailment.type != AilmentType::None) {
+                applySkillAilment(*target, ailment, dealtDamage);
+            }
+        }
+
+        hitIds.push_back(target->id());
+        chainOrigin = target->position();
+        if (target->isDead()) {
+            rewardEnemyKill(*target);
+        }
+    }
 }
 
 void GameWorld::noteMapEventEnemyDefeated(const Enemy& enemy) {
@@ -3772,6 +3871,25 @@ std::string GameWorld::passiveBuildSummary() const {
         + " / Loot " + std::to_string(tree.allocatedCount(PassiveBranch::Loot))
         + " / Poison " + std::to_string(tree.allocatedCount(PassiveBranch::Poison))
         + " / Keystone " + tree.keystoneSummary();
+}
+std::string GameWorld::bossRelicEffectSummary() const {
+    const ItemBaseTheme themes[] = {
+        ItemBaseTheme::Brimstone,
+        ItemBaseTheme::Storm,
+        ItemBaseTheme::Brood
+    };
+    std::string summary;
+    for (const auto theme : themes) {
+        if (!hasBossRelicTheme(theme)) {
+            continue;
+        }
+
+        if (!summary.empty()) {
+            summary += " | ";
+        }
+        summary += BossRelicEffectLibrary::forTheme(theme).name;
+    }
+    return summary.empty() ? "None" : summary;
 }
 bool GameWorld::isSkillUnlocked(const std::string& name) const {
     return progression_.unlockedSkills.find(name) != progression_.unlockedSkills.end();

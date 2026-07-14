@@ -6,6 +6,7 @@
 #include <string>
 #include <filesystem>
 #include "BossDefinition.hpp"
+#include "BossRelicEffect.hpp"
 #include "CombatFeedback.hpp"
 #include "Crafting.hpp"
 #include "Player.hpp"
@@ -123,6 +124,7 @@ public:
     float volatileExplosionProgress() const;
     const BossDefinition& bossDefinition() const;
     const SkillBar& skillBar() const;
+    AilmentDefinition effectiveSkillAilment(const SkillDefinition& skill) const;
     const MapInstance& map() const;
     MapArea currentMapArea() const;
     float distanceToBoss() const;
@@ -133,6 +135,7 @@ public:
     int selectedSupportLink() const;
     int hoveredPassiveNode() const;
     std::string passiveBuildSummary() const;
+    std::string bossRelicEffectSummary() const;
     bool isSkillUnlocked(const std::string& name) const;
     bool isSupportUnlocked(const std::string& name) const;
 
@@ -238,6 +241,12 @@ private:
     int projectileCountForPlayerSkill(const SkillDefinition& skill) const;
     float spreadAngleForPlayerSkill(const SkillDefinition& skill) const;
     AilmentDefinition ailmentForPlayerSkill(const SkillDefinition& skill) const;
+    bool hasBossRelicTheme(ItemBaseTheme theme) const;
+    void triggerStormChain(
+        const Enemy& source,
+        int sourceDamage,
+        const AilmentDefinition& ailment
+    );
     void noteMapEventEnemyDefeated(const Enemy& enemy);
     void tryPickupDroppedItem(Input& input);
     void trySpendPassivePoint(Input& input);
