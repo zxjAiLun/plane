@@ -13,11 +13,11 @@ namespace {
 LootBias bossLootBias(BossLootTheme theme) {
     switch (theme) {
         case BossLootTheme::Brimstone:
-            return {AffixTag::Area, 1.45f, AffixTag::Damage, 1.20f};
+            return {AffixTag::Fire, 1.45f, AffixTag::Area, 1.20f};
         case BossLootTheme::Storm:
-            return {AffixTag::Projectile, 1.45f, AffixTag::AttackSpeed, 1.20f};
+            return {AffixTag::Lightning, 1.45f, AffixTag::Projectile, 1.20f};
         case BossLootTheme::Brood:
-            return {AffixTag::Area, 1.45f, AffixTag::Survival, 1.20f};
+            return {AffixTag::Poison, 1.45f, AffixTag::Area, 1.20f};
     }
     return {};
 }
@@ -162,7 +162,7 @@ bool validItemForRestore(const Item& item) {
         }
         for (const auto tag : affix.tags) {
             if (static_cast<int>(tag) < 0
-                || static_cast<int>(tag) > static_cast<int>(AffixTag::Armor)) {
+                || static_cast<int>(tag) > static_cast<int>(AffixTag::Poison)) {
                 return false;
             }
         }

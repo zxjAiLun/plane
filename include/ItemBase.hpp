@@ -23,7 +23,11 @@ enum class ItemBuildTheme {
     Projectile,
     Area,
     Survival,
-    Loot
+    Loot,
+    Fire,
+    Cold,
+    Lightning,
+    Poison
 };
 
 inline const char* itemBuildThemeName(ItemBuildTheme theme) {
@@ -33,6 +37,10 @@ inline const char* itemBuildThemeName(ItemBuildTheme theme) {
         case ItemBuildTheme::Area: return "Area";
         case ItemBuildTheme::Survival: return "Survival";
         case ItemBuildTheme::Loot: return "Loot";
+        case ItemBuildTheme::Fire: return "Fire";
+        case ItemBuildTheme::Cold: return "Cold";
+        case ItemBuildTheme::Lightning: return "Lightning";
+        case ItemBuildTheme::Poison: return "Poison";
     }
     return "Unknown";
 }
@@ -85,7 +93,8 @@ private:
         float areaDamageMultiplier = 1.0f,
         float areaRadiusMultiplier = 1.0f,
         int armor = 0,
-        float itemQuantityMultiplier = 1.0f
+        float itemQuantityMultiplier = 1.0f,
+        float poisonDamageMultiplier = 1.0f
     ) {
         Stats stats;
         stats.maxHp = maxHp;
@@ -98,6 +107,7 @@ private:
         stats.areaRadiusMultiplier = areaRadiusMultiplier;
         stats.armor = armor;
         stats.itemQuantityMultiplier = itemQuantityMultiplier;
+        stats.poisonDamageMultiplier = poisonDamageMultiplier;
         return stats;
     }
 
@@ -151,13 +161,13 @@ private:
             // contributions continue to scale with item level.
             {"boss.brimstone-brand", "Colossus Brand", EquipmentSlot::Weapon,
                 makeStats(0, 1.0f, 1.06f, 1.0f, 1.0f, 1.0f, 1.03f), ItemBaseKind::BossRelic, ItemBaseTheme::Brimstone, 1,
-                    ItemBuildTheme::Area},
+                    ItemBuildTheme::Fire},
             {"boss.storm-signet", "Herald's Signet", EquipmentSlot::Ring,
                 makeStats(0, 1.0f, 1.0f, 1.04f, 1.0f, 1.04f), ItemBaseKind::BossRelic, ItemBaseTheme::Storm, 1,
-                    ItemBuildTheme::Projectile},
+                    ItemBuildTheme::Lightning},
             {"boss.brood-talisman", "Matriarch's Talisman", EquipmentSlot::Amulet,
-                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.04f, 1.04f), ItemBaseKind::BossRelic, ItemBaseTheme::Brood, 1,
-                    ItemBuildTheme::Survival},
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.04f, 1.04f, 0, 1.0f, 1.04f),
+                    ItemBaseKind::BossRelic, ItemBaseTheme::Brood, 1, ItemBuildTheme::Poison},
         };
     }
 };

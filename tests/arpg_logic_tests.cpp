@@ -1404,6 +1404,9 @@ void testItemBaseTypes() {
     const auto* hunterBow = ItemBaseLibrary::find("weapon.hunter-bow");
     const auto* warhammer = ItemBaseLibrary::find("weapon.warhammer");
     const auto* windweave = ItemBaseLibrary::find("armor.windweave");
+    const auto* brimstoneBase = ItemBaseLibrary::find("boss.brimstone-brand");
+    const auto* stormBase = ItemBaseLibrary::find("boss.storm-signet");
+    const auto* broodBase = ItemBaseLibrary::find("boss.brood-talisman");
     expect(hunterBow != nullptr && hunterBow->buildTheme == ItemBuildTheme::Projectile
             && hunterBow->implicitStats.projectileDamageMultiplier > 1.0f,
         "Projectile Item Base theme carries projectile implicit scaling");
@@ -1413,6 +1416,13 @@ void testItemBaseTypes() {
     expect(windweave != nullptr && windweave->buildTheme == ItemBuildTheme::Loot
             && windweave->implicitStats.itemQuantityMultiplier > 1.0f,
         "Loot Item Base theme carries item quantity implicit scaling");
+    expect(brimstoneBase != nullptr && brimstoneBase->buildTheme == ItemBuildTheme::Fire,
+        "Brimstone relic Base is tagged for a Fire build");
+    expect(stormBase != nullptr && stormBase->buildTheme == ItemBuildTheme::Lightning,
+        "Storm relic Base is tagged for a Lightning build");
+    expect(broodBase != nullptr && broodBase->buildTheme == ItemBuildTheme::Poison
+            && broodBase->implicitStats.poisonDamageMultiplier > 1.0f,
+        "Brood relic Base carries Poison build identity and implicit scaling");
 
     RandomService random(17);
     LootGenerator generator;
@@ -1476,11 +1486,14 @@ void testItemBaseTypes() {
             && std::abs(brimstone.stats.areaDamageMultiplier - 1.14f) < 0.0001f,
         "Brimstone relic preserves its level-scaled combat bonuses");
     expect(std::abs(storm.stats.attackSpeedMultiplier - 1.16f) < 0.0001f
-            && std::abs(storm.stats.projectileDamageMultiplier - 1.16f) < 0.0001f,
+            && std::abs(storm.stats.projectileDamageMultiplier - 1.16f) < 0.0001f
+            && std::abs(storm.stats.lightningDamageMultiplier - 1.16f) < 0.0001f,
         "Storm relic preserves its level-scaled combat bonuses");
-    expect(std::abs(brood.stats.areaDamageMultiplier - 1.16f) < 0.0001f
+    expect(std::abs(brood.stats.poisonDamageMultiplier - 1.16f) < 0.0001f
             && std::abs(brood.stats.areaRadiusMultiplier - 1.14f) < 0.0001f,
         "Brood relic preserves its level-scaled combat bonuses");
+    expect(std::abs(brimstone.stats.fireDamageMultiplier - 1.16f) < 0.0001f,
+        "Brimstone relic adds a level-scaled Fire bonus");
 }
 
 // --- Affix tags, weights and themed selection ---
@@ -1524,8 +1537,20 @@ void testAffixTagsAndWeights() {
                 expect(hasTag(AffixTag::Area), affix.name + " maps area scaling to Area");
                 break;
             case AffixStat::PoisonDamageMultiplier:
-                expect(hasTag(AffixTag::Damage),
-                    affix.name + " maps Poison damage to Damage");
+                expect(hasTag(AffixTag::Poison) && hasTag(AffixTag::Damage),
+                    affix.name + " maps Poison damage to Poison and Damage");
+                break;
+            case AffixStat::FireDamageMultiplier:
+                expect(hasTag(AffixTag::Fire) && hasTag(AffixTag::Damage),
+                    affix.name + " maps Fire damage to Fire and Damage");
+                break;
+            case AffixStat::ColdDamageMultiplier:
+                expect(hasTag(AffixTag::Cold) && hasTag(AffixTag::Damage),
+                    affix.name + " maps Cold damage to Cold and Damage");
+                break;
+            case AffixStat::LightningDamageMultiplier:
+                expect(hasTag(AffixTag::Lightning) && hasTag(AffixTag::Damage),
+                    affix.name + " maps Lightning damage to Lightning and Damage");
                 break;
             case AffixStat::PoisonResistance:
                 expect(hasTag(AffixTag::Survival),

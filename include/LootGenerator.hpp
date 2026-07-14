@@ -86,6 +86,10 @@ public:
                     damageContribution(relativeMultiplier(
                         1.0f + std::array<float, 3>{0.14f, 0.20f, 0.27f}[tier],
                         item.implicitStats.damageMultiplier)), {AffixTag::Damage});
+                addBossAffix(item, "Molten core", tier + 1,
+                    fireDamageContribution(relativeMultiplier(
+                        1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                        item.implicitStats.fireDamageMultiplier)), {AffixTag::Fire, AffixTag::Damage});
                 addBossAffix(item, "Crushing impact", tier + 1,
                     areaDamageContribution(relativeMultiplier(
                         1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
@@ -98,6 +102,10 @@ public:
                     attackSpeedContribution(relativeMultiplier(
                         1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
                         item.implicitStats.attackSpeedMultiplier)), {AffixTag::AttackSpeed});
+                addBossAffix(item, "Conductive edge", tier + 1,
+                    lightningDamageContribution(relativeMultiplier(
+                        1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                        item.implicitStats.lightningDamageMultiplier)), {AffixTag::Lightning, AffixTag::Damage});
                 addBossAffix(item, "Charged projectiles", tier + 1,
                     projectileDamageContribution(relativeMultiplier(
                         1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
@@ -106,10 +114,10 @@ public:
 
             case BossLootTheme::Brood:
                 item.name = "Matriarch's Talisman";
-                addBossAffix(item, "Brood surge", tier + 1,
-                    areaDamageContribution(relativeMultiplier(
+                addBossAffix(item, "Brood venom", tier + 1,
+                    poisonDamageContribution(relativeMultiplier(
                         1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
-                        item.implicitStats.areaDamageMultiplier)), {AffixTag::Area});
+                        item.implicitStats.poisonDamageMultiplier)), {AffixTag::Poison, AffixTag::Damage});
                 addBossAffix(item, "Expanding nests", tier + 1,
                     areaRadiusContribution(relativeMultiplier(
                         1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
@@ -375,6 +383,24 @@ private:
         return stats;
     }
 
+    static Stats fireDamageContribution(float multiplier) {
+        Stats stats;
+        stats.fireDamageMultiplier = multiplier;
+        return stats;
+    }
+
+    static Stats lightningDamageContribution(float multiplier) {
+        Stats stats;
+        stats.lightningDamageMultiplier = multiplier;
+        return stats;
+    }
+
+    static Stats poisonDamageContribution(float multiplier) {
+        Stats stats;
+        stats.poisonDamageMultiplier = multiplier;
+        return stats;
+    }
+
     static void addBossAffix(
         Item& item,
         const std::string& name,
@@ -490,10 +516,13 @@ private:
             case AffixStat::Armor:
                 return {AffixTag::Armor, AffixTag::Survival};
             case AffixStat::FireDamageMultiplier:
+                return {AffixTag::Fire, AffixTag::Damage};
             case AffixStat::ColdDamageMultiplier:
+                return {AffixTag::Cold, AffixTag::Damage};
             case AffixStat::LightningDamageMultiplier:
+                return {AffixTag::Lightning, AffixTag::Damage};
             case AffixStat::PoisonDamageMultiplier:
-                return {AffixTag::Damage};
+                return {AffixTag::Poison, AffixTag::Damage};
             case AffixStat::FireResistance:
             case AffixStat::ColdResistance:
             case AffixStat::LightningResistance:

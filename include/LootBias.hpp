@@ -9,7 +9,11 @@ enum class AffixTag {
     Survival,
     Projectile,
     Area,
-    Armor
+    Armor,
+    Fire,
+    Cold,
+    Lightning,
+    Poison
 };
 
 struct LootBias {
@@ -30,6 +34,10 @@ inline const char* affixTagName(AffixTag tag) {
         case AffixTag::Projectile: return "Projectile";
         case AffixTag::Area: return "Area";
         case AffixTag::Armor: return "Armor";
+        case AffixTag::Fire: return "Fire";
+        case AffixTag::Cold: return "Cold";
+        case AffixTag::Lightning: return "Lightning";
+        case AffixTag::Poison: return "Poison";
     }
     return "Unknown";
 }

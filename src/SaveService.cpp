@@ -276,7 +276,7 @@ bool readItem(Reader& reader, Item& item, bool hasPoisonFields) {
         for (std::uint32_t tagIndex = 0; tagIndex < tagCount; ++tagIndex) {
             int tag = 0;
             if (!reader.integer(tag)
-                || !validEnumValue(tag, 0, static_cast<int>(AffixTag::Armor))) {
+                || !validEnumValue(tag, 0, static_cast<int>(AffixTag::Poison))) {
                 return false;
             }
             affix.tags.push_back(static_cast<AffixTag>(tag));
@@ -422,8 +422,8 @@ bool readModifierEffect(Reader& reader, MapModifierEffect& effect) {
         || !reader.real(effect.primaryLootBiasWeightMultiplier)
         || !reader.integer(secondaryTag)
         || !reader.real(effect.secondaryLootBiasWeightMultiplier)
-        || !validEnumValue(primaryTag, 0, static_cast<int>(AffixTag::Armor))
-        || !validEnumValue(secondaryTag, 0, static_cast<int>(AffixTag::Armor))) {
+        || !validEnumValue(primaryTag, 0, static_cast<int>(AffixTag::Poison))
+        || !validEnumValue(secondaryTag, 0, static_cast<int>(AffixTag::Poison))) {
         return false;
     }
     effect.primaryLootBiasTag = static_cast<AffixTag>(primaryTag);
@@ -500,8 +500,8 @@ bool readModifier(Reader& reader, MapModifier& modifier, bool hasElementalChalle
         || !reader.real(modifier.lootBiasWeightMultiplier)
         || !reader.integer(secondaryTag)
         || !reader.real(modifier.secondaryLootBiasWeightMultiplier)
-        || !validEnumValue(lootTag, 0, static_cast<int>(AffixTag::Armor))
-        || !validEnumValue(secondaryTag, 0, static_cast<int>(AffixTag::Armor))) {
+        || !validEnumValue(lootTag, 0, static_cast<int>(AffixTag::Poison))
+        || !validEnumValue(secondaryTag, 0, static_cast<int>(AffixTag::Poison))) {
         return false;
     }
 
