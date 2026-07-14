@@ -262,6 +262,7 @@ private:
     void generateNextMapOptions();
     void initializeRunProgression();
     void rewardEnemyKill(Enemy& enemy);
+    void spreadPoisonOnDeath(const Enemy& source);
     void damagePlayer(
         int damage,
         const std::string& source,

@@ -51,6 +51,8 @@ Enemy::Enemy(
     , poisonStacks_(0)
     , poisonTimer_(0.0f)
     , poisonTickTimer_(0.0f)
+    , poisonSpreadRadius_(0.0f)
+    , poisonSpreadMultiplier_(0.0f)
     , killRewardClaimed_(false) {
 }
 
@@ -170,6 +172,8 @@ AilmentTickResult Enemy::updateAilments(float dt) {
             poisonDamagePerTick_ = 0;
             poisonStacks_ = 0;
             poisonTickTimer_ = 0.0f;
+            poisonSpreadRadius_ = 0.0f;
+            poisonSpreadMultiplier_ = 0.0f;
         }
     }
 
@@ -230,15 +234,29 @@ void Enemy::applyShock(float damageTakenMultiplier, float duration) {
 }
 
 void Enemy::applyPoison(int damagePerTick, float duration) {
+    applyPoison(damagePerTick, duration, Config::MaxPoisonStacks, 0.0f, 0.0f);
+}
+
+void Enemy::applyPoison(
+    int damagePerTick,
+    float duration,
+    int maxStacks,
+    float spreadRadius,
+    float spreadMultiplier
+) {
     if (damagePerTick <= 0 || duration <= 0.0f) {
         return;
     }
 
-    if (poisonStacks_ < Config::MaxPoisonStacks) {
+    if (poisonStacks_ < std::max(1, maxStacks)) {
         ++poisonStacks_;
         poisonDamagePerTick_ += damagePerTick;
     }
     poisonTimer_ = std::max(poisonTimer_, duration);
+    poisonSpreadRadius_ = std::max(poisonSpreadRadius_, std::max(0.0f, spreadRadius));
+    poisonSpreadMultiplier_ = std::max(
+        poisonSpreadMultiplier_, std::max(0.0f, spreadMultiplier)
+    );
     poisonTickTimer_ = std::min(poisonTickTimer_, Config::AilmentTickInterval);
     if (poisonTickTimer_ <= 0.0f) {
         poisonTickTimer_ = Config::AilmentTickInterval;
@@ -297,6 +315,10 @@ bool Enemy::isChilled() const { return chillTimer_ > 0.0f; }
 bool Enemy::isShocked() const { return shockTimer_ > 0.0f; }
 bool Enemy::isPoisoned() const { return poisonTimer_ > 0.0f; }
 int Enemy::poisonStacks() const { return poisonStacks_; }
+int Enemy::poisonDamagePerTick() const { return poisonDamagePerTick_; }
+float Enemy::poisonTimeRemaining() const { return poisonTimer_; }
+float Enemy::poisonSpreadRadius() const { return poisonSpreadRadius_; }
+float Enemy::poisonSpreadMultiplier() const { return poisonSpreadMultiplier_; }
 float Enemy::damageTakenMultiplier() const {
     return isShocked() ? shockDamageTakenMultiplier_ : 1.0f;
 }

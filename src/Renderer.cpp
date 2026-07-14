@@ -453,6 +453,12 @@ std::string ailmentSummary(const AilmentDefinition& ailment) {
                 + std::to_string(static_cast<int>(ailment.damageMultiplier * 100.0f)) + "% DoT"
                 + (ailment.poisonPenetration > 0
                     ? " Pen " + std::to_string(ailment.poisonPenetration) + "%"
+                    : "")
+                + (ailment.poisonSpreadRadius > 0.0f
+                    ? " Spread " + std::to_string(static_cast<int>(ailment.poisonSpreadRadius))
+                        + " @" + std::to_string(static_cast<int>(
+                            ailment.poisonSpreadMultiplier * 100.0f
+                        )) + "%"
                     : "");
         case AilmentType::None:
         case AilmentType::Count:
@@ -1635,7 +1641,9 @@ void Renderer::drawCombatFeedback(const GameWorld& world) {
                 break;
             case CombatFeedbackType::Status:
                 text = feedback.source;
-                color = sf::Color(205, 155, 255, alpha);
+                color = feedback.source == "Contagion"
+                    ? sf::Color(130, 235, 130, alpha)
+                    : sf::Color(205, 155, 255, alpha);
                 break;
         }
         const Vector2 textPosition(feedback.position.x, feedback.position.y - 24.0f - rise);

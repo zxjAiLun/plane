@@ -36,6 +36,13 @@ public:
     void applyChill(float speedMultiplier, float duration);
     void applyShock(float damageTakenMultiplier, float duration);
     void applyPoison(int damagePerTick, float duration);
+    void applyPoison(
+        int damagePerTick,
+        float duration,
+        int maxStacks,
+        float spreadRadius,
+        float spreadMultiplier
+    );
     void kill();
     bool isDead() const;
     bool claimKillReward();
@@ -61,6 +68,10 @@ public:
     bool isShocked() const;
     bool isPoisoned() const;
     int poisonStacks() const;
+    int poisonDamagePerTick() const;
+    float poisonTimeRemaining() const;
+    float poisonSpreadRadius() const;
+    float poisonSpreadMultiplier() const;
     float damageTakenMultiplier() const;
     float movementSpeedMultiplier() const;
     Vector2 chargeTargetPosition(float mapSpeedMultiplier = 1.0f) const;
@@ -98,6 +109,8 @@ private:
     int poisonStacks_;
     float poisonTimer_;
     float poisonTickTimer_;
+    float poisonSpreadRadius_;
+    float poisonSpreadMultiplier_;
     bool killRewardClaimed_;
 
     inline static int nextId_ = 1;

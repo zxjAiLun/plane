@@ -371,6 +371,12 @@ inline AilmentDefinition skillAilment(
                 break;
             case AilmentType::Poison:
                 ailment.damageMultiplier *= support->ailmentDamageMultiplier;
+                ailment.poisonSpreadRadius = std::max(
+                    ailment.poisonSpreadRadius, support->poisonSpreadRadius
+                );
+                ailment.poisonSpreadMultiplier = std::max(
+                    ailment.poisonSpreadMultiplier, support->poisonSpreadMultiplier
+                );
                 break;
             case AilmentType::None:
             case AilmentType::Count:

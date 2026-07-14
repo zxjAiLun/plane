@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <set>
 #include <string>
@@ -94,8 +95,6 @@ public:
                 lockedSkills.push_back(&skill);
             }
         }
-        const bool allSkillsAlreadyUnlocked = lockedSkills.empty();
-
         std::array<MapRewardDefinition, 3> rewards{};
         std::size_t rewardIndex = 0;
         while (rewardIndex < rewards.size() && !lockedSkills.empty()) {
@@ -105,20 +104,33 @@ public:
             ++rewardIndex;
         }
 
-        if (allSkillsAlreadyUnlocked) {
-            std::vector<const SupportDefinition*> lockedSupports;
-            for (const auto& support : SupportLibrary::all()) {
-                if (unlockedSupports.find(support.name) == unlockedSupports.end()) {
-                    lockedSupports.push_back(&support);
-                }
+        // Once the remaining skill pool no longer fills all three choices,
+        // offer supports that can already modify an unlocked skill. This lets
+        // a build start specializing before every skill in the library is found.
+        std::vector<const SupportDefinition*> lockedSupports;
+        for (const auto& support : SupportLibrary::all()) {
+            if (unlockedSupports.find(support.name) != unlockedSupports.end()) {
+                continue;
             }
 
-            while (rewardIndex < rewards.size() && !lockedSupports.empty()) {
-                const auto randomIndex = random.nextIndex(lockedSupports.size());
-                rewards[rewardIndex] = supportUnlockReward(*lockedSupports[randomIndex]);
-                lockedSupports.erase(lockedSupports.begin() + randomIndex);
-                ++rewardIndex;
+            const bool matchesUnlockedSkill = std::any_of(
+                SkillLibrary::all().begin(),
+                SkillLibrary::all().end(),
+                [&](const SkillDefinition& skill) {
+                    return unlockedSkills.find(skill.name) != unlockedSkills.end()
+                        && SupportLibrary::supportsSkill(support, skill);
+                }
+            );
+            if (matchesUnlockedSkill) {
+                lockedSupports.push_back(&support);
             }
+        }
+
+        while (rewardIndex < rewards.size() && !lockedSupports.empty()) {
+            const auto randomIndex = random.nextIndex(lockedSupports.size());
+            rewards[rewardIndex] = supportUnlockReward(*lockedSupports[randomIndex]);
+            lockedSupports.erase(lockedSupports.begin() + randomIndex);
+            ++rewardIndex;
         }
 
         const auto& fallbacks = fallbackRewards();

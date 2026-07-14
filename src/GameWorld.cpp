@@ -2169,7 +2169,13 @@ void GameWorld::applySkillAilment(
                 if (tickDamage <= 0) {
                     return;
                 }
-                enemy.applyPoison(tickDamage, ailment.duration);
+                enemy.applyPoison(
+                    tickDamage,
+                    ailment.duration,
+                    Config::MaxPoisonStacks,
+                    ailment.poisonSpreadRadius,
+                    ailment.poisonSpreadMultiplier
+                );
             }
             addCombatFeedback(
                 enemy.position(),
@@ -3231,6 +3237,42 @@ void GameWorld::generateNextMapOptions() {
     nextMapOptionChosen_ = false;
 }
 
+void GameWorld::spreadPoisonOnDeath(const Enemy& source) {
+    if (source.isBoss()
+        || source.poisonSpreadRadius() <= 0.0f
+        || source.poisonSpreadMultiplier() <= 0.0f
+        || source.poisonDamagePerTick() <= 0) {
+        return;
+    }
+
+    const int spreadDamage = std::max(1, static_cast<int>(std::ceil(
+        static_cast<float>(source.poisonDamagePerTick())
+            * source.poisonSpreadMultiplier()
+    )));
+    const float spreadDuration = std::max(0.5f, source.poisonTimeRemaining());
+    for (auto& target : enemies_) {
+        if (target.isDead() || target.id() == source.id() || target.isBoss()) {
+            continue;
+        }
+
+        const float distanceLimit = source.poisonSpreadRadius()
+            + source.radius() + target.radius();
+        if ((target.position() - source.position()).lengthSquared()
+                > distanceLimit * distanceLimit) {
+            continue;
+        }
+
+        target.applyPoison(
+            spreadDamage,
+            spreadDuration,
+            Config::MaxPoisonStacks,
+            source.poisonSpreadRadius(),
+            source.poisonSpreadMultiplier()
+        );
+        addCombatFeedback(target.position(), 0, "Contagion", CombatFeedbackType::Status);
+    }
+}
+
 void GameWorld::initializeRunProgression() {
     progression_ = RunProgression();
     progression_.unlockedSkills.insert(SkillLibrary::spreadShot().name);
@@ -3243,6 +3285,8 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
     if (!enemy.claimKillReward()) {
         return;
     }
+
+    spreadPoisonOnDeath(enemy);
 
     const auto& definition = EnemyLibrary::forType(enemy.type());
 

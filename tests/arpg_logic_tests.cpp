@@ -501,6 +501,7 @@ void testCombatMathDamageRadiusPierce() {
     const SupportDefinition* trailblazer = SupportLibrary::find("Trailblazer");
     const SupportDefinition* combustion = SupportLibrary::find("Combustion");
     const SupportDefinition* deepChill = SupportLibrary::find("Deep Chill");
+    const SupportDefinition* contagion = SupportLibrary::find("Contagion");
     const SupportDefinition* barrage = SupportLibrary::find("Barrage");
     const SupportDefinition* concentration = SupportLibrary::find("Concentration");
     const SupportDefinition* echo = SupportLibrary::find("Echo");
@@ -509,7 +510,7 @@ void testCombatMathDamageRadiusPierce() {
             && volley != nullptr && trailblazer != nullptr
             && combustion != nullptr && deepChill != nullptr
             && barrage != nullptr && concentration != nullptr
-            && echo != nullptr && pinpoint != nullptr,
+            && echo != nullptr && pinpoint != nullptr && contagion != nullptr,
         "existing and expanded supports exist in library");
 
     Stats stats;
@@ -824,6 +825,7 @@ void testSkillAilments() {
     const SkillDefinition frostBomb = SkillLibrary::frostBomb();
     const SkillDefinition toxicBurst = SkillLibrary::toxicBurst();
     const auto* toxicity = SupportLibrary::find("Toxicity");
+    const auto* contagion = SupportLibrary::find("Contagion");
     expect(flare.ailment.type == AilmentType::Ignite, "Flare applies Ignite");
     expect(meteor.ailment.type == AilmentType::Ignite, "Meteor applies Ignite");
     expect(frostBomb.ailment.type == AilmentType::Chill, "Frost Bomb applies Chill");
@@ -841,6 +843,12 @@ void testSkillAilments() {
             && toxicityPoison.damageMultiplier > toxicBurst.ailment.damageMultiplier
             && toxicityPoison.poisonPenetration == 20,
         "Toxicity increases Poison damage and penetration");
+    const AilmentDefinition contagionPoison = skillAilment(toxicBurst, contagion);
+    expect(contagion != nullptr
+            && SupportLibrary::supportsSkill(*contagion, toxicBurst)
+            && contagionPoison.poisonSpreadRadius == 120.0f
+            && std::abs(contagionPoison.poisonSpreadMultiplier - 0.45f) < 0.0001f,
+        "Contagion attaches a Poison death-spread payload");
     Stats poisonStats;
     poisonStats.poisonDamageMultiplier = 1.50f;
     expect(skillDamage(toxicBurst, poisonStats, nullptr)
@@ -914,6 +922,14 @@ void testSkillAilments() {
     poisonedEnemy.updateAilments(2.0f);
     expect(!poisonedEnemy.isPoisoned() && poisonedEnemy.poisonStacks() == 0,
         "Poison expires and clears its stack state");
+
+    Enemy contagionEnemy({0.0f, 0.0f}, 50, 1);
+    contagionEnemy.applyPoison(6, 3.0f, Config::MaxPoisonStacks, 120.0f, 0.45f);
+    expect(contagionEnemy.poisonDamagePerTick() == 6
+            && contagionEnemy.poisonTimeRemaining() > 0.0f
+            && contagionEnemy.poisonSpreadRadius() == 120.0f
+            && std::abs(contagionEnemy.poisonSpreadMultiplier() - 0.45f) < 0.0001f,
+        "Poisoned enemies retain Contagion spread data for death handling");
 
     Enemy chillOnlyEnemy({0.0f, 0.0f}, 10, 1);
     chillOnlyEnemy.applyChill(0.55f, 2.0f);
@@ -2385,6 +2401,19 @@ void testMapRewardGeneration() {
             && std::any_of(newSupportRewards.begin(), newSupportRewards.end(),
             [](const MapRewardDefinition& option) { return option.supportName == "Pinpoint"; }),
         "new Supports remain eligible for map unlock rewards");
+
+    std::set<std::string> poisonSupports = allSupports;
+    poisonSupports.erase("Toxicity");
+    poisonSupports.erase("Contagion");
+    RandomService poisonSupportRandom(1002);
+    const auto poisonSupportRewards = MapRewardLibrary::generateOptions(
+        allSkills, poisonSupports, poisonSupportRandom
+    );
+    expect(std::any_of(poisonSupportRewards.begin(), poisonSupportRewards.end(),
+            [](const MapRewardDefinition& option) { return option.supportName == "Toxicity"; })
+            && std::any_of(poisonSupportRewards.begin(), poisonSupportRewards.end(),
+            [](const MapRewardDefinition& option) { return option.supportName == "Contagion"; }),
+        "Poison supports appear as targeted late-run rewards");
 
     std::set<std::string> allSkillsExceptArc = allSkills;
     allSkillsExceptArc.erase(arcBoltName);
