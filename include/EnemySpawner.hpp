@@ -14,13 +14,14 @@ public:
 
     void update(float dt);
     std::optional<Enemy> trySpawn(int hp, int contactDamage, EnemyType type = EnemyType::Normal,
-        EliteModifier eliteModifier = EliteModifier::None);
+        EliteModifier eliteModifier = EliteModifier::None, int fieldPackIndex = -1);
     std::optional<Enemy> trySpawn(
         int hp,
         int contactDamage,
         EnemyType type,
         EliteModifier eliteModifier,
-        RandomService& random
+        RandomService& random,
+        int fieldPackIndex = -1
     );
     std::optional<Enemy> trySpawnNear(
         const Vector2& playerPosition,
@@ -29,7 +30,8 @@ public:
         int hp,
         int contactDamage,
         EnemyType type = EnemyType::Normal,
-        EliteModifier eliteModifier = EliteModifier::None
+        EliteModifier eliteModifier = EliteModifier::None,
+        int fieldPackIndex = -1
     );
     std::optional<Enemy> trySpawnNear(
         const Vector2& playerPosition,
@@ -39,7 +41,8 @@ public:
         int contactDamage,
         EnemyType type,
         EliteModifier eliteModifier,
-        RandomService& random
+        RandomService& random,
+        int fieldPackIndex = -1
     );
 
     void setSpawnInterval(float interval);

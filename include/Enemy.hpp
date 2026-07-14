@@ -18,7 +18,8 @@ public:
         EnemyType type,
         EliteModifier eliteModifier,
         int mapEventIndex,
-        bool summoned = false
+        bool summoned = false,
+        int fieldPackIndex = -1
     );
 
     void update(float dt, const Vector2& targetPosition, const MapInstance& map);
@@ -80,6 +81,7 @@ public:
     bool isBoss() const;
     EliteModifier eliteModifier() const;
     int mapEventIndex() const;
+    int fieldPackIndex() const;
 
 private:
     Vector2 position_;
@@ -92,6 +94,7 @@ private:
     EliteModifier eliteModifier_;
     int mapEventIndex_;
     bool summoned_;
+    int fieldPackIndex_;
     float attackCooldownTimer_;
     float attackWindupTimer_;
     bool attackReady_;

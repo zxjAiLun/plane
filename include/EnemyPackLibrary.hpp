@@ -6,6 +6,7 @@
 #include <string>
 
 #include "EnemyType.hpp"
+#include "LootBias.hpp"
 
 struct EnemyPackDefinition {
     std::string id;
@@ -13,6 +14,8 @@ struct EnemyPackDefinition {
     std::string description;
     std::array<EnemyType, 6> enemies{};
     int enemyCount = 0;
+    LootBias lootBias;
+    int clearRewardDrops = 1;
 };
 
 class EnemyPackLibrary {
@@ -28,7 +31,8 @@ public:
                 "Feral front line with a Ravager push",
                 {EnemyType::Normal, EnemyType::Normal, EnemyType::Normal,
                  EnemyType::Charger, EnemyType::Elite, EnemyType::Normal},
-                6
+                6,
+                {AffixTag::Damage, 1.35f, AffixTag::Armor, 1.15f}
             },
             {
                 "ashen-warden-court",
@@ -36,7 +40,8 @@ public:
                 "A Warden anchors a slow, durable melee formation",
                 {EnemyType::Warden, EnemyType::Normal, EnemyType::Normal,
                  EnemyType::Normal, EnemyType::Charger, EnemyType::Elite},
-                6
+                6,
+                {AffixTag::Survival, 1.35f, AffixTag::Armor, 1.20f}
             },
             {
                 "ashen-last-stand",
@@ -44,7 +49,8 @@ public:
                 "Elite pressure backed by a compact melee screen",
                 {EnemyType::Elite, EnemyType::Normal, EnemyType::Normal,
                  EnemyType::Charger, EnemyType::Warden, EnemyType::Normal},
-                6
+                6,
+                {AffixTag::Damage, 1.40f, AffixTag::Area, 1.15f}
             },
             {
                 "storm-spitter-screen",
@@ -52,7 +58,8 @@ public:
                 "Ranged pressure forces movement through the open field",
                 {EnemyType::Ranged, EnemyType::Ranged, EnemyType::Normal,
                  EnemyType::Ranged, EnemyType::Charger, EnemyType::Summoner},
-                6
+                6,
+                {AffixTag::Projectile, 1.40f, AffixTag::AttackSpeed, 1.15f}
             },
             {
                 "storm-anchor-patrol",
@@ -60,7 +67,8 @@ public:
                 "A Hexbinder creates a protected ranged position",
                 {EnemyType::Summoner, EnemyType::Ranged, EnemyType::Ranged,
                  EnemyType::Normal, EnemyType::Charger, EnemyType::Normal},
-                6
+                6,
+                {AffixTag::Lightning, 1.35f, AffixTag::Projectile, 1.20f}
             },
             {
                 "storm-crossfire",
@@ -68,7 +76,8 @@ public:
                 "Chargers collapse on a ranged crossfire",
                 {EnemyType::Ranged, EnemyType::Charger, EnemyType::Ranged,
                  EnemyType::Normal, EnemyType::Elite, EnemyType::Ranged},
-                6
+                6,
+                {AffixTag::AttackSpeed, 1.35f, AffixTag::Projectile, 1.20f}
             },
             {
                 "venom-overgrowth",
@@ -76,7 +85,8 @@ public:
                 "Mixed elemental threats with a durable Warden",
                 {EnemyType::Warden, EnemyType::Normal, EnemyType::Charger,
                  EnemyType::Normal, EnemyType::Summoner, EnemyType::Normal},
-                6
+                6,
+                {AffixTag::Poison, 1.40f, AffixTag::Area, 1.15f}
             },
             {
                 "venom-hunter-nest",
@@ -84,7 +94,8 @@ public:
                 "A Summoner and Chargers punish stationary builds",
                 {EnemyType::Summoner, EnemyType::Charger, EnemyType::Charger,
                  EnemyType::Normal, EnemyType::Elite, EnemyType::Normal},
-                6
+                6,
+                {AffixTag::Poison, 1.35f, AffixTag::Damage, 1.20f}
             },
             {
                 "venom-bloom-guard",
@@ -92,7 +103,8 @@ public:
                 "Elite and Warden defenses protect a poison-leaning screen",
                 {EnemyType::Elite, EnemyType::Warden, EnemyType::Normal,
                  EnemyType::Normal, EnemyType::Charger, EnemyType::Summoner},
-                6
+                6,
+                {AffixTag::Poison, 1.45f, AffixTag::Survival, 1.15f}
             }
         }};
         return packs;

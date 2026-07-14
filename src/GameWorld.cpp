@@ -757,6 +757,9 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     fieldPackSequence_ = 0;
     fieldPackName_.clear();
     fieldPackStarted_ = false;
+    activeFieldPackId_ = -1;
+    activeFieldPackLootBias_ = {};
+    activeFieldPackRewardDrops_ = 0;
     currentWave_ = 0;
     enemiesSpawnedInWave_ = 0;
     resetBossDash();
@@ -954,6 +957,9 @@ void GameWorld::reset(std::uint64_t runSeed) {
     fieldPackSequence_ = 0;
     fieldPackName_.clear();
     fieldPackStarted_ = false;
+    activeFieldPackId_ = -1;
+    activeFieldPackLootBias_ = {};
+    activeFieldPackRewardDrops_ = 0;
     skillBar_.reset();
     initializeRunProgression();
     applySkillProgression();
@@ -1075,6 +1081,9 @@ void GameWorld::startNextMap() {
     fieldPackSequence_ = 0;
     fieldPackName_.clear();
     fieldPackStarted_ = false;
+    activeFieldPackId_ = -1;
+    activeFieldPackLootBias_ = {};
+    activeFieldPackRewardDrops_ = 0;
     applySkillProgression();
     state_ = GameState::Playing;
     resumeState_ = GameState::Playing;
@@ -1498,6 +1507,12 @@ void GameWorld::spawnEnemies(float dt) {
         return;
     }
 
+    if (pendingFieldPack_.empty()
+        && activeFieldPackId_ >= 0
+        && fieldPackEnemiesRemaining() > 0) {
+        return;
+    }
+
     spawner_.update(dt);
     const EnemyType type = nextMapEnemyType();
     const auto& definition = EnemyLibrary::forType(type);
@@ -1509,7 +1524,8 @@ void GameWorld::spawnEnemies(float dt) {
     const int damage = enemyDamageForMap() + definition.damageBonus + modifierDefinition.damageBonus;
 
     if (auto enemy = spawner_.trySpawnNear(
-            player_.position(), map_.size(), map_, hp, damage, type, modifier, random_
+            player_.position(), map_.size(), map_, hp, damage, type, modifier,
+            random_, activeFieldPackId_
         )) {
         enemies_.push_back(*enemy);
         fieldPackStarted_ = true;
@@ -2373,6 +2389,10 @@ void GameWorld::triggerElitePackEvent(std::size_t eventIndex) {
     event.triggered = true;
     pendingFieldPack_.clear();
     fieldPackName_.clear();
+    fieldPackStarted_ = false;
+    activeFieldPackId_ = -1;
+    activeFieldPackLootBias_ = {};
+    activeFieldPackRewardDrops_ = 0;
     spawner_.reset();
     activeMapEventIndex_ = static_cast<int>(eventIndex);
     mapEventEnemiesRemaining_ = 5;
@@ -2400,6 +2420,10 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
     event.triggered = true;
     pendingFieldPack_.clear();
     fieldPackName_.clear();
+    fieldPackStarted_ = false;
+    activeFieldPackId_ = -1;
+    activeFieldPackLootBias_ = {};
+    activeFieldPackRewardDrops_ = 0;
     spawner_.reset();
     switch (encounter.type) {
         case MapEncounterType::EnhancedCache: {
@@ -2555,7 +2579,8 @@ void GameWorld::activateGuardedShrineEvent(MapEventInstance& event) {
 int GameWorld::dropItemsAround(
     const Vector2& center,
     int count,
-    float eventRewardMultiplier
+    float eventRewardMultiplier,
+    const LootBias& extraBias
 ) {
     const float quantityMultiplier = std::max(0.0f, eventRewardMultiplier)
         * std::max(0.0f, mapModifier_.itemQuantityMultiplier);
@@ -2566,9 +2591,11 @@ int GameWorld::dropItemsAround(
         const float angle = static_cast<float>(i) * 2.39996323f;
         const float radius = i == 0 ? 0.0f : 24.0f + static_cast<float>(i) * 5.0f;
         const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
+        LootBias dropBias = mapModifier_.lootBias();
+        mergeLootBias(dropBias, extraBias);
         droppedItems_.push_back(DroppedItem(
             center + offset,
-            lootGenerator_.generate(itemLevelForMap(), random_, mapModifier_.lootBias())
+            lootGenerator_.generate(itemLevelForMap(), random_, dropBias)
         ));
         ++mapItemsDropped_;
     }
@@ -3533,6 +3560,9 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         const float radius = i == 0 ? 0.0f : 18.0f + static_cast<float>(i) * 4.0f;
         const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
         LootBias dropBias = mapModifier_.lootBias();
+        if (enemy.fieldPackIndex() == activeFieldPackId_) {
+            mergeLootBias(dropBias, activeFieldPackLootBias_);
+        }
         if (enemy.isBoss()) {
             mergeLootBias(dropBias, bossLootBias(bossDefinition_->lootTheme));
         }
@@ -3547,6 +3577,41 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
     }
 
     noteMapEventEnemyDefeated(enemy);
+    noteFieldPackEnemyDefeated(enemy);
+}
+
+void GameWorld::noteFieldPackEnemyDefeated(const Enemy& enemy) {
+    if (enemy.fieldPackIndex() < 0
+        || enemy.fieldPackIndex() != activeFieldPackId_
+        || !pendingFieldPack_.empty()) {
+        return;
+    }
+
+    const int livingEnemies = static_cast<int>(std::count_if(
+        enemies_.begin(),
+        enemies_.end(),
+        [this](const Enemy& candidate) {
+            return candidate.fieldPackIndex() == activeFieldPackId_
+                && !candidate.isDead();
+        }
+    ));
+    if (livingEnemies > 0) {
+        return;
+    }
+
+    const int droppedCount = dropItemsAround(
+        enemy.position(),
+        activeFieldPackRewardDrops_,
+        1.0f,
+        activeFieldPackLootBias_
+    );
+    eventStatusMessage_ = fieldPackName_ + " cleared: "
+        + std::to_string(droppedCount) + " items dropped";
+    eventStatusTimer_ = 2.0f;
+    activeFieldPackId_ = -1;
+    activeFieldPackLootBias_ = {};
+    activeFieldPackRewardDrops_ = 0;
+    fieldPackStarted_ = false;
 }
 
 void GameWorld::damagePlayer(
@@ -3783,6 +3848,9 @@ EnemyType GameWorld::nextMapEnemyType() {
         };
         replaceNormalWith(EnemyType::Elite, mapModifier_.eliteWeightBonus);
         replaceNormalWith(EnemyType::Charger, mapModifier_.chargerWeightBonus);
+        activeFieldPackId_ = fieldPackSequence_;
+        activeFieldPackLootBias_ = pack.lootBias;
+        activeFieldPackRewardDrops_ = pack.clearRewardDrops;
         fieldPackName_ = pack.name;
         fieldPackStarted_ = false;
         ++fieldPackSequence_;
@@ -3990,6 +4058,20 @@ int GameWorld::supportLevel(const std::string& name) const {
 std::string GameWorld::fieldPackName() const { return fieldPackName_; }
 int GameWorld::pendingFieldPackEnemies() const {
     return static_cast<int>(pendingFieldPack_.size());
+}
+int GameWorld::fieldPackEnemiesRemaining() const {
+    if (activeFieldPackId_ < 0) {
+        return 0;
+    }
+
+    const int livingEnemies = static_cast<int>(std::count_if(
+        enemies_.begin(),
+        enemies_.end(),
+        [this](const Enemy& enemy) {
+            return enemy.fieldPackIndex() == activeFieldPackId_ && !enemy.isDead();
+        }
+    ));
+    return livingEnemies + static_cast<int>(pendingFieldPack_.size());
 }
 GameState GameWorld::state() const { return state_; }
 bool GameWorld::quitRequested() const { return quitRequested_; }

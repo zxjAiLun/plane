@@ -17,8 +17,16 @@ void EnemySpawner::setSpawnInterval(float interval) {
     spawnTimer_.setDuration(interval);
 }
 
-std::optional<Enemy> EnemySpawner::trySpawn(int hp, int contactDamage, EnemyType type, EliteModifier eliteModifier) {
-    return trySpawn(hp, contactDamage, type, eliteModifier, RandomService::legacy());
+std::optional<Enemy> EnemySpawner::trySpawn(
+    int hp,
+    int contactDamage,
+    EnemyType type,
+    EliteModifier eliteModifier,
+    int fieldPackIndex
+) {
+    return trySpawn(
+        hp, contactDamage, type, eliteModifier, RandomService::legacy(), fieldPackIndex
+    );
 }
 
 std::optional<Enemy> EnemySpawner::trySpawn(
@@ -26,7 +34,8 @@ std::optional<Enemy> EnemySpawner::trySpawn(
     int contactDamage,
     EnemyType type,
     EliteModifier eliteModifier,
-    RandomService& random
+    RandomService& random,
+    int fieldPackIndex
 ) {
     if (spawnTimer_.isReady()) {
         spawnTimer_.reset();
@@ -56,7 +65,7 @@ std::optional<Enemy> EnemySpawner::trySpawn(
 
         Vector2 position(x, y);
 
-        return Enemy(position, hp, contactDamage, type, eliteModifier);
+        return Enemy(position, hp, contactDamage, type, eliteModifier, -1, false, fieldPackIndex);
     }
     return std::nullopt;
 }
@@ -68,7 +77,8 @@ std::optional<Enemy> EnemySpawner::trySpawnNear(
     int hp,
     int contactDamage,
     EnemyType type,
-    EliteModifier eliteModifier
+    EliteModifier eliteModifier,
+    int fieldPackIndex
 ) {
     return trySpawnNear(
         playerPosition,
@@ -78,7 +88,8 @@ std::optional<Enemy> EnemySpawner::trySpawnNear(
         contactDamage,
         type,
         eliteModifier,
-        RandomService::legacy()
+        RandomService::legacy(),
+        fieldPackIndex
     );
 }
 
@@ -90,7 +101,8 @@ std::optional<Enemy> EnemySpawner::trySpawnNear(
     int contactDamage,
     EnemyType type,
     EliteModifier eliteModifier,
-    RandomService& random
+    RandomService& random,
+    int fieldPackIndex
 ) {
     if (!spawnTimer_.isReady()) {
         return std::nullopt;
@@ -112,7 +124,9 @@ std::optional<Enemy> EnemySpawner::trySpawnNear(
         position.x = std::clamp(position.x, Config::EnemyRadius, worldSize.x - Config::EnemyRadius);
         position.y = std::clamp(position.y, Config::EnemyRadius, worldSize.y - Config::EnemyRadius);
 
-        Enemy enemy(position, hp, contactDamage, type, eliteModifier);
+        Enemy enemy(
+            position, hp, contactDamage, type, eliteModifier, -1, false, fieldPackIndex
+        );
         if (!map.intersectsObstacle(enemy.position(), enemy.radius())) {
             return enemy;
         }

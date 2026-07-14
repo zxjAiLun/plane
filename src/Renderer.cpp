@@ -878,9 +878,9 @@ void Renderer::render(const GameWorld& world) {
             {16.0f, hudY}, 14, sf::Color(255, 190, 140));
         hudY += 18.0f;
     }
-    if (world.pendingFieldPackEnemies() > 0) {
+    if (world.fieldPackEnemiesRemaining() > 0) {
         drawText(truncateText("Pack: " + world.fieldPackName()
-                + " (" + std::to_string(world.pendingFieldPackEnemies()) + " queued)", 34),
+                + " (" + std::to_string(world.fieldPackEnemiesRemaining()) + " left)", 34),
             {16.0f, hudY}, 14, sf::Color(210, 205, 255));
         hudY += 18.0f;
     }

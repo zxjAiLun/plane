@@ -12,7 +12,7 @@ Enemy::Enemy(
     EnemyType type,
     EliteModifier eliteModifier
 )
-    : Enemy(position, hp, contactDamage, type, eliteModifier, -1) {
+    : Enemy(position, hp, contactDamage, type, eliteModifier, -1, false, -1) {
 }
 
 Enemy::Enemy(
@@ -22,7 +22,8 @@ Enemy::Enemy(
     EnemyType type,
     EliteModifier eliteModifier,
     int mapEventIndex,
-    bool summoned
+    bool summoned,
+    int fieldPackIndex
 )
     : position_(position)
     , id_(nextId_++)
@@ -34,6 +35,7 @@ Enemy::Enemy(
     , eliteModifier_(type == EnemyType::Elite ? eliteModifier : EliteModifier::None)
     , mapEventIndex_(mapEventIndex)
     , summoned_(summoned)
+    , fieldPackIndex_(fieldPackIndex)
     , attackCooldownTimer_(0.0f)
     , attackWindupTimer_(0.0f)
     , attackReady_(false)
@@ -349,3 +351,4 @@ bool Enemy::isElite() const {
 bool Enemy::isBoss() const { return type_ == EnemyType::Boss; }
 EliteModifier Enemy::eliteModifier() const { return eliteModifier_; }
 int Enemy::mapEventIndex() const { return mapEventIndex_; }
+int Enemy::fieldPackIndex() const { return fieldPackIndex_; }

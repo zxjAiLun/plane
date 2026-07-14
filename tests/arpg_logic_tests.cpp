@@ -2590,7 +2590,9 @@ void testEnemyPackLibrary() {
     expect(packs.size() == 9, "three map themes expose three field packs each");
     for (const auto& pack : packs) {
         expect(!pack.id.empty() && !pack.name.empty()
-                && pack.enemyCount == static_cast<int>(pack.enemies.size()),
+                && pack.enemyCount == static_cast<int>(pack.enemies.size())
+                && pack.clearRewardDrops > 0
+                && pack.lootBias.primaryTag != AffixTag::None,
             "field pack has a complete composition: " + pack.name);
     }
 

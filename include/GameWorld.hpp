@@ -145,6 +145,7 @@ public:
     int supportLevel(const std::string& name) const;
     std::string fieldPackName() const;
     int pendingFieldPackEnemies() const;
+    int fieldPackEnemiesRemaining() const;
 
     GameState state() const;
     int score() const;
@@ -241,7 +242,12 @@ private:
     void openLootCacheEvent(MapEventInstance& event);
     void activateShrineEvent(MapEventInstance& event);
     void activateGuardedShrineEvent(MapEventInstance& event);
-    int dropItemsAround(const Vector2& center, int count, float eventRewardMultiplier = 1.0f);
+    int dropItemsAround(
+        const Vector2& center,
+        int count,
+        float eventRewardMultiplier = 1.0f,
+        const LootBias& extraBias = {}
+    );
     int damageForPlayerSkill(const SkillDefinition& skill) const;
     void applySkillProgression();
     float radiusForPlayerSkill(const SkillDefinition& skill) const;
@@ -279,6 +285,7 @@ private:
     void generateNextMapOptions();
     void initializeRunProgression();
     void rewardEnemyKill(Enemy& enemy);
+    void noteFieldPackEnemyDefeated(const Enemy& enemy);
     void spreadPoisonOnDeath(const Enemy& source);
     void damagePlayer(
         int damage,
@@ -326,6 +333,9 @@ private:
     int fieldPackSequence_ = 0;
     std::string fieldPackName_;
     bool fieldPackStarted_ = false;
+    int activeFieldPackId_ = -1;
+    LootBias activeFieldPackLootBias_;
+    int activeFieldPackRewardDrops_ = 0;
     SkillBar skillBar_;
     MapInstance map_;
     RunProgression progression_;
