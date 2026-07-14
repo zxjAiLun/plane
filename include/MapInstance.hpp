@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "Config.hpp"
+#include "EnemyType.hpp"
 #include "GroundHazard.hpp"
 #include "MapExploration.hpp"
 #include "MapLayout.hpp"
@@ -35,7 +36,9 @@ enum class MapEncounterType {
     EnhancedCache,
     HazardousElitePack,
     GuardedShrine,
-    BountyHunt
+    BountyHunt,
+    CursedReliquary,
+    WardenCourt
 };
 
 struct MapEncounterDefinition {
@@ -51,12 +54,14 @@ struct MapEncounterDefinition {
     GroundHazardDefinition hazard;
     bool requiresGuardClearance = false;
     int completionDropCount = 0;
+    EnemyType primaryEnemyType = EnemyType::Elite;
+    EnemyType secondaryEnemyType = EnemyType::Normal;
 };
 
 class MapEncounterLibrary {
 public:
-    static const std::array<MapEncounterDefinition, 4>& all() {
-        static const std::array<MapEncounterDefinition, 4> definitions = {{
+    static const std::array<MapEncounterDefinition, 6>& all() {
+        static const std::array<MapEncounterDefinition, 6> definitions = {{
             {
                 MapEncounterType::EnhancedCache,
                 "enhanced-cache",
@@ -109,6 +114,38 @@ public:
                 {},
                 false,
                 2
+            },
+            {
+                MapEncounterType::CursedReliquary,
+                "cursed-reliquary",
+                "Cursed Reliquary",
+                "Unseal a cursed cache and defeat its guardians for a larger reward",
+                122.0f,
+                0,
+                1,
+                2,
+                1.30f,
+                {},
+                false,
+                4,
+                EnemyType::Elite,
+                EnemyType::Normal
+            },
+            {
+                MapEncounterType::WardenCourt,
+                "warden-court",
+                "Warden Court",
+                "Break a defensive formation of Wardens and Hexbinders",
+                126.0f,
+                0,
+                2,
+                2,
+                1.35f,
+                {},
+                false,
+                3,
+                EnemyType::Warden,
+                EnemyType::Summoner
             }
         }};
         return definitions;

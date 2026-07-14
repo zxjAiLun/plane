@@ -1845,8 +1845,22 @@ void testMapEncounterDefinitions() {
             return encounter.type == MapEncounterType::BountyHunt;
         }
     );
-    expect(encounters.size() == 4,
-        "map encounter library contains four data-driven encounter definitions");
+    const auto cursedIt = std::find_if(
+        encounters.begin(),
+        encounters.end(),
+        [](const MapEncounterDefinition& encounter) {
+            return encounter.type == MapEncounterType::CursedReliquary;
+        }
+    );
+    const auto courtIt = std::find_if(
+        encounters.begin(),
+        encounters.end(),
+        [](const MapEncounterDefinition& encounter) {
+            return encounter.type == MapEncounterType::WardenCourt;
+        }
+    );
+    expect(encounters.size() == 6,
+        "map encounter library contains six data-driven encounter definitions");
     expect(bountyIt != encounters.end()
             && !bountyIt->id.empty()
             && bountyIt->eliteCount == 2
@@ -1854,6 +1868,19 @@ void testMapEncounterDefinitions() {
             && bountyIt->completionDropCount == 2
             && bountyIt->rewardMultiplier > 1.0f,
         "Bounty Hunt defines its pack size and completion reward in data");
+    expect(cursedIt != encounters.end()
+            && cursedIt->eliteCount == 1
+            && cursedIt->normalCount == 2
+            && cursedIt->completionDropCount == 4
+            && cursedIt->primaryEnemyType == EnemyType::Elite
+            && cursedIt->secondaryEnemyType == EnemyType::Normal,
+        "Cursed Reliquary defines a guarded cache pack and larger reward");
+    expect(courtIt != encounters.end()
+            && courtIt->eliteCount == 2
+            && courtIt->normalCount == 2
+            && courtIt->primaryEnemyType == EnemyType::Warden
+            && courtIt->secondaryEnemyType == EnemyType::Summoner,
+        "Warden Court defines its Warden and Hexbinder composition");
 }
 
 // --- Map layout variants ---

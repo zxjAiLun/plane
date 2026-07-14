@@ -1677,7 +1677,8 @@ void prepareCombinationFixture(
     GameWorld& world,
     const std::filesystem::path& path,
     int templateIndex,
-    int layoutIndex = 0
+    int layoutIndex = 0,
+    int mapLevel = 1
 ) {
     SaveData data;
     std::string error;
@@ -1687,6 +1688,7 @@ void prepareCombinationFixture(
 
     data.mapTemplateIndex = templateIndex;
     data.mapLayoutIndex = layoutIndex;
+    data.mapLevel = mapLevel;
     data.currentMapOption.templateIndex = templateIndex;
     data.state = SavedRunState::Playing;
     data.mapRewardChosen = false;
@@ -1895,6 +1897,79 @@ void testCombinationMapEvents() {
                     && world.eventStatusMessage().find("bonus items dropped")
                         != std::string::npos,
                 "Bounty Hunt drops its configured completion reward once");
+        }
+    }
+
+    {
+        GameWorld world(21006);
+        prepareCombinationFixture(world, path, 2, 2);
+        const MapEventInstance* event = combinationEvent(world);
+        expect(event != nullptr
+                && event->encounterType == MapEncounterType::CursedReliquary,
+            "third template layout uses the data-driven Cursed Reliquary encounter");
+        if (event != nullptr) {
+            const Vector2 position = event->position;
+            Input input;
+            expect(moveToMapEvent(world, input, {800.0f, 500.0f})
+                    && moveToMapEvent(world, input, {1350.0f, 500.0f})
+                    && moveToMapEvent(world, input, position),
+                "player can reach the Cursed Reliquary encounter");
+            pressKey(world, input, sf::Keyboard::Key::F);
+            expect(world.activeEliteEventEnemiesRemaining() == 3
+                    && world.mapEventsCompleted() == 0,
+                "Cursed Reliquary requires clearing its three guardians");
+
+            const Vector2 camera = world.cameraTopLeft();
+            input.handleMousePressed(
+                sf::Mouse::Button::Right,
+                {static_cast<int>(std::lround(position.x - camera.x)),
+                 static_cast<int>(std::lround(position.y - camera.y))}
+            );
+            world.update(0.05f, input);
+            expect(world.activeEliteEventEnemiesRemaining() == 0
+                    && world.mapEventsCompleted() == 1
+                    && world.mapItemsDropped() >= 4,
+                "Cursed Reliquary clears and drops its larger completion reward");
+        }
+    }
+
+    {
+        GameWorld world(21007);
+        prepareCombinationFixture(world, path, 2, 2, 2);
+        const MapEventInstance* event = combinationEvent(world);
+        expect(event != nullptr
+                && event->encounterType == MapEncounterType::WardenCourt,
+            "map level two selects the data-driven Warden Court encounter");
+        if (event != nullptr) {
+            const Vector2 position = event->position;
+            Input input;
+            expect(moveToMapEvent(world, input, {800.0f, 500.0f})
+                    && moveToMapEvent(world, input, {1350.0f, 500.0f})
+                    && moveToMapEvent(world, input, position),
+                "player can reach the Warden Court encounter");
+            const auto eventEnemyCount = [&](EnemyType type) {
+                return std::count_if(
+                    world.enemies().begin(), world.enemies().end(),
+                    [type](const Enemy& enemy) {
+                        return enemy.mapEventIndex() == 3 && enemy.type() == type;
+                    }
+                );
+            };
+            expect(world.activeEliteEventEnemiesRemaining() == 4
+                    && eventEnemyCount(EnemyType::Warden) == 2
+                    && eventEnemyCount(EnemyType::Summoner) == 2,
+                "Warden Court spawns two Wardens and two Hexbinders");
+
+            const Vector2 camera = world.cameraTopLeft();
+            input.handleMousePressed(
+                sf::Mouse::Button::Right,
+                {static_cast<int>(std::lround(position.x - camera.x)),
+                 static_cast<int>(std::lround(position.y - camera.y))}
+            );
+            world.update(0.05f, input);
+            expect(world.activeEliteEventEnemiesRemaining() == 0
+                    && world.mapEventsCompleted() == 1,
+                "Warden Court clears and completes its encounter");
         }
     }
 

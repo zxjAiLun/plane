@@ -1976,8 +1976,25 @@ void GameWorld::updateMapEvents(float /*dt*/, Input& input) {
                         }
                         return;
 
+                    case MapEncounterType::CursedReliquary:
+                        if (!event.triggered
+                            && activeMapEventIndex_ >= 0
+                            && mapEventEnemiesRemaining_ > 0) {
+                            nearbyEventPrompt_ = "Another encounter active";
+                            return;
+                        }
+                        nearbyEventPrompt_ = event.triggered
+                            ? encounter.name + " active"
+                            : "F Unseal " + encounter.name;
+                        if (!event.triggered && input.pickup()) {
+                            triggerCombinationEvent(i);
+                            mapEventInteractionConsumed_ = true;
+                        }
+                        return;
+
                     case MapEncounterType::HazardousElitePack:
                     case MapEncounterType::BountyHunt:
+                    case MapEncounterType::WardenCourt:
                         if (!event.triggered
                             && activeMapEventIndex_ >= 0
                             && mapEventEnemiesRemaining_ > 0) {
@@ -2077,8 +2094,10 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
             break;
         }
 
+        case MapEncounterType::CursedReliquary:
         case MapEncounterType::HazardousElitePack:
         case MapEncounterType::BountyHunt:
+        case MapEncounterType::WardenCourt:
             activeMapEventIndex_ = static_cast<int>(eventIndex);
             mapEventEnemiesRemaining_ = encounter.eliteCount + encounter.normalCount;
             spawnMapEventEnemies(
@@ -2086,8 +2105,7 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
                 encounter.eliteCount,
                 encounter.normalCount
             );
-            if (encounter.type == MapEncounterType::HazardousElitePack
-                && encounter.hazard.isValid()) {
+            if (encounter.hazard.isValid()) {
                 groundHazards_.emplace_back(event.position, encounter.hazard);
             }
             eventStatusMessage_ = encounter.name + " awakened";
@@ -2133,8 +2151,15 @@ void GameWorld::spawnMapEventEnemies(
         {0.0f, 94.0f}
     };
     const int totalCount = std::max(0, eliteCount) + std::max(0, normalCount);
+    const auto& encounter = map_.encounterDefinition();
+    const bool isCombination = event.type == MapEventType::Combination;
+    const EnemyType primaryType = isCombination
+        ? encounter.primaryEnemyType : EnemyType::Elite;
+    const EnemyType secondaryType = isCombination
+        ? encounter.secondaryEnemyType : EnemyType::Normal;
+    const int offsetCount = static_cast<int>(sizeof(offsets) / sizeof(offsets[0]));
     for (int index = 0; index < totalCount; ++index) {
-        const EnemyType type = index < eliteCount ? EnemyType::Elite : EnemyType::Normal;
+        const EnemyType type = index < eliteCount ? primaryType : secondaryType;
         const auto& definition = EnemyLibrary::forType(type);
         const EliteModifier modifier = type == EnemyType::Elite
             ? randomEliteModifier()
@@ -2145,7 +2170,6 @@ void GameWorld::spawnMapEventEnemies(
         )));
         const int damage = enemyDamageForMap()
             + definition.damageBonus + modifierDefinition.damageBonus;
-        const int offsetCount = static_cast<int>(sizeof(offsets) / sizeof(offsets[0]));
         const Vector2 offset = offsets[static_cast<std::size_t>(
             std::min(index, offsetCount - 1)
         )];
