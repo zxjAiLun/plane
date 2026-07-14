@@ -1656,7 +1656,8 @@ bool moveToMapEvent(GameWorld& world, Input& input, const Vector2& position) {
 void prepareCombinationFixture(
     GameWorld& world,
     const std::filesystem::path& path,
-    int templateIndex
+    int templateIndex,
+    int layoutIndex = 0
 ) {
     SaveData data;
     std::string error;
@@ -1665,7 +1666,7 @@ void prepareCombinationFixture(
     }
 
     data.mapTemplateIndex = templateIndex;
-    data.mapLayoutIndex = 0;
+    data.mapLayoutIndex = layoutIndex;
     data.currentMapOption.templateIndex = templateIndex;
     data.state = SavedRunState::Playing;
     data.mapRewardChosen = false;
@@ -1837,6 +1838,43 @@ void testCombinationMapEvents() {
             expect(afterActivate != nullptr && afterActivate->completed
                     && world.shrineBuffTimeRemaining() > 0.0f,
                 "Guarded Shrine activates once after its guards are cleared");
+        }
+    }
+
+    {
+        GameWorld world(21005);
+        prepareCombinationFixture(world, path, 1, 2);
+        const MapEventInstance* event = combinationEvent(world);
+        expect(event != nullptr
+                && event->encounterType == MapEncounterType::BountyHunt,
+            "alternate layout uses the data-driven Bounty Hunt encounter");
+        if (event != nullptr) {
+            const Vector2 position = event->position;
+            Input input;
+            const Vector2 verticalWaypoint(world.player().position().x, position.y);
+            expect(moveToMapEvent(world, input, verticalWaypoint)
+                    && moveToMapEvent(world, input, position),
+                "player can reach the Bounty Hunt encounter");
+            expect(world.activeEliteEventEnemiesRemaining() == 5
+                    && world.groundHazards().empty(),
+                "Bounty Hunt spawns two Elite and three Normal enemies without a hazard");
+
+            const int dropsBeforeClear = world.mapItemsDropped();
+            const Vector2 camera = world.cameraTopLeft();
+            input.handleMousePressed(
+                sf::Mouse::Button::Right,
+                {static_cast<int>(std::lround(position.x - camera.x)),
+                 static_cast<int>(std::lround(position.y - camera.y))}
+            );
+            world.update(0.05f, input);
+            const MapEventInstance* afterClear = combinationEvent(world);
+            expect(afterClear != nullptr && afterClear->completed
+                    && world.activeEliteEventEnemiesRemaining() == 0,
+                "Bounty Hunt completes after its owned enemies die");
+            expect(world.mapItemsDropped() >= dropsBeforeClear + 2
+                    && world.eventStatusMessage().find("bonus items dropped")
+                        != std::string::npos,
+                "Bounty Hunt drops its configured completion reward once");
         }
     }
 

@@ -1850,6 +1850,7 @@ void GameWorld::updateMapEvents(float /*dt*/, Input& input) {
                         return;
 
                     case MapEncounterType::HazardousElitePack:
+                    case MapEncounterType::BountyHunt:
                         if (!event.triggered
                             && activeMapEventIndex_ >= 0
                             && mapEventEnemiesRemaining_ > 0) {
@@ -1950,6 +1951,7 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
         }
 
         case MapEncounterType::HazardousElitePack:
+        case MapEncounterType::BountyHunt:
             activeMapEventIndex_ = static_cast<int>(eventIndex);
             mapEventEnemiesRemaining_ = encounter.eliteCount + encounter.normalCount;
             spawnMapEventEnemies(
@@ -1957,7 +1959,8 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
                 encounter.eliteCount,
                 encounter.normalCount
             );
-            if (encounter.hazard.isValid()) {
+            if (encounter.type == MapEncounterType::HazardousElitePack
+                && encounter.hazard.isValid()) {
                 groundHazards_.emplace_back(event.position, encounter.hazard);
             }
             eventStatusMessage_ = encounter.name + " awakened";
@@ -2160,9 +2163,20 @@ void GameWorld::noteMapEventEnemyDefeated(const Enemy& enemy) {
             eventStatusMessage_ = "Guardians defeated - activate shrine";
         } else {
             event.completed = true;
-            eventStatusMessage_ = event.type == MapEventType::Combination
-                ? map_.encounterDefinition().name + " cleared"
-                : "Elite pack cleared - check nearby loot";
+            if (event.type == MapEventType::Combination) {
+                const auto& encounter = map_.encounterDefinition();
+                const int droppedCount = dropItemsAround(
+                    event.position,
+                    encounter.completionDropCount,
+                    encounter.rewardMultiplier
+                );
+                eventStatusMessage_ = encounter.completionDropCount > 0
+                    ? encounter.name + " cleared: "
+                        + std::to_string(droppedCount) + " bonus items dropped"
+                    : encounter.name + " cleared";
+            } else {
+                eventStatusMessage_ = "Elite pack cleared - check nearby loot";
+            }
         }
         eventStatusTimer_ = 2.0f;
     }

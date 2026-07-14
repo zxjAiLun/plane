@@ -34,7 +34,8 @@ enum class MapEncounterType {
     None,
     EnhancedCache,
     HazardousElitePack,
-    GuardedShrine
+    GuardedShrine,
+    BountyHunt
 };
 
 struct MapEncounterDefinition {
@@ -49,12 +50,13 @@ struct MapEncounterDefinition {
     float rewardMultiplier = 1.0f;
     GroundHazardDefinition hazard;
     bool requiresGuardClearance = false;
+    int completionDropCount = 0;
 };
 
 class MapEncounterLibrary {
 public:
-    static const std::array<MapEncounterDefinition, 3>& all() {
-        static const std::array<MapEncounterDefinition, 3> definitions = {{
+    static const std::array<MapEncounterDefinition, 4>& all() {
+        static const std::array<MapEncounterDefinition, 4> definitions = {{
             {
                 MapEncounterType::EnhancedCache,
                 "enhanced-cache",
@@ -93,6 +95,20 @@ public:
                 1.0f,
                 {},
                 true
+            },
+            {
+                MapEncounterType::BountyHunt,
+                "bounty-hunt",
+                "Bounty Hunt",
+                "Hunt a reinforced pack for bonus map loot",
+                118.0f,
+                0,
+                2,
+                3,
+                1.25f,
+                {},
+                false,
+                2
             }
         }};
         return definitions;

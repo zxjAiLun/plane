@@ -471,6 +471,7 @@ sf::Color mapEventColor(const MapEventInstance& event) {
                 case MapEncounterType::EnhancedCache: return sf::Color(255, 150, 65);
                 case MapEncounterType::HazardousElitePack: return sf::Color(215, 80, 210);
                 case MapEncounterType::GuardedShrine: return sf::Color(70, 205, 185);
+                case MapEncounterType::BountyHunt: return sf::Color(255, 105, 75);
                 case MapEncounterType::None: break;
             }
             break;
@@ -529,7 +530,8 @@ std::string activeElitePackModifierDescription(const GameWorld& world) {
         const auto& event = world.map().events()[index];
         const bool isEliteEncounter = event.type == MapEventType::ElitePack
             || (event.type == MapEventType::Combination
-                && event.encounterType == MapEncounterType::HazardousElitePack);
+                && (event.encounterType == MapEncounterType::HazardousElitePack
+                    || event.encounterType == MapEncounterType::BountyHunt));
         if (isEliteEncounter && event.triggered && !event.completed) {
             activeEvent = &event;
             activeEventIndex = index;

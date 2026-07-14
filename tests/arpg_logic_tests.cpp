@@ -1742,6 +1742,28 @@ void testMapScalingProgression() {
     }
 }
 
+void testMapEncounterDefinitions() {
+    section("Map encounter content definitions");
+
+    const auto& encounters = MapEncounterLibrary::all();
+    const auto bountyIt = std::find_if(
+        encounters.begin(),
+        encounters.end(),
+        [](const MapEncounterDefinition& encounter) {
+            return encounter.type == MapEncounterType::BountyHunt;
+        }
+    );
+    expect(encounters.size() == 4,
+        "map encounter library contains four data-driven encounter definitions");
+    expect(bountyIt != encounters.end()
+            && !bountyIt->id.empty()
+            && bountyIt->eliteCount == 2
+            && bountyIt->normalCount == 3
+            && bountyIt->completionDropCount == 2
+            && bountyIt->rewardMultiplier > 1.0f,
+        "Bounty Hunt defines its pack size and completion reward in data");
+}
+
 // --- Map layout variants ---
 void testMapLayoutVariants() {
     section("MapLayoutLibrary deterministic variants and geometry");
@@ -2098,6 +2120,7 @@ int main() {
     testBossDashStateAndStormPattern();
     testMapOptionGeneration();
     testMapScalingProgression();
+    testMapEncounterDefinitions();
     testMapLayoutVariants();
     testMapExploration();
     testMapRewardGeneration();
