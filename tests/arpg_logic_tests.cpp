@@ -484,10 +484,13 @@ void testCombatMathDamageRadiusPierce() {
     const SupportDefinition* deepChill = SupportLibrary::find("Deep Chill");
     const SupportDefinition* barrage = SupportLibrary::find("Barrage");
     const SupportDefinition* concentration = SupportLibrary::find("Concentration");
+    const SupportDefinition* echo = SupportLibrary::find("Echo");
+    const SupportDefinition* pinpoint = SupportLibrary::find("Pinpoint");
     expect(pierce != nullptr && amplify != nullptr && quickcast != nullptr
             && volley != nullptr && trailblazer != nullptr
             && combustion != nullptr && deepChill != nullptr
-            && barrage != nullptr && concentration != nullptr,
+            && barrage != nullptr && concentration != nullptr
+            && echo != nullptr && pinpoint != nullptr,
         "existing and expanded supports exist in library");
 
     Stats stats;
@@ -569,17 +572,32 @@ void testCombatMathDamageRadiusPierce() {
             && skillRadius(shockwave, Stats{}, concentration) < shockwave.radius
             && skillCooldown(shockwave, Stats{}, concentration) > shockwave.cooldown,
         "Concentration trades Area radius for damage and cooldown");
+    expect(skillRepeatCount(shockwave, echo) == 2
+            && skillRepeatCount(arcBolt, echo) == 1
+            && skillDamage(shockwave, Stats{}, echo) < skillDamage(shockwave, Stats{}, nullptr)
+            && skillCooldown(shockwave, Stats{}, echo) > shockwave.cooldown,
+        "Echo repeats Area skills while trading hit damage for cooldown");
+    expect(skillDamage(arcBolt, Stats{}, pinpoint) > skillDamage(arcBolt, Stats{}, nullptr)
+            && skillSpreadAngle(projectile, pinpoint) < projectile.spreadAngle
+            && skillCooldown(arcBolt, Stats{}, pinpoint) > arcBolt.cooldown,
+        "Pinpoint trades projectile spread and cooldown for hit damage");
     expect(std::abs(barrage->damageMultiplier - 0.88f) < 0.0001f
             && barrage->extraProjectileCount == 1
             && std::abs(barrage->extraSpreadAngle - 12.0f) < 0.0001f
             && std::abs(concentration->damageMultiplier - 1.22f) < 0.0001f
             && std::abs(concentration->radiusMultiplier - 0.78f) < 0.0001f
-            && std::abs(concentration->cooldownMultiplier - 1.12f) < 0.0001f,
+            && std::abs(concentration->cooldownMultiplier - 1.12f) < 0.0001f
+            && echo->repeatCountBonus == 1
+            && std::abs(pinpoint->damageMultiplier - 1.28f) < 0.0001f,
         "expanded Support definitions preserve their fixed values");
     expect(SupportLibrary::supportsSkill(*barrage, arcBolt)
             && !SupportLibrary::supportsSkill(*barrage, shockwave)
             && SupportLibrary::supportsSkill(*concentration, shockwave)
             && SupportLibrary::supportsSkill(*concentration, SkillLibrary::meteor())
+            && SupportLibrary::supportsSkill(*echo, shockwave)
+            && !SupportLibrary::supportsSkill(*echo, arcBolt)
+            && SupportLibrary::supportsSkill(*pinpoint, arcBolt)
+            && !SupportLibrary::supportsSkill(*pinpoint, shockwave)
             && !SupportLibrary::supportsSkill(*concentration, SkillLibrary::dash()),
         "expanded Supports expose only their intended CastType compatibility");
 
@@ -1986,6 +2004,19 @@ void testMapRewardGeneration() {
     }
     expect(sawBarrage && sawConcentration,
         "MapRewardLibrary generates both expanded Support unlock rewards");
+
+    std::set<std::string> onlyNewSupports = allSupports;
+    onlyNewSupports.erase("Echo");
+    onlyNewSupports.erase("Pinpoint");
+    RandomService newSupportRandom(1001);
+    const auto newSupportRewards = MapRewardLibrary::generateOptions(
+        allSkills, onlyNewSupports, newSupportRandom
+    );
+    expect(std::any_of(newSupportRewards.begin(), newSupportRewards.end(),
+            [](const MapRewardDefinition& option) { return option.supportName == "Echo"; })
+            && std::any_of(newSupportRewards.begin(), newSupportRewards.end(),
+            [](const MapRewardDefinition& option) { return option.supportName == "Pinpoint"; }),
+        "new Supports remain eligible for map unlock rewards");
 
     std::set<std::string> allSkillsExceptArc = allSkills;
     allSkillsExceptArc.erase(arcBoltName);

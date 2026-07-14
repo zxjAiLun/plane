@@ -16,7 +16,9 @@ enum class SupportKind {
     Combustion,
     DeepChill,
     Barrage,
-    Concentration
+    Concentration,
+    Echo,
+    Pinpoint
 };
 
 struct SupportDefinition {
@@ -37,6 +39,7 @@ struct SupportDefinition {
     float chillMagnitudeMultiplier = 1.0f;
     int ignitePenetration = 0;
     int chillPenetration = 0;
+    int repeatCountBonus = 0;
 };
 
 inline constexpr std::size_t SupportLinkCount = 2;
@@ -56,6 +59,37 @@ public:
             {SupportKind::DeepChill, "Deep Chill", "+50% Chill duration, stronger Chill, +20% penetration, +15% cooldown", 1.0f, 1.0f, 1.15f, 0, 0, 0.0f, 0, 0.0f, 0.0f, 1.0f, 1.50f, 1.40f, 0, 20},
             {SupportKind::Barrage, "Barrage", "+1 projectile, wider spread, -12% damage", 0.88f, 1.0f, 1.0f, 0, 1, 12.0f},
             {SupportKind::Concentration, "Concentration", "+22% area damage, -22% radius, +12% cooldown", 1.22f, 0.78f, 1.12f},
+            {
+                SupportKind::Echo,
+                "Echo",
+                "Area skills repeat once at 65% damage, +35% cooldown",
+                0.65f,
+                1.0f,
+                1.35f,
+                0,
+                0,
+                0.0f,
+                0,
+                0.0f,
+                0.0f,
+                1.0f,
+                1.0f,
+                1.0f,
+                0,
+                0,
+                1
+            },
+            {
+                SupportKind::Pinpoint,
+                "Pinpoint",
+                "+28% projectile damage, -20% spread, +20% cooldown",
+                1.28f,
+                1.0f,
+                1.20f,
+                0,
+                0,
+                -20.0f
+            },
         };
         return supports;
     }
@@ -91,6 +125,11 @@ public:
             case SupportKind::Concentration:
                 return skill.castType == SkillCastType::SelfCenteredArea
                     || skill.castType == SkillCastType::MouseTargetedArea;
+            case SupportKind::Echo:
+                return skill.castType == SkillCastType::SelfCenteredArea
+                    || skill.castType == SkillCastType::MouseTargetedArea;
+            case SupportKind::Pinpoint:
+                return skill.castType == SkillCastType::Projectile;
         }
 
         return false;

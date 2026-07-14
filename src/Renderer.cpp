@@ -364,6 +364,10 @@ std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& sta
     if (skill.castType == SkillCastType::Projectile) {
         summary += "  Proj " + std::to_string(skillProjectileCount(skill, supports, stats));
     }
+    const int repeatCount = skillRepeatCount(skill, supports);
+    if (repeatCount > 1) {
+        summary += "  Hits " + std::to_string(repeatCount);
+    }
     return summary;
 }
 

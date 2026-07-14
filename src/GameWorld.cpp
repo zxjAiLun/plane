@@ -1521,13 +1521,18 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
 
     const auto& skill = skillBar_.definition(SkillSlot::Utility);
     const AilmentDefinition ailment = ailmentForPlayerSkill(skill);
-    dealAreaDamage(
-        player_.position(),
-        radiusForPlayerSkill(skill),
-        damageForPlayerSkill(skill),
-        &ailment,
-        skill.name
+    const int repeatCount = skillRepeatCount(
+        skill, skillBar_.supportDefinitionsFor(skill)
     );
+    for (int repeat = 0; repeat < repeatCount; ++repeat) {
+        dealAreaDamage(
+            player_.position(),
+            radiusForPlayerSkill(skill),
+            damageForPlayerSkill(skill),
+            &ailment,
+            skill.name
+        );
+    }
     novaEffectTimer_ = skill.effectDuration;
 }
 
@@ -1538,13 +1543,18 @@ void GameWorld::tryCastSecondarySkill(Input& input) {
 
     const auto& skill = skillBar_.definition(SkillSlot::Secondary);
     const AilmentDefinition ailment = ailmentForPlayerSkill(skill);
-    dealAreaDamage(
-        aimPosition_,
-        radiusForPlayerSkill(skill),
-        damageForPlayerSkill(skill),
-        &ailment,
-        skill.name
+    const int repeatCount = skillRepeatCount(
+        skill, skillBar_.supportDefinitionsFor(skill)
     );
+    for (int repeat = 0; repeat < repeatCount; ++repeat) {
+        dealAreaDamage(
+            aimPosition_,
+            radiusForPlayerSkill(skill),
+            damageForPlayerSkill(skill),
+            &ailment,
+            skill.name
+        );
+    }
     secondarySkillEffectPosition_ = aimPosition_;
     secondarySkillEffectTimer_ = skill.effectDuration;
 }

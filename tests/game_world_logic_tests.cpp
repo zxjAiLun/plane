@@ -1248,10 +1248,11 @@ void testExpandedSkillWorldHits() {
     data.unlockedSkills.insert("Aftershock");
     data.unlockedSupports.insert("Barrage");
     data.unlockedSupports.insert("Concentration");
+    data.unlockedSupports.insert("Echo");
     data.skillBar.skills[primaryIndex] = "Arc Bolt";
     data.skillBar.skills[utilityIndex] = "Shockwave";
     data.skillBar.supports[primaryIndex] = {"Barrage", ""};
-    data.skillBar.supports[utilityIndex] = {"Concentration", ""};
+    data.skillBar.supports[utilityIndex] = {"Concentration", "Echo"};
     data.player.hp = 10000;
     data.player.upgradeStats.maxHp = 10000;
     data.player.upgradeStats.moveSpeedMultiplier = 8.0f;
@@ -1272,7 +1273,9 @@ void testExpandedSkillWorldHits() {
             && world.skillBar().supportAt(SkillSlot::Primary, 0) != nullptr
             && world.skillBar().supportAt(SkillSlot::Primary, 0)->name == "Barrage"
             && world.skillBar().supportAt(SkillSlot::Utility, 0) != nullptr
-            && world.skillBar().supportAt(SkillSlot::Utility, 0)->name == "Concentration",
+            && world.skillBar().supportAt(SkillSlot::Utility, 0)->name == "Concentration"
+            && world.skillBar().supportAt(SkillSlot::Utility, 1) != nullptr
+            && world.skillBar().supportAt(SkillSlot::Utility, 1)->name == "Echo",
         "expanded skill fixture restores the active skills and Support links");
 
     Input input;
@@ -1358,6 +1361,7 @@ void testExpandedSkillWorldHits() {
     const float expectedAreaRadius = skillRadius(
         areaSkill, world.player().stats(), areaSupports
     );
+    const int expectedAreaRepeatCount = skillRepeatCount(areaSkill, areaSupports);
     const int bossHpBeforeArea = boss->hp();
     const std::size_t areaFeedbackStart = world.combatFeedback().size();
     input.handleKeyPressed(sf::Keyboard::Key::Q);
@@ -1378,6 +1382,8 @@ void testExpandedSkillWorldHits() {
     const int bossHpAfterArea = boss == world.enemies().end() ? 0 : boss->hp();
     expect(areaFeedbackDamage > 0 && areaFeedbackMatches,
         "Shockwave real feedback uses CombatMath damage");
+    expect(areaFeedbackDamage == expectedAreaDamage * expectedAreaRepeatCount,
+        "Echo repeats the real Area hit through the GameWorld cast path");
     expect(bossHpBeforeArea - bossHpAfterArea == areaFeedbackDamage,
         "Shockwave feedback equals the Boss HP delta");
     expect(std::abs(world.novaEffectRadius() - expectedAreaRadius) < 0.001f,

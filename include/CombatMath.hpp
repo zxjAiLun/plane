@@ -204,6 +204,25 @@ inline float skillSpreadAngle(const SkillDefinition& skill, const SupportDefinit
     return skillSpreadAngle(skill, SupportList{support, nullptr});
 }
 
+inline int skillRepeatCount(const SkillDefinition& skill, const SupportList& supports) {
+    if (skill.castType != SkillCastType::SelfCenteredArea
+        && skill.castType != SkillCastType::MouseTargetedArea) {
+        return 1;
+    }
+
+    int repeatCount = 1;
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            repeatCount += support->repeatCountBonus;
+        }
+    }
+    return std::max(1, repeatCount);
+}
+
+inline int skillRepeatCount(const SkillDefinition& skill, const SupportDefinition* support) {
+    return skillRepeatCount(skill, SupportList{support, nullptr});
+}
+
 inline int supportAreaDamage(
     const SupportDefinition& support,
     const Stats& stats,
