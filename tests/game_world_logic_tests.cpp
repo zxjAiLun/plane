@@ -1785,6 +1785,13 @@ void testBossCombatFlow() {
         "Boss death enters MapComplete through the real reward path");
     expect(world.mapBossItemsDropped() >= 1 && !world.droppedItems().empty(),
         "Boss death creates at least one guaranteed ground drop");
+    expect(std::any_of(
+            world.droppedItems().begin(),
+            world.droppedItems().end(),
+            [](const DroppedItem& dropped) {
+                return dropped.item().rarity == Rarity::Unique;
+            }),
+        "Boss death includes a Unique theme relic on the ground");
 
     std::filesystem::remove(path);
 }

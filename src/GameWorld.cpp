@@ -154,10 +154,11 @@ bool validItemForRestore(const Item& item) {
     if (static_cast<int>(item.slot) < 0
         || static_cast<int>(item.slot) >= static_cast<int>(EquipmentSlot::Count)
         || static_cast<int>(item.rarity) < 0
-        || static_cast<int>(item.rarity) > static_cast<int>(Rarity::Rare)
+        || static_cast<int>(item.rarity) > static_cast<int>(Rarity::Unique)
         || item.itemLevel < 1
         || base == nullptr
         || base->slot != item.slot
+        || (item.rarity == Rarity::Unique && base->kind != ItemBaseKind::BossRelic)
         || !statsMatchForRestore(item.implicitStats, base->implicitStats)
         || !validStatsForRestore(item.stats)
         || !validStatsForRestore(item.implicitStats)) {
@@ -3407,6 +3408,7 @@ void GameWorld::trySalvageSelectedInventoryItem(Input& input) {
         switch (item->rarity) {
             case Rarity::Magic: value = 2; break;
             case Rarity::Rare: value = 4; break;
+            case Rarity::Unique: value = 8; break;
             case Rarity::Normal: break;
         }
         progression_.forgeFragments += value;

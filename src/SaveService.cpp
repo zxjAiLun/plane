@@ -247,7 +247,7 @@ bool readItem(Reader& reader, Item& item, bool hasPoisonFields) {
         || !reader.integer(slot)
         || !reader.integer(rarity)
         || !validEnumValue(slot, 0, static_cast<int>(EquipmentSlot::Count) - 1)
-        || !validEnumValue(rarity, 0, static_cast<int>(Rarity::Rare))
+        || !validEnumValue(rarity, 0, static_cast<int>(Rarity::Unique))
         || !readStats(reader, item.stats, hasPoisonFields)
         || !reader.integer(item.itemLevel)
         || item.itemLevel < 1
@@ -925,6 +925,7 @@ bool SaveService::load(const std::filesystem::path& path,
         || magic != SaveData::Magic
         || (version != 3U && version != 4U && version != 5U
             && version != 6U && version != 7U && version != 8U
+            && version != 9U
             && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");

@@ -1344,7 +1344,7 @@ void testLootGeneration() {
     expect(sawAffix, "at least one generated item has affixes");
 
     Item boss = gen.generateBossReward(5, BossLootTheme::Brimstone);
-    expect(boss.rarity == Rarity::Rare, "boss relic is Rare");
+    expect(boss.rarity == Rarity::Unique, "boss relic is Unique");
     expect(!boss.name.empty(), "boss relic has a name");
     expect(!boss.affixes.empty(), "boss relic has affixes");
     expect(boss.slot == EquipmentSlot::Weapon, "Brimstone boss relic is a Weapon");

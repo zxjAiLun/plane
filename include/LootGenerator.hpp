@@ -75,7 +75,7 @@ public:
         const int tier = tierForLevel(monsterLevel);
         Item item;
         item.itemLevel = monsterLevel;
-        item.rarity = Rarity::Rare;
+        item.rarity = Rarity::Unique;
         applyBase(item, ItemBaseLibrary::forBossTheme(toBaseTheme(theme)));
         item.affixes.push_back({"Boss relic", tier + 1, {}, {}, "", AffixStat::None, false});
 
@@ -574,6 +574,7 @@ private:
             case Rarity::Normal: return 1;
             case Rarity::Magic: return 2;
             case Rarity::Rare: return 3;
+            case Rarity::Unique: return 3;
         }
         return 1;
     }

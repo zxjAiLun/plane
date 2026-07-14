@@ -12,7 +12,8 @@
 enum class Rarity {
     Normal,
     Magic,
-    Rare
+    Rare,
+    Unique
 };
 
 struct ItemAffix {
@@ -42,6 +43,7 @@ inline const char* rarityName(Rarity rarity) {
         case Rarity::Normal: return "Normal";
         case Rarity::Magic: return "Magic";
         case Rarity::Rare: return "Rare";
+        case Rarity::Unique: return "Unique";
     }
     return "Unknown";
 }

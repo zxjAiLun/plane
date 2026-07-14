@@ -24,6 +24,7 @@ sf::Color rarityColor(Rarity rarity) {
         case Rarity::Normal: return sf::Color(220, 220, 220);
         case Rarity::Magic: return sf::Color(90, 150, 255);
         case Rarity::Rare: return sf::Color(255, 210, 80);
+        case Rarity::Unique: return sf::Color(255, 145, 45);
     }
     return sf::Color::White;
 }
