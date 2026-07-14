@@ -41,6 +41,7 @@ public:
     AilmentTickResult updateAilments(float dt);
 
     int takeDamage(int damage);
+    int heal(int amount);
     void applyIgnite(int damagePerTick, float duration);
     void applyChill(float speedMultiplier, float duration);
     void applyShock(float damageTakenMultiplier, float duration);

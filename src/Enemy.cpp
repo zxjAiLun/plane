@@ -226,6 +226,16 @@ int Enemy::takeDamage(int damage) {
     return previousHp - hp_;
 }
 
+int Enemy::heal(int amount) {
+    if (amount <= 0 || isDead() || hp_ >= maxHp_) {
+        return 0;
+    }
+
+    const int previousHp = hp_;
+    hp_ = std::min(maxHp_, hp_ + amount);
+    return hp_ - previousHp;
+}
+
 void Enemy::applyIgnite(int damagePerTick, float duration) {
     if (damagePerTick <= 0 || duration <= 0.0f) {
         return;

@@ -791,6 +791,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     bossAoeEffectTimer_ = 0.0f;
     volatileExplosionTimer_ = 0.0f;
     volatileExplosionRadius_ = 0.0f;
+    resetRareLeaderEffects();
     bossAoeSkill_ = BossSkillDefinition();
     bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
@@ -930,6 +931,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
 
     spawnEnemies(dt);
     updateObjects(dt);
+    updateRareLeaderEffects(dt);
     updateBossSkills(dt);
     updateBossProjectiles(dt);
     updateEnemyProjectiles(dt);
@@ -1022,6 +1024,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     bossAoeEffectTimer_ = 0.0f;
     volatileExplosionTimer_ = 0.0f;
     volatileExplosionRadius_ = 0.0f;
+    resetRareLeaderEffects();
     bossAoeSkill_ = BossSkillDefinition();
     resetBossDash();
     bossSkillTimer_ = bossDefinition_->skillInterval;
@@ -1100,6 +1103,7 @@ void GameWorld::startNextMap() {
     bossAoeEffectTimer_ = 0.0f;
     volatileExplosionTimer_ = 0.0f;
     volatileExplosionRadius_ = 0.0f;
+    resetRareLeaderEffects();
     bossAoeSkill_ = BossSkillDefinition();
     resetBossDash();
     bossSkillTimer_ = bossDefinition_->skillInterval;
@@ -1543,6 +1547,180 @@ void GameWorld::updateEnemyProjectiles(float dt) {
     }
 }
 
+const Enemy* GameWorld::activeRareLeader() const {
+    if (activeFieldPackId_ < 0) {
+        return nullptr;
+    }
+
+    for (const auto& enemy : enemies_) {
+        if (enemy.isRare()
+            && !enemy.isDead()
+            && enemy.fieldPackIndex() == activeFieldPackId_) {
+            return &enemy;
+        }
+    }
+
+    return nullptr;
+}
+
+float GameWorld::enemyDamageMultiplier(const Enemy& enemy) const {
+    const Enemy* leader = activeRareLeader();
+    if (leader == nullptr || enemy.fieldPackIndex() != leader->fieldPackIndex()) {
+        return 1.0f;
+    }
+
+    float multiplier = 1.0f;
+    const auto applyModifier = [&](EliteModifier modifier) {
+        const auto& definition = EliteModifierLibrary::forModifier(modifier);
+        if (definition.allyDamageMultiplier <= 1.0f
+            || definition.auraRadius <= 0.0f
+            || (enemy.position() - leader->position()).lengthSquared()
+                > definition.auraRadius * definition.auraRadius) {
+            return;
+        }
+        multiplier *= definition.allyDamageMultiplier;
+    };
+
+    applyModifier(leader->eliteModifier());
+    if (leader->secondaryEliteModifier() != leader->eliteModifier()) {
+        applyModifier(leader->secondaryEliteModifier());
+    }
+    return multiplier;
+}
+
+int GameWorld::enemyAttackDamage(const Enemy& enemy) const {
+    return std::max(1, static_cast<int>(std::ceil(
+        static_cast<float>(enemy.contactDamage()) * enemyDamageMultiplier(enemy)
+    )));
+}
+
+void GameWorld::resetRareLeaderEffects() {
+    rareLeaderId_ = -1;
+    rareLeaderPulseTimer_ = 0.0f;
+    rareLeaderRegenTimer_ = 0.0f;
+    rareLeaderAoeCenter_ = {};
+    rareLeaderAoeTelegraphTimer_ = 0.0f;
+    rareLeaderAoeTelegraphDuration_ = 0.0f;
+    rareLeaderAoeRadius_ = 0.0f;
+    rareLeaderAoeDamage_ = 0;
+    rareLeaderAoeDamageType_ = DamageType::Physical;
+    rareLeaderAoeAilment_ = {};
+    rareLeaderAoeName_.clear();
+}
+
+void GameWorld::updateRareLeaderEffects(float dt) {
+    if (dt <= 0.0f) {
+        return;
+    }
+
+    const Enemy* leader = activeRareLeader();
+    if (leader == nullptr) {
+        resetRareLeaderEffects();
+        return;
+    }
+
+    const auto& primary = EliteModifierLibrary::forModifier(leader->eliteModifier());
+    const auto& secondary = EliteModifierLibrary::forModifier(leader->secondaryEliteModifier());
+    const EliteModifierDefinition* pulse = nullptr;
+    const EliteModifierDefinition* regeneration = nullptr;
+    const auto inspectModifier = [&](const EliteModifierDefinition& definition) {
+        if (definition.pulseInterval > 0.0f && pulse == nullptr) {
+            pulse = &definition;
+        }
+        if (definition.healInterval > 0.0f && regeneration == nullptr) {
+            regeneration = &definition;
+        }
+    };
+    inspectModifier(primary);
+    if (leader->secondaryEliteModifier() != leader->eliteModifier()) {
+        inspectModifier(secondary);
+    }
+
+    if (rareLeaderId_ != leader->id()) {
+        resetRareLeaderEffects();
+        rareLeaderId_ = leader->id();
+        rareLeaderPulseTimer_ = pulse == nullptr
+            ? 0.0f : pulse->pulseInterval * 0.5f;
+        rareLeaderRegenTimer_ = regeneration == nullptr
+            ? 0.0f : regeneration->healInterval;
+    }
+
+    if (rareLeaderAoeTelegraphTimer_ > 0.0f) {
+        const float before = rareLeaderAoeTelegraphTimer_;
+        rareLeaderAoeTelegraphTimer_ = std::max(
+            0.0f, rareLeaderAoeTelegraphTimer_ - dt
+        );
+        if (before > 0.0f && rareLeaderAoeTelegraphTimer_ == 0.0f
+            && Collision::circleCircle(
+                player_.position(), player_.radius(),
+                rareLeaderAoeCenter_, rareLeaderAoeRadius_
+            )) {
+            damagePlayer(
+                rareLeaderAoeDamage_,
+                rareLeaderAoeName_,
+                rareLeaderAoeDamageType_,
+                rareLeaderAoeAilment_
+            );
+        }
+    }
+
+    if (pulse != nullptr && rareLeaderAoeTelegraphTimer_ <= 0.0f) {
+        rareLeaderPulseTimer_ = std::max(0.0f, rareLeaderPulseTimer_ - dt);
+        if (rareLeaderPulseTimer_ == 0.0f) {
+            rareLeaderAoeCenter_ = player_.position();
+            rareLeaderAoeTelegraphDuration_ = pulse->pulseTelegraphDuration;
+            rareLeaderAoeTelegraphTimer_ = pulse->pulseTelegraphDuration;
+            rareLeaderAoeRadius_ = pulse->pulseRadius;
+            rareLeaderAoeDamage_ = std::max(1, pulse->pulseDamage + enemyDamageForMap() / 2);
+            rareLeaderAoeDamageType_ = pulse->pulseDamageType;
+            rareLeaderAoeAilment_ = pulse->pulseAilment;
+            rareLeaderAoeName_ = pulse->name + " strike";
+            rareLeaderPulseTimer_ = pulse->pulseInterval;
+            addCombatFeedback(
+                leader->position(),
+                0,
+                "Rare casting: " + rareLeaderAoeName_,
+                CombatFeedbackType::Telegraph
+            );
+        }
+    }
+
+    if (regeneration == nullptr) {
+        return;
+    }
+
+    rareLeaderRegenTimer_ = std::max(0.0f, rareLeaderRegenTimer_ - dt);
+    if (rareLeaderRegenTimer_ > 0.0f) {
+        return;
+    }
+
+    rareLeaderRegenTimer_ = regeneration->healInterval;
+    int restoredLife = 0;
+    for (auto& ally : enemies_) {
+        if (ally.isDead() || ally.fieldPackIndex() != leader->fieldPackIndex()) {
+            continue;
+        }
+
+        if ((ally.position() - leader->position()).lengthSquared()
+                > regeneration->healRadius * regeneration->healRadius) {
+            continue;
+        }
+
+        const int amount = std::max(1, static_cast<int>(std::ceil(
+            static_cast<float>(ally.maxHp()) * regeneration->healFraction
+        )));
+        restoredLife += ally.heal(amount);
+    }
+    if (restoredLife > 0) {
+        addCombatFeedback(
+            leader->position(),
+            restoredLife,
+            regeneration->name,
+            CombatFeedbackType::Status
+        );
+    }
+}
+
 void GameWorld::spawnEnemies(float dt) {
     triggerBossIfNeeded();
 
@@ -1669,7 +1847,7 @@ void GameWorld::handleCollisions() {
                 ) && enemy.consumeChargeHit()) {
                 const auto& definition = EnemyLibrary::forType(enemy.type());
                 damagePlayer(
-                    enemy.contactDamage(),
+                    enemyAttackDamage(enemy),
                     definition.name + " charge",
                     definition.contactDamageType,
                     definition.contactAilment
@@ -1698,7 +1876,7 @@ void GameWorld::handleCollisions() {
                     enemy.position(),
                     direction * definition.projectileSpeed,
                     definition.projectileRadius,
-                    enemy.contactDamage(),
+                    enemyAttackDamage(enemy),
                     definition.name + " shot",
                     definition.projectileDamageType,
                     definition.projectileAilment,
@@ -1707,7 +1885,7 @@ void GameWorld::handleCollisions() {
             }
         } else if (toPlayer.lengthSquared() <= enemy.attackRange() * enemy.attackRange()) {
             damagePlayer(
-                enemy.contactDamage(),
+                enemyAttackDamage(enemy),
                 definition.name + " strike",
                 definition.contactDamageType,
                 definition.contactAilment
@@ -2490,6 +2668,7 @@ void GameWorld::triggerElitePackEvent(std::size_t eventIndex) {
     activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
+    resetRareLeaderEffects();
     spawner_.reset();
     activeMapEventIndex_ = static_cast<int>(eventIndex);
     mapEventEnemiesRemaining_ = 5;
@@ -2530,6 +2709,7 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
     activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
+    resetRareLeaderEffects();
     spawner_.reset();
     switch (encounter.type) {
         case MapEncounterType::EnhancedCache: {
@@ -3746,6 +3926,7 @@ void GameWorld::noteFieldPackEnemyDefeated(const Enemy& enemy) {
     activeFieldPackLeaderExperienceMultiplier_ = 1;
     activeFieldPackLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
+    resetRareLeaderEffects();
     fieldPackStarted_ = false;
 }
 
@@ -3944,7 +4125,8 @@ int GameWorld::itemLevelForMap() const {
 }
 
 EliteModifier GameWorld::randomEliteModifier() {
-    const int modifierCount = static_cast<int>(EliteModifierLibrary::all().size()) - 1;
+    // Special aura/cast modifiers are reserved for data-driven rare leaders.
+    const int modifierCount = static_cast<int>(EliteModifier::Volatile);
     if (modifierCount <= 0) {
         return EliteModifier::None;
     }
@@ -4032,6 +4214,7 @@ void GameWorld::triggerBossIfNeeded() {
     bossAoeEffectTimer_ = 0.0f;
     volatileExplosionTimer_ = 0.0f;
     volatileExplosionRadius_ = 0.0f;
+    resetRareLeaderEffects();
     bossAoeSkill_ = BossSkillDefinition();
     resetBossDash();
     bossSkillTimer_ = bossDefinition_->skillInterval * 0.5f;
@@ -4120,6 +4303,19 @@ float GameWorld::volatileExplosionProgress() const {
     return Config::VolatileExplosionEffectDuration > 0.0f
         ? volatileExplosionTimer_ / Config::VolatileExplosionEffectDuration
         : 0.0f;
+}
+const Vector2& GameWorld::rareLeaderAoeCenter() const { return rareLeaderAoeCenter_; }
+float GameWorld::rareLeaderAoeRadius() const { return rareLeaderAoeRadius_; }
+float GameWorld::rareLeaderAoeTelegraphProgress() const {
+    return rareLeaderAoeTelegraphDuration_ > 0.0f
+        ? rareLeaderAoeTelegraphTimer_ / rareLeaderAoeTelegraphDuration_
+        : 0.0f;
+}
+std::string GameWorld::rareLeaderSkillWarning() const {
+    if (rareLeaderAoeTelegraphTimer_ <= 0.0f || rareLeaderAoeName_.empty()) {
+        return "";
+    }
+    return "Rare casting: " + rareLeaderAoeName_;
 }
 const BossDefinition& GameWorld::bossDefinition() const { return *bossDefinition_; }
 const SkillBar& GameWorld::skillBar() const { return skillBar_; }

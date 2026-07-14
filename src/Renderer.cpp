@@ -835,6 +835,7 @@ void Renderer::render(const GameWorld& world) {
     drawSecondarySkillEffect(world);
     drawDashImpactEffect(world);
     drawBossAoeEffect(world);
+    drawRareLeaderEffect(world);
     drawBossDashEffect(world);
     drawVolatileExplosionEffect(world);
     drawPlayer(world);
@@ -913,6 +914,11 @@ void Renderer::render(const GameWorld& world) {
         }
         drawText(truncateText(packLine, 34),
             {16.0f, hudY}, 14, sf::Color(210, 205, 255));
+        hudY += 18.0f;
+    }
+    if (!world.rareLeaderSkillWarning().empty()) {
+        drawText(truncateText(world.rareLeaderSkillWarning(), 34),
+            {16.0f, hudY}, 14, sf::Color(130, 220, 255));
         hudY += 18.0f;
     }
     if (!world.nearbyEventPrompt().empty()) {
@@ -1391,6 +1397,25 @@ void Renderer::drawBossAoeEffect(const GameWorld& world) {
     window_.draw(shape);
 }
 
+void Renderer::drawRareLeaderEffect(const GameWorld& world) {
+    const float progress = world.rareLeaderAoeTelegraphProgress();
+    if (progress <= 0.0f) {
+        return;
+    }
+
+    const float radius = world.rareLeaderAoeRadius();
+    const auto alpha = static_cast<std::uint8_t>(
+        70.0f + 150.0f * (1.0f - progress)
+    );
+    sf::CircleShape shape(radius);
+    shape.setFillColor(sf::Color(80, 150, 255, alpha / 4));
+    shape.setOutlineColor(sf::Color(120, 220, 255, alpha));
+    shape.setOutlineThickness(3.0f);
+    shape.setOrigin({radius, radius});
+    shape.setPosition(worldToScreen(world, world.rareLeaderAoeCenter()));
+    window_.draw(shape);
+}
+
 void Renderer::drawBossDashEffect(const GameWorld& world) {
     const float telegraphProgress = world.bossDashTelegraphProgress();
     if (telegraphProgress > 0.0f || world.bossDashMoving()) {
@@ -1527,6 +1552,31 @@ void Renderer::drawEnemies(const GameWorld& world) {
         const auto& definition = EnemyLibrary::forType(enemy.type());
         const auto& modifier = EliteModifierLibrary::forModifier(enemy.eliteModifier());
         const sf::Vector2f screenPosition = worldToScreen(world, enemy.position());
+        if (enemy.isRare()) {
+            const auto drawAura = [&](EliteModifier eliteModifier) {
+                const auto& auraDefinition = EliteModifierLibrary::forModifier(eliteModifier);
+                if (auraDefinition.auraRadius <= 0.0f) {
+                    return;
+                }
+
+                const bool damageAura = auraDefinition.allyDamageMultiplier > 1.0f;
+                const sf::Color color = damageAura
+                    ? sf::Color(255, 100, 190)
+                    : sf::Color(105, 235, 150);
+                sf::CircleShape aura(auraDefinition.auraRadius);
+                aura.setFillColor(sf::Color(color.r, color.g, color.b, 12));
+                aura.setOutlineColor(sf::Color(color.r, color.g, color.b, 125));
+                aura.setOutlineThickness(2.0f);
+                aura.setOrigin({auraDefinition.auraRadius, auraDefinition.auraRadius});
+                aura.setPosition(screenPosition);
+                window_.draw(aura);
+            };
+
+            drawAura(enemy.eliteModifier());
+            if (enemy.secondaryEliteModifier() != enemy.eliteModifier()) {
+                drawAura(enemy.secondaryEliteModifier());
+            }
+        }
         if (enemy.isWarden()) {
             const float auraRadius = Config::WardenAuraRadius;
             sf::CircleShape aura(auraRadius);

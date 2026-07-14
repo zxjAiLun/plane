@@ -125,6 +125,10 @@ public:
     const Vector2& volatileExplosionCenter() const;
     float volatileExplosionRadius() const;
     float volatileExplosionProgress() const;
+    const Vector2& rareLeaderAoeCenter() const;
+    float rareLeaderAoeRadius() const;
+    float rareLeaderAoeTelegraphProgress() const;
+    std::string rareLeaderSkillWarning() const;
     const BossDefinition& bossDefinition() const;
     const SkillBar& skillBar() const;
     AilmentDefinition effectiveSkillAilment(const SkillDefinition& skill) const;
@@ -201,9 +205,14 @@ private:
     int summonBossAdds(const Enemy& boss, const BossSkillDefinition& skill);
     void updateBossProjectiles(float dt);
     void updateEnemyProjectiles(float dt);
+    void updateRareLeaderEffects(float dt);
     void spawnEnemies(float dt);
     void handleCollisions();
     int summonEnemyAdds(Enemy& summoner);
+    const Enemy* activeRareLeader() const;
+    float enemyDamageMultiplier(const Enemy& enemy) const;
+    int enemyAttackDamage(const Enemy& enemy) const;
+    void resetRareLeaderEffects();
     int damageToEnemy(
         const Enemy& enemy,
         int rawDamage,
@@ -375,6 +384,17 @@ private:
     Vector2 volatileExplosionCenter_;
     float volatileExplosionTimer_ = 0.0f;
     float volatileExplosionRadius_ = 0.0f;
+    int rareLeaderId_ = -1;
+    float rareLeaderPulseTimer_ = 0.0f;
+    float rareLeaderRegenTimer_ = 0.0f;
+    Vector2 rareLeaderAoeCenter_;
+    float rareLeaderAoeTelegraphTimer_ = 0.0f;
+    float rareLeaderAoeTelegraphDuration_ = 0.0f;
+    float rareLeaderAoeRadius_ = 0.0f;
+    int rareLeaderAoeDamage_ = 0;
+    DamageType rareLeaderAoeDamageType_ = DamageType::Physical;
+    AilmentDefinition rareLeaderAoeAilment_;
+    std::string rareLeaderAoeName_;
     BossSkillDefinition bossAoeSkill_;
     BossDashState bossDashState_;
     BossSkillDefinition bossDashSkill_;

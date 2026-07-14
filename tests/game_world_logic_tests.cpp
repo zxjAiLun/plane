@@ -307,6 +307,65 @@ void testBossGateProgression() {
     std::filesystem::remove(path);
 }
 
+void testRareLeaderCombatEffects() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_rare_leader_effects_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(12601);
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "rare leader fixture starts from a valid run save");
+    data.mapTemplateIndex = 1;
+    data.mapLayoutIndex = 0;
+    data.currentMapOption = MapOptionLibrary::generateOptions(1)[1];
+    data.player.hp = 10000;
+    data.player.upgradeStats.maxHp = 10000;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.state = SavedRunState::Playing;
+    data.fieldPacksCleared = 0;
+    data.mapRewardChosen = false;
+    data.nextMapOptionChosen = false;
+    data.selectedMapRewardOption = -1;
+    data.selectedNextMapOption = -1;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "rare leader fixture restores the ranged field pack map");
+
+    Input input;
+    advanceIntoTheField(world, input);
+    const bool rareLeaderSpawned = std::any_of(
+        world.enemies().begin(), world.enemies().end(),
+        [](const Enemy& enemy) {
+            return enemy.isRare()
+                && enemy.displayName() == "Storm Herald"
+                && enemy.secondaryEliteModifier() == EliteModifier::Empowered;
+        }
+    );
+    expect(rareLeaderSpawned,
+        "Storm field pack spawns its data-driven rare leader and secondary modifier");
+
+    bool telegraphObserved = false;
+    bool telegraphFeedbackObserved = false;
+    for (int frame = 0; frame < 140 && world.state() == GameState::Playing; ++frame) {
+        world.update(0.05f, input);
+        telegraphObserved = telegraphObserved || !world.rareLeaderSkillWarning().empty();
+        telegraphFeedbackObserved = telegraphFeedbackObserved || std::any_of(
+            world.combatFeedback().begin(),
+            world.combatFeedback().end(),
+            [](const CombatFeedback& feedback) {
+                return feedback.type == CombatFeedbackType::Telegraph
+                    && feedback.source.find("Rare casting: Stormbound") != std::string::npos;
+            }
+        );
+    }
+    expect(telegraphObserved && telegraphFeedbackObserved,
+        "Stormbound creates a visible warning and typed telegraph feedback");
+    expect(world.rareLeaderAoeRadius() > 0.0f,
+        "Stormbound exposes its strike radius to the renderer");
+    std::filesystem::remove(path);
+}
+
 void testSaveLoadRoundTrip() {
     const auto path = std::filesystem::temp_directory_path() / "plane_fight_world_save_test.bin";
     std::filesystem::remove(path);
@@ -1758,9 +1817,16 @@ void testElementalEnemyProjectileFlow() {
                 return projectile.ailment.type == AilmentType::Shock;
             }
         );
-        playerHitObserved = playerHitObserved || world.playerHitSource() == "Spitter shot";
+        playerHitObserved = playerHitObserved || std::any_of(
+            world.combatFeedback().begin(),
+            world.combatFeedback().end(),
+            [](const CombatFeedback& feedback) {
+                return feedback.type == CombatFeedbackType::PlayerHit
+                    && feedback.source == "Spitter shot";
+            }
+        );
         shockObserved = shockObserved || world.player().isShocked();
-        if (lightningProjectileObserved && shockObserved) {
+        if (lightningProjectileObserved && playerHitObserved && shockObserved) {
             break;
         }
     }
@@ -2288,6 +2354,7 @@ int main() {
     testMapCompleteLoad();
     testPauseContextsAndFreeze();
     testBossGateProgression();
+    testRareLeaderCombatEffects();
     testContinuousMapProgression();
     testItemBaseLevelRequirementWorldFlow();
     testFiveMapRealBossProgression();

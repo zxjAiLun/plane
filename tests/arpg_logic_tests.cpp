@@ -1773,6 +1773,9 @@ void testEliteModifierDefinitions() {
     const auto& hardened = EliteModifierLibrary::forModifier(EliteModifier::Hardened);
     const auto& swift = EliteModifierLibrary::forModifier(EliteModifier::Swift);
     const auto& volatileModifier = EliteModifierLibrary::forModifier(EliteModifier::Volatile);
+    const auto& empowered = EliteModifierLibrary::forModifier(EliteModifier::Empowered);
+    const auto& stormbound = EliteModifierLibrary::forModifier(EliteModifier::Stormbound);
+    const auto& rejuvenating = EliteModifierLibrary::forModifier(EliteModifier::Rejuvenating);
 
     expect(none.name.empty(), "None modifier has no display label");
     expect(none.description.empty(), "None modifier has no risk description");
@@ -1791,10 +1794,26 @@ void testEliteModifierDefinitions() {
         "Volatile defines a damaging death burst");
     expect(volatileModifier.description == "82 radius death burst for 2 damage",
         "Volatile risk description matches its death burst data");
+    expect(empowered.allyDamageMultiplier > 1.0f && empowered.auraRadius > 0.0f,
+        "Empowered defines a local damage aura");
+    expect(stormbound.pulseInterval > 0.0f
+            && stormbound.pulseTelegraphDuration > 0.0f
+            && stormbound.pulseRadius > 0.0f
+            && stormbound.pulseDamage > 0,
+        "Stormbound defines a telegraphed periodic strike");
+    expect(rejuvenating.healInterval > 0.0f
+            && rejuvenating.healRadius > 0.0f
+            && rejuvenating.healFraction > 0.0f
+            && rejuvenating.healFraction < 1.0f,
+        "Rejuvenating defines a bounded area heal");
 
     Enemy normal({400.0f, 400.0f}, 10, 1, EnemyType::Normal, EliteModifier::Hardened);
     expect(normal.eliteModifier() == EliteModifier::None,
         "normal enemies cannot retain an Elite modifier");
+    Enemy wounded({400.0f, 400.0f}, 10, 1, EnemyType::Elite);
+    expect(wounded.takeDamage(6) == 6 && wounded.heal(3) == 3
+            && wounded.hp() == 7 && wounded.heal(10) == 3 && wounded.hp() == 10,
+        "enemy healing is capped at maximum life");
 }
 
 // --- Charger behavior ---
