@@ -1488,7 +1488,11 @@ void GameWorld::handleCollisions() {
                     enemy.position(), enemy.radius()
                 ) && enemy.consumeChargeHit()) {
                 const auto& definition = EnemyLibrary::forType(enemy.type());
-                damagePlayer(enemy.contactDamage(), definition.name + " charge");
+                damagePlayer(
+                    enemy.contactDamage(),
+                    definition.name + " charge",
+                    definition.contactDamageType
+                );
             }
             continue;
         }
@@ -1515,12 +1519,16 @@ void GameWorld::handleCollisions() {
                     definition.projectileRadius,
                     enemy.contactDamage(),
                     definition.name + " shot",
-                    DamageType::Physical,
+                    definition.projectileDamageType,
                     true
                 });
             }
         } else if (toPlayer.lengthSquared() <= enemy.attackRange() * enemy.attackRange()) {
-            damagePlayer(enemy.contactDamage(), definition.name + " strike");
+            damagePlayer(
+                enemy.contactDamage(),
+                definition.name + " strike",
+                definition.contactDamageType
+            );
         }
     }
 

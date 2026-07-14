@@ -851,13 +851,20 @@ void Renderer::render(const GameWorld& world) {
         + "%  AREA +" + std::to_string(multiplierPercent(stats.areaRadiusMultiplier))
         + "%  ARM " + std::to_string(stats.armor), 72),
         {16.0f, 84.0f}, 14, sf::Color(210, 220, 255));
-    drawText("ELEM F/C/L DMG "
+    std::string elementalLine = "ELEM F/C/L DMG "
         + std::to_string(multiplierPercent(stats.fireDamageMultiplier)) + "/"
         + std::to_string(multiplierPercent(stats.coldDamageMultiplier)) + "/"
         + std::to_string(multiplierPercent(stats.lightningDamageMultiplier))
         + "%  RES " + std::to_string(stats.fireResistance) + "/"
         + std::to_string(stats.coldResistance) + "/"
-        + std::to_string(stats.lightningResistance),
+        + std::to_string(stats.lightningResistance);
+    if (!world.mapModifier().elementalChallengeId.empty()) {
+        elementalLine += "  MAP "
+            + std::string(damageTypeName(world.mapModifier().elementalChallengeType))
+            + " RES -" + std::to_string(world.mapModifier().playerElementalResistancePenalty)
+            + " / MRES +" + std::to_string(world.mapModifier().monsterElementalResistanceBonus);
+    }
+    drawText(truncateText(elementalLine, 64),
         {450.0f, 84.0f}, 12, sf::Color(235, 195, 150));
     drawSkillBar(world);
     drawEquipment(world);
@@ -1293,8 +1300,10 @@ void Renderer::drawBossProjectiles(const GameWorld& world) {
 void Renderer::drawEnemyProjectiles(const GameWorld& world) {
     for (const auto& projectile : world.enemyProjectiles()) {
         sf::CircleShape shape(projectile.radius);
-        shape.setFillColor(sf::Color(80, 235, 145));
-        shape.setOutlineColor(sf::Color(210, 255, 190));
+        shape.setFillColor(damageTypeColor(projectile.damageType));
+        sf::Color outline = damageTypeColor(projectile.damageType);
+        outline.a = 230;
+        shape.setOutlineColor(outline);
         shape.setOutlineThickness(1.5f);
         shape.setOrigin({projectile.radius, projectile.radius});
         shape.setPosition(worldToScreen(world, projectile.position));

@@ -894,6 +894,11 @@ void testAilmentResistances() {
     expect(ranged.fireResistance == 10 && ranged.coldResistance == 10
             && ranged.lightningResistance == 0,
         "Ranged enemies expose separate direct elemental resistance data");
+    expect(ranged.projectileDamageType == DamageType::Lightning
+            && elite.contactDamageType == DamageType::Fire
+            && charger.contactDamageType == DamageType::Fire
+            && warden.contactDamageType == DamageType::Cold,
+        "enemy attack definitions expose data-driven elemental damage types");
     expect(elite.igniteResistance == 15 && elite.chillResistance == 15,
         "Elite enemies use the elevated ailment resistance baseline");
     expect(charger.igniteResistance == 15 && charger.chillResistance == 10,

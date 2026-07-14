@@ -1578,6 +1578,66 @@ void testBossCombatFlow() {
     std::filesystem::remove(path);
 }
 
+void testElementalEnemyProjectileFlow() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_elemental_enemy_projectile_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(19001);
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "elemental enemy fixture starts from a valid run save");
+
+    data.mapTemplateIndex = 1;
+    data.mapLayoutIndex = 0;
+    data.currentMapOption = MapOptionLibrary::generateOptions(1)[1];
+    data.player.hp = 10000;
+    data.player.upgradeStats.maxHp = 10000;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.state = SavedRunState::Playing;
+    data.mapRewardChosen = false;
+    data.nextMapOptionChosen = false;
+    data.selectedMapRewardOption = -1;
+    data.selectedNextMapOption = -1;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "elemental enemy fixture restores the ranged map template and challenge");
+    expect(world.mapModifier().elementalChallengeType == DamageType::Lightning
+            && world.mapModifier().playerElementalResistancePenalty >= 25,
+        "Stormbound applies its Lightning resistance challenge to the live map");
+
+    Input input;
+    advanceIntoTheField(world, input);
+    bool rangedSpawned = false;
+    bool lightningProjectileObserved = false;
+    for (int frame = 0; frame < 800 && world.state() == GameState::Playing; ++frame) {
+        world.update(0.05f, input);
+        rangedSpawned = rangedSpawned || std::any_of(
+            world.enemies().begin(),
+            world.enemies().end(),
+            [](const Enemy& enemy) {
+                return enemy.type() == EnemyType::Ranged && !enemy.isDead();
+            }
+        );
+        lightningProjectileObserved = lightningProjectileObserved || std::any_of(
+            world.enemyProjectiles().begin(),
+            world.enemyProjectiles().end(),
+            [](const EnemyProjectile& projectile) {
+                return projectile.damageType == DamageType::Lightning;
+            }
+        );
+        if (lightningProjectileObserved) {
+            break;
+        }
+    }
+
+    expect(rangedSpawned,
+        "Stormscar map spawns a data-driven ranged enemy");
+    expect(lightningProjectileObserved,
+        "ranged enemy projectile carries its configured Lightning damage type");
+    std::filesystem::remove(path);
+}
+
 void testElitePackEventFlow() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_elite_pack_event_test.bin";
@@ -2089,6 +2149,7 @@ int main() {
     testBuildMathMatchesWorldHits();
     testExpandedSkillWorldHits();
     testBossCombatFlow();
+    testElementalEnemyProjectileFlow();
     testElitePackEventFlow();
     testCombinationMapEvents();
 

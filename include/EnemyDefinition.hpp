@@ -6,6 +6,7 @@
 #include <string>
 
 #include "Config.hpp"
+#include "DamageType.hpp"
 #include "EnemyType.hpp"
 
 struct EnemyColor {
@@ -52,6 +53,8 @@ struct EnemyDefinition {
     int coldResistance = 0;
     int lightningResistance = 0;
     int shockResistance = 0;
+    DamageType contactDamageType = DamageType::Physical;
+    DamageType projectileDamageType = DamageType::Physical;
 };
 
 class EnemyLibrary {
@@ -113,7 +116,9 @@ public:
                 10,
                 10,
                 0,
-                10
+                10,
+                DamageType::Physical,
+                DamageType::Lightning
             },
             {
                 EnemyType::Elite,
@@ -144,7 +149,9 @@ public:
                 15,
                 15,
                 0,
-                15
+                15,
+                DamageType::Fire,
+                DamageType::Physical
             },
             {
                 EnemyType::Boss,
@@ -196,7 +203,9 @@ public:
                 15,
                 10,
                 0,
-                10
+                10,
+                DamageType::Fire,
+                DamageType::Physical
             },
             {
                 EnemyType::Warden,
@@ -227,7 +236,9 @@ public:
                 25,
                 20,
                 0,
-                20
+                20,
+                DamageType::Cold,
+                DamageType::Physical
             },
             {
                 EnemyType::Summoner,
