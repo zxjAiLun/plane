@@ -50,6 +50,7 @@ struct EnemyProjectile {
     int damage = 0;
     std::string source;
     DamageType damageType = DamageType::Physical;
+    AilmentDefinition ailment;
     bool alive = true;
 };
 
@@ -263,7 +264,14 @@ private:
     void damagePlayer(
         int damage,
         const std::string& source,
-        DamageType damageType = DamageType::Physical
+        DamageType damageType = DamageType::Physical,
+        AilmentDefinition ailment = {}
+    );
+    void applyPlayerAilment(
+        const AilmentDefinition& ailment,
+        DamageType damageType,
+        int hitDamage,
+        const Stats& effectiveStats
     );
     Enemy* activeBoss();
     void resetBossDash();

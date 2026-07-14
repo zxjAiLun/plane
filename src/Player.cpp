@@ -34,28 +34,28 @@ void Player::update(float dt) {
 }
 
 void Player::moveLeft(float dt) {
-    position_.x -= baseSpeed_ * stats_.moveSpeedMultiplier * dt;
+    position_.x -= moveSpeed() * dt;
     if (position_.x - radius_ < 0.0f) {
         position_.x = radius_;
     }
 }
 
 void Player::moveRight(float dt) {
-    position_.x += baseSpeed_ * stats_.moveSpeedMultiplier * dt;
+    position_.x += moveSpeed() * dt;
     if (position_.x + radius_ > bounds_.x) {
         position_.x = bounds_.x - radius_;
     }
 }
 
 void Player::moveUp(float dt) {
-    position_.y -= baseSpeed_ * stats_.moveSpeedMultiplier * dt;
+    position_.y -= moveSpeed() * dt;
     if (position_.y - radius_ < 0.0f) {
         position_.y = radius_;
     }
 }
 
 void Player::moveDown(float dt) {
-    position_.y += baseSpeed_ * stats_.moveSpeedMultiplier * dt;
+    position_.y += moveSpeed() * dt;
     if (position_.y + radius_ > bounds_.y) {
         position_.y = bounds_.y - radius_;
     }
@@ -71,8 +71,25 @@ void Player::setBounds(const Vector2& bounds) {
     setPosition(position_);
 }
 
+void Player::clearAilments() {
+    igniteDamagePerTick_ = 0;
+    igniteTimer_ = 0.0f;
+    igniteTickTimer_ = 0.0f;
+    chillTimer_ = 0.0f;
+    chillSpeedMultiplier_ = 1.0f;
+    shockTimer_ = 0.0f;
+    shockDamageTakenMultiplier_ = 1.0f;
+}
+
 int Player::takeDamage(int damage) {
-    const int actualDamage = mitigatedDamage(damage, stats_.armor);
+    if (damage <= 0 || isDead()) {
+        return 0;
+    }
+
+    const int scaledDamage = std::max(1, static_cast<int>(std::ceil(
+        static_cast<float>(damage) * shockDamageTakenMultiplier_
+    )));
+    const int actualDamage = mitigatedDamage(scaledDamage, stats_.armor);
     hp_ -= actualDamage;
     return actualDamage;
 }
@@ -105,6 +122,79 @@ bool Player::spendMana(float amount) {
 
 bool Player::isDead() const {
     return hp_ <= 0;
+}
+
+AilmentTickResult Player::updateAilments(float dt) {
+    AilmentTickResult result;
+    const float elapsed = std::max(0.0f, dt);
+    if (elapsed <= 0.0f) {
+        return result;
+    }
+
+    if (igniteTimer_ > 0.0f) {
+        const float activeTime = std::min(elapsed, igniteTimer_);
+        igniteTimer_ = std::max(0.0f, igniteTimer_ - elapsed);
+        igniteTickTimer_ -= activeTime;
+        while (igniteTickTimer_ <= 0.0f && igniteTimer_ > 0.0f && !isDead()) {
+            result.type = AilmentType::Ignite;
+            ++result.tickCount;
+            result.damage += takeDamage(igniteDamagePerTick_);
+            result.killed = isDead();
+            igniteTickTimer_ += Config::AilmentTickInterval;
+            if (result.killed) {
+                break;
+            }
+        }
+        if (igniteTimer_ <= 0.0f) {
+            igniteDamagePerTick_ = 0;
+            igniteTickTimer_ = 0.0f;
+        }
+    }
+
+    chillTimer_ = std::max(0.0f, chillTimer_ - elapsed);
+    if (chillTimer_ <= 0.0f) {
+        chillSpeedMultiplier_ = 1.0f;
+    }
+
+    shockTimer_ = std::max(0.0f, shockTimer_ - elapsed);
+    if (shockTimer_ <= 0.0f) {
+        shockDamageTakenMultiplier_ = 1.0f;
+    }
+
+    return result;
+}
+
+void Player::applyIgnite(int damagePerTick, float duration) {
+    if (damagePerTick <= 0 || duration <= 0.0f) {
+        return;
+    }
+
+    igniteDamagePerTick_ = std::max(igniteDamagePerTick_, damagePerTick);
+    igniteTimer_ = std::max(igniteTimer_, duration);
+    igniteTickTimer_ = std::min(igniteTickTimer_, Config::AilmentTickInterval);
+    if (igniteTickTimer_ <= 0.0f) {
+        igniteTickTimer_ = Config::AilmentTickInterval;
+    }
+}
+
+void Player::applyChill(float speedMultiplier, float duration) {
+    if (speedMultiplier <= 0.0f || speedMultiplier >= 1.0f || duration <= 0.0f) {
+        return;
+    }
+
+    chillSpeedMultiplier_ = std::min(chillSpeedMultiplier_, speedMultiplier);
+    chillTimer_ = std::max(chillTimer_, duration);
+}
+
+void Player::applyShock(float damageTakenMultiplier, float duration) {
+    if (damageTakenMultiplier <= 1.0f || duration <= 0.0f) {
+        return;
+    }
+
+    shockDamageTakenMultiplier_ = std::max(
+        shockDamageTakenMultiplier_, damageTakenMultiplier
+    );
+    shockTimer_ = std::max(shockTimer_, duration);
 }
 
 void Player::gainExp(int amount) {
@@ -231,6 +321,7 @@ bool Player::restoreState(const PlayerSaveState& state, const Vector2& bounds) {
     }
 
     Player restored = *this;
+    restored.clearAilments();
     restored.bounds_ = bounds;
     if (!restored.passiveTree_.restoreAllocatedNodes(state.allocatedPassiveNodes)
         || !restored.equipment_.restoreItems(state.equipment)) {
@@ -265,7 +356,17 @@ void Player::recalculateStats() {
 
 const Vector2& Player::position() const { return position_; }
 float Player::radius() const { return radius_; }
-float Player::moveSpeed() const { return baseSpeed_ * stats_.moveSpeedMultiplier; }
+float Player::moveSpeed() const {
+    return baseSpeed_ * stats_.moveSpeedMultiplier * chillSpeedMultiplier_;
+}
+bool Player::isIgnited() const { return igniteTimer_ > 0.0f; }
+bool Player::isChilled() const { return chillTimer_ > 0.0f; }
+bool Player::isShocked() const { return shockTimer_ > 0.0f; }
+float Player::chillTimeRemaining() const { return chillTimer_; }
+float Player::shockTimeRemaining() const { return shockTimer_; }
+float Player::igniteTimeRemaining() const { return igniteTimer_; }
+float Player::chillSpeedMultiplier() const { return chillSpeedMultiplier_; }
+float Player::damageTakenMultiplier() const { return shockDamageTakenMultiplier_; }
 int Player::hp() const { return hp_; }
 int Player::maxHp() const { return maxHp_; }
 int Player::level() const { return level_; }

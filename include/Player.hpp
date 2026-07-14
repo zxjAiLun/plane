@@ -3,6 +3,7 @@
 #include <array>
 #include <optional>
 
+#include "Ailment.hpp"
 #include "Vector2.hpp"
 #include "PlayerStats.hpp"
 #include "Upgrade.hpp"
@@ -35,12 +36,17 @@ public:
     void moveDown(float dt);
     void setPosition(const Vector2& position);
     void setBounds(const Vector2& bounds);
+    void clearAilments();
 
     int takeDamage(int damage);
     int heal(int amount);
     bool canSpendMana(float amount) const;
     bool spendMana(float amount);
     bool isDead() const;
+    AilmentTickResult updateAilments(float dt);
+    void applyIgnite(int damagePerTick, float duration);
+    void applyChill(float speedMultiplier, float duration);
+    void applyShock(float damageTakenMultiplier, float duration);
 
     void gainExp(int amount);
     void applyUpgrade(UpgradeType type);
@@ -55,6 +61,14 @@ public:
     const Vector2& position() const;
     float radius() const;
     float moveSpeed() const;
+    bool isIgnited() const;
+    bool isChilled() const;
+    bool isShocked() const;
+    float chillTimeRemaining() const;
+    float shockTimeRemaining() const;
+    float igniteTimeRemaining() const;
+    float chillSpeedMultiplier() const;
+    float damageTakenMultiplier() const;
     int hp() const;
     int maxHp() const;
     int level() const;
@@ -91,4 +105,11 @@ private:
     PlayerStats stats_;
     Equipment equipment_;
     PassiveTree passiveTree_;
+    int igniteDamagePerTick_ = 0;
+    float igniteTimer_ = 0.0f;
+    float igniteTickTimer_ = 0.0f;
+    float chillTimer_ = 0.0f;
+    float chillSpeedMultiplier_ = 1.0f;
+    float shockTimer_ = 0.0f;
+    float shockDamageTakenMultiplier_ = 1.0f;
 };

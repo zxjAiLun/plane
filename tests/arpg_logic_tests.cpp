@@ -877,6 +877,57 @@ void testSkillAilments() {
         "Ignite expires without producing ticks after its duration");
 }
 
+void testPlayerAilments() {
+    section("Player elemental ailments and transient lifecycle");
+
+    Player ignited;
+    ignited.applyIgnite(1, 2.0f);
+    expect(ignited.isIgnited(), "Player Ignite is active after application");
+    const int hpBeforeIgnite = ignited.hp();
+    const AilmentTickResult igniteTick = ignited.updateAilments(
+        Config::AilmentTickInterval
+    );
+    expect(igniteTick.type == AilmentType::Ignite
+            && igniteTick.damage == 1
+            && igniteTick.tickCount == 1
+            && ignited.hp() == hpBeforeIgnite - 1,
+        "Player Ignite deals one configured tick of damage");
+    ignited.updateAilments(2.0f);
+    expect(!ignited.isIgnited(), "Player Ignite expires after its duration");
+
+    Player chilled;
+    const float normalSpeed = chilled.moveSpeed();
+    chilled.applyChill(0.55f, 1.5f);
+    expect(chilled.isChilled()
+            && chilled.moveSpeed() < normalSpeed
+            && std::abs(chilled.chillSpeedMultiplier() - 0.55f) < 0.0001f,
+        "Player Chill reduces movement speed");
+    chilled.updateAilments(1.5f);
+    expect(!chilled.isChilled()
+            && std::abs(chilled.moveSpeed() - normalSpeed) < 0.0001f,
+        "Player Chill restores movement speed after expiry");
+
+    Player shocked;
+    shocked.applyShock(1.20f, 2.0f);
+    expect(shocked.isShocked()
+            && shocked.takeDamage(1) == 2,
+        "Player Shock amplifies subsequent incoming damage");
+    shocked.updateAilments(2.0f);
+    expect(!shocked.isShocked()
+            && std::abs(shocked.damageTakenMultiplier() - 1.0f) < 0.0001f,
+        "Player Shock restores normal damage taken after expiry");
+
+    Player restored;
+    restored.applyIgnite(1, 2.0f);
+    restored.applyChill(0.60f, 2.0f);
+    restored.applyShock(1.15f, 2.0f);
+    const PlayerSaveState saved = restored.saveState();
+    expect(restored.restoreState(saved, {Config::MapWidth, Config::MapHeight}),
+        "Player restore accepts a state without transient ailments");
+    expect(!restored.isIgnited() && !restored.isChilled() && !restored.isShocked(),
+        "Player restore clears transient ailments");
+}
+
 // --- Ailment resistances and penetration ---
 void testAilmentResistances() {
     section("Ailment resistances and penetration");
@@ -2349,6 +2400,7 @@ int main() {
     testSkillPreviewSupportCompatibility();
     testSkillBuildMathMatrix();
     testSkillAilments();
+    testPlayerAilments();
     testAilmentResistances();
     testWardenProtectionMath();
     testSummonerStateMachine();

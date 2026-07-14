@@ -17,3 +17,10 @@ struct AilmentDefinition {
     float damageTakenMultiplier = 1.0f;
     int shockPenetration = 0;
 };
+
+struct AilmentTickResult {
+    AilmentType type = AilmentType::None;
+    int damage = 0;
+    int tickCount = 0;
+    bool killed = false;
+};

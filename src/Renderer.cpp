@@ -866,6 +866,23 @@ void Renderer::render(const GameWorld& world) {
     }
     drawText(truncateText(elementalLine, 64),
         {450.0f, 84.0f}, 12, sf::Color(235, 195, 150));
+    std::string ailmentLine;
+    if (world.player().isIgnited()) {
+        ailmentLine += "Ignite " + formatFloat(world.player().igniteTimeRemaining(), 1) + "s  ";
+    }
+    if (world.player().isChilled()) {
+        ailmentLine += "Chill " + formatFloat(world.player().chillTimeRemaining(), 1)
+            + "s  ";
+    }
+    if (world.player().isShocked()) {
+        ailmentLine += "Shock +"
+            + std::to_string(multiplierPercent(world.player().damageTakenMultiplier()))
+            + "% " + formatFloat(world.player().shockTimeRemaining(), 1) + "s";
+    }
+    if (!ailmentLine.empty()) {
+        drawText(truncateText("Status " + ailmentLine, 64),
+            {450.0f, 102.0f}, 12, sf::Color(255, 180, 210));
+    }
     drawSkillBar(world);
     drawEquipment(world);
     drawInventory(world);
@@ -1085,6 +1102,37 @@ void Renderer::drawPlayer(const GameWorld& world) {
         pulse.setOrigin({pulseRadius, pulseRadius});
         pulse.setPosition(screenPosition);
         window_.draw(pulse);
+    }
+
+    if (player.isIgnited()) {
+        const float radius = player.radius() + 8.0f;
+        sf::CircleShape ring(radius);
+        ring.setFillColor(sf::Color::Transparent);
+        ring.setOutlineColor(sf::Color(255, 115, 45, 220));
+        ring.setOutlineThickness(3.0f);
+        ring.setOrigin({radius, radius});
+        ring.setPosition(screenPosition);
+        window_.draw(ring);
+    }
+    if (player.isChilled()) {
+        const float radius = player.radius() + 12.0f;
+        sf::CircleShape ring(radius);
+        ring.setFillColor(sf::Color::Transparent);
+        ring.setOutlineColor(sf::Color(105, 225, 255, 220));
+        ring.setOutlineThickness(3.0f);
+        ring.setOrigin({radius, radius});
+        ring.setPosition(screenPosition);
+        window_.draw(ring);
+    }
+    if (player.isShocked()) {
+        const float radius = player.radius() + 16.0f;
+        sf::CircleShape ring(radius);
+        ring.setFillColor(sf::Color::Transparent);
+        ring.setOutlineColor(sf::Color(190, 145, 255, 220));
+        ring.setOutlineThickness(3.0f);
+        ring.setOrigin({radius, radius});
+        ring.setPosition(screenPosition);
+        window_.draw(ring);
     }
 
     sf::CircleShape shape(player.radius());

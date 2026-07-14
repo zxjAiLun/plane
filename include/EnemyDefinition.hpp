@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 
+#include "Ailment.hpp"
 #include "Config.hpp"
 #include "DamageType.hpp"
 #include "EnemyType.hpp"
@@ -55,6 +56,8 @@ struct EnemyDefinition {
     int shockResistance = 0;
     DamageType contactDamageType = DamageType::Physical;
     DamageType projectileDamageType = DamageType::Physical;
+    AilmentDefinition contactAilment;
+    AilmentDefinition projectileAilment;
 };
 
 class EnemyLibrary {
@@ -118,7 +121,9 @@ public:
                 0,
                 10,
                 DamageType::Physical,
-                DamageType::Lightning
+                DamageType::Lightning,
+                {},
+                {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.15f}
             },
             {
                 EnemyType::Elite,
@@ -151,7 +156,9 @@ public:
                 0,
                 15,
                 DamageType::Fire,
-                DamageType::Physical
+                DamageType::Physical,
+                {AilmentType::Ignite, 2.5f, 0.20f},
+                {}
             },
             {
                 EnemyType::Boss,
@@ -205,7 +212,9 @@ public:
                 0,
                 10,
                 DamageType::Fire,
-                DamageType::Physical
+                DamageType::Physical,
+                {AilmentType::Ignite, 3.0f, 0.20f},
+                {}
             },
             {
                 EnemyType::Warden,
@@ -238,7 +247,9 @@ public:
                 0,
                 20,
                 DamageType::Cold,
-                DamageType::Physical
+                DamageType::Physical,
+                {AilmentType::Chill, 2.0f, 0.0f, 0.65f},
+                {}
             },
             {
                 EnemyType::Summoner,

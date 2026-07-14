@@ -677,6 +677,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     bossDefinition_ = &BossLibrary::forMapLevel(mapLevel_);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
+    player_.clearAilments();
     skillBar_.applyStats(player_.stats());
 
     score_ = data.score;
@@ -775,6 +776,14 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     }
 
     player_.update(dt);
+    const AilmentTickResult playerAilmentTick = player_.updateAilments(dt);
+    if (playerAilmentTick.type == AilmentType::Ignite
+        && playerAilmentTick.damage > 0) {
+        addCombatFeedback(
+            player_.position(), playerAilmentTick.damage, "Ignite",
+            CombatFeedbackType::PlayerHit
+        );
+    }
     skillBar_.update(dt);
     updateCombatFeedback(dt);
     novaEffectTimer_ = std::max(0.0f, novaEffectTimer_ - dt);
@@ -961,6 +970,7 @@ void GameWorld::startNextMap() {
     bossDefinition_ = &BossLibrary::forMapLevel(mapLevel_);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
+    player_.clearAilments();
     currentWave_ = 0;
     enemiesSpawnedInWave_ = 0;
     survivalTime_ = 0.0f;
@@ -1491,7 +1501,8 @@ void GameWorld::handleCollisions() {
                 damagePlayer(
                     enemy.contactDamage(),
                     definition.name + " charge",
-                    definition.contactDamageType
+                    definition.contactDamageType,
+                    definition.contactAilment
                 );
             }
             continue;
@@ -1520,6 +1531,7 @@ void GameWorld::handleCollisions() {
                     enemy.contactDamage(),
                     definition.name + " shot",
                     definition.projectileDamageType,
+                    definition.projectileAilment,
                     true
                 });
             }
@@ -1527,7 +1539,8 @@ void GameWorld::handleCollisions() {
             damagePlayer(
                 enemy.contactDamage(),
                 definition.name + " strike",
-                definition.contactDamageType
+                definition.contactDamageType,
+                definition.contactAilment
             );
         }
     }
@@ -1684,7 +1697,11 @@ void GameWorld::handleBossProjectileCollisions() {
                 player_.position(), player_.radius(),
                 projectile.position, projectile.radius
             )) {
-            damagePlayer(projectile.damage, projectile.source, projectile.damageType);
+            damagePlayer(
+                projectile.damage,
+                projectile.source,
+                projectile.damageType
+            );
             projectile.alive = false;
         }
     }
@@ -1700,7 +1717,12 @@ void GameWorld::handleEnemyProjectileCollisions() {
                 player_.position(), player_.radius(),
                 projectile.position, projectile.radius
             )) {
-            damagePlayer(projectile.damage, projectile.source, projectile.damageType);
+            damagePlayer(
+                projectile.damage,
+                projectile.source,
+                projectile.damageType,
+                projectile.ailment
+            );
             projectile.alive = false;
         }
     }
@@ -3232,7 +3254,8 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
 void GameWorld::damagePlayer(
     int damage,
     const std::string& source,
-    DamageType damageType
+    DamageType damageType,
+    AilmentDefinition ailment
 ) {
     if (playerHitCooldown_ > 0.0f) {
         return;
@@ -3253,6 +3276,8 @@ void GameWorld::damagePlayer(
         return;
     }
 
+    applyPlayerAilment(ailment, damageType, playerHitDamage_, effectiveStats);
+
     playerHitSource_ = source;
     playerHitEffectTimer_ = Config::PlayerHitEffectDuration;
     playerHitCooldown_ = Config::PlayerHitCooldown;
@@ -3261,6 +3286,91 @@ void GameWorld::damagePlayer(
         playerHitDamage_,
         source,
         CombatFeedbackType::PlayerHit
+    );
+}
+
+void GameWorld::applyPlayerAilment(
+    const AilmentDefinition& ailment,
+    DamageType damageType,
+    int hitDamage,
+    const Stats& effectiveStats
+) {
+    if (ailment.type == AilmentType::None || hitDamage <= 0) {
+        return;
+    }
+
+    const int resistance = resistanceForDamageType(
+        damageType,
+        effectiveStats.fireResistance,
+        effectiveStats.coldResistance,
+        effectiveStats.lightningResistance
+    );
+    bool applied = false;
+    switch (ailment.type) {
+        case AilmentType::Ignite: {
+            const int tickDamage = ailmentTickDamageAfterResistance(
+                ailmentTickDamage(ailment, hitDamage),
+                resistance,
+                ailment.ignitePenetration
+            );
+            if (tickDamage <= 0) {
+                return;
+            }
+            player_.applyIgnite(
+                tickDamage,
+                ailment.duration
+            );
+            applied = true;
+            break;
+        }
+        case AilmentType::Chill: {
+            const float speedMultiplier = chillSpeedMultiplierAfterResistance(
+                ailment.speedMultiplier,
+                resistance,
+                ailment.chillPenetration
+            );
+            if (speedMultiplier >= 1.0f) {
+                return;
+            }
+            player_.applyChill(
+                speedMultiplier,
+                ailment.duration
+            );
+            applied = true;
+            break;
+        }
+        case AilmentType::Shock: {
+            const float damageTakenMultiplier = damageTakenMultiplierAfterResistance(
+                ailment.damageTakenMultiplier,
+                resistance,
+                ailment.shockPenetration
+            );
+            if (damageTakenMultiplier <= 1.0f) {
+                return;
+            }
+            player_.applyShock(
+                damageTakenMultiplier,
+                ailment.duration
+            );
+            applied = true;
+            break;
+        }
+        case AilmentType::None:
+            return;
+    }
+
+    if (!applied) {
+        return;
+    }
+
+    const char* statusName = ailment.type == AilmentType::Ignite
+        ? "Ignite"
+        : ailment.type == AilmentType::Chill ? "Chill" : "Shock";
+    addCombatFeedback(
+        player_.position(),
+        0,
+        statusName,
+        CombatFeedbackType::Status
     );
 }
 

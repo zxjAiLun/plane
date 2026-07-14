@@ -1590,7 +1590,7 @@ void testElementalEnemyProjectileFlow() {
         "elemental enemy fixture starts from a valid run save");
 
     data.mapTemplateIndex = 1;
-    data.mapLayoutIndex = 0;
+    data.mapLayoutIndex = 1;
     data.currentMapOption = MapOptionLibrary::generateOptions(1)[1];
     data.player.hp = 10000;
     data.player.upgradeStats.maxHp = 10000;
@@ -1608,8 +1608,16 @@ void testElementalEnemyProjectileFlow() {
 
     Input input;
     advanceIntoTheField(world, input);
+    input.handleKeyPressed(sf::Keyboard::Key::W);
+    for (int frame = 0; frame < 20; ++frame) {
+        world.update(0.05f, input);
+    }
+    input.handleKeyReleased(sf::Keyboard::Key::W);
     bool rangedSpawned = false;
     bool lightningProjectileObserved = false;
+    bool shockProjectileObserved = false;
+    bool playerHitObserved = false;
+    bool shockObserved = false;
     for (int frame = 0; frame < 800 && world.state() == GameState::Playing; ++frame) {
         world.update(0.05f, input);
         rangedSpawned = rangedSpawned || std::any_of(
@@ -1626,7 +1634,16 @@ void testElementalEnemyProjectileFlow() {
                 return projectile.damageType == DamageType::Lightning;
             }
         );
-        if (lightningProjectileObserved) {
+        shockProjectileObserved = shockProjectileObserved || std::any_of(
+            world.enemyProjectiles().begin(),
+            world.enemyProjectiles().end(),
+            [](const EnemyProjectile& projectile) {
+                return projectile.ailment.type == AilmentType::Shock;
+            }
+        );
+        playerHitObserved = playerHitObserved || world.playerHitSource() == "Spitter shot";
+        shockObserved = shockObserved || world.player().isShocked();
+        if (lightningProjectileObserved && shockObserved) {
             break;
         }
     }
@@ -1635,6 +1652,12 @@ void testElementalEnemyProjectileFlow() {
         "Stormscar map spawns a data-driven ranged enemy");
     expect(lightningProjectileObserved,
         "ranged enemy projectile carries its configured Lightning damage type");
+    expect(shockProjectileObserved,
+        "ranged enemy projectile carries its configured Shock ailment");
+    expect(playerHitObserved,
+        "ranged enemy projectile reaches the player collision path");
+    expect(shockObserved,
+        "Lightning projectile applies Shock to the player after resistance");
     std::filesystem::remove(path);
 }
 

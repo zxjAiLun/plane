@@ -7,13 +7,6 @@
 
 class MapInstance;
 
-struct AilmentTickResult {
-    AilmentType type = AilmentType::None;
-    int damage = 0;
-    int tickCount = 0;
-    bool killed = false;
-};
-
 class Enemy {
 public:
     Enemy(const Vector2& position, int hp, int contactDamage, EnemyType type = EnemyType::Normal,
