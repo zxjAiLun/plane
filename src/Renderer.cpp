@@ -1205,6 +1205,16 @@ void Renderer::drawEnemies(const GameWorld& world) {
         const auto& definition = EnemyLibrary::forType(enemy.type());
         const auto& modifier = EliteModifierLibrary::forModifier(enemy.eliteModifier());
         const sf::Vector2f screenPosition = worldToScreen(world, enemy.position());
+        if (enemy.isWarden()) {
+            const float auraRadius = Config::WardenAuraRadius;
+            sf::CircleShape aura(auraRadius);
+            aura.setFillColor(sf::Color(70, 190, 235, 18));
+            aura.setOutlineColor(sf::Color(115, 225, 255, 145));
+            aura.setOutlineThickness(2.0f);
+            aura.setOrigin({auraRadius, auraRadius});
+            aura.setPosition(screenPosition);
+            window_.draw(aura);
+        }
         if (enemy.isAttackWindingUp()) {
             if (enemy.isCharger()) {
                 const sf::Vector2f chargeTarget = worldToScreen(

@@ -84,6 +84,8 @@ namespace Config {
     constexpr int MaxBossSummonedEnemies = 10;
     constexpr float EnemySpawnMinDistance = 520.0f;
     constexpr float EnemySpawnMaxDistance = 760.0f;
+    constexpr float WardenAuraRadius = 180.0f;
+    constexpr float WardenDamageTakenMultiplier = 0.70f;
     constexpr float VolatileExplosionEffectDuration = 0.35f;
     constexpr float AilmentTickInterval = 1.0f;
     constexpr float ShrineBuffDuration = 20.0f;

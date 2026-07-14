@@ -56,6 +56,7 @@ public:
     EnemyType type() const;
     bool isRanged() const;
     bool isCharger() const;
+    bool isWarden() const;
     bool isCharging() const;
     bool isIgnited() const;
     bool isChilled() const;

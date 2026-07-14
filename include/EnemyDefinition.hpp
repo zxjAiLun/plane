@@ -54,8 +54,8 @@ public:
         return definitions[static_cast<std::size_t>(type)];
     }
 
-    static const std::array<EnemyDefinition, 5>& all() {
-        static const std::array<EnemyDefinition, 5> definitions = {{
+    static const std::array<EnemyDefinition, 6>& all() {
+        static const std::array<EnemyDefinition, 6> definitions = {{
             {
                 EnemyType::Normal,
                 "Feral",
@@ -172,6 +172,31 @@ public:
                 0.42f,
                 15,
                 10
+            },
+            {
+                EnemyType::Warden,
+                "Warden",
+                1.25f,
+                2.40f,
+                1,
+                420,
+                3,
+                1.80f,
+                50,
+                1,
+                EnemyAttackStyle::Melee,
+                52.0f,
+                0.35f,
+                1.30f,
+                0.0f,
+                0.0f,
+                {70, 180, 220},
+                {175, 245, 255},
+                2.5f,
+                1.0f,
+                0.0f,
+                25,
+                20
             },
         }};
 

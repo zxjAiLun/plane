@@ -226,6 +226,7 @@ bool Enemy::isRanged() const {
 bool Enemy::isCharger() const {
     return EnemyLibrary::forType(type_).attackStyle == EnemyAttackStyle::Charge;
 }
+bool Enemy::isWarden() const { return type_ == EnemyType::Warden; }
 bool Enemy::isCharging() const { return chargeTimer_ > 0.0f; }
 bool Enemy::isIgnited() const { return igniteTimer_ > 0.0f; }
 bool Enemy::isChilled() const { return chillTimer_ > 0.0f; }
@@ -250,7 +251,9 @@ bool Enemy::consumeChargeHit() {
     chargeHitConsumed_ = true;
     return true;
 }
-bool Enemy::isElite() const { return type_ == EnemyType::Elite || type_ == EnemyType::Boss; }
+bool Enemy::isElite() const {
+    return type_ == EnemyType::Elite || type_ == EnemyType::Boss || isWarden();
+}
 bool Enemy::isBoss() const { return type_ == EnemyType::Boss; }
 EliteModifier Enemy::eliteModifier() const { return eliteModifier_; }
 int Enemy::mapEventIndex() const { return mapEventIndex_; }

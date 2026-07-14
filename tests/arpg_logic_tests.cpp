@@ -840,6 +840,7 @@ void testAilmentResistances() {
     const auto& ranged = EnemyLibrary::forType(EnemyType::Ranged);
     const auto& elite = EnemyLibrary::forType(EnemyType::Elite);
     const auto& charger = EnemyLibrary::forType(EnemyType::Charger);
+    const auto& warden = EnemyLibrary::forType(EnemyType::Warden);
     expect(normal.igniteResistance == 0 && normal.chillResistance == 0,
         "Normal enemies have no ailment resistance");
     expect(ranged.igniteResistance == 10 && ranged.chillResistance == 10,
@@ -848,6 +849,14 @@ void testAilmentResistances() {
         "Elite enemies use the elevated ailment resistance baseline");
     expect(charger.igniteResistance == 15 && charger.chillResistance == 10,
         "Charger enemies use the data-driven ailment resistance baseline");
+    expect(warden.name == "Warden"
+            && warden.igniteResistance == 25
+            && warden.chillResistance == 20,
+        "Warden exposes a distinct defensive resistance profile");
+    Enemy wardenEnemy({400.0f, 400.0f}, 10, 2, EnemyType::Warden);
+    expect(wardenEnemy.isWarden() && wardenEnemy.isElite()
+            && !wardenEnemy.isRanged() && !wardenEnemy.isCharger(),
+        "Warden exposes a defensive melee enemy role");
 
     const auto& bosses = BossLibrary::all();
     expect(bosses[0].igniteResistance == 35 && bosses[0].chillResistance == 20,
@@ -917,6 +926,19 @@ void testAilmentResistances() {
     );
     expect(chargerEnemy.movementSpeedMultiplier() > 0.55f,
         "Enemy ailment lifecycle uses the resistance-adjusted Chill speed");
+}
+
+void testWardenProtectionMath() {
+    section("Warden protection math");
+
+    expect(wardenProtectedDamage(10, true, 0.70f) == 7,
+        "Warden aura reduces incoming damage to the configured multiplier");
+    expect(wardenProtectedDamage(10, false, 0.70f) == 10,
+        "unprotected enemies take full damage");
+    expect(wardenProtectedDamage(1, true, 0.0f) == 1,
+        "Warden protection never reduces a positive hit below one");
+    expect(wardenProtectedDamage(-5, true, 0.70f) == 0,
+        "non-positive damage remains harmless");
 }
 
 // --- Armor mitigation via Player (shipped path) ---
@@ -1453,7 +1475,8 @@ void testChargerStateMachine() {
         expect(encounter.chargerWeight > 0,
             mapTemplate.name + " includes Charger encounters");
         expect(encounter.normalWeight + encounter.rangedWeight
-                + encounter.eliteWeight + encounter.chargerWeight == 100,
+                + encounter.eliteWeight + encounter.chargerWeight
+                + encounter.wardenWeight == 100,
             mapTemplate.name + " encounter weights total 100");
     }
 }
@@ -2181,6 +2204,7 @@ int main() {
     testSkillBuildMathMatrix();
     testSkillAilments();
     testAilmentResistances();
+    testWardenProtectionMath();
     testPlayerArmorMitigation();
     testEquipmentChangesCombatStats();
     testLootGeneration();

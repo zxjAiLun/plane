@@ -29,6 +29,20 @@ inline int incomingDamage(int rawDamage, const Stats& stats) {
     )));
 }
 
+inline int wardenProtectedDamage(int rawDamage, bool protectedByWarden, float damageMultiplier) {
+    if (rawDamage <= 0) {
+        return 0;
+    }
+    if (!protectedByWarden) {
+        return rawDamage;
+    }
+
+    const float safeMultiplier = std::clamp(damageMultiplier, 0.0f, 1.0f);
+    return std::max(1, static_cast<int>(std::ceil(
+        static_cast<float>(rawDamage) * safeMultiplier
+    )));
+}
+
 inline int itemDropChancePercent(
     int baseChancePercent,
     float mapQuantityMultiplier,

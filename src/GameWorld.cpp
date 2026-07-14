@@ -1345,7 +1345,8 @@ void GameWorld::handleCollisions() {
                     continue;
                 }
 
-                const int dealtDamage = enemy.takeDamage(projectile.damage());
+                const int mitigatedDamage = damageToEnemy(enemy, projectile.damage());
+                const int dealtDamage = enemy.takeDamage(mitigatedDamage);
                 if (dealtDamage > 0) {
                     addCombatFeedback(
                         enemy.position(),
@@ -1355,7 +1356,7 @@ void GameWorld::handleCollisions() {
                             : projectile.source()
                     );
                 }
-                applySkillAilment(enemy, projectile.ailment(), projectile.damage());
+                applySkillAilment(enemy, projectile.ailment(), dealtDamage);
                 projectile.recordEnemyHit(enemy.id());
 
                 if (enemy.isDead()) {
@@ -1413,6 +1414,34 @@ void GameWorld::handleCollisions() {
             damagePlayer(enemy.contactDamage(), definition.name + " strike");
         }
     }
+}
+
+int GameWorld::damageToEnemy(const Enemy& enemy, int rawDamage) const {
+    if (rawDamage <= 0 || enemy.isDead()) {
+        return 0;
+    }
+
+    if (enemy.isWarden()) {
+        return rawDamage;
+    }
+
+    const float auraRadiusSquared = Config::WardenAuraRadius * Config::WardenAuraRadius;
+    for (const auto& protector : enemies_) {
+        if (protector.isDead() || !protector.isWarden()) {
+            continue;
+        }
+
+        const Vector2 offset = enemy.position() - protector.position();
+        if (offset.lengthSquared() <= auraRadiusSquared) {
+            return wardenProtectedDamage(
+                rawDamage,
+                true,
+                Config::WardenDamageTakenMultiplier
+            );
+        }
+    }
+
+    return rawDamage;
 }
 
 void GameWorld::handleBossProjectileCollisions() {
@@ -1688,12 +1717,13 @@ void GameWorld::dealAreaDamage(
                 center, radius,
                 enemy.position(), enemy.radius()
             )) {
-            const int dealtDamage = enemy.takeDamage(damage);
+            const int mitigatedDamage = damageToEnemy(enemy, damage);
+            const int dealtDamage = enemy.takeDamage(mitigatedDamage);
             if (dealtDamage > 0) {
                 addCombatFeedback(enemy.position(), dealtDamage, source);
             }
             if (ailment) {
-                applySkillAilment(enemy, *ailment, damage);
+                applySkillAilment(enemy, *ailment, dealtDamage);
             }
 
             if (enemy.isDead()) {
@@ -3017,7 +3047,9 @@ EnemyType GameWorld::nextMapEnemyType() {
         0,
         encounter.chargerWeight + mapModifier_.chargerWeightBonus
     );
-    const int totalWeight = normalWeight + rangedWeight + chargerWeight + eliteWeight;
+    const int wardenWeight = std::max(0, encounter.wardenWeight + mapLevel_ / 2);
+    const int totalWeight = normalWeight + rangedWeight + chargerWeight
+        + eliteWeight + wardenWeight;
     const int roll = random_.nextInt(0, totalWeight - 1);
 
     if (roll < eliteWeight) {
@@ -3028,6 +3060,9 @@ EnemyType GameWorld::nextMapEnemyType() {
     }
     if (roll < eliteWeight + rangedWeight + chargerWeight) {
         return EnemyType::Charger;
+    }
+    if (roll < eliteWeight + rangedWeight + chargerWeight + wardenWeight) {
+        return EnemyType::Warden;
     }
     return EnemyType::Normal;
 }
