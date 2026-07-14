@@ -277,6 +277,21 @@ void testPassiveKeystones() {
         "Loaded Dice increases real item drop chance");
     expect(incomingDamage(10, lootStats) > incomingDamage(10, Stats{}),
         "Loaded Dice increases real incoming damage");
+
+    PassiveTree poison;
+    allocateBranchEndpoint(poison, 20);
+    expect(poison.allocate(24), "allocate Toxic Bloom endpoint");
+    expect(poison.nodes()[24].branch == PassiveBranch::Poison,
+        "Poison endpoint uses the Poison branch");
+    const Stats poisonStats = poison.combinedStats();
+    expect(poison.allocatedCount(PassiveBranch::Poison) == 5,
+        "Poison branch reports all five allocated nodes");
+    expect(poisonStats.poisonDamageMultiplier > 1.0f
+            && poisonStats.poisonResistance == 22,
+        "Poison branch increases Poison damage and resistance");
+    expect(skillDamage(SkillLibrary::toxicBurst(), poisonStats, nullptr)
+            > skillDamage(SkillLibrary::toxicBurst(), Stats{}, nullptr),
+        "Poison branch increases actual Toxic Burst damage");
 }
 
 // --- Skill bar ---

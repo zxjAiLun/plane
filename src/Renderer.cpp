@@ -182,10 +182,10 @@ Stats statsDelta(const Stats& next, const Stats& current) {
         next.fireDamageMultiplier / current.fireDamageMultiplier,
         next.coldDamageMultiplier / current.coldDamageMultiplier,
         next.lightningDamageMultiplier / current.lightningDamageMultiplier,
-        next.poisonDamageMultiplier / current.poisonDamageMultiplier,
         next.fireResistance - current.fireResistance,
         next.coldResistance - current.coldResistance,
         next.lightningResistance - current.lightningResistance,
+        next.poisonDamageMultiplier / current.poisonDamageMultiplier,
         next.poisonResistance - current.poisonResistance,
     };
 }
@@ -336,6 +336,7 @@ sf::Color passiveBranchColor(PassiveBranch branch) {
         case PassiveBranch::Area: return sf::Color(255, 150, 85);
         case PassiveBranch::Survival: return sf::Color(120, 235, 145);
         case PassiveBranch::Loot: return sf::Color(245, 215, 90);
+        case PassiveBranch::Poison: return sf::Color(105, 220, 105);
     }
     return sf::Color::White;
 }
@@ -346,6 +347,7 @@ std::string passiveBranchName(PassiveBranch branch) {
         case PassiveBranch::Area: return "Area";
         case PassiveBranch::Survival: return "Survival";
         case PassiveBranch::Loot: return "Loot";
+        case PassiveBranch::Poison: return "Poison";
     }
     return "Unknown";
 }
@@ -1970,7 +1972,7 @@ void Renderer::drawPassiveTree(const GameWorld& world) {
     drawBox({center.x, center.y}, {760.0f, 520.0f}, sf::Color(22, 28, 36));
     drawCenteredText("Passive Tree", {center.x, center.y - 238.0f}, 24, sf::Color::White);
     drawCenteredText("SP " + std::to_string(world.player().talentPoints())
-        + "  |  Left click node  |  1-0/F1-F10 allocate  |  P close",
+        + "  |  Left click node  |  1-0/F1-F15 allocate  |  P close",
         {center.x, center.y - 210.0f}, 14, sf::Color(210, 230, 255));
 
     const auto& nodes = world.player().passiveTree().nodes();

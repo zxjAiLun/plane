@@ -71,6 +71,11 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::F8: functionChoice_ = 8; break;
         case sf::Keyboard::Key::F9: functionChoice_ = 9; loadRun_ = true; break;
         case sf::Keyboard::Key::F10: functionChoice_ = 10; break;
+        case sf::Keyboard::Key::F11: functionChoice_ = 11; break;
+        case sf::Keyboard::Key::F12: functionChoice_ = 12; break;
+        case sf::Keyboard::Key::F13: functionChoice_ = 13; break;
+        case sf::Keyboard::Key::F14: functionChoice_ = 14; break;
+        case sf::Keyboard::Key::F15: functionChoice_ = 15; break;
         case sf::Keyboard::Key::Numpad1: numberChoice_ = 1; break;
         case sf::Keyboard::Key::Numpad2: numberChoice_ = 2; break;
         case sf::Keyboard::Key::Numpad3: numberChoice_ = 3; break;

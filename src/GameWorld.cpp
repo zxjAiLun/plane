@@ -3726,6 +3726,7 @@ std::string GameWorld::passiveBuildSummary() const {
         + " / Area " + std::to_string(tree.allocatedCount(PassiveBranch::Area))
         + " / Survival " + std::to_string(tree.allocatedCount(PassiveBranch::Survival))
         + " / Loot " + std::to_string(tree.allocatedCount(PassiveBranch::Loot))
+        + " / Poison " + std::to_string(tree.allocatedCount(PassiveBranch::Poison))
         + " / Keystone " + tree.keystoneSummary();
 }
 bool GameWorld::isSkillUnlocked(const std::string& name) const {

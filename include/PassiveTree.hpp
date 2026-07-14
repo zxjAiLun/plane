@@ -11,7 +11,8 @@ enum class PassiveBranch {
     Projectile,
     Area,
     Survival,
-    Loot
+    Loot,
+    Poison
 };
 
 enum class PassiveNodeSize {
@@ -52,6 +53,9 @@ struct PassiveNode {
 
 class PassiveTree {
 public:
+    static constexpr std::size_t LegacyNodeCount = 20;
+    static constexpr std::size_t NodeCount = 25;
+
     PassiveTree() {
         // Projectile branch (0-4)
         nodes_[0] = {"Sharpened Bolt", "+8% projectile damage", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.08f}, -1, false, {70.0f, -42.0f}, PassiveBranch::Projectile, PassiveNodeSize::Small};
@@ -80,6 +84,13 @@ public:
         nodes_[17] = {"Lucky Step", "+5% move speed", Stats{0, 1.05f, 1.0f, 1.0f, 1.0f}, 16, false, {200.0f, 115.0f}, PassiveBranch::Loot, PassiveNodeSize::Small};
         nodes_[18] = {"Far Reach", "+15% pickup range", Stats{0, 1.0f, 1.0f, 1.0f, 1.15f}, 17, false, {260.0f, 150.0f}, PassiveBranch::Loot, PassiveNodeSize::Small};
         nodes_[19] = {"Loaded Dice", "+25% item drops, +20% damage taken", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0, 0, 1.0f, 1.25f, 1.20f}, 18, false, {318.0f, 184.0f}, PassiveBranch::Loot, PassiveNodeSize::Notable, PassiveKeystone::LoadedDice};
+
+        // Poison branch (20-24)
+        nodes_[20] = {"Toxic Skin", "+8% Poison damage", poisonStats(1.08f), -1, false, {70.0f, 0.0f}, PassiveBranch::Poison, PassiveNodeSize::Small};
+        nodes_[21] = {"Venomous Focus", "+10% Poison damage", poisonStats(1.10f), 20, false, {135.0f, 0.0f}, PassiveBranch::Poison, PassiveNodeSize::Small};
+        nodes_[22] = {"Antidote Veins", "+12% Poison resistance", poisonStats(1.0f, 12), 21, false, {200.0f, 0.0f}, PassiveBranch::Poison, PassiveNodeSize::Small};
+        nodes_[23] = {"Lingering Rot", "+12% Poison damage", poisonStats(1.12f), 22, false, {260.0f, 0.0f}, PassiveBranch::Poison, PassiveNodeSize::Small};
+        nodes_[24] = {"Toxic Bloom", "+30% Poison damage and +10% Poison resistance", poisonStats(1.30f, 10), 23, false, {318.0f, 0.0f}, PassiveBranch::Poison, PassiveNodeSize::Notable};
     }
 
     bool allocate(std::size_t index) {
@@ -106,19 +117,19 @@ public:
         return result;
     }
 
-    const std::array<PassiveNode, 20>& nodes() const {
+    const std::array<PassiveNode, NodeCount>& nodes() const {
         return nodes_;
     }
 
-    std::array<bool, 20> allocatedNodes() const {
-        std::array<bool, 20> result{};
+    std::array<bool, NodeCount> allocatedNodes() const {
+        std::array<bool, NodeCount> result{};
         for (std::size_t index = 0; index < nodes_.size(); ++index) {
             result[index] = nodes_[index].allocated;
         }
         return result;
     }
 
-    bool restoreAllocatedNodes(const std::array<bool, 20>& allocated) {
+    bool restoreAllocatedNodes(const std::array<bool, NodeCount>& allocated) {
         for (std::size_t index = 0; index < nodes_.size(); ++index) {
             if (!allocated[index]) {
                 continue;
@@ -191,5 +202,12 @@ public:
     }
 
 private:
-    std::array<PassiveNode, 20> nodes_{};
+    static Stats poisonStats(float poisonDamageMultiplier, int poisonResistance = 0) {
+        Stats stats;
+        stats.poisonDamageMultiplier = poisonDamageMultiplier;
+        stats.poisonResistance = poisonResistance;
+        return stats;
+    }
+
+    std::array<PassiveNode, NodeCount> nodes_{};
 };

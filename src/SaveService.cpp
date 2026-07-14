@@ -316,7 +316,12 @@ void writePlayerState(Writer& writer, const PlayerSaveState& state) {
     }
 }
 
-bool readPlayerState(Reader& reader, PlayerSaveState& state, bool hasPoisonFields) {
+bool readPlayerState(
+    Reader& reader,
+    PlayerSaveState& state,
+    bool hasPoisonFields,
+    std::size_t passiveNodeCount
+) {
     if (!readVector2(reader, state.position)
         || !reader.integer(state.hp)
         || !reader.real(state.mana)
@@ -327,8 +332,12 @@ bool readPlayerState(Reader& reader, PlayerSaveState& state, bool hasPoisonField
         || !readStats(reader, state.upgradeStats, hasPoisonFields)) {
         return false;
     }
-    for (bool& allocated : state.allocatedPassiveNodes) {
-        if (!reader.boolean(allocated)) {
+    state.allocatedPassiveNodes.fill(false);
+    if (passiveNodeCount > state.allocatedPassiveNodes.size()) {
+        return false;
+    }
+    for (std::size_t index = 0; index < passiveNodeCount; ++index) {
+        if (!reader.boolean(state.allocatedPassiveNodes[index])) {
             return false;
         }
     }
@@ -654,7 +663,8 @@ bool readSaveData(
     Reader& reader,
     SaveData& data,
     bool hasElementalChallengeFields,
-    bool hasPoisonFields
+    bool hasPoisonFields,
+    std::size_t passiveNodeCount
 ) {
     int state = 0;
     if (!reader.integer(state)
@@ -695,7 +705,7 @@ bool readSaveData(
         || !readSet(reader, data.unlockedSupports)
         || !reader.real(data.itemQuantityRewardMultiplier)
         || !reader.integer(data.forgeFragments)
-        || !readPlayerState(reader, data.player, hasPoisonFields)
+        || !readPlayerState(reader, data.player, hasPoisonFields, passiveNodeCount)
         || !readSkillBarState(reader, data.skillBar)) {
         return false;
     }
@@ -855,7 +865,7 @@ bool SaveService::load(const std::filesystem::path& path,
     if (!file.integer(magic) || !file.integer(version)
         || !file.integer(payloadLength) || !file.integer(expectedCrc)
         || magic != SaveData::Magic
-        || (version != 3U && version != 4U && version != SaveData::Version)
+        || (version != 3U && version != 4U && version != 5U && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");
         return false;
@@ -873,7 +883,8 @@ bool SaveService::load(const std::filesystem::path& path,
             payloadReader,
             restored,
             version >= 4U,
-            version >= SaveData::Version
+            version >= 5U,
+            version >= SaveData::Version ? PassiveTree::NodeCount : PassiveTree::LegacyNodeCount
         )) {
         setError(error, "invalid save payload");
         return false;

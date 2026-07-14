@@ -20,7 +20,7 @@ struct PlayerSaveState {
     int expToNextLevel = 1;
     int talentPoints = 0;
     PlayerStats upgradeStats;
-    std::array<bool, 20> allocatedPassiveNodes{};
+    std::array<bool, PassiveTree::NodeCount> allocatedPassiveNodes{};
     std::array<std::optional<Item>, EquipmentSlotCount> equipment;
 };
 
