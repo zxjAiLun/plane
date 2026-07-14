@@ -4,8 +4,10 @@
 #include <array>
 #include <set>
 #include <string>
+#include <map>
 #include <vector>
 
+#include "Config.hpp"
 #include "RandomService.hpp"
 #include "SkillLibrary.hpp"
 #include "SupportLibrary.hpp"
@@ -15,7 +17,9 @@ enum class MapRewardType {
     UnlockSupport,
     Damage,
     MaxHp,
-    ItemQuantity
+    ItemQuantity,
+    UpgradeSkill,
+    UpgradeSupport
 };
 
 struct MapRewardDefinition {
@@ -25,6 +29,7 @@ struct MapRewardDefinition {
     std::string skillName;
     std::string supportName;
     float itemQuantityMultiplierBonus = 1.0f;
+    int targetLevel = 1;
 };
 
 class MapRewardLibrary {
@@ -39,7 +44,8 @@ public:
                 + "  CD " + std::to_string(static_cast<int>(skill.cooldown * 1000.0f)) + "ms",
             skill.name,
             "",
-            1.0f
+            1.0f,
+            1
         };
     }
 
@@ -50,7 +56,39 @@ public:
             support.description,
             "",
             support.name,
-            1.0f
+            1.0f,
+            1
+        };
+    }
+
+    static MapRewardDefinition skillUpgradeReward(
+        const SkillDefinition& skill,
+        int targetLevel
+    ) {
+        return {
+            MapRewardType::UpgradeSkill,
+            "Empower " + skill.name + " to Lv" + std::to_string(targetLevel),
+            skillSlotLabel(skill.slot) + " / " + skillTypeLabel(skill.castType)
+                + "  Skill gem level upgrade",
+            skill.name,
+            "",
+            1.0f,
+            targetLevel
+        };
+    }
+
+    static MapRewardDefinition supportUpgradeReward(
+        const SupportDefinition& support,
+        int targetLevel
+    ) {
+        return {
+            MapRewardType::UpgradeSupport,
+            "Empower " + support.name + " to Lv" + std::to_string(targetLevel),
+            support.description + "  Support gem level upgrade",
+            "",
+            support.name,
+            1.0f,
+            targetLevel
         };
     }
 
@@ -62,7 +100,8 @@ public:
                 "Permanent character damage bonus",
                 "",
                 "",
-                1.0f
+                1.0f,
+                1
             },
             {
                 MapRewardType::MaxHp,
@@ -70,7 +109,8 @@ public:
                 "Permanent maximum health bonus",
                 "",
                 "",
-                1.0f
+                1.0f,
+                1
             },
             {
                 MapRewardType::ItemQuantity,
@@ -78,7 +118,8 @@ public:
                 "Permanent item quantity bonus for future drops",
                 "",
                 "",
-                1.15f
+                1.15f,
+                1
             }
         }};
         return rewards;
@@ -89,6 +130,45 @@ public:
         const std::set<std::string>& unlockedSupports,
         RandomService& random
     ) {
+        return generateOptionsImpl(
+            unlockedSkills,
+            unlockedSupports,
+            {},
+            {},
+            1,
+            random,
+            false
+        );
+    }
+
+    static std::array<MapRewardDefinition, 3> generateOptions(
+        const std::set<std::string>& unlockedSkills,
+        const std::set<std::string>& unlockedSupports,
+        const std::map<std::string, int>& skillLevels,
+        const std::map<std::string, int>& supportLevels,
+        int mapLevel,
+        RandomService& random
+    ) {
+        return generateOptionsImpl(
+            unlockedSkills,
+            unlockedSupports,
+            skillLevels,
+            supportLevels,
+            mapLevel,
+            random,
+            true
+        );
+    }
+
+    static std::array<MapRewardDefinition, 3> generateOptionsImpl(
+        const std::set<std::string>& unlockedSkills,
+        const std::set<std::string>& unlockedSupports,
+        const std::map<std::string, int>& skillLevels,
+        const std::map<std::string, int>& supportLevels,
+        int mapLevel,
+        RandomService& random,
+        bool includeUpgrades
+    ) {
         std::vector<const SkillDefinition*> lockedSkills;
         for (const auto& skill : SkillLibrary::all()) {
             if (unlockedSkills.find(skill.name) == unlockedSkills.end()) {
@@ -97,7 +177,41 @@ public:
         }
         std::array<MapRewardDefinition, 3> rewards{};
         std::size_t rewardIndex = 0;
-        while (rewardIndex < rewards.size() && !lockedSkills.empty()) {
+        std::vector<MapRewardDefinition> upgrades;
+        if (includeUpgrades && mapLevel >= 2) {
+            for (const auto& skill : SkillLibrary::all()) {
+                const auto levelIt = skillLevels.find(skill.name);
+                const int level = levelIt == skillLevels.end() ? 1 : levelIt->second;
+                if (unlockedSkills.find(skill.name) != unlockedSkills.end()
+                    && level < Config::SkillGemMaxLevel) {
+                    upgrades.push_back(skillUpgradeReward(skill, level + 1));
+                }
+            }
+            for (const auto& support : SupportLibrary::all()) {
+                const auto levelIt = supportLevels.find(support.name);
+                const int level = levelIt == supportLevels.end() ? 1 : levelIt->second;
+                if (unlockedSupports.find(support.name) == unlockedSupports.end()
+                    || level >= Config::SkillGemMaxLevel) {
+                    continue;
+                }
+                const bool compatible = std::any_of(
+                    SkillLibrary::all().begin(),
+                    SkillLibrary::all().end(),
+                    [&](const SkillDefinition& skill) {
+                        return unlockedSkills.find(skill.name) != unlockedSkills.end()
+                            && SupportLibrary::supportsSkill(support, skill);
+                    }
+                );
+                if (compatible) {
+                    upgrades.push_back(supportUpgradeReward(support, level + 1));
+                }
+            }
+        }
+
+        const std::size_t contentLimit = upgrades.empty()
+            ? rewards.size()
+            : rewards.size() - 1;
+        while (rewardIndex < contentLimit && !lockedSkills.empty()) {
             const auto randomIndex = random.nextIndex(lockedSkills.size());
             rewards[rewardIndex] = skillUnlockReward(*lockedSkills[randomIndex]);
             lockedSkills.erase(lockedSkills.begin() + randomIndex);
@@ -126,10 +240,16 @@ public:
             }
         }
 
-        while (rewardIndex < rewards.size() && !lockedSupports.empty()) {
+        while (rewardIndex < contentLimit && !lockedSupports.empty()) {
             const auto randomIndex = random.nextIndex(lockedSupports.size());
             rewards[rewardIndex] = supportUnlockReward(*lockedSupports[randomIndex]);
             lockedSupports.erase(lockedSupports.begin() + randomIndex);
+            ++rewardIndex;
+        }
+
+        if (rewardIndex < rewards.size() && !upgrades.empty()) {
+            const auto randomIndex = random.nextIndex(upgrades.size());
+            rewards[rewardIndex] = upgrades[randomIndex];
             ++rewardIndex;
         }
 

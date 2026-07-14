@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <array>
+#include <map>
 #include <set>
 #include <string>
 #include <filesystem>
@@ -59,6 +60,8 @@ struct EnemyProjectile {
 struct RunProgression {
     std::set<std::string> unlockedSkills;
     std::set<std::string> unlockedSupports;
+    std::map<std::string, int> skillLevels;
+    std::map<std::string, int> supportLevels;
     float itemQuantityRewardMultiplier = 1.0f;
     int forgeFragments = 0;
 };
@@ -138,6 +141,8 @@ public:
     std::string bossRelicEffectSummary() const;
     bool isSkillUnlocked(const std::string& name) const;
     bool isSupportUnlocked(const std::string& name) const;
+    int skillLevel(const std::string& name) const;
+    int supportLevel(const std::string& name) const;
 
     GameState state() const;
     int score() const;
@@ -236,6 +241,7 @@ private:
     void activateGuardedShrineEvent(MapEventInstance& event);
     int dropItemsAround(const Vector2& center, int count, float eventRewardMultiplier = 1.0f);
     int damageForPlayerSkill(const SkillDefinition& skill) const;
+    void applySkillProgression();
     float radiusForPlayerSkill(const SkillDefinition& skill) const;
     int pierceCountForPlayerSkill(const SkillDefinition& skill) const;
     int projectileCountForPlayerSkill(const SkillDefinition& skill) const;

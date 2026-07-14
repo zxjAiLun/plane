@@ -7,6 +7,7 @@
 #include "Equipment.hpp"
 #include "Stats.hpp"
 #include "SkillBar.hpp"
+#include "SkillProgression.hpp"
 
 #include <algorithm>
 #include <array>
@@ -541,11 +542,13 @@ std::vector<std::string> skillImpactDetailLines(const Stats& before, const Stats
 }
 
 std::string rewardDetailSummary(const MapRewardDefinition& reward, const GameWorld& world) {
-    if (reward.type == MapRewardType::UnlockSupport) {
+    if (reward.type == MapRewardType::UnlockSupport
+        || reward.type == MapRewardType::UpgradeSupport) {
         return "Support rune: " + reward.description;
     }
 
-    if (reward.type != MapRewardType::UnlockSkill) {
+    if (reward.type != MapRewardType::UnlockSkill
+        && reward.type != MapRewardType::UpgradeSkill) {
         return reward.description;
     }
 
@@ -555,16 +558,25 @@ std::string rewardDetailSummary(const MapRewardDefinition& reward, const GameWor
     }
 
     const auto& current = world.skillBar().definition(skill->slot);
-    return skillSlotName(skill->slot) + " / " + skillCastTypeName(skill->castType)
+    const std::string levelText = reward.type == MapRewardType::UpgradeSkill
+        ? "Lv" + std::to_string(world.skillLevel(skill->name))
+            + " -> Lv" + std::to_string(reward.targetLevel) + "  |  "
+        : "";
+    return levelText + skillSlotName(skill->slot) + " / " + skillCastTypeName(skill->castType)
         + "  |  Replaces " + current.name;
 }
 
 std::string rewardStatPreview(const MapRewardDefinition& reward, const GameWorld& world) {
-    if (reward.type == MapRewardType::UnlockSupport) {
-        return "Configure it in K with F1 / F2 / F3 / F4";
+    if (reward.type == MapRewardType::UnlockSupport
+        || reward.type == MapRewardType::UpgradeSupport) {
+        const int currentLevel = world.supportLevel(reward.supportName);
+        return "Support Lv" + std::to_string(currentLevel) + " -> Lv"
+            + std::to_string(reward.targetLevel)
+            + "  Configure it in K with F1 / F2 / F3 / F4";
     }
 
-    if (reward.type != MapRewardType::UnlockSkill) {
+    if (reward.type != MapRewardType::UnlockSkill
+        && reward.type != MapRewardType::UpgradeSkill) {
         return reward.description;
     }
 
@@ -573,7 +585,17 @@ std::string rewardStatPreview(const MapRewardDefinition& reward, const GameWorld
         return reward.description;
     }
 
-    return skillEffectiveSummary(*skill, world.player().stats());
+    const SkillDefinition effectiveSkill = SkillProgression::skillAtLevel(
+        *skill, reward.type == MapRewardType::UpgradeSkill
+            ? reward.targetLevel : world.skillLevel(skill->name)
+    );
+    const auto supports = world.skillBar().supportDefinitionsFor(effectiveSkill);
+    return "Lv" + std::to_string(
+            reward.type == MapRewardType::UpgradeSkill
+                ? reward.targetLevel : world.skillLevel(skill->name)
+        ) + "  " + skillEffectiveSummary(
+            effectiveSkill, world.player().stats(), supports
+        );
 }
 
 std::string mapOptionSummary(const MapOption& option) {
@@ -1709,6 +1731,7 @@ void Renderer::drawSkillBar(const GameWorld& world) {
         const float progress = world.skillBar().cooldownProgress(slot);
         const sf::Color color = progress >= 1.0f ? sf::Color(130, 230, 150) : sf::Color(230, 180, 80);
         drawText(std::string(keys[i]) + " " + skill.name + " "
+            + "Lv" + std::to_string(world.skillLevel(skill.name)) + " "
             + std::to_string(static_cast<int>(progress * 100.0f)) + "%"
             + " M" + formatFloat(skill.manaCost, 0),
             {x, y}, 13, color);
@@ -2120,7 +2143,8 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         const auto& skill = world.skillBar().definition(slot);
         const float x = i % 2 == 0 ? leftColumn : rightColumn;
         const float y = equippedY + 22.0f + static_cast<float>(i / 2) * 18.0f;
-        drawText(skillSlotName(slot) + ": " + skill.name,
+        drawText(skillSlotName(slot) + ": " + skill.name
+                + " Lv" + std::to_string(world.skillLevel(skill.name)),
             {x, y}, 13, sf::Color(180, 230, 255));
     }
 
@@ -2129,7 +2153,10 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
 
     const auto& skills = SkillLibrary::all();
     for (std::size_t i = 0; i < skills.size(); ++i) {
-        const auto& skill = skills[i];
+        const auto& baseSkill = skills[i];
+        const SkillDefinition skill = SkillProgression::skillAtLevel(
+            baseSkill, world.skillLevel(baseSkill.name)
+        );
         const bool equipped = world.skillBar().definition(skill.slot).name == skill.name;
         const bool unlocked = world.isSkillUnlocked(skill.name);
         const sf::Color color = !unlocked ? sf::Color(130, 135, 145)
@@ -2138,8 +2165,10 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         const std::string state = equipped ? "Equipped" : unlocked ? "Available" : "Locked";
         const std::string marker = equipped ? "> " : "  ";
         const float columnX = i % 2 == 0 ? leftColumn : rightColumn;
-        const float rowY = skillsY + 22.0f + static_cast<float>(i / 2) * 40.0f;
-        drawText(marker + skillChoiceLabel(i) + ". " + skill.name + " [" + state + "]",
+        const float rowY = skillsY + 22.0f + static_cast<float>(i / 2) * 36.0f;
+        drawText(marker + skillChoiceLabel(i) + ". " + skill.name
+                + " Lv" + std::to_string(world.skillLevel(skill.name))
+                + " [" + state + "]",
             {columnX, rowY}, 14, color);
         drawText("     " + skillSlotName(skill.slot) + " / " + skillCastTypeName(skill.castType),
             {columnX, rowY + 17.0f}, 11,
@@ -2192,7 +2221,8 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
             if (!firstPoolEntry) {
                 pool += "  ";
             }
-            pool += support.name + "(" + status + ")";
+            pool += support.name + " Lv" + std::to_string(world.supportLevel(support.name))
+                + "(" + status + ")";
             firstPoolEntry = false;
         }
         const float blockX = i % 2 == 0 ? leftColumn : rightColumn;

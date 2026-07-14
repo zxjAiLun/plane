@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <map>
 #include <optional>
 #include <set>
 #include <string>
@@ -2532,6 +2533,55 @@ void testMapRewardGeneration() {
         "different reward seeds change the reward options");
 }
 
+void testGemProgression() {
+    section("Skill and support gem progression");
+
+    const SkillDefinition levelOneSkill = SkillLibrary::meteor();
+    const SkillDefinition levelThreeSkill = SkillProgression::skillAtLevel(
+        levelOneSkill, 3
+    );
+    expect(levelThreeSkill.baseDamage > levelOneSkill.baseDamage
+            && levelThreeSkill.radius > levelOneSkill.radius
+            && levelThreeSkill.cooldown < levelOneSkill.cooldown,
+        "skill gem levels increase damage/radius and reduce cooldown");
+
+    const auto* quickcast = SupportLibrary::find("Quickcast");
+    const auto* amplify = SupportLibrary::find("Amplify");
+    const auto* pierce = SupportLibrary::find("Pierce");
+    const auto levelOneQuickcast = SkillProgression::supportAtLevel(*quickcast, 1);
+    const auto levelFourQuickcast = SkillProgression::supportAtLevel(*quickcast, 4);
+    const auto levelFourAmplify = SkillProgression::supportAtLevel(*amplify, 4);
+    const auto levelFourPierce = SkillProgression::supportAtLevel(*pierce, 4);
+    expect(levelFourQuickcast.damageMultiplier > levelOneQuickcast.damageMultiplier
+            && levelFourQuickcast.cooldownMultiplier < levelOneQuickcast.cooldownMultiplier,
+        "support gem levels improve a damage penalty and cooldown");
+    expect(levelFourAmplify.radiusMultiplier > amplify->radiusMultiplier,
+        "support gem levels improve area radius");
+    expect(levelFourPierce.pierceCount > pierce->pierceCount,
+        "support gem levels improve discrete support effects");
+
+    std::set<std::string> unlockedSkills = {
+        SkillLibrary::spreadShot().name,
+        SkillLibrary::meteor().name,
+        SkillLibrary::pulse().name,
+        SkillLibrary::dash().name,
+    };
+    std::set<std::string> unlockedSupports;
+    std::map<std::string, int> skillLevels;
+    std::map<std::string, int> supportLevels;
+    for (const auto& skill : unlockedSkills) {
+        skillLevels[skill] = 1;
+    }
+    RandomService random(73);
+    const auto options = MapRewardLibrary::generateOptions(
+        unlockedSkills, unlockedSupports, skillLevels, supportLevels, 2, random
+    );
+    expect(std::any_of(options.begin(), options.end(), [](const MapRewardDefinition& option) {
+        return option.type == MapRewardType::UpgradeSkill
+            && option.targetLevel == 2;
+    }), "map level rewards include a skill gem upgrade");
+}
+
 // --- Passive + equip pipeline matches Player.recalculateStats ---
 void testPassiveAndEquipPipeline() {
     section("Passive + equip pipeline via Player");
@@ -2652,6 +2702,7 @@ int main() {
     testMapLayoutVariants();
     testMapExploration();
     testMapRewardGeneration();
+    testGemProgression();
     testPassiveAndEquipPipeline();
     testItemContainers();
 

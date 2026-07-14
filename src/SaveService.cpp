@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <map>
 #include <type_traits>
 #include <utility>
 
@@ -563,12 +564,13 @@ void writeMapReward(Writer& writer, const MapRewardDefinition& reward) {
     writer.string(reward.skillName);
     writer.string(reward.supportName);
     writer.real(reward.itemQuantityMultiplierBonus);
+    writer.integer(reward.targetLevel);
 }
 
-bool readMapReward(Reader& reader, MapRewardDefinition& reward) {
+bool readMapReward(Reader& reader, MapRewardDefinition& reward, bool hasTargetLevel) {
     int type = 0;
     if (!reader.integer(type)
-        || !validEnumValue(type, 0, static_cast<int>(MapRewardType::ItemQuantity))
+        || !validEnumValue(type, 0, static_cast<int>(MapRewardType::UpgradeSupport))
         || !reader.string(reward.title)
         || !reader.string(reward.description)
         || !reader.string(reward.skillName)
@@ -577,7 +579,8 @@ bool readMapReward(Reader& reader, MapRewardDefinition& reward) {
         return false;
     }
     reward.type = static_cast<MapRewardType>(type);
-    return true;
+    reward.targetLevel = 1;
+    return !hasTargetLevel || reader.integer(reward.targetLevel);
 }
 
 void writeSet(Writer& writer, const std::set<std::string>& values) {
@@ -599,6 +602,32 @@ bool readSet(Reader& reader, std::set<std::string>& values) {
             return false;
         }
         values.insert(std::move(value));
+    }
+    return true;
+}
+
+void writeLevelMap(Writer& writer, const std::map<std::string, int>& values) {
+    writer.integer<std::uint32_t>(static_cast<std::uint32_t>(values.size()));
+    for (const auto& [name, level] : values) {
+        writer.string(name);
+        writer.integer(level);
+    }
+}
+
+bool readLevelMap(Reader& reader, std::map<std::string, int>& values) {
+    std::uint32_t count = 0;
+    if (!reader.integer(count) || count > MaxVectorLength) {
+        return false;
+    }
+
+    values.clear();
+    for (std::uint32_t index = 0; index < count; ++index) {
+        std::string name;
+        int level = 0;
+        if (!reader.string(name) || !reader.integer(level)) {
+            return false;
+        }
+        values[name] = level;
     }
     return true;
 }
@@ -631,6 +660,8 @@ void writeSaveData(Writer& writer, const SaveData& data) {
     writer.integer(data.lifeFlaskCharges);
     writeSet(writer, data.unlockedSkills);
     writeSet(writer, data.unlockedSupports);
+    writeLevelMap(writer, data.skillLevels);
+    writeLevelMap(writer, data.supportLevels);
     writer.real(data.itemQuantityRewardMultiplier);
     writer.integer(data.forgeFragments);
     writePlayerState(writer, data.player);
@@ -664,7 +695,8 @@ bool readSaveData(
     SaveData& data,
     bool hasElementalChallengeFields,
     bool hasPoisonFields,
-    std::size_t passiveNodeCount
+    std::size_t passiveNodeCount,
+    bool hasGemProgression
 ) {
     int state = 0;
     if (!reader.integer(state)
@@ -685,7 +717,7 @@ bool readSaveData(
         }
     }
     for (auto& reward : data.mapRewardOptions) {
-        if (!readMapReward(reader, reward)) {
+        if (!readMapReward(reader, reward, hasGemProgression)) {
             return false;
         }
     }
@@ -703,11 +735,19 @@ bool readSaveData(
         || !reader.integer(data.lifeFlaskCharges)
         || !readSet(reader, data.unlockedSkills)
         || !readSet(reader, data.unlockedSupports)
+        || (hasGemProgression
+            && (!readLevelMap(reader, data.skillLevels)
+                || !readLevelMap(reader, data.supportLevels)))
         || !reader.real(data.itemQuantityRewardMultiplier)
         || !reader.integer(data.forgeFragments)
         || !readPlayerState(reader, data.player, hasPoisonFields, passiveNodeCount)
         || !readSkillBarState(reader, data.skillBar)) {
         return false;
+    }
+
+    if (!hasGemProgression) {
+        data.skillLevels.clear();
+        data.supportLevels.clear();
     }
 
     std::uint32_t count = 0;
@@ -865,7 +905,8 @@ bool SaveService::load(const std::filesystem::path& path,
     if (!file.integer(magic) || !file.integer(version)
         || !file.integer(payloadLength) || !file.integer(expectedCrc)
         || magic != SaveData::Magic
-        || (version != 3U && version != 4U && version != 5U && version != SaveData::Version)
+        || (version != 3U && version != 4U && version != 5U
+            && version != 6U && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");
         return false;
@@ -884,7 +925,8 @@ bool SaveService::load(const std::filesystem::path& path,
             restored,
             version >= 4U,
             version >= 5U,
-            version >= SaveData::Version ? PassiveTree::NodeCount : PassiveTree::LegacyNodeCount
+            version >= 6U ? PassiveTree::NodeCount : PassiveTree::LegacyNodeCount,
+            version >= 7U
         )) {
         setError(error, "invalid save payload");
         return false;

@@ -100,6 +100,14 @@ namespace Config {
     constexpr int ShrineDamageBonusPercent = 35;
     constexpr float ShrineDamageMultiplier = 1.0f
         + static_cast<float>(ShrineDamageBonusPercent) / 100.0f;
+    constexpr int SkillGemMaxLevel = 5;
+    constexpr float SkillGemDamagePerLevelMultiplier = 0.10f;
+    constexpr float SkillGemRadiusPerLevelMultiplier = 0.04f;
+    constexpr float SkillGemCooldownPerLevelMultiplier = 0.97f;
+    constexpr float SupportGemDamageStep = 0.04f;
+    constexpr float SupportGemRadiusStep = 0.04f;
+    constexpr float SupportGemCooldownStep = 0.03f;
+    constexpr float SupportGemAilmentStep = 0.06f;
     constexpr float CombatFeedbackDuration = 0.8f;
     constexpr int MaxCombatFeedback = 32;
 

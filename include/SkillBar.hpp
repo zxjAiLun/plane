@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cmath>
+#include <map>
 #include <string>
 #include <utility>
 
@@ -10,6 +11,7 @@
 #include "PlayerStats.hpp"
 #include "Skill.hpp"
 #include "SkillLibrary.hpp"
+#include "SkillProgression.hpp"
 #include "SupportLibrary.hpp"
 
 struct SkillBarSaveState {
@@ -58,6 +60,38 @@ public:
         }
     }
 
+    void applyProgression(
+        const std::map<std::string, int>& skillLevels,
+        const std::map<std::string, int>& supportLevels
+    ) {
+        for (std::size_t i = 0; i < definitions_.size(); ++i) {
+            const auto* baseSkill = SkillLibrary::find(definitions_[i].name);
+            if (baseSkill == nullptr) {
+                continue;
+            }
+
+            const auto skillLevel = skillLevels.find(baseSkill->name);
+            definitions_[i] = SkillProgression::skillAtLevel(
+                *baseSkill,
+                skillLevel == skillLevels.end() ? 1 : skillLevel->second
+            );
+
+            for (std::size_t link = 0; link < SupportLinkCount; ++link) {
+                const auto* baseSupport = SupportLibrary::find(supportNames_[i][link]);
+                if (baseSupport == nullptr) {
+                    continue;
+                }
+
+                const auto supportLevel = supportLevels.find(baseSupport->name);
+                effectiveSupports_[i][link] = SkillProgression::supportAtLevel(
+                    *baseSupport,
+                    supportLevel == supportLevels.end() ? 1 : supportLevel->second
+                );
+            }
+        }
+        progressionApplied_ = true;
+    }
+
     void reset() {
         setDefaults();
     }
@@ -70,6 +104,7 @@ public:
 
         const auto idx = slotIndex(slot);
         definitions_[idx] = *skill;
+        progressionApplied_ = false;
         for (std::size_t link = 0; link < SupportLinkCount; ++link) {
             if (supportNames_[idx][link].empty()) {
                 continue;
@@ -114,6 +149,7 @@ public:
         }
 
         supportNames_[idx][linkIndex] = name;
+        progressionApplied_ = false;
         return true;
     }
 
@@ -178,7 +214,13 @@ public:
         }
 
         const auto& name = supportNames_[slotIndex(slot)][linkIndex];
-        return name.empty() ? nullptr : SupportLibrary::find(name);
+        if (name.empty()) {
+            return nullptr;
+        }
+        if (progressionApplied_) {
+            return &effectiveSupports_[slotIndex(slot)][linkIndex];
+        }
+        return SupportLibrary::find(name);
     }
 
     SupportList supportDefinitions(SkillSlot slot) const {
@@ -234,6 +276,7 @@ private:
             names.fill("");
         }
         elapsed_.fill(999.0f);
+        progressionApplied_ = false;
     }
 
     const SupportDefinition* supportForSlot(SkillSlot slot) const {
@@ -245,4 +288,7 @@ private:
     std::array<float, static_cast<std::size_t>(SkillSlot::Count)> actualCooldowns_{};
     std::array<float, static_cast<std::size_t>(SkillSlot::Count)> elapsed_{};
     std::array<SupportNameList, static_cast<std::size_t>(SkillSlot::Count)> supportNames_{};
+    std::array<std::array<SupportDefinition, SupportLinkCount>,
+        static_cast<std::size_t>(SkillSlot::Count)> effectiveSupports_{};
+    bool progressionApplied_ = false;
 };

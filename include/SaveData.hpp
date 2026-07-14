@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -30,7 +31,7 @@ struct SavedMapEvent {
 
 struct SaveData {
     static constexpr std::uint32_t Magic = 0x4D415247U;
-    static constexpr std::uint32_t Version = 6U;
+    static constexpr std::uint32_t Version = 7U;
 
     SavedRunState state = SavedRunState::Playing;
     std::uint64_t runSeed = 0;
@@ -58,6 +59,8 @@ struct SaveData {
 
     std::set<std::string> unlockedSkills;
     std::set<std::string> unlockedSupports;
+    std::map<std::string, int> skillLevels;
+    std::map<std::string, int> supportLevels;
     float itemQuantityRewardMultiplier = 1.0f;
     int forgeFragments = 0;
 

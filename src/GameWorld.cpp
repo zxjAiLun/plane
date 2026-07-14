@@ -286,7 +286,7 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     initializeRunProgression();
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
-    skillBar_.applyStats(player_.stats());
+    applySkillProgression();
 }
 
 void GameWorld::update(float dt, Input& input) {
@@ -490,6 +490,8 @@ SaveData GameWorld::captureSaveData() const {
     data.lifeFlaskCharges = lifeFlaskCharges_;
     data.unlockedSkills = progression_.unlockedSkills;
     data.unlockedSupports = progression_.unlockedSupports;
+    data.skillLevels = progression_.skillLevels;
+    data.supportLevels = progression_.supportLevels;
     data.itemQuantityRewardMultiplier = progression_.itemQuantityRewardMultiplier;
     data.forgeFragments = progression_.forgeFragments;
     data.player = player_.saveState();
@@ -528,6 +530,16 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
         return choice == -1 || (choice >= 0 && choice < 3);
     };
 
+    const auto validLevelMap = [](const auto& levels, const auto& unlocked) {
+        for (const auto& [name, level] : levels) {
+            if (unlocked.find(name) == unlocked.end()
+                || level < 1 || level > Config::SkillGemMaxLevel) {
+                return false;
+            }
+        }
+        return true;
+    };
+
     if (data.mapLevel < 1
         || !validTemplateIndex(data.mapTemplateIndex)
         || !validLayoutIndex(data.mapLayoutIndex)
@@ -541,6 +553,8 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
         || data.survivalTime < 0.0f
         || !validFloat(data.itemQuantityRewardMultiplier)
         || data.itemQuantityRewardMultiplier <= 0.0f
+        || !validLevelMap(data.skillLevels, data.unlockedSkills)
+        || !validLevelMap(data.supportLevels, data.unlockedSupports)
         || data.lifeFlaskCharges < 0
         || data.lifeFlaskCharges > Config::LifeFlaskMaxCharges) {
         return false;
@@ -688,6 +702,14 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     stash_ = std::move(restoredStash);
     progression_.unlockedSkills = data.unlockedSkills;
     progression_.unlockedSupports = data.unlockedSupports;
+    progression_.skillLevels = data.skillLevels;
+    progression_.supportLevels = data.supportLevels;
+    for (const auto& skill : progression_.unlockedSkills) {
+        progression_.skillLevels.try_emplace(skill, 1);
+    }
+    for (const auto& support : progression_.unlockedSupports) {
+        progression_.supportLevels.try_emplace(support, 1);
+    }
     progression_.itemQuantityRewardMultiplier = data.itemQuantityRewardMultiplier;
     progression_.forgeFragments = data.forgeFragments;
     runSeed_ = data.runSeed;
@@ -706,7 +728,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
     player_.clearAilments();
-    skillBar_.applyStats(player_.stats());
+    applySkillProgression();
 
     score_ = data.score;
     survivalTime_ = data.survivalTime;
@@ -925,7 +947,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     spawner_.reset();
     skillBar_.reset();
     initializeRunProgression();
-    skillBar_.applyStats(player_.stats());
+    applySkillProgression();
     state_ = GameState::Playing;
     resumeState_ = GameState::Playing;
     quitRequested_ = false;
@@ -1040,7 +1062,7 @@ void GameWorld::startNextMap() {
     groundHazards_.clear();
     droppedItems_.clear();
     spawner_.reset();
-    skillBar_.applyStats(player_.stats());
+    applySkillProgression();
     state_ = GameState::Playing;
     resumeState_ = GameState::Playing;
     quitRequested_ = false;
@@ -2538,6 +2560,11 @@ int GameWorld::damageForPlayerSkill(const SkillDefinition& skill) const {
     );
 }
 
+void GameWorld::applySkillProgression() {
+    skillBar_.applyProgression(progression_.skillLevels, progression_.supportLevels);
+    skillBar_.applyStats(player_.stats());
+}
+
 float GameWorld::radiusForPlayerSkill(const SkillDefinition& skill) const {
     return skillRadius(skill, player_.stats(), skillBar_.supportDefinitionsFor(skill));
 }
@@ -2757,7 +2784,7 @@ void GameWorld::trySpendPassivePoint(Input& input) {
 
     if (input.leftMousePressed() && hoveredPassiveNode_ >= 0) {
         if (player_.spendPassivePoint(static_cast<std::size_t>(hoveredPassiveNode_))) {
-            skillBar_.applyStats(player_.stats());
+            applySkillProgression();
         }
         return;
     }
@@ -2771,7 +2798,7 @@ void GameWorld::trySpendPassivePoint(Input& input) {
 
     const auto nodeIndex = static_cast<std::size_t>(choice - 1);
     if (player_.spendPassivePoint(nodeIndex)) {
-        skillBar_.applyStats(player_.stats());
+        applySkillProgression();
     }
 }
 
@@ -2811,7 +2838,7 @@ void GameWorld::tryAssignSkill(Input& input) {
     }
 
     if (skillBar_.assignSkill(skill.slot, skill.name)) {
-        skillBar_.applyStats(player_.stats());
+        applySkillProgression();
     }
 }
 
@@ -2864,7 +2891,7 @@ void GameWorld::tryCycleSkillSupport(Input& input) {
         : static_cast<std::size_t>(currentIt - options.begin());
     const std::string& next = options[(currentIndex + 1) % options.size()];
     if (skillBar_.assignSupport(slot, next, linkIndex)) {
-        skillBar_.applyStats(player_.stats());
+        applySkillProgression();
     }
 }
 
@@ -2902,7 +2929,7 @@ void GameWorld::tryEquipInventoryItem(Input& input) {
                 droppedItems_.push_back(DroppedItem(player_.position(), std::move(oldItem)));
             }
         }
-        skillBar_.applyStats(player_.stats());
+        applySkillProgression();
     }
     updateSelectedInventoryIndex();
 }
@@ -3298,11 +3325,31 @@ void GameWorld::applyMapReward(const MapRewardDefinition& reward) {
         case MapRewardType::UnlockSkill:
             if (!reward.skillName.empty()) {
                 progression_.unlockedSkills.insert(reward.skillName);
+                progression_.skillLevels.try_emplace(reward.skillName, 1);
             }
             break;
         case MapRewardType::UnlockSupport:
             if (!reward.supportName.empty()) {
                 progression_.unlockedSupports.insert(reward.supportName);
+                progression_.supportLevels.try_emplace(reward.supportName, 1);
+            }
+            break;
+        case MapRewardType::UpgradeSkill:
+            if (!reward.skillName.empty()
+                && progression_.unlockedSkills.find(reward.skillName)
+                    != progression_.unlockedSkills.end()) {
+                progression_.skillLevels[reward.skillName] = std::clamp(
+                    reward.targetLevel, 1, Config::SkillGemMaxLevel
+                );
+            }
+            break;
+        case MapRewardType::UpgradeSupport:
+            if (!reward.supportName.empty()
+                && progression_.unlockedSupports.find(reward.supportName)
+                    != progression_.unlockedSupports.end()) {
+                progression_.supportLevels[reward.supportName] = std::clamp(
+                    reward.targetLevel, 1, Config::SkillGemMaxLevel
+                );
             }
             break;
         case MapRewardType::Damage:
@@ -3317,13 +3364,16 @@ void GameWorld::applyMapReward(const MapRewardDefinition& reward) {
             break;
     }
 
-    skillBar_.applyStats(player_.stats());
+    applySkillProgression();
 }
 
 void GameWorld::generateMapRewardOptions() {
     mapRewardOptions_ = MapRewardLibrary::generateOptions(
         progression_.unlockedSkills,
         progression_.unlockedSupports,
+        progression_.skillLevels,
+        progression_.supportLevels,
+        mapLevel_,
         random_
     );
     selectedMapRewardOption_ = -1;
@@ -3378,6 +3428,9 @@ void GameWorld::initializeRunProgression() {
     progression_.unlockedSkills.insert(SkillLibrary::meteor().name);
     progression_.unlockedSkills.insert(SkillLibrary::pulse().name);
     progression_.unlockedSkills.insert(SkillLibrary::dash().name);
+    for (const auto& skill : progression_.unlockedSkills) {
+        progression_.skillLevels[skill] = 1;
+    }
 }
 
 void GameWorld::rewardEnemyKill(Enemy& enemy) {
@@ -3896,6 +3949,14 @@ bool GameWorld::isSkillUnlocked(const std::string& name) const {
 }
 bool GameWorld::isSupportUnlocked(const std::string& name) const {
     return progression_.unlockedSupports.find(name) != progression_.unlockedSupports.end();
+}
+int GameWorld::skillLevel(const std::string& name) const {
+    const auto it = progression_.skillLevels.find(name);
+    return it == progression_.skillLevels.end() ? 1 : it->second;
+}
+int GameWorld::supportLevel(const std::string& name) const {
+    const auto it = progression_.supportLevels.find(name);
+    return it == progression_.supportLevels.end() ? 1 : it->second;
 }
 GameState GameWorld::state() const { return state_; }
 bool GameWorld::quitRequested() const { return quitRequested_; }
