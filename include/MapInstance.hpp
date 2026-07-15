@@ -59,6 +59,7 @@ struct MapEncounterDefinition {
     EnemyType primaryEnemyType = EnemyType::Elite;
     EnemyType secondaryEnemyType = EnemyType::Normal;
     LootBias rewardLootBias;
+    int forgeFragmentReward = 0;
 };
 
 class MapEncounterLibrary {
@@ -76,7 +77,12 @@ public:
                 0,
                 1.15f,
                 {},
-                false
+                false,
+                0,
+                EnemyType::Elite,
+                EnemyType::Normal,
+                {},
+                1
             },
             {
                 MapEncounterType::HazardousElitePack,
@@ -89,7 +95,12 @@ public:
                 4,
                 1.0f,
                 {"Ashen Trap", 115.0f, 8.0f, 0.5f, 2},
-                false
+                false,
+                0,
+                EnemyType::Elite,
+                EnemyType::Normal,
+                {},
+                2
             },
             {
                 MapEncounterType::GuardedShrine,
@@ -102,7 +113,12 @@ public:
                 4,
                 1.0f,
                 {},
-                true
+                true,
+                0,
+                EnemyType::Elite,
+                EnemyType::Normal,
+                {},
+                2
             },
             {
                 MapEncounterType::BountyHunt,
@@ -116,6 +132,10 @@ public:
                 1.25f,
                 {},
                 false,
+                2,
+                EnemyType::Elite,
+                EnemyType::Normal,
+                {},
                 2
             },
             {
@@ -132,7 +152,9 @@ public:
                 false,
                 4,
                 EnemyType::Elite,
-                EnemyType::Normal
+                EnemyType::Normal,
+                {},
+                3
             },
             {
                 MapEncounterType::WardenCourt,
@@ -148,7 +170,9 @@ public:
                 false,
                 3,
                 EnemyType::Warden,
-                EnemyType::Summoner
+                EnemyType::Summoner,
+                {},
+                3
             },
             {
                 MapEncounterType::FrozenReliquary,
@@ -166,7 +190,8 @@ public:
                 3,
                 EnemyType::Elite,
                 EnemyType::Warden,
-                {AffixTag::Cold, 1.80f, AffixTag::Area, 1.15f}
+                {AffixTag::Cold, 1.80f, AffixTag::Area, 1.15f},
+                4
             }
         }};
         return definitions;

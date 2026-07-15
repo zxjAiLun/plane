@@ -112,6 +112,9 @@ namespace Config {
     constexpr int MaxPoisonStacks = 5;
     constexpr float ShrineBuffDuration = 20.0f;
     constexpr int ShrineDamageBonusPercent = 35;
+    constexpr int LootCacheForgeFragmentReward = 1;
+    constexpr int ElitePackForgeFragmentReward = 1;
+    constexpr int ShrineForgeFragmentReward = 1;
     constexpr float ShrineDamageMultiplier = 1.0f
         + static_cast<float>(ShrineDamageBonusPercent) / 100.0f;
     constexpr int SkillGemMaxLevel = 5;

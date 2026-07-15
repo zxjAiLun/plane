@@ -2341,11 +2341,18 @@ void testMapEncounterDefinitions() {
     );
     expect(encounters.size() == 7,
         "map encounter library contains seven data-driven encounter definitions");
+    expect(std::all_of(
+                encounters.begin(), encounters.end(),
+                [](const MapEncounterDefinition& encounter) {
+                    return encounter.forgeFragmentReward > 0;
+                }),
+        "every map encounter defines a positive forge fragment reward");
     expect(bountyIt != encounters.end()
             && !bountyIt->id.empty()
             && bountyIt->eliteCount == 2
             && bountyIt->normalCount == 3
             && bountyIt->completionDropCount == 2
+            && bountyIt->forgeFragmentReward == 2
             && bountyIt->rewardMultiplier > 1.0f,
         "Bounty Hunt defines its pack size and completion reward in data");
     expect(cursedIt != encounters.end()
@@ -2353,13 +2360,15 @@ void testMapEncounterDefinitions() {
             && cursedIt->normalCount == 2
             && cursedIt->completionDropCount == 4
             && cursedIt->primaryEnemyType == EnemyType::Elite
-            && cursedIt->secondaryEnemyType == EnemyType::Normal,
+            && cursedIt->secondaryEnemyType == EnemyType::Normal
+            && cursedIt->forgeFragmentReward == 3,
         "Cursed Reliquary defines a guarded cache pack and larger reward");
     expect(courtIt != encounters.end()
             && courtIt->eliteCount == 2
             && courtIt->normalCount == 2
             && courtIt->primaryEnemyType == EnemyType::Warden
-            && courtIt->secondaryEnemyType == EnemyType::Summoner,
+            && courtIt->secondaryEnemyType == EnemyType::Summoner
+            && courtIt->forgeFragmentReward == 3,
         "Warden Court defines its Warden and Hexbinder composition");
     expect(frozenIt != encounters.end()
             && frozenIt->eliteCount == 1
@@ -2369,6 +2378,7 @@ void testMapEncounterDefinitions() {
             && frozenIt->secondaryEnemyType == EnemyType::Warden
             && frozenIt->rewardLootBias.primaryTag == AffixTag::Cold
             && frozenIt->rewardLootBias.secondaryTag == AffixTag::Area
+            && frozenIt->forgeFragmentReward == 4
             && frozenIt->hazard.damageType == DamageType::Cold
             && frozenIt->hazard.ailment.type == AilmentType::Chill,
         "Frozen Reliquary defines its Cold hazard, loot bias, and Warden composition");

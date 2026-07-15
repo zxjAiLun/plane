@@ -3024,8 +3024,11 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
                 encounter.rewardMultiplier
             );
             event.completed = true;
+            awardForgeFragments(encounter.forgeFragmentReward);
             eventStatusMessage_ = encounter.name + ": "
-                + std::to_string(droppedCount) + " items dropped";
+                + std::to_string(droppedCount) + " items dropped | +"
+                + std::to_string(encounter.forgeFragmentReward)
+                + " Forge Fragments";
             eventStatusTimer_ = 2.0f;
             break;
         }
@@ -3121,6 +3124,12 @@ void GameWorld::spawnMapEventEnemies(
     }
 }
 
+void GameWorld::awardForgeFragments(int amount) {
+    if (amount > 0) {
+        progression_.forgeFragments += amount;
+    }
+}
+
 void GameWorld::openLootCacheEvent(MapEventInstance& event) {
     if (event.triggered || event.completed) {
         return;
@@ -3133,7 +3142,11 @@ void GameWorld::openLootCacheEvent(MapEventInstance& event) {
         2,
         mapModifier_.eventRewardMultiplier
     );
-    eventStatusMessage_ = "Cache opened: " + std::to_string(droppedCount) + " items dropped";
+    awardForgeFragments(Config::LootCacheForgeFragmentReward);
+    eventStatusMessage_ = "Cache opened: " + std::to_string(droppedCount)
+        + " items dropped | +"
+        + std::to_string(Config::LootCacheForgeFragmentReward)
+        + " Forge Fragments";
     eventStatusTimer_ = 2.0f;
 }
 
@@ -3145,9 +3158,12 @@ void GameWorld::activateShrineEvent(MapEventInstance& event) {
     event.triggered = true;
     event.completed = true;
     shrineBuffTimer_ = Config::ShrineBuffDuration;
+    awardForgeFragments(Config::ShrineForgeFragmentReward);
     eventStatusMessage_ = "Shrine activated: +"
         + std::to_string(Config::ShrineDamageBonusPercent)
-        + "% damage";
+        + "% damage | +"
+        + std::to_string(Config::ShrineForgeFragmentReward)
+        + " Forge Fragments";
     eventStatusTimer_ = 2.0f;
 }
 
@@ -3163,8 +3179,11 @@ void GameWorld::activateGuardedShrineEvent(MapEventInstance& event) {
 
     event.completed = true;
     shrineBuffTimer_ = Config::ShrineBuffDuration;
+    awardForgeFragments(encounter.forgeFragmentReward);
     eventStatusMessage_ = encounter.name + " activated: +"
-        + std::to_string(Config::ShrineDamageBonusPercent) + "% damage";
+        + std::to_string(Config::ShrineDamageBonusPercent) + "% damage | +"
+        + std::to_string(encounter.forgeFragmentReward)
+        + " Forge Fragments";
     eventStatusTimer_ = 2.0f;
 }
 
@@ -3427,12 +3446,20 @@ void GameWorld::noteMapEventEnemyDefeated(const Enemy& enemy) {
                     encounter.rewardMultiplier,
                     encounter.rewardLootBias
                 );
+                awardForgeFragments(encounter.forgeFragmentReward);
                 eventStatusMessage_ = encounter.completionDropCount > 0
                     ? encounter.name + " cleared: "
-                        + std::to_string(droppedCount) + " bonus items dropped"
-                    : encounter.name + " cleared";
+                        + std::to_string(droppedCount) + " bonus items dropped | +"
+                        + std::to_string(encounter.forgeFragmentReward)
+                        + " Forge Fragments"
+                    : encounter.name + " cleared | +"
+                        + std::to_string(encounter.forgeFragmentReward)
+                        + " Forge Fragments";
             } else {
-                eventStatusMessage_ = "Elite pack cleared - check nearby loot";
+                awardForgeFragments(Config::ElitePackForgeFragmentReward);
+                eventStatusMessage_ = "Elite pack cleared - check nearby loot | +"
+                    + std::to_string(Config::ElitePackForgeFragmentReward)
+                    + " Forge Fragments";
             }
         }
         eventStatusTimer_ = 2.0f;

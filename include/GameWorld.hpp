@@ -301,6 +301,7 @@ private:
     void openLootCacheEvent(MapEventInstance& event);
     void activateShrineEvent(MapEventInstance& event);
     void activateGuardedShrineEvent(MapEventInstance& event);
+    void awardForgeFragments(int amount);
     int dropItemsAround(
         const Vector2& center,
         int count,

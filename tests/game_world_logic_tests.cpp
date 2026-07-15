@@ -2260,6 +2260,7 @@ void testElitePackEventFlow() {
         "entering ElitePack starts exactly five event enemies");
     expect(world.mapEventsCompleted() == 0,
         "an active ElitePack is not counted as completed");
+    const int forgeFragmentsBefore = world.forgeFragments();
     if (world.activeEliteEventEnemiesRemaining() == 5) {
         const Vector2 camera = world.cameraTopLeft();
         const sf::Vector2i screenTarget(
@@ -2277,6 +2278,10 @@ void testElitePackEventFlow() {
         "ElitePack completes only after all event enemies are defeated");
     expect(world.eventStatusMessage().find("Elite pack cleared") != std::string::npos,
         "ElitePack completion reports nearby loot feedback");
+    expect(world.forgeFragments() == forgeFragmentsBefore
+            + Config::ElitePackForgeFragmentReward
+            && world.eventStatusMessage().find("Forge Fragments") != std::string::npos,
+        "ElitePack completion awards its configured forge fragments");
 
     std::filesystem::remove(path);
 }
@@ -2392,6 +2397,10 @@ void testCombinationMapEvents() {
                 "Enhanced Cache completes exactly on its F interaction");
             expect(world.mapEventsCompleted() == 1 && world.mapItemsDropped() >= 3,
                 "Enhanced Cache uses its configured drop quantity");
+            expect(world.forgeFragments() == Config::LootCacheForgeFragmentReward
+                    && world.eventStatusMessage().find("Forge Fragments")
+                        != std::string::npos,
+                "Enhanced Cache awards its configured forge fragments");
             const int dropsAfterOpen = world.mapItemsDropped();
             pressKey(world, input, sf::Keyboard::Key::F);
             expect(world.mapItemsDropped() == dropsAfterOpen,
@@ -2403,6 +2412,8 @@ void testCombinationMapEvents() {
             expect(afterLoad != nullptr && afterLoad->completed
                     && world.mapEventsCompleted() == 1,
                 "saved combination completion is restored without duplication");
+            expect(world.forgeFragments() == Config::LootCacheForgeFragmentReward,
+                "saved combination completion preserves its forge fragments");
         }
     }
 
@@ -2510,11 +2521,15 @@ void testCombinationMapEvents() {
             expect(world.activeEliteEventEnemiesRemaining() == 0
                     && world.mapEventsCompleted() == 0,
                 "Guarded Shrine remains incomplete after guardians are defeated");
+            const int forgeFragmentsBefore = world.forgeFragments();
             pressKey(world, input, sf::Keyboard::Key::F);
             const MapEventInstance* afterActivate = combinationEvent(world);
             expect(afterActivate != nullptr && afterActivate->completed
                     && world.shrineBuffTimeRemaining() > 0.0f,
                 "Guarded Shrine activates once after its guards are cleared");
+            expect(world.forgeFragments() == forgeFragmentsBefore
+                    + world.map().encounterDefinition().forgeFragmentReward,
+                "Guarded Shrine awards its data-driven forge fragment reward");
         }
     }
 
@@ -2537,6 +2552,7 @@ void testCombinationMapEvents() {
                 "Bounty Hunt spawns two Elite and three Normal enemies without a hazard");
 
             const int dropsBeforeClear = world.mapItemsDropped();
+            const int forgeFragmentsBefore = world.forgeFragments();
             const Vector2 camera = world.cameraTopLeft();
             input.handleMousePressed(
                 sf::Mouse::Button::Right,
@@ -2553,6 +2569,9 @@ void testCombinationMapEvents() {
                     && world.eventStatusMessage().find("bonus items dropped")
                         != std::string::npos,
                 "Bounty Hunt drops its configured completion reward once");
+            expect(world.forgeFragments() == forgeFragmentsBefore
+                    + world.map().encounterDefinition().forgeFragmentReward,
+                "Bounty Hunt awards its data-driven forge fragment reward");
         }
     }
 
