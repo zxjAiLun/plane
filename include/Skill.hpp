@@ -23,7 +23,8 @@ enum class SkillCastType {
 
 enum class SkillDeliveryType {
     Instant,
-    DelayedArea
+    DelayedArea,
+    RepeatingArea
 };
 
 struct SkillDefinition {
@@ -42,4 +43,6 @@ struct SkillDefinition {
     SkillDeliveryType delivery = SkillDeliveryType::Instant;
     float castDelay = 0.0f;
     GroundHazardDefinition groundHazard;
+    int repeatCount = 1;
+    float repeatInterval = 0.0f;
 };

@@ -447,7 +447,9 @@ void testManaResourceAndSkillCastGates() {
             && splitArrow.baseDamage == 1
             && aftershock.slot == SkillSlot::Utility
             && aftershock.castType == SkillCastType::SelfCenteredArea
-            && aftershock.baseDamage == 5,
+            && aftershock.baseDamage == 5
+            && aftershock.delivery == SkillDeliveryType::DelayedArea
+            && aftershock.castDelay > 0.0f,
         "Split Arrow and Aftershock expose their intended build roles");
     expect(std::abs(SkillLibrary::flare().manaCost - Config::FlareManaCost) < 0.0001f,
         "Flare exposes its configured Mana cost");
@@ -473,6 +475,11 @@ void testManaResourceAndSkillCastGates() {
         "Pulse exposes its configured Mana cost");
     expect(std::abs(SkillLibrary::bladestorm().manaCost - Config::BladestormManaCost) < 0.0001f,
         "Bladestorm exposes its configured Mana cost");
+    expect(SkillLibrary::bladestorm().delivery == SkillDeliveryType::RepeatingArea
+            && SkillLibrary::bladestorm().repeatCount == Config::BladestormHitCount
+            && std::abs(SkillLibrary::bladestorm().repeatInterval
+                - Config::BladestormHitInterval) < 0.0001f,
+        "Bladestorm exposes its data-driven repeated hit cadence");
     for (const auto& skill : skills) {
         expect(skill.manaCost >= 0.0f,
             skill.name + " has an explicit non-negative Mana cost");

@@ -70,6 +70,8 @@ struct PendingSkillEffect {
     float impactDurationRemaining = 0.0f;
     float impactDuration = 0.0f;
     GroundHazardDefinition groundHazard;
+    int impactsRemaining = 1;
+    float repeatInterval = 0.0f;
     bool impacted = false;
 };
 
@@ -276,7 +278,9 @@ private:
     void queueAreaSkillEffect(
         const SkillDefinition& skill,
         const Vector2& center,
-        float delay
+        float delay,
+        int impacts = 1,
+        float repeatInterval = 0.0f
     );
     GroundHazardDefinition groundHazardForPlayerSkill(
         const SkillDefinition& skill

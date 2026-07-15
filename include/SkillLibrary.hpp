@@ -211,7 +211,7 @@ public:
     }
 
     static SkillDefinition bladestorm() {
-        return {
+        SkillDefinition skill = {
             SkillSlot::Utility,
             SkillCastType::SelfCenteredArea,
             "Bladestorm",
@@ -224,6 +224,10 @@ public:
             {},
             Config::BladestormManaCost
         };
+        skill.delivery = SkillDeliveryType::RepeatingArea;
+        skill.repeatCount = Config::BladestormHitCount;
+        skill.repeatInterval = Config::BladestormHitInterval;
+        return skill;
     }
 
     static SkillDefinition shockwave() {
@@ -243,7 +247,7 @@ public:
     }
 
     static SkillDefinition aftershock() {
-        return {
+        SkillDefinition skill = {
             SkillSlot::Utility,
             SkillCastType::SelfCenteredArea,
             "Aftershock",
@@ -256,6 +260,9 @@ public:
             {},
             Config::AftershockManaCost
         };
+        skill.delivery = SkillDeliveryType::DelayedArea;
+        skill.castDelay = Config::AftershockCastDelay;
+        return skill;
     }
 
     static SkillDefinition dash() {

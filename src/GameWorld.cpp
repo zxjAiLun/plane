@@ -1349,7 +1349,11 @@ void GameWorld::updatePendingSkillEffects(float dt) {
     }
 
     for (auto& effect : pendingSkillEffects_) {
-        if (!effect.impacted) {
+        effect.impactDurationRemaining = std::max(
+            0.0f, effect.impactDurationRemaining - dt
+        );
+
+        if (effect.impactsRemaining > 0) {
             effect.delayRemaining = std::max(0.0f, effect.delayRemaining - dt);
             if (effect.delayRemaining > 0.0f) {
                 continue;
@@ -1368,10 +1372,11 @@ void GameWorld::updatePendingSkillEffects(float dt) {
             }
             effect.impacted = true;
             effect.impactDurationRemaining = effect.impactDuration;
-        } else {
-            effect.impactDurationRemaining = std::max(
-                0.0f, effect.impactDurationRemaining - dt
-            );
+            --effect.impactsRemaining;
+            if (effect.impactsRemaining > 0) {
+                effect.delayRemaining = std::max(0.0f, effect.repeatInterval);
+                effect.delayDuration = effect.delayRemaining;
+            }
         }
     }
 
@@ -1380,7 +1385,8 @@ void GameWorld::updatePendingSkillEffects(float dt) {
             pendingSkillEffects_.begin(),
             pendingSkillEffects_.end(),
             [](const PendingSkillEffect& effect) {
-                return effect.impacted && effect.impactDurationRemaining <= 0.0f;
+                return effect.impactsRemaining <= 0
+                    && effect.impactDurationRemaining <= 0.0f;
             }
         ),
         pendingSkillEffects_.end()
@@ -2412,6 +2418,31 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
     const int repeatCount = skillRepeatCount(
         skill, skillBar_.supportDefinitionsFor(skill)
     );
+
+    if (skill.delivery == SkillDeliveryType::DelayedArea
+        || skill.delivery == SkillDeliveryType::RepeatingArea) {
+        const int impacts = skill.delivery == SkillDeliveryType::RepeatingArea
+            ? std::max(1, skill.repeatCount)
+            : 1;
+        const float sequenceDuration = impacts > 1
+            ? static_cast<float>(impacts - 1) * skill.repeatInterval
+                + skill.effectDuration
+            : skill.effectDuration;
+        for (int repeat = 0; repeat < repeatCount; ++repeat) {
+            const float repeatDelay = skill.delivery == SkillDeliveryType::RepeatingArea
+                ? static_cast<float>(repeat) * (sequenceDuration + skill.repeatInterval)
+                : skill.castDelay + static_cast<float>(repeat) * 0.12f;
+            queueAreaSkillEffect(
+                skill,
+                player_.position(),
+                repeatDelay,
+                impacts,
+                skill.repeatInterval
+            );
+        }
+        return;
+    }
+
     for (int repeat = 0; repeat < repeatCount; ++repeat) {
         dealAreaDamage(
             player_.position(),
@@ -3170,7 +3201,9 @@ int GameWorld::damageForPlayerSkill(const SkillDefinition& skill) const {
 void GameWorld::queueAreaSkillEffect(
     const SkillDefinition& skill,
     const Vector2& center,
-    float delay
+    float delay,
+    int impacts,
+    float repeatInterval
 ) {
     PendingSkillEffect effect;
     effect.position = center;
@@ -3183,6 +3216,8 @@ void GameWorld::queueAreaSkillEffect(
     effect.delayDuration = effect.delayRemaining;
     effect.impactDuration = std::max(0.0f, skill.effectDuration);
     effect.groundHazard = groundHazardForPlayerSkill(skill);
+    effect.impactsRemaining = std::max(1, impacts);
+    effect.repeatInterval = std::max(0.0f, repeatInterval);
     pendingSkillEffects_.push_back(std::move(effect));
 }
 

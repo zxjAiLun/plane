@@ -68,6 +68,8 @@ namespace Config {
     constexpr float MeteorCooldown = 1.4f;
     constexpr float MeteorManaCost = 12.0f;
     constexpr float BladestormManaCost = 10.0f;
+    constexpr int BladestormHitCount = 5;
+    constexpr float BladestormHitInterval = 0.22f;
     constexpr float MeteorEffectDuration = 0.30f;
     constexpr float MeteorGroundHazardDuration = 2.40f;
     constexpr float MeteorGroundHazardTickInterval = 0.60f;
@@ -80,6 +82,7 @@ namespace Config {
     constexpr float AftershockCooldown = 2.6f;
     constexpr float AftershockManaCost = 14.0f;
     constexpr float AftershockEffectDuration = 0.35f;
+    constexpr float AftershockCastDelay = 0.60f;
 
     constexpr float EnemySpeed = 120.0f;
     constexpr float EnemyRadius = 20.0f;

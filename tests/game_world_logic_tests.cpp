@@ -1166,6 +1166,74 @@ void testDelayedSkillEffects() {
         "resolved pending skill effects expire after their impact duration");
 }
 
+void testUtilitySkillDelivery() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_utility_skill_delivery_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(17602);
+    SaveData data;
+    std::string error;
+    const auto utilityIndex = static_cast<std::size_t>(SkillSlot::Utility);
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Utility delivery fixture starts from a valid run save");
+
+    data.unlockedSkills.insert("Bladestorm");
+    data.unlockedSkills.insert("Aftershock");
+    data.skillBar.skills[utilityIndex] = "Bladestorm";
+    data.state = SavedRunState::Playing;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Utility delivery fixture equips Bladestorm");
+
+    Input input;
+    input.handleKeyPressed(sf::Keyboard::Key::Q);
+    world.update(0.05f, input);
+    expect(world.pendingSkillEffects().size() == 1
+            && world.pendingSkillEffects().front().impactsRemaining
+                == Config::BladestormHitCount
+            && !world.pendingSkillEffects().front().impacted,
+        "Bladestorm queues one multi-hit area sequence");
+
+    bool hitProgressObserved = false;
+    for (int frame = 0; frame < 18; ++frame) {
+        world.update(0.05f, input);
+        if (!world.pendingSkillEffects().empty()
+            && world.pendingSkillEffects().front().impactsRemaining
+                < Config::BladestormHitCount) {
+            hitProgressObserved = true;
+        }
+    }
+    expect(hitProgressObserved,
+        "Bladestorm advances through its configured hit cadence");
+
+    for (int frame = 0; frame < 30; ++frame) {
+        world.update(0.05f, input);
+    }
+    expect(world.pendingSkillEffects().empty(),
+        "Bladestorm sequence expires after its final hit");
+
+    data.skillBar.skills[utilityIndex] = "Aftershock";
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Utility delivery fixture equips Aftershock");
+    Input aftershockInput;
+    aftershockInput.handleKeyPressed(sf::Keyboard::Key::Q);
+    world.update(0.05f, aftershockInput);
+    expect(world.pendingSkillEffects().size() == 1
+            && world.pendingSkillEffects().front().impactsRemaining == 1
+            && !world.pendingSkillEffects().front().impacted
+            && world.pendingSkillEffects().front().delayRemaining > 0.0f,
+        "Aftershock queues a delayed secondary blast");
+
+    for (int frame = 0; frame < 14; ++frame) {
+        world.update(0.05f, aftershockInput);
+    }
+    expect(!world.pendingSkillEffects().empty()
+            && world.pendingSkillEffects().front().impacted,
+        "Aftershock resolves after its telegraph window");
+
+    std::filesystem::remove(path);
+}
+
 void testIgniteFeedbackMatchesWorldDamage() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_ignite_feedback_world_test.bin";
@@ -2575,6 +2643,7 @@ int main() {
     testCombatFeedbackAndDeathClaim();
     testSkillFailureFeedback();
     testDelayedSkillEffects();
+    testUtilitySkillDelivery();
     testIgniteFeedbackMatchesWorldDamage();
     testBuildMathMatchesWorldHits();
     testExpandedSkillWorldHits();

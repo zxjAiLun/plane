@@ -515,6 +515,10 @@ std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& sta
     if (repeatCount > 1) {
         summary += "  Hits " + std::to_string(repeatCount);
     }
+    if (skill.repeatCount > 1 && skill.repeatInterval > 0.0f) {
+        summary += "  Pulses " + std::to_string(skill.repeatCount)
+            + "/" + formatFloat(skill.repeatInterval, 2) + "s";
+    }
     if (skill.delivery == SkillDeliveryType::DelayedArea && skill.castDelay > 0.0f) {
         summary += "  Impact " + formatFloat(skill.castDelay, 2) + "s";
     }
@@ -1369,14 +1373,18 @@ void Renderer::drawGroundHazards(const GameWorld& world) {
 void Renderer::drawPendingSkillEffects(const GameWorld& world) {
     for (const auto& effect : world.pendingSkillEffects()) {
         const sf::Color elementColor = damageTypeColor(effect.damageType);
-        const float progress = effect.impacted
-            ? 1.0f
-            : effect.delayDuration > 0.0f
+        const bool awaitingRepeat = effect.impacted
+            && effect.impactsRemaining > 0
+            && effect.impactDurationRemaining <= 0.0f;
+        const bool awaitingImpact = !effect.impacted || awaitingRepeat;
+        const float progress = awaitingImpact
+            ? effect.delayDuration > 0.0f
                 ? 1.0f - effect.delayRemaining / effect.delayDuration
-                : 1.0f;
+                : 1.0f
+            : 1.0f;
         const float radius = effect.radius * (0.82f + 0.18f * std::clamp(progress, 0.0f, 1.0f));
         const auto alpha = static_cast<std::uint8_t>(
-            effect.impacted
+            !awaitingImpact
                 ? 190.0f * std::clamp(
                     effect.impactDuration > 0.0f
                         ? effect.impactDurationRemaining / effect.impactDuration
@@ -1389,19 +1397,19 @@ void Renderer::drawPendingSkillEffects(const GameWorld& world) {
 
         sf::CircleShape marker(radius);
         sf::Color fill = elementColor;
-        fill.a = effect.impacted ? alpha / 5 : 22;
+        fill.a = awaitingImpact ? 22 : alpha / 5;
         sf::Color outline = elementColor;
         outline.a = alpha;
         marker.setFillColor(fill);
         marker.setOutlineColor(outline);
-        marker.setOutlineThickness(effect.impacted ? 3.0f : 4.0f);
+        marker.setOutlineThickness(awaitingImpact ? 4.0f : 3.0f);
         marker.setOrigin({radius, radius});
         marker.setPosition(worldToScreen(world, effect.position));
         window_.draw(marker);
 
-        if (!effect.impacted) {
+        if (awaitingImpact) {
             drawCenteredText(
-                "! " + effect.source,
+                "! " + effect.source + (awaitingRepeat ? " next" : ""),
                 worldToScreen(world, effect.position + Vector2(0.0f, -radius - 16.0f)),
                 12,
                 sf::Color(255, 220, 150, alpha)
