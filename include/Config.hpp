@@ -108,6 +108,11 @@ namespace Config {
     constexpr float WardenAuraRadius = 180.0f;
     constexpr float WardenDamageTakenMultiplier = 0.70f;
     constexpr float VolatileExplosionEffectDuration = 0.35f;
+    constexpr int EliteDoubleModifierMinimumMapLevel = 3;
+    constexpr int EliteDoubleModifierBaseChancePercent = 35;
+    constexpr int EliteDoubleModifierChancePerMapLevel = 10;
+    constexpr int EliteDoubleModifierMaxChancePercent = 70;
+    constexpr float EliteDoubleModifierDropMultiplier = 1.15f;
     constexpr float AilmentTickInterval = 1.0f;
     constexpr int MaxPoisonStacks = 5;
     constexpr float ShrineBuffDuration = 20.0f;

@@ -384,6 +384,7 @@ private:
     int itemLevelForMap() const;
     EnemyType nextMapEnemyType();
     EliteModifier randomEliteModifier();
+    EliteModifier randomSecondaryEliteModifier(EliteModifier primary);
     bool shouldSpawnBoss() const;
     void triggerBossIfNeeded();
     void resetAmbientThreat();

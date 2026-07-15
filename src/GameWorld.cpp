@@ -2246,7 +2246,9 @@ void GameWorld::spawnEnemies(float dt) {
         ? activeFieldPackLeaderModifier_
         : type == EnemyType::Elite ? randomEliteModifier() : EliteModifier::None;
     const EliteModifier secondaryModifier = isLeader
-        ? activeFieldPackLeaderSecondaryModifier_ : EliteModifier::None;
+        ? activeFieldPackLeaderSecondaryModifier_
+        : type == EnemyType::Elite ? randomSecondaryEliteModifier(modifier)
+        : EliteModifier::None;
     const int hp = std::max(1, static_cast<int>(std::ceil(
         enemyHpForMap() * definition.hpMultiplier * eliteHpMultiplier(modifier, secondaryModifier)
     )));
@@ -2260,7 +2262,9 @@ void GameWorld::spawnEnemies(float dt) {
             secondaryModifier,
             isLeader,
             isLeader ? activeFieldPackLeaderName_ : "",
-            isLeader ? activeFieldPackLeaderDropMultiplier_ : 1.0f,
+            isLeader ? activeFieldPackLeaderDropMultiplier_
+                : secondaryModifier == EliteModifier::None
+                    ? 1.0f : Config::EliteDoubleModifierDropMultiplier,
             isLeader ? activeFieldPackLeaderBonusDrops_ : 0,
             isLeader ? activeFieldPackLeaderExperienceMultiplier_ : 1
         )) {
@@ -3355,12 +3359,15 @@ void GameWorld::spawnMapEventEnemies(
         const EliteModifier modifier = type == EnemyType::Elite
             ? randomEliteModifier()
             : EliteModifier::None;
-        const auto& modifierDefinition = EliteModifierLibrary::forModifier(modifier);
+        const EliteModifier secondaryModifier = type == EnemyType::Elite
+            ? randomSecondaryEliteModifier(modifier)
+            : EliteModifier::None;
         const int hp = std::max(1, static_cast<int>(std::ceil(
-            enemyHpForMap() * definition.hpMultiplier * modifierDefinition.hpMultiplier
+            enemyHpForMap() * definition.hpMultiplier
+                * eliteHpMultiplier(modifier, secondaryModifier)
         )));
         const int damage = enemyDamageForMap()
-            + definition.damageBonus + modifierDefinition.damageBonus;
+            + definition.damageBonus + eliteDamageBonus(modifier, secondaryModifier);
         const Vector2 offset = offsets[static_cast<std::size_t>(
             std::min(index, offsetCount - 1)
         )];
@@ -3370,7 +3377,14 @@ void GameWorld::spawnMapEventEnemies(
             damage,
             type,
             modifier,
-            static_cast<int>(eventIndex)
+            static_cast<int>(eventIndex),
+            false,
+            -1,
+            secondaryModifier,
+            false,
+            std::string(),
+            secondaryModifier == EliteModifier::None
+                ? 1.0f : Config::EliteDoubleModifierDropMultiplier
         );
     }
 }
@@ -4912,6 +4926,26 @@ int GameWorld::itemLevelForMap() const {
 
 EliteModifier GameWorld::randomEliteModifier() {
     return map_.definition().encounter.rollEliteModifier(random_);
+}
+
+EliteModifier GameWorld::randomSecondaryEliteModifier(EliteModifier primary) {
+    if (primary == EliteModifier::None
+        || mapLevel_ < Config::EliteDoubleModifierMinimumMapLevel) {
+        return EliteModifier::None;
+    }
+
+    const int levelsAboveThreshold = mapLevel_
+        - Config::EliteDoubleModifierMinimumMapLevel;
+    const int chance = std::min(
+        Config::EliteDoubleModifierMaxChancePercent,
+        Config::EliteDoubleModifierBaseChancePercent
+            + levelsAboveThreshold * Config::EliteDoubleModifierChancePerMapLevel
+    );
+    if (!random_.chance(chance)) {
+        return EliteModifier::None;
+    }
+
+    return map_.definition().encounter.rollEliteModifier(random_, primary);
 }
 
 EnemyType GameWorld::nextMapEnemyType() {

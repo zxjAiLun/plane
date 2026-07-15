@@ -774,7 +774,23 @@ std::string enemyDisplayLabel(const GameWorld& world, const Enemy& enemy) {
     }
 
     const auto& modifier = EliteModifierLibrary::forModifier(enemy.eliteModifier());
-    return modifier.name.empty() ? definition.name : modifier.name + " " + definition.name;
+    std::string modifierNames;
+    if (!modifier.name.empty()) {
+        modifierNames = modifier.name;
+    }
+
+    const auto& secondary = EliteModifierLibrary::forModifier(
+        enemy.secondaryEliteModifier()
+    );
+    if (!secondary.name.empty()
+        && enemy.secondaryEliteModifier() != enemy.eliteModifier()) {
+        if (!modifierNames.empty()) {
+            modifierNames += " ";
+        }
+        modifierNames += secondary.name;
+    }
+
+    return modifierNames.empty() ? definition.name : modifierNames + " " + definition.name;
 }
 
 std::string eliteModifierDescription(const Enemy& enemy) {

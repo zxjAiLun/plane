@@ -296,10 +296,16 @@ struct MapEncounterProfile {
         return EnemyType::Summoner;
     }
 
-    EliteModifier rollEliteModifier(RandomService& random) const {
-        const int hardened = std::max(0, hardenedEliteModifierWeight);
-        const int swift = std::max(0, swiftEliteModifierWeight);
-        const int volatileModifier = std::max(0, volatileEliteModifierWeight);
+    EliteModifier rollEliteModifier(
+        RandomService& random,
+        EliteModifier excluded = EliteModifier::None
+    ) const {
+        const int hardened = excluded == EliteModifier::Hardened
+            ? 0 : std::max(0, hardenedEliteModifierWeight);
+        const int swift = excluded == EliteModifier::Swift
+            ? 0 : std::max(0, swiftEliteModifierWeight);
+        const int volatileModifier = excluded == EliteModifier::Volatile
+            ? 0 : std::max(0, volatileEliteModifierWeight);
         const int total = hardened + swift + volatileModifier;
         if (total <= 0) {
             return EliteModifier::None;

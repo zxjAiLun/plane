@@ -2061,6 +2061,9 @@ void testMapEncounterProfileRolls() {
         "Storm profile rolls Swift signature elites");
     expect(observedModifiers[static_cast<std::size_t>(EliteModifier::Volatile)],
         "Storm profile retains Volatile death-burst elites");
+    expect(profile.rollEliteModifier(random, EliteModifier::Swift)
+            != EliteModifier::Swift,
+        "secondary elite modifier never duplicates the primary modifier");
 
     for (const auto& mapTemplate : MapTemplateLibrary::all()) {
         const auto& encounter = mapTemplate.encounter;
