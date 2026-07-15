@@ -1263,22 +1263,66 @@ void GameWorld::updateObjects(float dt) {
 }
 
 void GameWorld::updateGroundHazards(float dt) {
+    std::vector<int> hazardKillIds;
     for (auto& hazard : groundHazards_) {
         const int elapsedTicks = hazard.update(dt);
-        if (elapsedTicks <= 0 || !Collision::circleCircle(
-                player_.position(), player_.radius(),
-                hazard.position(), hazard.definition().radius
-            )) {
+        if (elapsedTicks <= 0) {
             continue;
         }
 
+        const auto target = hazard.definition().target;
+        const bool affectsPlayer = target == GroundHazardTarget::Player
+            || target == GroundHazardTarget::Both;
+        const bool affectsEnemies = target == GroundHazardTarget::Enemies
+            || target == GroundHazardTarget::Both;
         for (int tick = 0; tick < elapsedTicks; ++tick) {
-            damagePlayer(
-                hazard.definition().damage,
-                hazard.definition().source,
-                hazard.definition().damageType,
-                hazard.definition().ailment
-            );
+            if (affectsPlayer && Collision::circleCircle(
+                    player_.position(), player_.radius(),
+                    hazard.position(), hazard.definition().radius
+                )) {
+                damagePlayer(
+                    hazard.definition().damage,
+                    hazard.definition().source,
+                    hazard.definition().damageType,
+                    hazard.definition().ailment
+                );
+            }
+
+            if (!affectsEnemies) {
+                continue;
+            }
+
+            for (auto& enemy : enemies_) {
+                if (enemy.isDead() || !Collision::circleCircle(
+                        enemy.position(), enemy.radius(),
+                        hazard.position(), hazard.definition().radius
+                    )) {
+                    continue;
+                }
+
+                const int mitigatedDamage = damageToEnemy(
+                    enemy,
+                    hazard.definition().damage,
+                    hazard.definition().damageType
+                );
+                const int dealtDamage = enemy.takeDamage(mitigatedDamage);
+                if (dealtDamage > 0) {
+                    addCombatFeedback(
+                        enemy.position(), dealtDamage, hazard.definition().source
+                    );
+                    if (hazard.definition().ailment.type != AilmentType::None) {
+                        applySkillAilment(
+                            enemy,
+                            hazard.definition().ailment,
+                            dealtDamage
+                        );
+                    }
+                }
+
+                if (enemy.isDead()) {
+                    hazardKillIds.push_back(enemy.id());
+                }
+            }
         }
     }
 
@@ -1286,6 +1330,17 @@ void GameWorld::updateGroundHazards(float dt) {
         groundHazards_.begin(), groundHazards_.end(),
         [](const GroundHazard& hazard) { return !hazard.isActive(); }
     ), groundHazards_.end());
+
+    for (const int enemyId : hazardKillIds) {
+        const auto enemyIt = std::find_if(
+            enemies_.begin(),
+            enemies_.end(),
+            [enemyId](const Enemy& enemy) { return enemy.id() == enemyId; }
+        );
+        if (enemyIt != enemies_.end()) {
+            rewardEnemyKill(*enemyIt);
+        }
+    }
 }
 
 void GameWorld::updatePendingSkillEffects(float dt) {
@@ -1308,6 +1363,9 @@ void GameWorld::updatePendingSkillEffects(float dt) {
                 effect.source,
                 effect.damageType
             );
+            if (effect.groundHazard.isValid()) {
+                groundHazards_.emplace_back(effect.position, effect.groundHazard);
+            }
             effect.impacted = true;
             effect.impactDurationRemaining = effect.impactDuration;
         } else {
@@ -2398,6 +2456,7 @@ void GameWorld::tryCastSecondarySkill(Input& input) {
         }
     }
     if (skill.delivery != SkillDeliveryType::DelayedArea) {
+        spawnPlayerSkillHazard(skill, aimPosition_);
         secondarySkillEffectPosition_ = aimPosition_;
         secondarySkillEffectTimer_ = skill.effectDuration;
     }
@@ -3123,7 +3182,38 @@ void GameWorld::queueAreaSkillEffect(
     effect.delayRemaining = std::max(0.0f, delay);
     effect.delayDuration = effect.delayRemaining;
     effect.impactDuration = std::max(0.0f, skill.effectDuration);
+    effect.groundHazard = groundHazardForPlayerSkill(skill);
     pendingSkillEffects_.push_back(std::move(effect));
+}
+
+GroundHazardDefinition GameWorld::groundHazardForPlayerSkill(
+    const SkillDefinition& skill
+) const {
+    GroundHazardDefinition hazard = skill.groundHazard;
+    if (!hazard.isValid()) {
+        return {};
+    }
+
+    const float baseRadius = std::max(0.0001f, skill.radius);
+    hazard.radius *= radiusForPlayerSkill(skill) / baseRadius;
+
+    const float baseDamage = static_cast<float>(std::max(1, skill.baseDamage));
+    const float damageScale = static_cast<float>(damageForPlayerSkill(skill)) / baseDamage;
+    hazard.damage = std::max(1, static_cast<int>(std::ceil(
+        static_cast<float>(hazard.damage) * damageScale
+    )));
+    hazard.ailment = ailmentForPlayerSkill(skill);
+    return hazard;
+}
+
+void GameWorld::spawnPlayerSkillHazard(
+    const SkillDefinition& skill,
+    const Vector2& center
+) {
+    GroundHazardDefinition hazard = groundHazardForPlayerSkill(skill);
+    if (hazard.isValid()) {
+        groundHazards_.emplace_back(center, std::move(hazard));
+    }
 }
 
 void GameWorld::applySkillProgression() {

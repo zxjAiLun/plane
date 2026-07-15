@@ -518,6 +518,10 @@ std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& sta
     if (skill.delivery == SkillDeliveryType::DelayedArea && skill.castDelay > 0.0f) {
         summary += "  Impact " + formatFloat(skill.castDelay, 2) + "s";
     }
+    if (skill.groundHazard.isValid()) {
+        summary += "  Leaves " + skill.groundHazard.source
+            + " " + formatFloat(skill.groundHazard.duration, 1) + "s";
+    }
     return summary;
 }
 

@@ -69,6 +69,7 @@ struct PendingSkillEffect {
     float delayDuration = 0.0f;
     float impactDurationRemaining = 0.0f;
     float impactDuration = 0.0f;
+    GroundHazardDefinition groundHazard;
     bool impacted = false;
 };
 
@@ -276,6 +277,13 @@ private:
         const SkillDefinition& skill,
         const Vector2& center,
         float delay
+    );
+    GroundHazardDefinition groundHazardForPlayerSkill(
+        const SkillDefinition& skill
+    ) const;
+    void spawnPlayerSkillHazard(
+        const SkillDefinition& skill,
+        const Vector2& center
     );
     void applySkillAilment(Enemy& enemy, const AilmentDefinition& ailment, int hitDamage);
     void updateMapEvents(float dt, Input& input);

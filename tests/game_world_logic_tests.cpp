@@ -1136,7 +1136,9 @@ void testDelayedSkillEffects() {
     world.update(0.05f, input);
     expect(world.pendingSkillEffects().size() == 1
             && !world.pendingSkillEffects().front().impacted
-            && world.pendingSkillEffects().front().source == "Meteor",
+            && world.pendingSkillEffects().front().source == "Meteor"
+            && world.pendingSkillEffects().front().groundHazard.source
+                == "Meteor Burning Ground",
         "Meteor queues a named pending impact instead of resolving immediately");
     input.handleMouseReleased(sf::Mouse::Button::Right, screenTarget);
 
@@ -1147,6 +1149,15 @@ void testDelayedSkillEffects() {
             && world.pendingSkillEffects().front().impacted
             && world.pendingSkillEffects().front().impactDurationRemaining > 0.0f,
         "Meteor resolves after its telegraph and exposes the impact effect");
+    expect(std::any_of(
+                world.groundHazards().begin(),
+                world.groundHazards().end(),
+                [](const GroundHazard& hazard) {
+                    return hazard.definition().source == "Meteor Burning Ground"
+                        && hazard.definition().target == GroundHazardTarget::Enemies;
+                }
+            ),
+        "Meteor impact creates its enemy-only burning ground");
 
     for (int frame = 0; frame < 12; ++frame) {
         world.update(0.05f, input);
@@ -1213,9 +1224,12 @@ void testIgniteFeedbackMatchesWorldDamage() {
     world.update(Config::AilmentTickInterval + 0.05f, input);
 
     int igniteFeedbackDamage = 0;
+    int groundHazardFeedbackDamage = 0;
     for (const auto& feedback : world.combatFeedback()) {
         if (feedback.source == "Ignite") {
             igniteFeedbackDamage += feedback.damage;
+        } else if (feedback.source == "Meteor Burning Ground") {
+            groundHazardFeedbackDamage += feedback.damage;
         }
     }
 
@@ -1236,8 +1250,8 @@ void testIgniteFeedbackMatchesWorldDamage() {
 
     expect(igniteFeedbackDamage > 0,
         "real Ignite tick creates a distinct combat feedback source");
-    expect(igniteFeedbackDamage == enemyHpLoss,
-        "Ignite feedback damage equals the actual Enemy HP loss");
+    expect(igniteFeedbackDamage + groundHazardFeedbackDamage == enemyHpLoss,
+        "damage-over-time feedback equals the actual Enemy HP loss");
     expect(enemiesKilledByTick > 0
             && world.mapKills() - killsBeforeTick == enemiesKilledByTick,
         "Ignite-killed enemies receive exactly one normal reward claim each");
@@ -1724,7 +1738,7 @@ void testBossCombatFlow() {
     data.player.upgradeStats.moveSpeedMultiplier = 8.0f;
     data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
     data.player.upgradeStats.projectileDamageMultiplier = 100.0f;
-    data.player.upgradeStats.areaDamageMultiplier = 2.0f;
+    data.player.upgradeStats.areaDamageMultiplier = 1.0f;
     data.player.mana = data.player.mana > 0.0f ? data.player.mana : Config::PlayerMaxMana;
     data.state = SavedRunState::Playing;
     data.fieldPacksCleared = Config::BossGateRequiredFieldPacks;
@@ -1760,7 +1774,6 @@ void testBossCombatFlow() {
         std::filesystem::remove(path);
         return;
     }
-
     bool bossHpReduced = false;
     bool telegraphFeedbackObserved = false;
     bool elementalBossWarningObserved = false;

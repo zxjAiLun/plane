@@ -58,6 +58,9 @@ namespace Config {
     constexpr float ToxicBurstCooldown = 1.35f;
     constexpr float ToxicBurstManaCost = 11.0f;
     constexpr float ToxicBurstEffectDuration = 0.25f;
+    constexpr float ToxicBurstGroundHazardDuration = 1.80f;
+    constexpr float ToxicBurstGroundHazardTickInterval = 0.60f;
+    constexpr int ToxicBurstGroundHazardDamage = 1;
     constexpr float SecondarySkillEffectDuration = 0.20f;
 
     constexpr float MeteorRadius = 110.0f;
@@ -66,6 +69,12 @@ namespace Config {
     constexpr float MeteorManaCost = 12.0f;
     constexpr float BladestormManaCost = 10.0f;
     constexpr float MeteorEffectDuration = 0.30f;
+    constexpr float MeteorGroundHazardDuration = 2.40f;
+    constexpr float MeteorGroundHazardTickInterval = 0.60f;
+    constexpr int MeteorGroundHazardDamage = 1;
+    constexpr float FrostBombGroundHazardDuration = 2.00f;
+    constexpr float FrostBombGroundHazardTickInterval = 0.50f;
+    constexpr int FrostBombGroundHazardDamage = 1;
     constexpr float AftershockRadius = 125.0f;
     constexpr int AftershockDamage = 5;
     constexpr float AftershockCooldown = 2.6f;

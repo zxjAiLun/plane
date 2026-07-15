@@ -107,6 +107,16 @@ public:
         skill.damageType = DamageType::Fire;
         skill.delivery = SkillDeliveryType::DelayedArea;
         skill.castDelay = 0.55f;
+        skill.groundHazard = {
+            "Meteor Burning Ground",
+            82.0f,
+            Config::MeteorGroundHazardDuration,
+            Config::MeteorGroundHazardTickInterval,
+            Config::MeteorGroundHazardDamage,
+            DamageType::Fire,
+            {AilmentType::Ignite, 2.0f, 0.35f},
+            GroundHazardTarget::Enemies
+        };
         return skill;
     }
 
@@ -127,6 +137,16 @@ public:
         skill.damageType = DamageType::Cold;
         skill.delivery = SkillDeliveryType::DelayedArea;
         skill.castDelay = 0.20f;
+        skill.groundHazard = {
+            "Frost Bomb Chillfield",
+            88.0f,
+            Config::FrostBombGroundHazardDuration,
+            Config::FrostBombGroundHazardTickInterval,
+            Config::FrostBombGroundHazardDamage,
+            DamageType::Cold,
+            {AilmentType::Chill, 2.0f, 0.0f, 0.55f},
+            GroundHazardTarget::Enemies
+        };
         return skill;
     }
 
@@ -145,6 +165,16 @@ public:
             Config::ToxicBurstManaCost
         };
         skill.damageType = DamageType::Poison;
+        skill.groundHazard = {
+            "Toxic Mire",
+            78.0f,
+            Config::ToxicBurstGroundHazardDuration,
+            Config::ToxicBurstGroundHazardTickInterval,
+            Config::ToxicBurstGroundHazardDamage,
+            DamageType::Poison,
+            {AilmentType::Poison, 2.5f, 0.35f},
+            GroundHazardTarget::Enemies
+        };
         return skill;
     }
 

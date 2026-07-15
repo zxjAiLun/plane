@@ -456,11 +456,17 @@ void testManaResourceAndSkillCastGates() {
     expect(SkillLibrary::meteor().delivery == SkillDeliveryType::DelayedArea
             && std::abs(SkillLibrary::meteor().castDelay - 0.55f) < 0.0001f,
         "Meteor exposes a data-driven delayed impact window");
+    expect(SkillLibrary::meteor().groundHazard.isValid()
+            && SkillLibrary::meteor().groundHazard.target == GroundHazardTarget::Enemies,
+        "Meteor exposes a persistent enemy burning ground effect");
     expect(std::abs(SkillLibrary::frostBomb().manaCost - Config::FrostBombManaCost) < 0.0001f,
         "Frost Bomb exposes its configured Mana cost");
     expect(SkillLibrary::frostBomb().delivery == SkillDeliveryType::DelayedArea
             && SkillLibrary::frostBomb().castDelay > 0.0f,
         "Frost Bomb exposes a short delayed explosion window");
+    expect(SkillLibrary::frostBomb().groundHazard.isValid()
+            && SkillLibrary::frostBomb().groundHazard.target == GroundHazardTarget::Enemies,
+        "Frost Bomb exposes a persistent enemy chillfield");
     expect(std::abs(SkillLibrary::nova().manaCost - Config::NovaManaCost) < 0.0001f,
         "Nova exposes its configured Mana cost");
     expect(std::abs(SkillLibrary::pulse().manaCost - Config::PulseManaCost) < 0.0001f,
@@ -841,6 +847,9 @@ void testSkillAilments() {
     expect(toxicBurst.damageType == DamageType::Poison
             && toxicBurst.ailment.type == AilmentType::Poison,
         "Toxic Burst deals Poison damage and applies Poison");
+    expect(toxicBurst.groundHazard.isValid()
+            && toxicBurst.groundHazard.target == GroundHazardTarget::Enemies,
+        "Toxic Burst leaves a persistent enemy poison mire");
     expect(ailmentTickDamage(meteor.ailment, 4) == 2,
         "Ignite tick damage derives from the scaled hit damage");
     expect(ailmentTickDamage(frostBomb.ailment, 4) == 0,

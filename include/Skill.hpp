@@ -4,6 +4,7 @@
 
 #include "Ailment.hpp"
 #include "DamageType.hpp"
+#include "GroundHazard.hpp"
 
 enum class SkillSlot {
     Primary,
@@ -40,4 +41,5 @@ struct SkillDefinition {
     DamageType damageType = DamageType::Physical;
     SkillDeliveryType delivery = SkillDeliveryType::Instant;
     float castDelay = 0.0f;
+    GroundHazardDefinition groundHazard;
 };

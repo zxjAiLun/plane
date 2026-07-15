@@ -8,6 +8,12 @@
 #include "DamageType.hpp"
 #include "Vector2.hpp"
 
+enum class GroundHazardTarget {
+    Player,
+    Enemies,
+    Both
+};
+
 struct GroundHazardDefinition {
     std::string source;
     float radius = 0.0f;
@@ -16,6 +22,7 @@ struct GroundHazardDefinition {
     int damage = 0;
     DamageType damageType = DamageType::Physical;
     AilmentDefinition ailment;
+    GroundHazardTarget target = GroundHazardTarget::Player;
 
     bool isValid() const {
         return !source.empty()
