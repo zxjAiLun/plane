@@ -123,6 +123,18 @@ public:
                         1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
                         item.implicitStats.areaRadiusMultiplier)), {AffixTag::Area});
                 break;
+
+            case BossLootTheme::Frost:
+                item.name = "Frostbound Loop";
+                addBossAffix(item, "Winter's bite", tier + 1,
+                    coldDamageContribution(relativeMultiplier(
+                        1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                        item.implicitStats.coldDamageMultiplier)), {AffixTag::Cold, AffixTag::Damage});
+                addBossAffix(item, "Biting chill", tier + 1,
+                    areaRadiusContribution(relativeMultiplier(
+                        1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
+                        item.implicitStats.areaRadiusMultiplier)), {AffixTag::Cold, AffixTag::Area});
+                break;
         }
 
         return item;
@@ -323,6 +335,7 @@ private:
             case BossLootTheme::Brimstone: return ItemBaseTheme::Brimstone;
             case BossLootTheme::Storm: return ItemBaseTheme::Storm;
             case BossLootTheme::Brood: return ItemBaseTheme::Brood;
+            case BossLootTheme::Frost: return ItemBaseTheme::Frost;
         }
         return ItemBaseTheme::None;
     }
@@ -386,6 +399,12 @@ private:
     static Stats fireDamageContribution(float multiplier) {
         Stats stats;
         stats.fireDamageMultiplier = multiplier;
+        return stats;
+    }
+
+    static Stats coldDamageContribution(float multiplier) {
+        Stats stats;
+        stats.coldDamageMultiplier = multiplier;
         return stats;
     }
 

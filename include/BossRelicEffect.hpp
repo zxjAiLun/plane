@@ -8,7 +8,8 @@ enum class BossRelicEffectType {
     None,
     MoltenCore,
     StormChain,
-    BroodBloom
+    BroodBloom,
+    Frostbite
 };
 
 struct BossRelicEffectDefinition {
@@ -23,6 +24,8 @@ struct BossRelicEffectDefinition {
     float lightningChainDamageMultiplier = 1.0f;
     float poisonSpreadRadius = 0.0f;
     float poisonSpreadMultiplier = 0.0f;
+    float chillSpeedMultiplier = 1.0f;
+    float chillDurationMultiplier = 1.0f;
 };
 
 class BossRelicEffectLibrary {
@@ -61,11 +64,27 @@ public:
             150.0f,
             0.50f
         };
+        static const BossRelicEffectDefinition frostbite{
+            ItemBaseTheme::Frost,
+            BossRelicEffectType::Frostbite,
+            "Frostbite",
+            "Cold skills chill 20% harder and last 25% longer",
+            1.0f,
+            1.0f,
+            0,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            0.80f,
+            1.25f
+        };
 
         switch (theme) {
             case ItemBaseTheme::Brimstone: return moltenCore;
             case ItemBaseTheme::Storm: return stormChain;
             case ItemBaseTheme::Brood: return broodBloom;
+            case ItemBaseTheme::Frost: return frostbite;
             case ItemBaseTheme::None: break;
         }
         return none;

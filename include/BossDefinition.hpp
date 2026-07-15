@@ -20,7 +20,8 @@ enum class BossSkillType {
 enum class BossLootTheme {
     Brimstone,
     Storm,
-    Brood
+    Brood,
+    Frost
 };
 
 struct BossSkillDefinition {
@@ -103,6 +104,75 @@ public:
     }
 
 private:
+    static BossDefinition frostBoss() {
+        BossSkillDefinition frostNova;
+        frostNova.type = BossSkillType::CircularAoe;
+        frostNova.name = "Frost Nova";
+        frostNova.radius = 145.0f;
+        frostNova.damage = 3;
+        frostNova.telegraphDuration = 0.60f;
+        frostNova.effectDuration = 0.25f;
+        frostNova.groundHazard = {
+            "Frozen Ground", 125.0f, 5.0f, 0.75f, 4,
+            DamageType::Cold, {AilmentType::Chill, 2.5f, 0.0f, 0.55f}
+        };
+        frostNova.damageType = DamageType::Cold;
+        frostNova.ailment = {AilmentType::Chill, 2.5f, 0.0f, 0.55f};
+
+        BossSkillDefinition iceLance;
+        iceLance.type = BossSkillType::Projectile;
+        iceLance.name = "Ice Lance";
+        iceLance.radius = Config::BossProjectileRadius;
+        iceLance.damage = 2;
+        iceLance.projectileSpeed = 460.0f;
+        iceLance.damageType = DamageType::Cold;
+        iceLance.ailment = {AilmentType::Chill, 2.0f, 0.0f, 0.60f};
+
+        BossSkillDefinition glacierCall;
+        glacierCall.type = BossSkillType::SummonAdds;
+        glacierCall.name = "Call Frostbound Wardens";
+        glacierCall.radius = 120.0f;
+        glacierCall.telegraphDuration = 0.70f;
+        glacierCall.effectDuration = 0.25f;
+        glacierCall.summonType = EnemyType::Warden;
+        glacierCall.summonCount = 2;
+        glacierCall.damageType = DamageType::Cold;
+
+        BossDefinition definition;
+        definition.name = "Frostbound Warden";
+        definition.theme = "Ice and control";
+        definition.lootTheme = BossLootTheme::Frost;
+        definition.lootRewardDescription = "Unique ring: cold damage and stronger Chill";
+        definition.hpMultiplier = 24.0f;
+        definition.damageBonus = 1;
+        definition.dropMultiplier = 3.1f;
+        definition.skillInterval = 1.9f;
+        definition.guaranteedDrops = 1;
+        definition.enrageHealthRatio = 0.45f;
+        definition.enragedSkillIntervalMultiplier = 0.68f;
+        definition.enragedDamageMultiplier = 1.15f;
+        definition.patternDescription = "Alternates frost novas and ice lances before calling wardens";
+        definition.enragedPatternDescription = "Frozen ground spreads while wardens reinforce the arena";
+        definition.skills = {frostNova, iceLance, glacierCall};
+        definition.normalSkillOrder = {0, 1, 0, 2};
+        definition.enragedSkillOrder = {0, 2, 0, 1, 0};
+        definition.igniteResistance = 25;
+        definition.chillResistance = 45;
+        definition.enrageTransitionDescription = "The ice breaks: frozen ground spreads through the arena";
+        definition.enrageSummonType = EnemyType::Warden;
+        definition.enrageSummonCount = 2;
+        definition.enrageHazard = {
+            "Shattered Ice", 145.0f, 7.0f, 0.75f, 7,
+            DamageType::Cold, {AilmentType::Chill, 2.5f, 0.0f, 0.55f}
+        };
+        definition.lightningResistance = 25;
+        definition.fireResistance = 30;
+        definition.coldResistance = 50;
+        definition.shockResistance = 35;
+        definition.poisonResistance = 30;
+        return definition;
+    }
+
     static BossSkillDefinition elementalSkill(
         BossSkillDefinition skill,
         DamageType damageType,
@@ -321,6 +391,7 @@ private:
                 30,
                 45
             },
+            frostBoss()
         };
     }
 };

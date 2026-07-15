@@ -15,7 +15,8 @@ enum class ItemBaseTheme {
     None,
     Brimstone,
     Storm,
-    Brood
+    Brood,
+    Frost
 };
 
 enum class ItemBuildTheme {
@@ -94,7 +95,8 @@ private:
         float areaRadiusMultiplier = 1.0f,
         int armor = 0,
         float itemQuantityMultiplier = 1.0f,
-        float poisonDamageMultiplier = 1.0f
+        float poisonDamageMultiplier = 1.0f,
+        float coldDamageMultiplier = 1.0f
     ) {
         Stats stats;
         stats.maxHp = maxHp;
@@ -108,6 +110,7 @@ private:
         stats.armor = armor;
         stats.itemQuantityMultiplier = itemQuantityMultiplier;
         stats.poisonDamageMultiplier = poisonDamageMultiplier;
+        stats.coldDamageMultiplier = coldDamageMultiplier;
         return stats;
     }
 
@@ -168,6 +171,10 @@ private:
             {"boss.brood-talisman", "Matriarch's Talisman", EquipmentSlot::Amulet,
                 makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.04f, 1.04f, 0, 1.0f, 1.04f),
                     ItemBaseKind::BossRelic, ItemBaseTheme::Brood, 1, ItemBuildTheme::Poison},
+            {"boss.frostbound-loop", "Frostbound Loop", EquipmentSlot::Ring,
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.03f,
+                    0, 1.0f, 1.0f, 1.06f),
+                    ItemBaseKind::BossRelic, ItemBaseTheme::Frost, 1, ItemBuildTheme::Cold},
         };
     }
 };

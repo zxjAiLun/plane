@@ -1071,6 +1071,10 @@ void testAilmentResistances() {
     expect(bosses[2].poisonResistance == 45
             && damageAfterResistance(100, DamageType::Poison, 0, 0, 0, 45) == 55,
         "Brood exposes Poison resistance and mitigates Poison damage");
+    expect(bosses[3].name == "Frostbound Warden"
+            && bosses[3].chillResistance == 45
+            && bosses[3].coldResistance == 50,
+        "Frostbound Warden exposes a Cold-heavy resistance profile");
     for (const auto& boss : bosses) {
         expect(boss.igniteResistance >= 0 && boss.igniteResistance <= 100
                 && boss.chillResistance >= 0 && boss.chillResistance <= 100,
@@ -1190,12 +1194,35 @@ void testBossElementalSkills() {
             "Acid Spray uses the Poison damage model");
     }
 
+    const auto& frost = BossLibrary::forMapLevel(4);
+    const auto frostNovaIt = std::find_if(
+        frost.skills.begin(), frost.skills.end(),
+        [](const BossSkillDefinition& skill) { return skill.name == "Frost Nova"; }
+    );
+    const auto frostSummonIt = std::find_if(
+        frost.skills.begin(), frost.skills.end(),
+        [](const BossSkillDefinition& skill) { return skill.name == "Call Frostbound Wardens"; }
+    );
+    expect(frost.name == "Frostbound Warden"
+            && frostNovaIt != frost.skills.end()
+            && frostSummonIt != frost.skills.end(),
+        "Frostbound Warden exposes its Cold arena pattern");
+    if (frostNovaIt != frost.skills.end()) {
+        expect(frostNovaIt->damageType == DamageType::Cold
+                && frostNovaIt->ailment.type == AilmentType::Chill
+                && frostNovaIt->groundHazard.damageType == DamageType::Cold,
+            "Frost Nova carries Cold, Chill and a Frozen Ground hazard");
+    }
+
     expect(storm.enrageHazard.damageType == DamageType::Lightning
             && storm.enrageHazard.ailment.type == AilmentType::Shock,
         "Storm enrage hazard carries Lightning and Shock");
     expect(brood.enrageHazard.damageType == DamageType::Poison
             && brood.enrageHazard.ailment.type == AilmentType::Poison,
         "Brood enrage hazard carries Poison");
+    expect(frost.enrageHazard.damageType == DamageType::Cold
+            && frost.enrageHazard.ailment.type == AilmentType::Chill,
+        "Frost enrage hazard carries Cold and Chill");
 }
 
 void testWardenProtectionMath() {
@@ -1410,6 +1437,7 @@ void testItemBaseTypes() {
     const auto* brimstoneBase = ItemBaseLibrary::find("boss.brimstone-brand");
     const auto* stormBase = ItemBaseLibrary::find("boss.storm-signet");
     const auto* broodBase = ItemBaseLibrary::find("boss.brood-talisman");
+    const auto* frostBase = ItemBaseLibrary::find("boss.frostbound-loop");
     expect(hunterBow != nullptr && hunterBow->buildTheme == ItemBuildTheme::Projectile
             && hunterBow->implicitStats.projectileDamageMultiplier > 1.0f,
         "Projectile Item Base theme carries projectile implicit scaling");
@@ -1426,6 +1454,9 @@ void testItemBaseTypes() {
     expect(broodBase != nullptr && broodBase->buildTheme == ItemBuildTheme::Poison
             && broodBase->implicitStats.poisonDamageMultiplier > 1.0f,
         "Brood relic Base carries Poison build identity and implicit scaling");
+    expect(frostBase != nullptr && frostBase->buildTheme == ItemBuildTheme::Cold
+            && frostBase->implicitStats.coldDamageMultiplier > 1.0f,
+        "Frost relic Base carries Cold build identity and implicit scaling");
 
     RandomService random(17);
     LootGenerator generator;
@@ -1462,10 +1493,11 @@ void testItemBaseTypes() {
     expect(lowLevelCanDropHigherRequirementBase,
         "low-level maps can drop higher-requirement bases for meaningful upgrades");
 
-    const std::array<std::pair<BossLootTheme, std::string>, 3> bossThemes{{
+    const std::array<std::pair<BossLootTheme, std::string>, 4> bossThemes{{
         {BossLootTheme::Brimstone, "boss.brimstone-brand"},
         {BossLootTheme::Storm, "boss.storm-signet"},
         {BossLootTheme::Brood, "boss.brood-talisman"},
+        {BossLootTheme::Frost, "boss.frostbound-loop"},
     }};
     for (const auto& [theme, expectedBaseId] : bossThemes) {
         const Item item = generator.generateBossReward(5, theme);
@@ -1485,6 +1517,7 @@ void testItemBaseTypes() {
     const Item brimstone = generator.generateBossReward(5, BossLootTheme::Brimstone);
     const Item storm = generator.generateBossReward(5, BossLootTheme::Storm);
     const Item brood = generator.generateBossReward(5, BossLootTheme::Brood);
+    const Item frost = generator.generateBossReward(5, BossLootTheme::Frost);
     expect(std::abs(brimstone.stats.damageMultiplier - 1.27f) < 0.0001f
             && std::abs(brimstone.stats.areaDamageMultiplier - 1.14f) < 0.0001f,
         "Brimstone relic preserves its level-scaled combat bonuses");
@@ -1495,6 +1528,9 @@ void testItemBaseTypes() {
     expect(std::abs(brood.stats.poisonDamageMultiplier - 1.16f) < 0.0001f
             && std::abs(brood.stats.areaRadiusMultiplier - 1.14f) < 0.0001f,
         "Brood relic preserves its level-scaled combat bonuses");
+    expect(std::abs(frost.stats.coldDamageMultiplier - 1.16f) < 0.0001f
+            && std::abs(frost.stats.areaRadiusMultiplier - 1.14f) < 0.0001f,
+        "Frost relic preserves its level-scaled combat bonuses");
     expect(std::abs(brimstone.stats.fireDamageMultiplier - 1.16f) < 0.0001f,
         "Brimstone relic adds a level-scaled Fire bonus");
 }
@@ -1505,6 +1541,7 @@ void testBossRelicEffects() {
     const auto& molten = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Brimstone);
     const auto& storm = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Storm);
     const auto& brood = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Brood);
+    const auto& frost = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Frost);
     const auto& none = BossRelicEffectLibrary::forTheme(ItemBaseTheme::None);
 
     expect(molten.type == BossRelicEffectType::MoltenCore
@@ -1523,6 +1560,10 @@ void testBossRelicEffects() {
             && brood.poisonSpreadRadius > 0.0f
             && brood.poisonSpreadMultiplier > 0.0f,
         "Brood relic defines a Poison death spread");
+    expect(frost.type == BossRelicEffectType::Frostbite
+            && frost.chillSpeedMultiplier < 1.0f
+            && frost.chillDurationMultiplier > 1.0f,
+        "Frost relic defines a stronger and longer Chill effect");
     expect(none.type == BossRelicEffectType::None && none.name.empty(),
         "non-relic themes have no Boss relic effect");
 }
@@ -1977,7 +2018,8 @@ void testGroundHazardLifecycle() {
             configuredHazards += skill.groundHazard.isValid() ? 1 : 0;
         }
     }
-    expect(configuredHazards == 1, "only Brimstone Magma Slam creates a v1 ground hazard");
+    expect(configuredHazards == 2,
+        "Brimstone and Frost bosses define the current ground hazard set");
 }
 
 // --- Boss mobility skills ---

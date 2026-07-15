@@ -19,6 +19,8 @@ LootBias bossLootBias(BossLootTheme theme) {
             return {AffixTag::Lightning, 1.45f, AffixTag::Projectile, 1.20f};
         case BossLootTheme::Brood:
             return {AffixTag::Poison, 1.45f, AffixTag::Area, 1.20f};
+        case BossLootTheme::Frost:
+            return {AffixTag::Cold, 1.45f, AffixTag::Area, 1.20f};
     }
     return {};
 }
@@ -28,6 +30,7 @@ DamageType bossRewardDamageType(BossLootTheme theme) {
         case BossLootTheme::Brimstone: return DamageType::Fire;
         case BossLootTheme::Storm: return DamageType::Lightning;
         case BossLootTheme::Brood: return DamageType::Poison;
+        case BossLootTheme::Frost: return DamageType::Cold;
     }
     return DamageType::Physical;
 }
@@ -2982,6 +2985,17 @@ AilmentDefinition GameWorld::ailmentForPlayerSkill(const SkillDefinition& skill)
             ailment.poisonSpreadMultiplier, effect.poisonSpreadMultiplier
         );
     }
+    if (skill.damageType == DamageType::Cold
+        && ailment.type == AilmentType::Chill
+        && hasBossRelicTheme(ItemBaseTheme::Frost)) {
+        const auto& effect = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Frost);
+        ailment.speedMultiplier = std::clamp(
+            ailment.speedMultiplier * effect.chillSpeedMultiplier,
+            0.10f,
+            1.0f
+        );
+        ailment.duration *= effect.chillDurationMultiplier;
+    }
     return ailment;
 }
 
@@ -4448,7 +4462,8 @@ std::string GameWorld::bossRelicEffectSummary() const {
     const ItemBaseTheme themes[] = {
         ItemBaseTheme::Brimstone,
         ItemBaseTheme::Storm,
-        ItemBaseTheme::Brood
+        ItemBaseTheme::Brood,
+        ItemBaseTheme::Frost
     };
     std::string summary;
     for (const auto theme : themes) {

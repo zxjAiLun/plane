@@ -1644,6 +1644,20 @@ void testBossRelicEffectsInWorld() {
             && poisonAilment.poisonSpreadMultiplier >= 0.50f,
         "Brood relic adds Poison spread to the effective skill");
 
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Ring)] =
+        makeBaseItem("boss.frostbound-loop");
+    data.unlockedSkills.insert("Frost Bomb");
+    data.skillBar.skills[static_cast<std::size_t>(SkillSlot::Secondary)] = "Frost Bomb";
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Boss relic effect fixture switches to Frostbound Loop");
+    const auto frostAilment = world.effectiveSkillAilment(
+        world.skillBar().definition(SkillSlot::Secondary)
+    );
+    expect(world.bossRelicEffectSummary().find("Frostbite") != std::string::npos
+            && frostAilment.speedMultiplier < 0.65f
+            && frostAilment.duration > 2.0f,
+        "Frost relic strengthens the effective Cold skill Chill");
+
     std::filesystem::remove(path);
 }
 
