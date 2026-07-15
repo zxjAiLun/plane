@@ -2623,6 +2623,14 @@ void testMapLayoutVariants() {
             && MapTemplateLibrary::forIndex(1).signatureLootBias.primaryTag == AffixTag::Lightning
             && MapTemplateLibrary::forIndex(2).signatureLootBias.primaryTag == AffixTag::Poison
             && MapTemplateLibrary::forIndex(3).signatureLootBias.primaryTag == AffixTag::Cold
+            && MapTemplateLibrary::forIndex(0).bossArenaEffect.isValid()
+            && MapTemplateLibrary::forIndex(1).bossArenaEffect.isValid()
+            && MapTemplateLibrary::forIndex(2).bossArenaEffect.isValid()
+            && MapTemplateLibrary::forIndex(3).bossArenaEffect.isValid()
+            && MapTemplateLibrary::forIndex(0).bossArenaEffect.hazard.damageType == DamageType::Fire
+            && MapTemplateLibrary::forIndex(1).bossArenaEffect.hazard.damageType == DamageType::Lightning
+            && MapTemplateLibrary::forIndex(2).bossArenaEffect.hazard.damageType == DamageType::Poison
+            && MapTemplateLibrary::forIndex(3).bossArenaEffect.hazard.damageType == DamageType::Cold
             && MapTemplateLibrary::forIndex(0).signatureAilment.type == AilmentType::Ignite
             && MapTemplateLibrary::forIndex(1).signatureAilment.type == AilmentType::Shock
             && MapTemplateLibrary::forIndex(2).signatureAilment.type == AilmentType::Poison

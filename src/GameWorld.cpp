@@ -1562,10 +1562,19 @@ void GameWorld::updatePendingSkillEffects(float dt) {
 }
 
 void GameWorld::updateAmbientThreat(float dt) {
-    const auto& effect = map_.definition().ambientEffect;
-    if (dt <= 0.0f || mapLevel_ < effect.minimumMapLevel || !effect.isValid()
-        || map_.bossTriggered() || map_.bossDefeated()
-        || map_.areaForPlayer(player_.position()) != MapArea::Field) {
+    const MapArea area = map_.areaForPlayer(player_.position());
+    const bool bossArenaActive = map_.bossTriggered()
+        && !map_.bossDefeated()
+        && area == MapArea::BossArena;
+    const bool fieldActive = !map_.bossTriggered()
+        && !map_.bossDefeated()
+        && area == MapArea::Field;
+    const auto& effect = bossArenaActive
+        ? map_.definition().bossArenaEffect
+        : map_.definition().ambientEffect;
+    if (dt <= 0.0f || !effect.isValid()
+        || (!bossArenaActive
+            && (!fieldActive || mapLevel_ < effect.minimumMapLevel))) {
         ambientHazardWarningTimer_ = 0.0f;
         ambientHazardTimer_ = effect.isValid() ? effect.interval : 0.0f;
         return;
@@ -1584,7 +1593,8 @@ void GameWorld::updateAmbientThreat(float dt) {
     }
 
     ambientHazardTimer_ = std::max(0.0f, ambientHazardTimer_ - dt);
-    if (ambientHazardTimer_ > 0.0f || groundHazards_.size() >= 4) {
+    const std::size_t hazardLimit = bossArenaActive ? 6U : 4U;
+    if (ambientHazardTimer_ > 0.0f || groundHazards_.size() >= hazardLimit) {
         return;
     }
 
@@ -1600,7 +1610,10 @@ void GameWorld::updateAmbientThreat(float dt) {
 }
 
 void GameWorld::resetAmbientThreat() {
-    const auto& effect = map_.definition().ambientEffect;
+    const bool bossArenaActive = map_.bossTriggered() && !map_.bossDefeated();
+    const auto& effect = bossArenaActive
+        ? map_.definition().bossArenaEffect
+        : map_.definition().ambientEffect;
     ambientHazardWarningPosition_ = player_.position();
     ambientHazardTimer_ = effect.isValid() ? effect.interval : 0.0f;
     ambientHazardWarningTimer_ = 0.0f;
@@ -4921,6 +4934,7 @@ void GameWorld::triggerBossIfNeeded() {
     }
 
     map_.triggerBoss();
+    resetAmbientThreat();
     enemies_.clear();
     projectiles_.clear();
     pendingSkillEffects_.clear();
@@ -4991,7 +5005,11 @@ const Vector2& GameWorld::ambientHazardWarningPosition() const {
     return ambientHazardWarningPosition_;
 }
 float GameWorld::ambientHazardWarningProgress() const {
-    const float duration = map_.definition().ambientEffect.telegraphDuration;
+    const bool bossArenaActive = map_.bossTriggered() && !map_.bossDefeated();
+    const auto& effect = bossArenaActive
+        ? map_.definition().bossArenaEffect
+        : map_.definition().ambientEffect;
+    const float duration = effect.telegraphDuration;
     if (duration <= 0.0f || ambientHazardWarningTimer_ <= 0.0f) {
         return 0.0f;
     }

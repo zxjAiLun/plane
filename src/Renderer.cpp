@@ -1007,9 +1007,14 @@ void Renderer::render(const GameWorld& world) {
         + "  |  Threat: "
         + truncateText(world.map().definition().encounter.threatDescription, 28),
         {16.0f, 130.0f}, 14, sf::Color(255, 220, 150));
+    const bool bossArenaActive = world.map().bossTriggered()
+        && !world.map().bossDefeated();
+    const auto& activeThemeEffect = bossArenaActive
+        ? world.map().definition().bossArenaEffect
+        : world.map().definition().ambientEffect;
     drawText("THEME " + truncateText(world.map().definition().theme, 24)
-        + "  |  FIELD "
-        + truncateText(world.map().definition().ambientEffect.name, 24)
+        + "  |  " + (bossArenaActive ? "ARENA " : "FIELD ")
+        + truncateText(activeThemeEffect.name, 24)
         + "  |  LOOT "
         + affixTagName(world.map().definition().signatureLootBias.primaryTag),
         {16.0f, 148.0f}, 14, sf::Color(170, 220, 255));
@@ -1370,7 +1375,11 @@ void Renderer::drawAmbientHazardWarning(const GameWorld& world) {
         return;
     }
 
-    const auto& effect = world.map().definition().ambientEffect;
+    const bool bossArenaActive = world.map().bossTriggered()
+        && !world.map().bossDefeated();
+    const auto& effect = bossArenaActive
+        ? world.map().definition().bossArenaEffect
+        : world.map().definition().ambientEffect;
     const float radius = effect.hazard.radius;
     const auto alpha = static_cast<std::uint8_t>(
         85.0f + 130.0f * (1.0f - progress)

@@ -288,6 +288,7 @@ struct MapTemplateDefinition {
     DamageType signatureDamageType = DamageType::Physical;
     AilmentDefinition signatureAilment;
     LootBias signatureLootBias;
+    MapAmbientEffectDefinition bossArenaEffect;
 };
 
 class MapTemplateLibrary {
@@ -389,15 +390,52 @@ private:
         templates[0].signatureDamageType = DamageType::Fire;
         templates[0].signatureAilment = {AilmentType::Ignite, 2.5f, 0.20f};
         templates[0].signatureLootBias = {AffixTag::Fire, 1.35f};
+        templates[0].bossArenaEffect = {
+            "Magma Ring",
+            "The arena marks the player before a burning ring erupts",
+            3.5f,
+            0.55f,
+            {"Magma Ring", 135.0f, 4.5f, 0.75f, 3,
+                DamageType::Fire, {AilmentType::Ignite, 2.5f, 0.20f}},
+            1
+        };
         templates[1].signatureDamageType = DamageType::Lightning;
         templates[1].signatureAilment = {AilmentType::Shock, 2.0f, 0.0f, 1.15f};
         templates[1].signatureLootBias = {AffixTag::Lightning, 1.35f};
+        templates[1].bossArenaEffect = {
+            "Storm Convergence",
+            "Lightning converges on the player after a short warning",
+            3.2f,
+            0.50f,
+            {"Storm Convergence", 125.0f, 3.8f, 0.70f, 3,
+                DamageType::Lightning,
+                {AilmentType::Shock, 2.0f, 0.0f, 1.15f}},
+            1
+        };
         templates[2].signatureDamageType = DamageType::Poison;
         templates[2].signatureAilment = {AilmentType::Poison, 2.5f, 0.35f};
         templates[2].signatureLootBias = {AffixTag::Poison, 1.35f};
+        templates[2].bossArenaEffect = {
+            "Sporeburst",
+            "Toxic spores linger where the player was standing",
+            3.8f,
+            0.60f,
+            {"Sporeburst", 125.0f, 5.0f, 0.75f, 3,
+                DamageType::Poison, {AilmentType::Poison, 2.5f, 0.35f}},
+            1
+        };
         templates[3].signatureDamageType = DamageType::Cold;
         templates[3].signatureAilment = {AilmentType::Chill, 2.0f, 0.0f, 0.65f};
         templates[3].signatureLootBias = {AffixTag::Cold, 1.35f};
+        templates[3].bossArenaEffect = {
+            "Glacial Fracture",
+            "Cold fractures slow the arena after a clear telegraph",
+            3.6f,
+            0.55f,
+            {"Glacial Fracture", 130.0f, 4.8f, 0.75f, 2,
+                DamageType::Cold, {AilmentType::Chill, 2.0f, 0.0f, 0.65f}},
+            1
+        };
         return templates;
     }
 };
