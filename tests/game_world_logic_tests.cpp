@@ -2942,6 +2942,122 @@ void testCombinationMapEvents() {
         }
     }
 
+    {
+        GameWorld world(21009);
+        prepareCombinationFixture(world, path, 4, 0, 5);
+        const MapEventInstance* event = combinationEvent(world);
+        expect(event != nullptr
+                && event->encounterType == MapEncounterType::ArchivePurge,
+            "map level five selects the Drowned Archive Archive Purge encounter");
+        if (event != nullptr) {
+            const Vector2 position = event->position;
+            Input input;
+            expect(moveToMapEvent(world, input, {850.0f, world.player().position().y})
+                    && moveToMapEvent(world, input, {850.0f, position.y})
+                    && moveToMapEvent(world, input, position),
+                "player can reach the Archive Purge encounter");
+            const auto archiveHazard = std::find_if(
+                world.groundHazards().begin(),
+                world.groundHazards().end(),
+                [](const GroundHazard& hazard) {
+                    return hazard.definition().source == "Inkfreeze Seal";
+                }
+            );
+            const auto countEventEnemies = [&](EnemyType type) {
+                return std::count_if(
+                    world.enemies().begin(),
+                    world.enemies().end(),
+                    [type](const Enemy& enemy) {
+                        return enemy.mapEventIndex() == 3 && enemy.type() == type;
+                    }
+                );
+            };
+            expect(world.activeEliteEventEnemiesRemaining() == 5,
+                "Archive Purge starts with five encounter enemies");
+            expect(countEventEnemies(EnemyType::Warden) == 1
+                    && countEventEnemies(EnemyType::Ranged) == 4,
+                "Archive Purge spawns one Warden and four Ranged enemies");
+            expect(archiveHazard != world.groundHazards().end(),
+                "Archive Purge creates its Cold hazard");
+            expect(world.map().encounterDefinition().rewardLootBias.primaryTag == AffixTag::Cold
+                    && world.map().encounterDefinition().rewardLootBias.secondaryTag
+                        == AffixTag::Projectile,
+                "Archive Purge uses Cold and Projectile completion rewards");
+
+            const Vector2 camera = world.cameraTopLeft();
+            input.handleMousePressed(
+                sf::Mouse::Button::Right,
+                {static_cast<int>(std::lround(position.x - camera.x)),
+                 static_cast<int>(std::lround(position.y - camera.y))}
+            );
+            world.update(0.05f, input);
+            resolvePendingSkillEffects(world, input);
+            expect(world.activeEliteEventEnemiesRemaining() == 0,
+                "Archive Purge encounter enemies can be cleared");
+            expect(world.mapEventsCompleted() == 1
+                    && world.mapItemsDropped() >= 4,
+                "Archive Purge drops its configured completion reward");
+        }
+    }
+
+    {
+        GameWorld world(21010);
+        prepareCombinationFixture(world, path, 5, 0, 6);
+        const MapEventInstance* event = combinationEvent(world);
+        expect(event != nullptr
+                && event->encounterType == MapEncounterType::ForgeCollapse,
+            "map level six selects the Obsidian Reliquary Forge Collapse encounter");
+        if (event != nullptr) {
+            const Vector2 position = event->position;
+            Input input;
+            expect(moveToMapEvent(world, input, {850.0f, world.player().position().y})
+                    && moveToMapEvent(world, input, {850.0f, position.y})
+                    && moveToMapEvent(world, input, position),
+                "player can reach the Forge Collapse encounter");
+            const auto forgeHazard = std::find_if(
+                world.groundHazards().begin(),
+                world.groundHazards().end(),
+                [](const GroundHazard& hazard) {
+                    return hazard.definition().source == "Forge Collapse";
+                }
+            );
+            const auto countEventEnemies = [&](EnemyType type) {
+                return std::count_if(
+                    world.enemies().begin(),
+                    world.enemies().end(),
+                    [type](const Enemy& enemy) {
+                        return enemy.mapEventIndex() == 3 && enemy.type() == type;
+                    }
+                );
+            };
+            expect(world.activeEliteEventEnemiesRemaining() == 5,
+                "Forge Collapse starts with five encounter enemies");
+            expect(countEventEnemies(EnemyType::Charger) == 1
+                    && countEventEnemies(EnemyType::Summoner) == 4,
+                "Forge Collapse spawns one Charger and four Summoners");
+            expect(forgeHazard != world.groundHazards().end(),
+                "Forge Collapse creates its Fire hazard");
+            expect(world.map().encounterDefinition().rewardLootBias.primaryTag == AffixTag::Fire
+                    && world.map().encounterDefinition().rewardLootBias.secondaryTag
+                        == AffixTag::Area,
+                "Forge Collapse uses Fire and Area completion rewards");
+
+            const Vector2 camera = world.cameraTopLeft();
+            input.handleMousePressed(
+                sf::Mouse::Button::Right,
+                {static_cast<int>(std::lround(position.x - camera.x)),
+                 static_cast<int>(std::lround(position.y - camera.y))}
+            );
+            world.update(0.05f, input);
+            resolvePendingSkillEffects(world, input);
+            expect(world.activeEliteEventEnemiesRemaining() == 0,
+                "Forge Collapse encounter enemies can be cleared");
+            expect(world.mapEventsCompleted() == 1
+                    && world.mapItemsDropped() >= 4,
+                "Forge Collapse drops its configured completion reward");
+        }
+    }
+
     std::filesystem::remove(path);
 }
 

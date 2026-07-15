@@ -767,6 +767,8 @@ sf::Color mapEventColor(const MapEventInstance& event) {
                 case MapEncounterType::CursedReliquary: return sf::Color(255, 105, 190);
                 case MapEncounterType::WardenCourt: return sf::Color(120, 190, 255);
                 case MapEncounterType::FrozenReliquary: return sf::Color(145, 225, 255);
+                case MapEncounterType::ArchivePurge: return sf::Color(95, 205, 235);
+                case MapEncounterType::ForgeCollapse: return sf::Color(245, 125, 55);
                 case MapEncounterType::None: break;
             }
             break;
@@ -890,7 +892,9 @@ std::string activeElitePackModifierDescription(const GameWorld& world) {
                     || event.encounterType == MapEncounterType::BountyHunt
                     || event.encounterType == MapEncounterType::CursedReliquary
                     || event.encounterType == MapEncounterType::WardenCourt
-                    || event.encounterType == MapEncounterType::FrozenReliquary));
+                    || event.encounterType == MapEncounterType::FrozenReliquary
+                    || event.encounterType == MapEncounterType::ArchivePurge
+                    || event.encounterType == MapEncounterType::ForgeCollapse));
         if (isEliteEncounter && event.triggered && !event.completed) {
             activeEvent = &event;
             activeEventIndex = index;

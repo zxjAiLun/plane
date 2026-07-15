@@ -2694,8 +2694,22 @@ void testMapEncounterDefinitions() {
             return encounter.type == MapEncounterType::FrozenReliquary;
         }
     );
-    expect(encounters.size() == 7,
-        "map encounter library contains seven data-driven encounter definitions");
+    const auto archiveIt = std::find_if(
+        encounters.begin(),
+        encounters.end(),
+        [](const MapEncounterDefinition& encounter) {
+            return encounter.type == MapEncounterType::ArchivePurge;
+        }
+    );
+    const auto forgeIt = std::find_if(
+        encounters.begin(),
+        encounters.end(),
+        [](const MapEncounterDefinition& encounter) {
+            return encounter.type == MapEncounterType::ForgeCollapse;
+        }
+    );
+    expect(encounters.size() == 9,
+        "map encounter library contains nine data-driven encounter definitions");
     expect(std::all_of(
                 encounters.begin(), encounters.end(),
                 [](const MapEncounterDefinition& encounter) {
@@ -2737,6 +2751,30 @@ void testMapEncounterDefinitions() {
             && frozenIt->hazard.damageType == DamageType::Cold
             && frozenIt->hazard.ailment.type == AilmentType::Chill,
         "Frozen Reliquary defines its Cold hazard, loot bias, and Warden composition");
+    expect(archiveIt != encounters.end()
+            && archiveIt->eliteCount == 1
+            && archiveIt->normalCount == 4
+            && archiveIt->primaryEnemyType == EnemyType::Warden
+            && archiveIt->secondaryEnemyType == EnemyType::Ranged
+            && archiveIt->completionDropCount == 4
+            && archiveIt->rewardLootBias.primaryTag == AffixTag::Cold
+            && archiveIt->rewardLootBias.secondaryTag == AffixTag::Projectile
+            && archiveIt->hazard.damageType == DamageType::Cold
+            && archiveIt->hazard.ailment.type == AilmentType::Chill
+            && archiveIt->hazard.target == GroundHazardTarget::Both,
+        "Archive Purge defines its Cold hazard, Warden screen, and Projectile reward bias");
+    expect(forgeIt != encounters.end()
+            && forgeIt->eliteCount == 1
+            && forgeIt->normalCount == 4
+            && forgeIt->primaryEnemyType == EnemyType::Charger
+            && forgeIt->secondaryEnemyType == EnemyType::Summoner
+            && forgeIt->completionDropCount == 4
+            && forgeIt->rewardLootBias.primaryTag == AffixTag::Fire
+            && forgeIt->rewardLootBias.secondaryTag == AffixTag::Area
+            && forgeIt->hazard.damageType == DamageType::Fire
+            && forgeIt->hazard.ailment.type == AilmentType::Ignite
+            && forgeIt->hazard.target == GroundHazardTarget::Both,
+        "Forge Collapse defines its Fire hazard, Charger screen, and Area reward bias");
 }
 
 // --- Map layout variants ---
@@ -2821,9 +2859,9 @@ void testMapLayoutVariants() {
             && MapTemplateLibrary::forIndex(5).signatureDamageType == DamageType::Fire
             && MapTemplateLibrary::forIndex(5).signatureLootBias.primaryTag == AffixTag::Armor,
         "new map themes bind their intended encounter and loot identities");
-    expect(MapInstance(5).encounterDefinition().type == MapEncounterType::WardenCourt
-            && MapInstance(6).encounterDefinition().type == MapEncounterType::CursedReliquary,
-        "new map themes use distinct combination encounters instead of legacy Frost content");
+    expect(MapInstance(5).encounterDefinition().type == MapEncounterType::ArchivePurge
+            && MapInstance(6).encounterDefinition().type == MapEncounterType::ForgeCollapse,
+        "new map themes use their own combination encounters instead of legacy content");
     expect(MapTemplateLibrary::forIndex(0).ambientEffect.isValid()
             && MapTemplateLibrary::forIndex(0).ambientEffect.hazard.damageType == DamageType::Fire
             && MapTemplateLibrary::forIndex(1).ambientEffect.hazard.damageType == DamageType::Lightning

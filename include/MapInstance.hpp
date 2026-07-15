@@ -42,7 +42,9 @@ enum class MapEncounterType {
     BountyHunt,
     CursedReliquary,
     WardenCourt,
-    FrozenReliquary
+    FrozenReliquary,
+    ArchivePurge,
+    ForgeCollapse
 };
 
 struct MapEncounterDefinition {
@@ -66,8 +68,8 @@ struct MapEncounterDefinition {
 
 class MapEncounterLibrary {
 public:
-    static const std::array<MapEncounterDefinition, 7>& all() {
-        static const std::array<MapEncounterDefinition, 7> definitions = {{
+    static const std::array<MapEncounterDefinition, 9>& all() {
+        static const std::array<MapEncounterDefinition, 9> definitions = {{
             {
                 MapEncounterType::EnhancedCache,
                 "enhanced-cache",
@@ -194,6 +196,48 @@ public:
                 EnemyType::Warden,
                 {AffixTag::Cold, 1.80f, AffixTag::Area, 1.15f},
                 4
+            },
+            {
+                MapEncounterType::ArchivePurge,
+                "archive-purge",
+                "Archive Purge",
+                "Break the ink seal while Wardens and ranged archivists freeze the corridor",
+                130.0f,
+                0,
+                1,
+                4,
+                1.55f,
+                {"Inkfreeze Seal", 135.0f, 8.0f, 0.75f, 2,
+                    DamageType::Cold,
+                    {AilmentType::Chill, 2.5f, 0.0f, 0.60f},
+                    GroundHazardTarget::Both},
+                false,
+                4,
+                EnemyType::Warden,
+                EnemyType::Ranged,
+                {AffixTag::Cold, 1.90f, AffixTag::Projectile, 1.25f},
+                4
+            },
+            {
+                MapEncounterType::ForgeCollapse,
+                "forge-collapse",
+                "Forge Collapse",
+                "Survive the collapsing forge while Chargers and Summoners close in",
+                132.0f,
+                0,
+                1,
+                4,
+                1.55f,
+                {"Forge Collapse", 140.0f, 7.0f, 0.70f, 3,
+                    DamageType::Fire,
+                    {AilmentType::Ignite, 2.5f, 0.20f},
+                    GroundHazardTarget::Both},
+                false,
+                4,
+                EnemyType::Charger,
+                EnemyType::Summoner,
+                {AffixTag::Fire, 1.90f, AffixTag::Area, 1.25f},
+                4
             }
         }};
         return definitions;
@@ -218,15 +262,15 @@ public:
         const int normalizedTemplate = ((templateIndex % templateCount) + templateCount)
             % templateCount;
         if (normalizedTemplate == 3) {
-            return all().back();
+            return forType(MapEncounterType::FrozenReliquary);
         }
 
         if (normalizedTemplate == 4) {
-            return forType(MapEncounterType::WardenCourt);
+            return forType(MapEncounterType::ArchivePurge);
         }
 
         if (normalizedTemplate == 5) {
-            return forType(MapEncounterType::CursedReliquary);
+            return forType(MapEncounterType::ForgeCollapse);
         }
 
         constexpr int LegacyEncounterCount = 6;
