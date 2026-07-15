@@ -2679,6 +2679,69 @@ void testCombinationMapEvents() {
     std::filesystem::remove(path);
 }
 
+void testStormRelicAreaChain() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_storm_relic_area_chain_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(21009);
+    SaveData data;
+    std::string error;
+    const auto utilityIndex = static_cast<std::size_t>(SkillSlot::Utility);
+    const auto ringIndex = static_cast<std::size_t>(EquipmentSlot::Ring);
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Storm Relic area fixture starts from a valid run save");
+
+    data.player.equipment[ringIndex] = makeBaseItem("boss.storm-signet");
+    data.skillBar.skills[utilityIndex] = "Pulse";
+    data.player.hp = 1000;
+    data.player.upgradeStats.maxHp = 1000;
+    data.player.upgradeStats.moveSpeedMultiplier = 6.0f;
+    data.player.upgradeStats.areaDamageMultiplier = 0.5f;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.player.mana = Config::PlayerMaxMana;
+    data.state = SavedRunState::Playing;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Storm Relic area fixture equips the Lightning relic and Pulse");
+    expect(world.bossRelicEffectSummary().find("Storm Chain") != std::string::npos,
+        "Storm Relic area fixture exposes the active Storm Chain effect");
+
+    const auto eventIt = std::find_if(
+        world.map().events().begin(), world.map().events().end(),
+        [](const MapEventInstance& event) { return event.type == MapEventType::ElitePack; }
+    );
+    expect(eventIt != world.map().events().end(),
+        "Storm Relic area fixture finds an ElitePack encounter");
+    if (eventIt == world.map().events().end()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    Input input;
+    expect(moveToMapEvent(world, input, eventIt->position),
+        "Storm Relic area fixture reaches the ElitePack encounter");
+    expect(world.activeEliteEventEnemiesRemaining() > 0,
+        "Storm Relic area fixture starts owned encounter enemies");
+
+    const std::size_t feedbackStart = world.combatFeedback().size();
+    input.handleKeyPressed(sf::Keyboard::Key::Q);
+    world.update(0.05f, input);
+    input.handleKeyReleased(sf::Keyboard::Key::Q);
+
+    const bool chainObserved = std::any_of(
+        world.combatFeedback().begin() + static_cast<std::ptrdiff_t>(feedbackStart),
+        world.combatFeedback().end(),
+        [](const CombatFeedback& feedback) {
+            return feedback.source == "Storm Chain"
+                && feedback.type == CombatFeedbackType::Damage;
+        }
+    );
+    expect(chainObserved,
+        "Lightning Pulse triggers Storm Chain from the real area-damage path");
+
+    std::filesystem::remove(path);
+}
+
 } // namespace
 
 int main() {
@@ -2744,6 +2807,7 @@ int main() {
     testElementalEnemyProjectileFlow();
     testElitePackEventFlow();
     testCombinationMapEvents();
+    testStormRelicAreaChain();
 
     std::cout << "Passed: " << (checks - failures)
         << "  Failed: " << failures << '\n';

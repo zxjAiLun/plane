@@ -2637,6 +2637,11 @@ void GameWorld::dealAreaDamage(
             if (ailment && dealtDamage > 0) {
                 applySkillAilment(enemy, *ailment, dealtDamage);
             }
+            if (damageType == DamageType::Lightning && dealtDamage > 0) {
+                const AilmentDefinition chainAilment = ailment != nullptr
+                    ? *ailment : AilmentDefinition();
+                triggerStormChain(enemy, dealtDamage, chainAilment);
+            }
 
             if (enemy.isDead()) {
                 rewardEnemyKill(enemy);
