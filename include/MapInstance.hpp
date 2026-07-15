@@ -236,11 +236,27 @@ struct MapEncounterProfile {
     int summonerWeight = 0;
 };
 
+struct MapAmbientEffectDefinition {
+    std::string name;
+    std::string description;
+    float interval = 0.0f;
+    float telegraphDuration = 0.0f;
+    GroundHazardDefinition hazard;
+
+    bool isValid() const {
+        return !name.empty()
+            && interval > 0.0f
+            && telegraphDuration > 0.0f
+            && hazard.isValid();
+    }
+};
+
 struct MapTemplateDefinition {
     std::string name;
     std::string theme;
     MapPalette palette;
     MapEncounterProfile encounter;
+    MapAmbientEffectDefinition ambientEffect;
 };
 
 class MapTemplateLibrary {
@@ -273,25 +289,61 @@ private:
                 "Ashen Causeway",
                 "Ash and stone",
                 {{24, 28, 30}, {65, 70, 72}, {120, 70, 40}, {120, 35, 35}, {40, 110, 70}},
-                {50, 20, 15, "Mixed melee, charger and Warden patrols", 10, 5, 0}
+                {50, 20, 15, "Mixed melee, charger and Warden patrols", 10, 5, 0},
+                {
+                    "Falling Cinders",
+                    "Fire sigils periodically mark the field",
+                    12.0f,
+                    0.65f,
+                    {"Cinderfall", 95.0f, 4.0f, 0.75f, 2,
+                        DamageType::Fire,
+                        {AilmentType::Ignite, 2.5f, 0.20f}}
+                }
             },
             {
                 "Stormscar Expanse",
                 "Rain and shattered glass",
                 {{20, 29, 38}, {52, 72, 92}, {75, 115, 145}, {46, 72, 125}, {42, 95, 110}},
-                {12, 45, 15, "Ranged pressure, chargers and Summoner anchors", 15, 8, 5}
+                {12, 45, 15, "Ranged pressure, chargers and Summoner anchors", 15, 8, 5},
+                {
+                    "Storm Strike",
+                    "Lightning marks periodically land in the field",
+                    10.0f,
+                    0.80f,
+                    {"Arc Flash", 100.0f, 3.5f, 0.70f, 2,
+                        DamageType::Lightning,
+                        {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.15f}}
+                }
             },
             {
                 "Venom Hollow",
                 "Acid and overgrowth",
                 {{23, 38, 31}, {55, 82, 61}, {105, 125, 55}, {92, 68, 35}, {42, 110, 70}},
-                {20, 20, 25, "Elite patrols, chargers and Summoner anchors", 15, 10, 10}
+                {20, 20, 25, "Elite patrols, chargers and Summoner anchors", 15, 10, 10},
+                {
+                    "Toxic Bloom",
+                    "Poison spores linger after a field warning",
+                    11.0f,
+                    0.70f,
+                    {"Toxic Bloom", 110.0f, 5.0f, 0.75f, 2,
+                        DamageType::Poison,
+                        {AilmentType::Poison, 3.0f}}
+                }
             },
             {
                 "Frostbound Pass",
                 "Snow and fractured ice",
                 {{28, 38, 52}, {90, 115, 135}, {110, 180, 225}, {55, 120, 165}, {55, 105, 135}},
-                {14, 16, 18, "Warden formations, chargers and cold-forged elites", 20, 20, 12}
+                {14, 16, 18, "Warden formations, chargers and cold-forged elites", 20, 20, 12},
+                {
+                    "Rimefall",
+                    "Cold sigils slow the field before they erupt",
+                    9.0f,
+                    0.70f,
+                    {"Rimefall", 105.0f, 4.5f, 0.75f, 2,
+                        DamageType::Cold,
+                        {AilmentType::Chill, 2.5f, 0.0f, 0.60f}}
+                }
             },
         };
     }

@@ -315,6 +315,7 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     initializeRunProgression();
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
+    resetAmbientThreat();
     applySkillProgression();
 }
 
@@ -764,6 +765,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     bossDefinition_ = &BossLibrary::forMapLevel(mapLevel_);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
+    resetAmbientThreat();
     player_.clearAilments();
     applySkillProgression();
 
@@ -915,6 +917,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     skillFailureFeedbackTimer_ = std::max(0.0f, skillFailureFeedbackTimer_ - dt);
     shrineBuffTimer_ = std::max(0.0f, shrineBuffTimer_ - dt);
     updateGroundHazards(dt);
+    updateAmbientThreat(dt);
     if (lifeFlaskStatusTimer_ > 0.0f) {
         lifeFlaskStatusTimer_ = std::max(0.0f, lifeFlaskStatusTimer_ - dt);
         if (lifeFlaskStatusTimer_ == 0.0f) {
@@ -1007,6 +1010,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     bossDefinition_ = &BossLibrary::forMapLevel(1);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
+    resetAmbientThreat();
     projectiles_.clear();
     combatFeedback_.clear();
     bossProjectiles_.clear();
@@ -1123,6 +1127,7 @@ void GameWorld::startNextMap() {
     bossDefinition_ = &BossLibrary::forMapLevel(mapLevel_);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
+    resetAmbientThreat();
     player_.clearAilments();
     currentWave_ = 0;
     enemiesSpawnedInWave_ = 0;
@@ -1273,6 +1278,51 @@ void GameWorld::updateGroundHazards(float dt) {
         groundHazards_.begin(), groundHazards_.end(),
         [](const GroundHazard& hazard) { return !hazard.isActive(); }
     ), groundHazards_.end());
+}
+
+void GameWorld::updateAmbientThreat(float dt) {
+    const auto& effect = map_.definition().ambientEffect;
+    if (dt <= 0.0f || mapLevel_ < 4 || !effect.isValid()
+        || map_.bossTriggered() || map_.bossDefeated()
+        || map_.areaForPlayer(player_.position()) != MapArea::Field) {
+        ambientHazardWarningTimer_ = 0.0f;
+        ambientHazardTimer_ = effect.isValid() ? effect.interval : 0.0f;
+        return;
+    }
+
+    if (ambientHazardWarningTimer_ > 0.0f) {
+        ambientHazardWarningTimer_ = std::max(
+            0.0f, ambientHazardWarningTimer_ - dt
+        );
+        if (ambientHazardWarningTimer_ == 0.0f) {
+            groundHazards_.emplace_back(
+                ambientHazardWarningPosition_, effect.hazard
+            );
+        }
+        return;
+    }
+
+    ambientHazardTimer_ = std::max(0.0f, ambientHazardTimer_ - dt);
+    if (ambientHazardTimer_ > 0.0f || groundHazards_.size() >= 4) {
+        return;
+    }
+
+    ambientHazardTimer_ = effect.interval;
+    ambientHazardWarningPosition_ = player_.position();
+    ambientHazardWarningTimer_ = effect.telegraphDuration;
+    addCombatFeedback(
+        ambientHazardWarningPosition_,
+        0,
+        effect.name,
+        CombatFeedbackType::Telegraph
+    );
+}
+
+void GameWorld::resetAmbientThreat() {
+    const auto& effect = map_.definition().ambientEffect;
+    ambientHazardWarningPosition_ = player_.position();
+    ambientHazardTimer_ = effect.isValid() ? effect.interval : 0.0f;
+    ambientHazardWarningTimer_ = 0.0f;
 }
 
 void GameWorld::updateBossSkills(float dt) {
@@ -4338,6 +4388,16 @@ float GameWorld::playerHitEffectProgress() const {
         : 0.0f;
 }
 const Vector2& GameWorld::aimPosition() const { return aimPosition_; }
+const Vector2& GameWorld::ambientHazardWarningPosition() const {
+    return ambientHazardWarningPosition_;
+}
+float GameWorld::ambientHazardWarningProgress() const {
+    const float duration = map_.definition().ambientEffect.telegraphDuration;
+    if (duration <= 0.0f || ambientHazardWarningTimer_ <= 0.0f) {
+        return 0.0f;
+    }
+    return std::clamp(ambientHazardWarningTimer_ / duration, 0.0f, 1.0f);
+}
 float GameWorld::novaEffectProgress() const {
     const float duration = skillBar_.definition(SkillSlot::Utility).effectDuration;
     return duration > 0.0f ? novaEffectTimer_ / duration : 0.0f;

@@ -180,6 +180,8 @@ public:
     int focusedDroppedItemIndex() const;
     std::string pickupPrompt() const;
     float shrineBuffTimeRemaining() const;
+    const Vector2& ambientHazardWarningPosition() const;
+    float ambientHazardWarningProgress() const;
     int mapEventsCompleted() const;
     int mapEventsTotal() const;
     std::string eventStatusMessage() const;
@@ -206,6 +208,7 @@ private:
     void movePlayerBy(const Vector2& delta);
     void updateObjects(float dt);
     void updateGroundHazards(float dt);
+    void updateAmbientThreat(float dt);
     void updateBossSkills(float dt);
     void updateBossDash(float dt, Enemy& boss);
     void triggerBossEnrage(Enemy& boss);
@@ -334,6 +337,7 @@ private:
     EliteModifier randomEliteModifier();
     bool shouldSpawnBoss() const;
     void triggerBossIfNeeded();
+    void resetAmbientThreat();
 
     float currentSpawnInterval() const;
 
@@ -447,6 +451,9 @@ private:
     int hoveredPassiveNode_;
     std::string nearbyEventPrompt_;
     float shrineBuffTimer_;
+    Vector2 ambientHazardWarningPosition_;
+    float ambientHazardTimer_ = 0.0f;
+    float ambientHazardWarningTimer_ = 0.0f;
     int lifeFlaskCharges_;
     std::string lifeFlaskStatusMessage_;
     float lifeFlaskStatusTimer_;

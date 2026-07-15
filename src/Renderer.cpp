@@ -901,6 +901,7 @@ void Renderer::render(const GameWorld& world) {
     window_.clear(sf::Color::Black);
 
     drawMap(world);
+    drawAmbientHazardWarning(world);
     drawGroundHazards(world);
     drawNovaEffect(world);
     drawSecondarySkillEffect(world);
@@ -1285,6 +1286,40 @@ void Renderer::drawMap(const GameWorld& world) {
     start.setOrigin({Config::StartSafeRadius, Config::StartSafeRadius});
     start.setPosition(startCenter);
     window_.draw(start);
+}
+
+void Renderer::drawAmbientHazardWarning(const GameWorld& world) {
+    const float progress = world.ambientHazardWarningProgress();
+    if (progress <= 0.0f) {
+        return;
+    }
+
+    const auto& effect = world.map().definition().ambientEffect;
+    const float radius = effect.hazard.radius;
+    const auto alpha = static_cast<std::uint8_t>(
+        85.0f + 130.0f * (1.0f - progress)
+    );
+    const sf::Color elementColor = damageTypeColor(effect.hazard.damageType);
+    sf::Color fillColor = elementColor;
+    fillColor.a = 24;
+    sf::Color outlineColor = elementColor;
+    outlineColor.a = alpha;
+
+    sf::CircleShape warning(radius);
+    warning.setFillColor(fillColor);
+    warning.setOutlineColor(outlineColor);
+    warning.setOutlineThickness(4.0f);
+    warning.setOrigin({radius, radius});
+    warning.setPosition(worldToScreen(world, world.ambientHazardWarningPosition()));
+    window_.draw(warning);
+
+    drawCenteredText(
+        "! " + effect.name,
+        worldToScreen(world, world.ambientHazardWarningPosition()
+            + Vector2(0.0f, -radius - 16.0f)),
+        12,
+        sf::Color(255, 210, 130, alpha)
+    );
 }
 
 void Renderer::drawGroundHazards(const GameWorld& world) {

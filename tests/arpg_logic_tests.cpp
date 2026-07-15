@@ -2384,6 +2384,12 @@ void testMapLayoutVariants() {
     expect(frostOptions[2].templateIndex == 3
             && frostOptions[2].modifier.hasModifier("frostbite"),
         "high-tier map selection exposes Frostbound Pass with its Cold challenge");
+    expect(MapTemplateLibrary::forIndex(0).ambientEffect.isValid()
+            && MapTemplateLibrary::forIndex(0).ambientEffect.hazard.damageType == DamageType::Fire
+            && MapTemplateLibrary::forIndex(1).ambientEffect.hazard.damageType == DamageType::Lightning
+            && MapTemplateLibrary::forIndex(2).ambientEffect.hazard.damageType == DamageType::Poison
+            && MapTemplateLibrary::forIndex(3).ambientEffect.hazard.damageType == DamageType::Cold,
+        "map themes define valid Fire, Lightning, Poison and Cold field hazards");
 
     MapInstance map(1, 0, 1);
     expect(!map.intersectsObstacle(map.playerStart(), Config::PlayerRadius),

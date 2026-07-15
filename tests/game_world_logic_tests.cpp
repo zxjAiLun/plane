@@ -2395,16 +2395,35 @@ void testCombinationMapEvents() {
             expect(moveToMapEvent(world, input, {840.0f, 700.0f})
                     && moveToMapEvent(world, input, position),
                 "player can reach the Frost Frozen Reliquary encounter");
+            const auto frozenHazard = std::find_if(
+                world.groundHazards().begin(),
+                world.groundHazards().end(),
+                [](const GroundHazard& hazard) {
+                    return hazard.definition().source == "Rime Sigil";
+                }
+            );
             expect(world.activeEliteEventEnemiesRemaining() == 4
-                    && world.groundHazards().size() == 1,
+                    && frozenHazard != world.groundHazards().end(),
                 "Frozen Reliquary spawns one Elite, three Wardens and one Cold hazard");
             expect(world.map().encounterDefinition().rewardLootBias.primaryTag == AffixTag::Cold
                     && world.map().encounterDefinition().rewardLootBias.secondaryTag == AffixTag::Area,
                 "Frozen Reliquary configures Cold-biased completion rewards");
-            const auto& hazard = world.groundHazards().front().definition();
+            const auto& hazard = frozenHazard->definition();
             expect(hazard.damageType == DamageType::Cold
                     && hazard.ailment.type == AilmentType::Chill,
                 "Frozen Reliquary hazard applies Cold and Chill feedback");
+            for (int frame = 0; frame < 210; ++frame) {
+                world.update(0.05f, input);
+            }
+            const bool ambientHazardSpawned = std::any_of(
+                world.groundHazards().begin(),
+                world.groundHazards().end(),
+                [](const GroundHazard& candidate) {
+                    return candidate.definition().source == "Rimefall";
+                }
+            );
+            expect(ambientHazardSpawned,
+                "Frost field periodically spawns its telegraphed Rimefall hazard");
         }
     }
 
