@@ -36,10 +36,19 @@ public:
         RandomService& random,
         const LootBias& bias = {}
     ) const {
+        return generate(monsterLevel, random, 1.0f, bias);
+    }
+
+    Item generate(
+        int monsterLevel,
+        RandomService& random,
+        float rarityMultiplier,
+        const LootBias& bias = {}
+    ) const {
         Item item;
         item.itemLevel = monsterLevel;
         item.slot = randomSlot(random);
-        item.rarity = randomRarity(monsterLevel, random);
+        item.rarity = randomRarity(monsterLevel, random, rarityMultiplier);
         applyBase(item, randomBaseFor(item.slot, random));
 
         const int affixCount = affixCountFor(item.rarity);
@@ -140,10 +149,22 @@ public:
         return item;
     }
 
-    static Rarity rarityForRoll(int monsterLevel, int roll) {
+    static Rarity rarityForRoll(
+        int monsterLevel,
+        int roll,
+        float rarityMultiplier = 1.0f
+    ) {
         const int normalizedLevel = std::max(1, monsterLevel);
-        const int rareChance = std::min(32, 8 + normalizedLevel * 4);
-        const int magicChance = std::min(58, 30 + normalizedLevel * 3);
+        const float multiplier = std::max(0.0f, rarityMultiplier);
+        const int rareChance = std::min(75, static_cast<int>(std::ceil(
+            static_cast<float>(8 + normalizedLevel * 4) * multiplier
+        )));
+        const int magicChance = std::min(
+            90 - rareChance,
+            static_cast<int>(std::ceil(
+                static_cast<float>(30 + normalizedLevel * 3) * multiplier
+            ))
+        );
         if (roll < rareChance) {
             return Rarity::Rare;
         }
@@ -584,8 +605,12 @@ private:
         }
     }
 
-    static Rarity randomRarity(int monsterLevel, RandomService& random) {
-        return rarityForRoll(monsterLevel, random.nextInt(0, 99));
+    static Rarity randomRarity(
+        int monsterLevel,
+        RandomService& random,
+        float rarityMultiplier
+    ) {
+        return rarityForRoll(monsterLevel, random.nextInt(0, 99), rarityMultiplier);
     }
 
     static int affixCountFor(Rarity rarity) {

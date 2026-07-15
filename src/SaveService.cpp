@@ -390,6 +390,7 @@ void writeModifierEffect(Writer& writer, const MapModifierEffect& effect) {
     writer.integer(effect.monsterDamageBonus);
     writer.real(effect.monsterSpeedMultiplier);
     writer.real(effect.itemQuantityMultiplier);
+    writer.real(effect.itemRarityMultiplier);
     writer.integer(effect.bossDropBonus);
     writer.integer(effect.eliteWeightBonus);
     writer.integer(effect.chargerWeightBonus);
@@ -404,14 +405,27 @@ void writeModifierEffect(Writer& writer, const MapModifierEffect& effect) {
     writer.real(effect.secondaryLootBiasWeightMultiplier);
 }
 
-bool readModifierEffect(Reader& reader, MapModifierEffect& effect) {
+bool readModifierEffect(
+    Reader& reader,
+    MapModifierEffect& effect,
+    bool hasItemRarityFields
+) {
     int primaryTag = 0;
     int secondaryTag = 0;
     if (!reader.real(effect.monsterHpMultiplier)
         || !reader.integer(effect.monsterDamageBonus)
         || !reader.real(effect.monsterSpeedMultiplier)
-        || !reader.real(effect.itemQuantityMultiplier)
-        || !reader.integer(effect.bossDropBonus)
+        || !reader.real(effect.itemQuantityMultiplier)) {
+        return false;
+    }
+    if (hasItemRarityFields) {
+        if (!reader.real(effect.itemRarityMultiplier)) {
+            return false;
+        }
+    } else {
+        effect.itemRarityMultiplier = 1.0f;
+    }
+    if (!reader.integer(effect.bossDropBonus)
         || !reader.integer(effect.eliteWeightBonus)
         || !reader.integer(effect.chargerWeightBonus)
         || !reader.real(effect.bossHpMultiplier)
@@ -422,8 +436,10 @@ bool readModifierEffect(Reader& reader, MapModifierEffect& effect) {
         || !reader.integer(primaryTag)
         || !reader.real(effect.primaryLootBiasWeightMultiplier)
         || !reader.integer(secondaryTag)
-        || !reader.real(effect.secondaryLootBiasWeightMultiplier)
-        || !validEnumValue(primaryTag, 0, static_cast<int>(AffixTag::Poison))
+        || !reader.real(effect.secondaryLootBiasWeightMultiplier)) {
+        return false;
+    }
+    if (!validEnumValue(primaryTag, 0, static_cast<int>(AffixTag::Poison))
         || !validEnumValue(secondaryTag, 0, static_cast<int>(AffixTag::Poison))) {
         return false;
     }
@@ -440,12 +456,16 @@ void writeModifierDefinition(Writer& writer, const MapModifierDefinition& defini
     writeModifierEffect(writer, definition.effect);
 }
 
-bool readModifierDefinition(Reader& reader, MapModifierDefinition& definition) {
+bool readModifierDefinition(
+    Reader& reader,
+    MapModifierDefinition& definition,
+    bool hasItemRarityFields
+) {
     return reader.string(definition.id)
         && reader.string(definition.name)
         && reader.string(definition.riskDescription)
         && reader.string(definition.rewardDescription)
-        && readModifierEffect(reader, definition.effect);
+        && readModifierEffect(reader, definition.effect, hasItemRarityFields);
 }
 
 void writeModifier(Writer& writer, const MapModifier& modifier) {
@@ -456,6 +476,7 @@ void writeModifier(Writer& writer, const MapModifier& modifier) {
     writer.integer(modifier.monsterDamageBonus);
     writer.real(modifier.monsterSpeedMultiplier);
     writer.real(modifier.itemQuantityMultiplier);
+    writer.real(modifier.itemRarityMultiplier);
     writer.integer(modifier.bossDropBonus);
     writer.integer(modifier.eliteWeightBonus);
     writer.integer(modifier.chargerWeightBonus);
@@ -478,7 +499,12 @@ void writeModifier(Writer& writer, const MapModifier& modifier) {
     }
 }
 
-bool readModifier(Reader& reader, MapModifier& modifier, bool hasElementalChallengeFields) {
+bool readModifier(
+    Reader& reader,
+    MapModifier& modifier,
+    bool hasElementalChallengeFields,
+    bool hasItemRarityFields
+) {
     int lootTag = 0;
     int secondaryTag = 0;
     int elementalChallengeType = 0;
@@ -488,8 +514,17 @@ bool readModifier(Reader& reader, MapModifier& modifier, bool hasElementalChalle
         || !reader.real(modifier.monsterHpMultiplier)
         || !reader.integer(modifier.monsterDamageBonus)
         || !reader.real(modifier.monsterSpeedMultiplier)
-        || !reader.real(modifier.itemQuantityMultiplier)
-        || !reader.integer(modifier.bossDropBonus)
+        || !reader.real(modifier.itemQuantityMultiplier)) {
+        return false;
+    }
+    if (hasItemRarityFields) {
+        if (!reader.real(modifier.itemRarityMultiplier)) {
+            return false;
+        }
+    } else {
+        modifier.itemRarityMultiplier = 1.0f;
+    }
+    if (!reader.integer(modifier.bossDropBonus)
         || !reader.integer(modifier.eliteWeightBonus)
         || !reader.integer(modifier.chargerWeightBonus)
         || !reader.real(modifier.bossHpMultiplier)
@@ -500,8 +535,10 @@ bool readModifier(Reader& reader, MapModifier& modifier, bool hasElementalChalle
         || !reader.integer(lootTag)
         || !reader.real(modifier.lootBiasWeightMultiplier)
         || !reader.integer(secondaryTag)
-        || !reader.real(modifier.secondaryLootBiasWeightMultiplier)
-        || !validEnumValue(lootTag, 0, static_cast<int>(AffixTag::Poison))
+        || !reader.real(modifier.secondaryLootBiasWeightMultiplier)) {
+        return false;
+    }
+    if (!validEnumValue(lootTag, 0, static_cast<int>(AffixTag::Poison))
         || !validEnumValue(secondaryTag, 0, static_cast<int>(AffixTag::Poison))) {
         return false;
     }
@@ -536,7 +573,11 @@ bool readModifier(Reader& reader, MapModifier& modifier, bool hasElementalChalle
     modifier.secondaryLootBiasTag = static_cast<AffixTag>(secondaryTag);
     modifier.components = {};
     for (int index = 0; index < modifier.componentCount; ++index) {
-        if (!readModifierDefinition(reader, modifier.components[static_cast<std::size_t>(index)])) {
+        if (!readModifierDefinition(
+                reader,
+                modifier.components[static_cast<std::size_t>(index)],
+                hasItemRarityFields
+            )) {
             return false;
         }
     }
@@ -550,8 +591,18 @@ void writeMapOption(Writer& writer, const MapOption& option) {
     writer.integer(option.templateIndex);
 }
 
-bool readMapOption(Reader& reader, MapOption& option, bool hasElementalChallengeFields) {
-    return readModifier(reader, option.modifier, hasElementalChallengeFields)
+bool readMapOption(
+    Reader& reader,
+    MapOption& option,
+    bool hasElementalChallengeFields,
+    bool hasItemRarityFields
+) {
+    return readModifier(
+            reader,
+            option.modifier,
+            hasElementalChallengeFields,
+            hasItemRarityFields
+        )
         && reader.string(option.rewardDescription)
         && reader.string(option.recommendedLevel)
         && reader.integer(option.templateIndex);
@@ -699,6 +750,7 @@ bool readSaveData(
     Reader& reader,
     SaveData& data,
     bool hasElementalChallengeFields,
+    bool hasItemRarityFields,
     bool hasPoisonFields,
     std::size_t passiveNodeCount,
     bool hasGemProgression,
@@ -714,12 +766,22 @@ bool readSaveData(
         || data.mapLevel < 1
         || !reader.integer(data.mapTemplateIndex)
         || !reader.integer(data.mapLayoutIndex)
-        || !readMapOption(reader, data.currentMapOption, hasElementalChallengeFields)) {
+        || !readMapOption(
+            reader,
+            data.currentMapOption,
+            hasElementalChallengeFields,
+            hasItemRarityFields
+        )) {
         return false;
     }
     data.state = static_cast<SavedRunState>(state);
     for (auto& option : data.nextMapOptions) {
-        if (!readMapOption(reader, option, hasElementalChallengeFields)) {
+        if (!readMapOption(
+                reader,
+                option,
+                hasElementalChallengeFields,
+                hasItemRarityFields
+            )) {
             return false;
         }
     }
@@ -925,7 +987,7 @@ bool SaveService::load(const std::filesystem::path& path,
         || magic != SaveData::Magic
         || (version != 3U && version != 4U && version != 5U
             && version != 6U && version != 7U && version != 8U
-            && version != 9U
+            && version != 9U && version != 10U
             && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");
@@ -944,6 +1006,7 @@ bool SaveService::load(const std::filesystem::path& path,
             payloadReader,
             restored,
             version >= 4U,
+            version >= 11U,
             version >= 5U,
             version >= 6U ? PassiveTree::NodeCount : PassiveTree::LegacyNodeCount,
             version >= 7U,

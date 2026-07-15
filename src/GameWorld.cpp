@@ -203,6 +203,7 @@ bool validModifierEffectForRestore(const MapModifierEffect& effect) {
     return positiveFinite(effect.monsterHpMultiplier)
         && positiveFinite(effect.monsterSpeedMultiplier)
         && positiveFinite(effect.itemQuantityMultiplier)
+        && positiveFinite(effect.itemRarityMultiplier)
         && positiveFinite(effect.bossHpMultiplier)
         && positiveFinite(effect.bossDamageMultiplier)
         && positiveFinite(effect.eventRewardMultiplier)
@@ -214,6 +215,7 @@ bool validModifierForRestore(const MapModifier& modifier) {
     if (!positiveFinite(modifier.monsterHpMultiplier)
         || !positiveFinite(modifier.monsterSpeedMultiplier)
         || !positiveFinite(modifier.itemQuantityMultiplier)
+        || !positiveFinite(modifier.itemRarityMultiplier)
         || !positiveFinite(modifier.bossHpMultiplier)
         || !positiveFinite(modifier.bossDamageMultiplier)
         || !positiveFinite(modifier.eventRewardMultiplier)
@@ -3206,7 +3208,9 @@ int GameWorld::dropItemsAround(
         mergeLootBias(dropBias, extraBias);
         droppedItems_.push_back(DroppedItem(
             center + offset,
-            lootGenerator_.generate(itemLevelForMap(), random_, dropBias)
+            lootGenerator_.generate(
+                itemLevelForMap(), random_, mapModifier_.itemRarityMultiplier, dropBias
+            )
         ));
         ++mapItemsDropped_;
     }
@@ -4275,7 +4279,9 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         }
         Item item = enemy.isBoss() && i == 0
             ? lootGenerator_.generateBossReward(itemLevelForMap(), bossDefinition_->lootTheme)
-            : lootGenerator_.generate(itemLevelForMap(), random_, dropBias);
+            : lootGenerator_.generate(
+                itemLevelForMap(), random_, mapModifier_.itemRarityMultiplier, dropBias
+            );
         droppedItems_.push_back(DroppedItem(enemy.position() + offset, std::move(item)));
         ++mapItemsDropped_;
         if (enemy.isBoss()) {

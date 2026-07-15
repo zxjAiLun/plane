@@ -1409,6 +1409,19 @@ void testLootGeneration() {
         "low-level rarity roll 20 is Magic");
     expect(LootGenerator::rarityForRoll(5, 20) == Rarity::Rare,
         "same roll becomes Rare at higher map level");
+    expect(LootGenerator::rarityForRoll(1, 15, 1.0f) == Rarity::Magic
+            && LootGenerator::rarityForRoll(1, 15, 1.5f) == Rarity::Rare,
+        "item rarity multiplier upgrades a deterministic Magic roll to Rare");
+    RandomService normalLootRandom(712);
+    RandomService rarityLootRandom(712);
+    int normalRareCount = 0;
+    int rarityRareCount = 0;
+    for (int index = 0; index < 64; ++index) {
+        normalRareCount += gen.generate(1, normalLootRandom).rarity == Rarity::Rare;
+        rarityRareCount += gen.generate(1, rarityLootRandom, 2.0f).rarity == Rarity::Rare;
+    }
+    expect(rarityRareCount > normalRareCount,
+        "rarity multiplier increases actual generated Rare item frequency");
 }
 
 // --- Item base types and implicit stats ---
@@ -1702,6 +1715,9 @@ void testAffixTagsAndWeights() {
             && mapOptions[1].modifier.lootBiasTag != AffixTag::None
             && mapOptions[2].modifier.lootBiasTag != AffixTag::None,
         "map options expose explicit loot bias tags");
+    expect(mapOptions[2].modifier.itemRarityMultiplier > 1.0f
+            && mapOptions[2].modifier.itemQuantityMultiplier > 1.0f,
+        "Gilded/Elite map option combines quantity and rarity rewards");
 
     auto generateSignatures = [](unsigned int seed, const LootBias& bias) {
         RandomService random(seed);

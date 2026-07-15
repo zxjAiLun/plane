@@ -46,6 +46,7 @@ SaveData sampleData() {
     data.mapTemplateIndex = 1;
     data.mapLayoutIndex = 1;
     data.currentMapOption = MapOptionLibrary::generateOptions(2)[1];
+    data.currentMapOption.modifier.itemRarityMultiplier = 1.27f;
     data.nextMapOptions = MapOptionLibrary::generateOptions(3);
     data.unlockedSkills.insert("Spread Shot");
     data.unlockedSkills.insert("Arc Bolt");
@@ -148,6 +149,8 @@ void testFileValidation(const std::filesystem::path& path) {
                 == data.currentMapOption.modifier.playerElementalResistancePenalty
             && restored.currentMapOption.modifier.monsterElementalResistanceBonus
                 == data.currentMapOption.modifier.monsterElementalResistanceBonus
+            && std::abs(restored.currentMapOption.modifier.itemRarityMultiplier - 1.27f)
+                < 0.0001f
             && restored.unlockedSupports == data.unlockedSupports
             && restored.exploredCells == data.exploredCells
             && restored.player.equipment[0]->affixes[0].id

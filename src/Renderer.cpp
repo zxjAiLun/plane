@@ -686,6 +686,7 @@ std::string mapOptionSummary(const MapOption& option) {
         + " BHP+" + std::to_string(multiplierPercent(modifier.bossHpMultiplier))
         + " BD+" + std::to_string(multiplierPercent(modifier.bossDamageMultiplier))
         + " IQ+" + std::to_string(multiplierPercent(modifier.itemQuantityMultiplier))
+        + " IR+" + std::to_string(multiplierPercent(modifier.itemRarityMultiplier))
         + " IL+" + std::to_string(modifier.itemLevelBonus);
     if (!modifier.elementalChallengeId.empty()) {
         summary += " " + std::string(damageTypeName(modifier.elementalChallengeType))

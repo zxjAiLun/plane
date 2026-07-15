@@ -25,6 +25,7 @@ struct MapModifierEffect {
     float primaryLootBiasWeightMultiplier = 1.0f;
     AffixTag secondaryLootBiasTag = AffixTag::None;
     float secondaryLootBiasWeightMultiplier = 1.0f;
+    float itemRarityMultiplier = 1.0f;
 };
 
 struct MapModifierDefinition {
@@ -71,6 +72,7 @@ struct MapModifier {
     DamageType elementalChallengeType = DamageType::Physical;
     int playerElementalResistancePenalty = 0;
     int monsterElementalResistanceBonus = 0;
+    float itemRarityMultiplier = 1.0f;
 
     LootBias lootBias() const {
         return {
@@ -153,22 +155,22 @@ public:
                 "gilded-cache",
                 "Gilded Cache",
                 "Elite encounters are more common",
-                "Item quantity, event rewards and item level increase",
+                "Item quantity, rarity, event rewards and item level increase",
                 {
                     1.10f, 0, 1.10f, 1.35f, 0, 6, 4, 1.20f, 1.05f, 1,
                     1.50f, 0, AffixTag::Pickup, 1.35f,
-                    AffixTag::Area, 1.15f
+                    AffixTag::Area, 1.15f, 1.30f
                 }
             },
             {
                 "elite-tide",
                 "Elite Tide",
                 "Elite and charger packs are more common",
-                "Elite drops and area affixes are favored",
+                "Elite drops, rarity and area affixes are favored",
                 {
                     1.0f, 0, 1.10f, 1.10f, 1, 6, 8, 1.0f, 1.0f, 0,
                     1.0f, 0, AffixTag::Area, 1.35f,
-                    AffixTag::Damage, 1.15f
+                    AffixTag::Damage, 1.15f, 1.20f
                 }
             }
         }};
@@ -297,6 +299,7 @@ private:
         target.monsterDamageBonus += effect.monsterDamageBonus;
         target.monsterSpeedMultiplier *= effect.monsterSpeedMultiplier;
         target.itemQuantityMultiplier *= effect.itemQuantityMultiplier;
+        target.itemRarityMultiplier *= effect.itemRarityMultiplier;
         target.bossDropBonus += effect.bossDropBonus;
         target.eliteWeightBonus += effect.eliteWeightBonus;
         target.chargerWeightBonus += effect.chargerWeightBonus;
@@ -360,6 +363,7 @@ private:
         const float level = static_cast<float>(levels);
         modifier.monsterHpMultiplier *= 1.0f + level * 0.03f;
         modifier.itemQuantityMultiplier *= 1.0f + level * 0.02f;
+        modifier.itemRarityMultiplier *= 1.0f + level * 0.015f;
         modifier.bossHpMultiplier *= 1.0f + level * 0.015f;
         modifier.bossDamageMultiplier *= 1.0f + level * 0.02f;
         modifier.monsterDamageBonus += levels / 4;
