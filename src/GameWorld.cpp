@@ -4911,12 +4911,7 @@ int GameWorld::itemLevelForMap() const {
 }
 
 EliteModifier GameWorld::randomEliteModifier() {
-    // Special aura/cast modifiers are reserved for data-driven rare leaders.
-    const int modifierCount = static_cast<int>(EliteModifier::Volatile);
-    if (modifierCount <= 0) {
-        return EliteModifier::None;
-    }
-    return static_cast<EliteModifier>(random_.nextInt(1, modifierCount));
+    return map_.definition().encounter.rollEliteModifier(random_);
 }
 
 EnemyType GameWorld::nextMapEnemyType() {

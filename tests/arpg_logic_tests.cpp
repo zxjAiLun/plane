@@ -2046,6 +2046,42 @@ void testMapEncounterProfileRolls() {
         "encounter profile can roll Warden enemies");
     expect(observed[static_cast<std::size_t>(EnemyType::Summoner)],
         "encounter profile can roll Summoner enemies");
+
+    constexpr std::size_t eliteModifierCount =
+        static_cast<std::size_t>(EliteModifier::Volatile) + 1;
+    std::array<bool, eliteModifierCount> observedModifiers{};
+    for (int index = 0; index < 1000; ++index) {
+        const EliteModifier modifier = profile.rollEliteModifier(random);
+        observedModifiers[static_cast<std::size_t>(modifier)] = true;
+    }
+
+    expect(observedModifiers[static_cast<std::size_t>(EliteModifier::Hardened)],
+        "Storm profile can roll Hardened elites");
+    expect(observedModifiers[static_cast<std::size_t>(EliteModifier::Swift)],
+        "Storm profile rolls Swift signature elites");
+    expect(observedModifiers[static_cast<std::size_t>(EliteModifier::Volatile)],
+        "Storm profile retains Volatile death-burst elites");
+
+    for (const auto& mapTemplate : MapTemplateLibrary::all()) {
+        const auto& encounter = mapTemplate.encounter;
+        expect(encounter.hardenedEliteModifierWeight
+                + encounter.swiftEliteModifierWeight
+                + encounter.volatileEliteModifierWeight > 0,
+            mapTemplate.name + " has a non-empty elite modifier profile");
+    }
+
+    const auto& ashen = MapTemplateLibrary::forIndex(0).encounter;
+    const auto& storm = MapTemplateLibrary::forIndex(1).encounter;
+    const auto& venom = MapTemplateLibrary::forIndex(2).encounter;
+    const auto& frost = MapTemplateLibrary::forIndex(3).encounter;
+    expect(ashen.hardenedEliteModifierWeight > ashen.swiftEliteModifierWeight,
+        "Ashen favors Hardened elites");
+    expect(storm.swiftEliteModifierWeight > storm.hardenedEliteModifierWeight,
+        "Storm favors Swift elites");
+    expect(venom.volatileEliteModifierWeight > venom.hardenedEliteModifierWeight,
+        "Venom favors Volatile elites");
+    expect(frost.hardenedEliteModifierWeight > frost.swiftEliteModifierWeight,
+        "Frost favors Hardened elites");
 }
 
 // --- Flask reward definitions ---

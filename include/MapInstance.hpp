@@ -11,6 +11,7 @@
 
 #include "Config.hpp"
 #include "EnemyType.hpp"
+#include "EliteModifier.hpp"
 #include "GroundHazard.hpp"
 #include "LootBias.hpp"
 #include "MapExploration.hpp"
@@ -260,6 +261,9 @@ struct MapEncounterProfile {
     int chargerWeight = 0;
     int wardenWeight = 0;
     int summonerWeight = 0;
+    int hardenedEliteModifierWeight = 1;
+    int swiftEliteModifierWeight = 1;
+    int volatileEliteModifierWeight = 1;
 
     EnemyType rollEnemyType(RandomService& random) const {
         const int normal = std::max(0, normalWeight);
@@ -290,6 +294,25 @@ struct MapEncounterProfile {
             return EnemyType::Warden;
         }
         return EnemyType::Summoner;
+    }
+
+    EliteModifier rollEliteModifier(RandomService& random) const {
+        const int hardened = std::max(0, hardenedEliteModifierWeight);
+        const int swift = std::max(0, swiftEliteModifierWeight);
+        const int volatileModifier = std::max(0, volatileEliteModifierWeight);
+        const int total = hardened + swift + volatileModifier;
+        if (total <= 0) {
+            return EliteModifier::None;
+        }
+
+        int roll = random.nextInt(1, total);
+        if ((roll -= hardened) <= 0) {
+            return EliteModifier::Hardened;
+        }
+        if ((roll -= swift) <= 0) {
+            return EliteModifier::Swift;
+        }
+        return EliteModifier::Volatile;
     }
 };
 
@@ -429,6 +452,19 @@ private:
                 3
             },
         };
+
+        templates[0].encounter.hardenedEliteModifierWeight = 50;
+        templates[0].encounter.swiftEliteModifierWeight = 20;
+        templates[0].encounter.volatileEliteModifierWeight = 30;
+        templates[1].encounter.hardenedEliteModifierWeight = 15;
+        templates[1].encounter.swiftEliteModifierWeight = 55;
+        templates[1].encounter.volatileEliteModifierWeight = 30;
+        templates[2].encounter.hardenedEliteModifierWeight = 20;
+        templates[2].encounter.swiftEliteModifierWeight = 20;
+        templates[2].encounter.volatileEliteModifierWeight = 60;
+        templates[3].encounter.hardenedEliteModifierWeight = 55;
+        templates[3].encounter.swiftEliteModifierWeight = 20;
+        templates[3].encounter.volatileEliteModifierWeight = 25;
 
         templates[0].signatureDamageType = DamageType::Fire;
         templates[0].signatureAilment = {AilmentType::Ignite, 2.5f, 0.20f};
