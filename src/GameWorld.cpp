@@ -57,6 +57,31 @@ void mergeLootBias(LootBias& target, const LootBias& extra) {
     add(extra.secondaryTag, extra.secondaryWeightMultiplier);
 }
 
+LootBias mapDropLootBias(
+    const MapTemplateDefinition& mapTemplate,
+    const MapModifier& modifier
+) {
+    LootBias result = modifier.lootBias();
+    const LootBias& themeBias = mapTemplate.signatureLootBias;
+    if (themeBias.primaryTag == AffixTag::None) {
+        return result;
+    }
+
+    if (result.primaryTag == themeBias.primaryTag) {
+        result.primaryWeightMultiplier *= themeBias.primaryWeightMultiplier;
+    } else if (result.secondaryTag == themeBias.primaryTag) {
+        result.secondaryWeightMultiplier *= themeBias.primaryWeightMultiplier;
+    } else if (result.primaryTag == AffixTag::None) {
+        result.primaryTag = themeBias.primaryTag;
+        result.primaryWeightMultiplier = themeBias.primaryWeightMultiplier;
+    } else {
+        result.secondaryTag = themeBias.primaryTag;
+        result.secondaryWeightMultiplier = themeBias.primaryWeightMultiplier;
+    }
+
+    return result;
+}
+
 float eliteHpMultiplier(EliteModifier primary, EliteModifier secondary) {
     return EliteModifierLibrary::forModifier(primary).hpMultiplier
         * EliteModifierLibrary::forModifier(secondary).hpMultiplier;
@@ -3360,7 +3385,7 @@ int GameWorld::dropItemsAround(
         const float angle = static_cast<float>(i) * 2.39996323f;
         const float radius = i == 0 ? 0.0f : 24.0f + static_cast<float>(i) * 5.0f;
         const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
-        LootBias dropBias = mapModifier_.lootBias();
+        LootBias dropBias = mapDropLootBias(map_.definition(), mapModifier_);
         mergeLootBias(dropBias, extraBias);
         droppedItems_.push_back(DroppedItem(
             center + offset,
@@ -4516,7 +4541,7 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         const float angle = static_cast<float>(i) * 2.39996323f;
         const float radius = i == 0 ? 0.0f : 18.0f + static_cast<float>(i) * 4.0f;
         const Vector2 offset(std::cos(angle) * radius, std::sin(angle) * radius);
-        LootBias dropBias = mapModifier_.lootBias();
+        LootBias dropBias = mapDropLootBias(map_.definition(), mapModifier_);
         if (enemy.fieldPackIndex() == activeFieldPackId_) {
             mergeLootBias(dropBias, activeFieldPackLootBias_);
         }

@@ -287,6 +287,7 @@ struct MapTemplateDefinition {
     int bossDefinitionIndex = 0;
     DamageType signatureDamageType = DamageType::Physical;
     AilmentDefinition signatureAilment;
+    LootBias signatureLootBias;
 };
 
 class MapTemplateLibrary {
@@ -387,12 +388,16 @@ private:
 
         templates[0].signatureDamageType = DamageType::Fire;
         templates[0].signatureAilment = {AilmentType::Ignite, 2.5f, 0.20f};
+        templates[0].signatureLootBias = {AffixTag::Fire, 1.35f};
         templates[1].signatureDamageType = DamageType::Lightning;
         templates[1].signatureAilment = {AilmentType::Shock, 2.0f, 0.0f, 1.15f};
+        templates[1].signatureLootBias = {AffixTag::Lightning, 1.35f};
         templates[2].signatureDamageType = DamageType::Poison;
         templates[2].signatureAilment = {AilmentType::Poison, 2.5f, 0.35f};
+        templates[2].signatureLootBias = {AffixTag::Poison, 1.35f};
         templates[3].signatureDamageType = DamageType::Cold;
         templates[3].signatureAilment = {AilmentType::Chill, 2.0f, 0.0f, 0.65f};
+        templates[3].signatureLootBias = {AffixTag::Cold, 1.35f};
         return templates;
     }
 };

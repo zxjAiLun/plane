@@ -2619,6 +2619,10 @@ void testMapLayoutVariants() {
             && MapTemplateLibrary::forIndex(1).signatureDamageType == DamageType::Lightning
             && MapTemplateLibrary::forIndex(2).signatureDamageType == DamageType::Poison
             && MapTemplateLibrary::forIndex(3).signatureDamageType == DamageType::Cold
+            && MapTemplateLibrary::forIndex(0).signatureLootBias.primaryTag == AffixTag::Fire
+            && MapTemplateLibrary::forIndex(1).signatureLootBias.primaryTag == AffixTag::Lightning
+            && MapTemplateLibrary::forIndex(2).signatureLootBias.primaryTag == AffixTag::Poison
+            && MapTemplateLibrary::forIndex(3).signatureLootBias.primaryTag == AffixTag::Cold
             && MapTemplateLibrary::forIndex(0).signatureAilment.type == AilmentType::Ignite
             && MapTemplateLibrary::forIndex(1).signatureAilment.type == AilmentType::Shock
             && MapTemplateLibrary::forIndex(2).signatureAilment.type == AilmentType::Poison
