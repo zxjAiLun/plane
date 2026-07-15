@@ -1125,6 +1125,7 @@ void Renderer::render(const GameWorld& world) {
             break;
         case GameState::MapComplete:
             drawMapComplete(world);
+            drawMapCompleteBossRelicPreview(world);
             drawMapCompleteInventoryPanel(world);
             drawMapCompleteStashPanel(world);
             drawCraftingPanel(world);
@@ -2732,6 +2733,34 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     drawCenteredText(truncateText(footer, 25), {centerColumnX, 403.0f}, 12, sf::Color::Black);
 }
 
+void Renderer::drawMapCompleteBossRelicPreview(const GameWorld& world) {
+    const auto relic = world.bossRelicPreview();
+    if (!relic) {
+        return;
+    }
+
+    const bool stillOnGround = std::any_of(
+        world.droppedItems().begin(),
+        world.droppedItems().end(),
+        [&relic](const DroppedItem& dropped) {
+            return dropped.item().rarity == Rarity::Unique
+                && dropped.item().baseId == relic->baseId;
+        }
+    );
+    const std::string actionHint = stillOnGround
+        ? "F Pick up Unique relic"
+        : "Unique relic already collected";
+    drawItemDetailPanel(
+        world,
+        {16.0f, 350.0f},
+        *relic,
+        world.player().equipment().itemInSlot(relic->slot),
+        "Boss Reward",
+        actionHint,
+        true
+    );
+}
+
 void Renderer::drawMapCompleteInventoryPanel(const GameWorld& world) {
     const float width = static_cast<float>(Config::WindowWidth);
     const auto& items = world.inventory().items();
@@ -2792,8 +2821,8 @@ void Renderer::drawMapCompleteInventoryPanel(const GameWorld& world) {
 }
 
 void Renderer::drawMapCompleteStashPanel(const GameWorld& world) {
-    const float x = 8.0f;
-    const float y = static_cast<float>(Config::WindowHeight) - 174.0f;
+    const float x = 330.0f;
+    const float y = static_cast<float>(Config::WindowHeight) - 166.0f;
     const float panelW = 154.0f;
     const float panelH = 166.0f;
     drawBox({x + panelW / 2.0f, y + panelH / 2.0f}, {panelW, panelH}, sf::Color(18, 22, 30));

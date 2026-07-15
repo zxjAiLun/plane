@@ -3,6 +3,7 @@
 #include <vector>
 #include <array>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <filesystem>
@@ -169,6 +170,7 @@ public:
     int mapExperienceGained() const;
     int mapItemsDropped() const;
     int mapBossItemsDropped() const;
+    std::optional<Item> bossRelicPreview() const;
     int mapItemsPickedUp() const;
     int mapRareLeadersDefeated() const;
     int mapRareLeaderItemsDropped() const;

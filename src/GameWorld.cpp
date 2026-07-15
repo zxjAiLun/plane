@@ -4524,6 +4524,17 @@ int GameWorld::mapKills() const { return mapKills_; }
 int GameWorld::mapExperienceGained() const { return mapExperienceGained_; }
 int GameWorld::mapItemsDropped() const { return mapItemsDropped_; }
 int GameWorld::mapBossItemsDropped() const { return mapBossItemsDropped_; }
+std::optional<Item> GameWorld::bossRelicPreview() const {
+    if (state_ != GameState::MapComplete
+        || mapBossItemsDropped_ <= 0
+        || bossDefinition_ == nullptr) {
+        return std::nullopt;
+    }
+
+    return lootGenerator_.generateBossReward(
+        itemLevelForMap(), bossDefinition_->lootTheme
+    );
+}
 int GameWorld::mapItemsPickedUp() const { return mapItemsPickedUp_; }
 int GameWorld::mapRareLeadersDefeated() const { return mapRareLeadersDefeated_; }
 int GameWorld::mapRareLeaderItemsDropped() const { return mapRareLeaderItemsDropped_; }
