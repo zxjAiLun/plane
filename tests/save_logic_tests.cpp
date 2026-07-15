@@ -105,6 +105,7 @@ SaveData sampleData() {
         MapOptionLibrary::generateOptions(3)[0], 3, 1
     ));
     data.completedMapIds.insert("map:1:0:0:swift-hunt:hardened-front:cinder-ward");
+    data.allocatedAtlasNodes = {0};
     data.selectedMapItemIndex = 0;
     data.droppedItems.push_back({{500.0f, 500.0f}, weapon});
     data.itemQuantityRewardMultiplier = 1.15f;
@@ -189,6 +190,7 @@ void testFileValidation(const std::filesystem::path& path) {
             && restored.mapItems.size() == 1
             && restored.mapItems[0].id == data.mapItems[0].id
             && restored.completedMapIds == data.completedMapIds
+            && restored.allocatedAtlasNodes == data.allocatedAtlasNodes
             && restored.selectedMapItemIndex == 0
             && restored.droppedItems.size() == 1,
         "round-trip preserves run, map, progression and exploration");

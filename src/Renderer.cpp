@@ -372,6 +372,16 @@ sf::Color passiveBranchColor(PassiveBranch branch) {
     return sf::Color::White;
 }
 
+sf::Color atlasBranchColor(AtlasBranch branch) {
+    switch (branch) {
+        case AtlasBranch::Surveyor: return sf::Color(120, 220, 255);
+        case AtlasBranch::Cartographer: return sf::Color(190, 150, 255);
+        case AtlasBranch::Huntmaster: return sf::Color(150, 235, 135);
+        case AtlasBranch::Conqueror: return sf::Color(255, 175, 90);
+    }
+    return sf::Color::White;
+}
+
 std::string passiveBranchName(PassiveBranch branch) {
     switch (branch) {
         case PassiveBranch::Projectile: return "Projectile";
@@ -2959,7 +2969,7 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     drawText("M Map Device  Maps " + std::to_string(world.mapItems().size())
             + "/" + std::to_string(world.mapItemCapacity())
             + "  Atlas " + std::to_string(world.completedMapCount())
-            + "  P" + std::to_string(world.atlasPoints()),
+            + "  P" + std::to_string(world.atlasPoints()) + "  T Atlas",
         {leftColumnX, 466.0f}, 11, sf::Color(180, 220, 255));
 
     drawBox({centerColumnX, 410.0f}, {190.0f, 36.0f}, sf::Color::White);
@@ -3116,6 +3126,55 @@ void Renderer::drawMapDevicePanel(const GameWorld& world) {
     const float width = static_cast<float>(Config::WindowWidth);
     const float height = static_cast<float>(Config::WindowHeight);
     drawBox({width / 2.0f, height / 2.0f}, {730.0f, 520.0f}, sf::Color(12, 18, 28));
+
+    if (world.atlasPanelOpen()) {
+        drawCenteredText("ATLAS PASSIVES", {width / 2.0f, 48.0f}, 24,
+            sf::Color(255, 235, 170));
+        drawCenteredText(
+            "Completed maps " + std::to_string(world.completedMapCount())
+                + "   Points " + std::to_string(world.atlasPoints())
+                + "   Available " + std::to_string(world.atlasAvailablePoints())
+                + "   Allocated " + std::to_string(world.atlasAllocatedNodeCount()),
+            {width / 2.0f, 78.0f}, 13, sf::Color(185, 220, 245)
+        );
+        const AtlasBonuses atlas = world.atlasBonuses();
+        drawCenteredText(truncateText(
+            "Current bonus: Q+" + std::to_string(multiplierPercent(atlas.itemQuantityMultiplier))
+                + "% R+" + std::to_string(multiplierPercent(atlas.itemRarityMultiplier))
+                + "% Elite+" + std::to_string(atlas.eliteWeightBonus)
+                + " Boss+" + std::to_string(atlas.bossDropBonus), 82),
+            {width / 2.0f, 96.0f}, 11, sf::Color(255, 220, 150)
+        );
+        drawCenteredText("1-0 / F1-F2 Allocate   T / M / Esc Close",
+            {width / 2.0f, 114.0f}, 12, sf::Color(160, 170, 185));
+
+        const auto& nodes = AtlasPassiveLibrary::all();
+        for (std::size_t index = 0; index < nodes.size(); ++index) {
+            const auto& node = nodes[index];
+            const bool allocated = world.isAtlasNodeAllocated(node.index);
+            const bool available = world.canAllocateAtlasNode(node.index);
+            const sf::Color branchColor = atlasBranchColor(node.branch);
+            const sf::Color color = allocated ? sf::Color(140, 255, 165)
+                : available ? branchColor : sf::Color(135, 145, 160);
+            const std::string status = allocated ? "Allocated"
+                : available ? "Available" : "Locked";
+            const float x = index % 2 == 0 ? 62.0f : 405.0f;
+            const float y = 142.0f + static_cast<float>(index / 2) * 54.0f;
+            drawText((allocated ? "> " : "  ") + std::to_string(index + 1) + ". "
+                    + node.name + " [" + status + "]",
+                {x, y}, 13, color);
+            drawText(truncateText("   " + std::string(node.description)
+                    + " | " + AtlasPassiveLibrary::branchName(node.branch), 41),
+                {x, y + 17.0f}, 10, allocated || available
+                    ? sf::Color(195, 215, 230) : sf::Color(105, 115, 128));
+            if (node.prerequisite >= 0 && !allocated) {
+                drawText("   Requires node " + std::to_string(node.prerequisite + 1),
+                    {x, y + 32.0f}, 9, sf::Color(150, 160, 175));
+            }
+        }
+        return;
+    }
+
     drawCenteredText("MAP DEVICE", {width / 2.0f, 48.0f}, 24, sf::Color(255, 235, 170));
     drawCenteredText(
         "Stored maps " + std::to_string(world.mapItems().size()) + "/"

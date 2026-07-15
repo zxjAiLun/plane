@@ -41,6 +41,7 @@ public:
     bool stashStoreSelected() const;
     bool stashWithdrawSelected() const;
     bool mapDeviceToggle() const;
+    bool atlasPanelToggle() const;
     bool saveRun() const;
     bool loadRun() const;
     bool cancel() const;
@@ -73,6 +74,7 @@ private:
     bool stashStoreSelected_ = false;
     bool stashWithdrawSelected_ = false;
     bool mapDeviceToggle_ = false;
+    bool atlasPanelToggle_ = false;
     bool saveRun_ = false;
     bool loadRun_ = false;
     bool cancel_ = false;

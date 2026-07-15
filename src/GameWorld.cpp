@@ -464,6 +464,28 @@ void GameWorld::update(float dt, Input& input) {
                 break;
             }
 
+            if (input.atlasPanelToggle()) {
+                atlasPanelOpen_ = !atlasPanelOpen_;
+                mapDeviceOpen_ = atlasPanelOpen_;
+                selectedMapItemIndex_ = -1;
+            }
+            if (atlasPanelOpen_) {
+                // Atlas allocation is a settlement action. Keep F looting
+                // available, but do not let number keys change map choices.
+                if (input.mapDeviceToggle()) {
+                    atlasPanelOpen_ = false;
+                    mapDeviceOpen_ = false;
+                    selectedMapItemIndex_ = -1;
+                }
+                tryPickupDroppedItem(input);
+                trySpendAtlasPoint(input);
+                removeDeadObjects();
+                if (input.restart()) {
+                    reset();
+                }
+                break;
+            }
+
             // F still loots Boss drops. Number keys still only drive reward / next-map
             // choice (handled below). Tab/Del let the player free bag space so F can
             // pick up more drops. tryEquipInventoryItem is intentionally NOT called so
@@ -522,6 +544,13 @@ void GameWorld::handleEscape() {
 
     if (craftingState_.open) {
         closeCraftingPanel();
+        return;
+    }
+
+    if (atlasPanelOpen_) {
+        atlasPanelOpen_ = false;
+        mapDeviceOpen_ = false;
+        selectedMapItemIndex_ = -1;
         return;
     }
 
@@ -637,6 +666,9 @@ SaveData GameWorld::captureSaveData() const {
     data.stash = stash_.items();
     data.mapItems = mapItems_;
     data.completedMapIds = atlas_.completedMapIds();
+    data.allocatedAtlasNodes.assign(
+        atlas_.allocatedNodes().begin(), atlas_.allocatedNodes().end()
+    );
     data.selectedMapItemIndex = selectedMapItemIndex_;
 
     data.droppedItems.reserve(droppedItems_.size());
@@ -711,12 +743,33 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     if (data.selectedMapItemIndex < -1
         || data.selectedMapItemIndex >= static_cast<int>(data.mapItems.size())
         || data.completedMapIds.size() > 4096
+        || data.allocatedAtlasNodes.size() > AtlasPassiveLibrary::NodeCount
+        || data.allocatedAtlasNodes.size() > data.completedMapIds.size()
         || std::any_of(
             data.completedMapIds.begin(),
             data.completedMapIds.end(),
             [](const std::string& id) { return id.empty() || id.size() > 1024; }
-        )) {
+        )
+        || std::any_of(
+            data.allocatedAtlasNodes.begin(),
+            data.allocatedAtlasNodes.end(),
+            [](const int index) { return AtlasPassiveLibrary::find(index) == nullptr; }
+        )
+        || std::set<int>(
+            data.allocatedAtlasNodes.begin(), data.allocatedAtlasNodes.end()
+        ).size() != data.allocatedAtlasNodes.size()) {
         return false;
+    }
+
+    const std::set<int> allocatedAtlasNodes(
+        data.allocatedAtlasNodes.begin(), data.allocatedAtlasNodes.end()
+    );
+    for (const int nodeIndex : allocatedAtlasNodes) {
+        const auto* node = AtlasPassiveLibrary::find(nodeIndex);
+        if (node != nullptr && node->prerequisite >= 0
+            && allocatedAtlasNodes.find(node->prerequisite) == allocatedAtlasNodes.end()) {
+            return false;
+        }
     }
 
     if (!validChoice(data.selectedMapRewardOption)
@@ -868,8 +921,10 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     stash_ = std::move(restoredStash);
     mapItems_ = data.mapItems;
     atlas_.restore(data.completedMapIds);
+    atlas_.restoreAllocatedNodes(allocatedAtlasNodes);
     selectedMapItemIndex_ = data.selectedMapItemIndex;
     mapDeviceOpen_ = false;
+    atlasPanelOpen_ = false;
     progression_.unlockedSkills = data.unlockedSkills;
     progression_.unlockedSupports = data.unlockedSupports;
     progression_.skillLevels = data.skillLevels;
@@ -1164,6 +1219,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     mapItems_.clear();
     selectedMapItemIndex_ = -1;
     mapDeviceOpen_ = false;
+    atlasPanelOpen_ = false;
     spawner_.reset();
     pendingFieldPack_.clear();
     fieldPackSequence_ = 0;
@@ -1256,6 +1312,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     stashSelectionActive_ = false;
     selectedMapItemIndex_ = -1;
     mapDeviceOpen_ = false;
+    atlasPanelOpen_ = false;
     mapEventInteractionConsumed_ = false;
     activeMapEventIndex_ = -1;
     mapEventEnemiesRemaining_ = 0;
@@ -1390,6 +1447,7 @@ void GameWorld::startNextMap() {
     selectedMapRewardOption_ = -1;
     selectedMapItemIndex_ = -1;
     mapDeviceOpen_ = false;
+    atlasPanelOpen_ = false;
     mapModifier_ = MapItemLibrary::modifierFor(currentMapOption_);
     mapModifier_.itemQuantityMultiplier *= progression_.itemQuantityRewardMultiplier;
     applyAtlasBonuses();
@@ -3853,6 +3911,26 @@ void GameWorld::trySpendPassivePoint(Input& input) {
     }
 }
 
+void GameWorld::trySpendAtlasPoint(Input& input) {
+    if (!atlasPanelOpen_) {
+        return;
+    }
+
+    int nodeIndex = input.numberChoice() - 1;
+    if (nodeIndex < 0 && input.functionChoice() >= 1 && input.functionChoice() <= 2) {
+        nodeIndex = 10 + input.functionChoice() - 1;
+    }
+    if (nodeIndex < 0 || !atlas_.allocateNode(nodeIndex)) {
+        return;
+    }
+
+    const auto* node = AtlasPassiveLibrary::find(nodeIndex);
+    eventStatusMessage_ = node == nullptr
+        ? "Atlas node allocated"
+        : "Atlas node allocated: " + std::string(node->name);
+    eventStatusTimer_ = 2.0f;
+}
+
 void GameWorld::updatePassiveTreeHover(const Input& input) {
     const Vector2 treePosition(
         static_cast<float>(input.mousePosition().x) - static_cast<float>(Config::WindowWidth) / 2.0f,
@@ -5364,7 +5442,16 @@ int GameWorld::mapKills() const { return mapKills_; }
 int GameWorld::mapExperienceGained() const { return mapExperienceGained_; }
 int GameWorld::mapItemsDropped() const { return mapItemsDropped_; }
 int GameWorld::atlasPoints() const { return atlas_.atlasPoints(); }
+int GameWorld::atlasAvailablePoints() const { return atlas_.availablePoints(); }
+int GameWorld::atlasAllocatedNodeCount() const { return atlas_.allocatedNodeCount(); }
 AtlasBonuses GameWorld::atlasBonuses() const { return atlas_.bonuses(); }
+bool GameWorld::atlasPanelOpen() const { return atlasPanelOpen_; }
+bool GameWorld::isAtlasNodeAllocated(const int nodeIndex) const {
+    return atlas_.isNodeAllocated(nodeIndex);
+}
+bool GameWorld::canAllocateAtlasNode(const int nodeIndex) const {
+    return atlas_.canAllocateNode(nodeIndex);
+}
 int GameWorld::mapBossItemsDropped() const { return mapBossItemsDropped_; }
 std::optional<Item> GameWorld::bossRelicPreview() const {
     if (state_ != GameState::MapComplete

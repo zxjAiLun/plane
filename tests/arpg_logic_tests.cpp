@@ -2484,6 +2484,17 @@ void testMapItemsAndAtlas() {
             && atlas.bonuses().eliteWeightBonus == 0
             && atlas.bonuses().bossDropBonus == 0,
         "first atlas completion grants the baseline atlas bonus");
+    expect(atlas.availablePoints() == 1
+            && atlas.canAllocateNode(0)
+            && !atlas.canAllocateNode(1)
+            && !atlas.canAllocateNode(99),
+        "atlas exposes one point and enforces passive prerequisites");
+    expect(atlas.allocateNode(0)
+            && atlas.allocatedNodeCount() == 1
+            && atlas.availablePoints() == 0
+            && atlas.isNodeAllocated(0)
+            && atlas.bonuses().itemQuantityMultiplier > 1.03f,
+        "atlas allocates a root node and adds its map quantity effect");
     MapItem second = map;
     second.id += ":second";
     MapItem third = map;
@@ -2493,9 +2504,16 @@ void testMapItemsAndAtlas() {
             && atlas.bonuses().eliteWeightBonus == 1
             && atlas.bonuses().bossDropBonus == 1,
         "atlas points unlock elite and Boss reward bonuses");
+    expect(atlas.canAllocateNode(1)
+            && atlas.allocateNode(1)
+            && atlas.isNodeAllocated(1)
+            && atlas.availablePoints() == 1,
+        "atlas allows a chained node after another map is completed");
     atlas.clear();
-    expect(atlas.completedCount() == 0,
-        "atlas reset clears completed map records");
+    expect(atlas.completedCount() == 0
+            && atlas.allocatedNodeCount() == 0
+            && atlas.availablePoints() == 0,
+        "atlas reset clears completed maps and allocated nodes");
 }
 
 void testMapScalingProgression() {

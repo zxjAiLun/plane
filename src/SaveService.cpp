@@ -722,6 +722,30 @@ bool readSet(Reader& reader, std::set<std::string>& values) {
     return true;
 }
 
+void writeIntVector(Writer& writer, const std::vector<int>& values) {
+    writer.integer<std::uint32_t>(static_cast<std::uint32_t>(values.size()));
+    for (const int value : values) {
+        writer.integer(value);
+    }
+}
+
+bool readIntVector(Reader& reader, std::vector<int>& values) {
+    std::uint32_t count = 0;
+    if (!reader.integer(count) || count > MaxVectorLength) {
+        return false;
+    }
+    values.clear();
+    values.reserve(count);
+    for (std::uint32_t index = 0; index < count; ++index) {
+        int value = 0;
+        if (!reader.integer(value)) {
+            return false;
+        }
+        values.push_back(value);
+    }
+    return true;
+}
+
 void writeLevelMap(Writer& writer, const std::map<std::string, int>& values) {
     writer.integer<std::uint32_t>(static_cast<std::uint32_t>(values.size()));
     for (const auto& [name, level] : values) {
@@ -806,6 +830,7 @@ void writeSaveData(Writer& writer, const SaveData& data) {
         writeMapItem(writer, item);
     }
     writeSet(writer, data.completedMapIds);
+    writeIntVector(writer, data.allocatedAtlasNodes);
     writer.integer(data.selectedMapItemIndex);
     writer.integer<std::uint32_t>(static_cast<std::uint32_t>(data.droppedItems.size()));
     for (const auto& dropped : data.droppedItems) {
@@ -835,7 +860,8 @@ bool readSaveData(
     bool hasEliteModifierProgress,
     bool hasDropRarityStats,
     bool hasMapItemProgress,
-    bool hasMapItemMetadata
+    bool hasMapItemMetadata,
+    bool hasAtlasPassiveProgress
 ) {
     int state = 0;
     if (!reader.integer(state)
@@ -951,6 +977,7 @@ bool readSaveData(
     }
     data.mapItems.clear();
     data.completedMapIds.clear();
+    data.allocatedAtlasNodes.clear();
     data.selectedMapItemIndex = -1;
     if (hasMapItemProgress) {
         if (!reader.integer(count) || count > MaxVectorLength) {
@@ -971,6 +998,7 @@ bool readSaveData(
             data.mapItems.push_back(std::move(item));
         }
         if (!readSet(reader, data.completedMapIds)
+            || (hasAtlasPassiveProgress && !readIntVector(reader, data.allocatedAtlasNodes))
             || !reader.integer(data.selectedMapItemIndex)) {
             return false;
         }
@@ -1109,6 +1137,7 @@ bool SaveService::load(const std::filesystem::path& path,
             && version != 6U && version != 7U && version != 8U
             && version != 9U && version != 10U && version != 11U
             && version != 12U && version != 13U && version != 14U
+            && version != 15U
             && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");
@@ -1136,7 +1165,8 @@ bool SaveService::load(const std::filesystem::path& path,
             version >= 15U,
             version >= 12U,
             version >= 13U,
-            version >= 14U
+            version >= 14U,
+            version >= 16U
         )) {
         setError(error, "invalid save payload");
         return false;

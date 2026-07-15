@@ -113,7 +113,12 @@ public:
     int mapItemCapacity() const;
     int completedMapCount() const;
     int atlasPoints() const;
+    int atlasAvailablePoints() const;
+    int atlasAllocatedNodeCount() const;
     AtlasBonuses atlasBonuses() const;
+    bool atlasPanelOpen() const;
+    bool isAtlasNodeAllocated(int nodeIndex) const;
+    bool canAllocateAtlasNode(int nodeIndex) const;
     bool currentMapCompleted() const;
     float inventoryFullPromptTimeRemaining() const;
     int selectedInventoryIndex() const;
@@ -259,6 +264,7 @@ private:
     int enemyAttackDamage(const Enemy& enemy) const;
     void resetRareLeaderEffects();
     void applyAtlasBonuses();
+    void trySpendAtlasPoint(Input& input);
     int damageToEnemy(
         const Enemy& enemy,
         int rawDamage,
@@ -534,4 +540,5 @@ private:
     std::vector<MapItem> mapItems_;
     int selectedMapItemIndex_ = -1;
     bool mapDeviceOpen_ = false;
+    bool atlasPanelOpen_ = false;
 };

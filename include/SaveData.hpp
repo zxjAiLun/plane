@@ -32,7 +32,7 @@ struct SavedMapEvent {
 
 struct SaveData {
     static constexpr std::uint32_t Magic = 0x4D415247U;
-    static constexpr std::uint32_t Version = 15U;
+    static constexpr std::uint32_t Version = 16U;
 
     SavedRunState state = SavedRunState::Playing;
     std::uint64_t runSeed = 0;
@@ -79,6 +79,7 @@ struct SaveData {
     std::vector<Item> stash;
     std::vector<MapItem> mapItems;
     std::set<std::string> completedMapIds;
+    std::vector<int> allocatedAtlasNodes;
     int selectedMapItemIndex = -1;
     std::vector<SavedDroppedItem> droppedItems;
     std::vector<SavedMapEvent> mapEvents;

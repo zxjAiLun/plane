@@ -674,6 +674,25 @@ void testStoredMapDeviceFlow() {
         "loaded Atlas completion applies quantity and rarity bonuses to the map");
 
     Input input;
+    pressKey(source, input, sf::Keyboard::Key::T);
+    expect(source.atlasPanelOpen()
+            && source.atlasAvailablePoints() == 1
+            && source.canAllocateAtlasNode(0)
+            && !source.canAllocateAtlasNode(1),
+        "settlement Atlas panel exposes an unspent point and root node");
+    pressKey(source, input, sf::Keyboard::Key::Num1);
+    expect(source.isAtlasNodeAllocated(0)
+            && source.atlasAvailablePoints() == 0,
+        "settlement Atlas panel allocates a node with number input");
+    pressKey(source, input, sf::Keyboard::Key::T);
+    expect(!source.atlasPanelOpen(),
+        "T closes the Atlas panel without consuming map choice input");
+    expect(source.saveRun(path), "allocated Atlas state saves from settlement");
+    GameWorld persisted(15502);
+    expect(persisted.loadRun(path)
+            && persisted.isAtlasNodeAllocated(0)
+            && persisted.atlasAvailablePoints() == 0,
+        "allocated Atlas state survives a world save/load round-trip");
     pressKey(source, input, sf::Keyboard::Key::Num1);
     expect(source.mapRewardChosen(), "stored map flow still chooses reward first");
     pressKey(source, input, sf::Keyboard::Key::M);

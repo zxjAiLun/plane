@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "AtlasPassiveTree.hpp"
 #include "MapInstance.hpp"
 #include "MapModifier.hpp"
 #include "RandomService.hpp"
@@ -179,6 +180,7 @@ class MapAtlas {
 public:
     void clear() {
         completedMapIds_.clear();
+        allocatedNodes_.clear();
     }
 
     bool record(const MapItem& map) {
@@ -201,12 +203,23 @@ public:
         const int points = atlasPoints();
         const int quantityPoints = std::min(points, 10);
         const int rarityPoints = std::min(points, 10);
-        return {
+        AtlasBonuses result{
             1.0f + static_cast<float>(quantityPoints) * 0.03f,
             1.0f + static_cast<float>(rarityPoints) * 0.02f,
             points / 2,
             points / 3
         };
+        for (const int nodeIndex : allocatedNodes_) {
+            const auto* node = AtlasPassiveLibrary::find(nodeIndex);
+            if (node == nullptr) {
+                continue;
+            }
+            result.itemQuantityMultiplier *= node->effect.itemQuantityMultiplierBonus;
+            result.itemRarityMultiplier *= node->effect.itemRarityMultiplierBonus;
+            result.eliteWeightBonus += node->effect.eliteWeightBonus;
+            result.bossDropBonus += node->effect.bossDropBonus;
+        }
+        return result;
     }
 
     const std::set<std::string>& completedMapIds() const {
@@ -217,6 +230,48 @@ public:
         completedMapIds_ = std::move(completedMapIds);
     }
 
+    int allocatedNodeCount() const {
+        return static_cast<int>(allocatedNodes_.size());
+    }
+
+    int availablePoints() const {
+        return std::max(0, atlasPoints() - allocatedNodeCount());
+    }
+
+    bool isNodeAllocated(int nodeIndex) const {
+        return allocatedNodes_.find(nodeIndex) != allocatedNodes_.end();
+    }
+
+    bool canAllocateNode(int nodeIndex) const {
+        const auto* node = AtlasPassiveLibrary::find(nodeIndex);
+        if (node == nullptr || isNodeAllocated(nodeIndex) || availablePoints() <= 0) {
+            return false;
+        }
+        return node->prerequisite < 0 || isNodeAllocated(node->prerequisite);
+    }
+
+    bool allocateNode(int nodeIndex) {
+        if (!canAllocateNode(nodeIndex)) {
+            return false;
+        }
+        allocatedNodes_.insert(nodeIndex);
+        return true;
+    }
+
+    const std::set<int>& allocatedNodes() const {
+        return allocatedNodes_;
+    }
+
+    void restoreAllocatedNodes(const std::set<int>& allocatedNodes) {
+        allocatedNodes_.clear();
+        for (const int nodeIndex : allocatedNodes) {
+            if (canAllocateNode(nodeIndex)) {
+                allocatedNodes_.insert(nodeIndex);
+            }
+        }
+    }
+
 private:
     std::set<std::string> completedMapIds_;
+    std::set<int> allocatedNodes_;
 };
