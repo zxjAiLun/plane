@@ -2983,6 +2983,21 @@ void testCombinationMapEvents() {
                     && world.map().encounterDefinition().rewardLootBias.secondaryTag
                         == AffixTag::Projectile,
                 "Archive Purge uses Cold and Projectile completion rewards");
+            bool archiveProjectileSeen = false;
+            for (int frame = 0; frame < 11; ++frame) {
+                world.update(0.05f, input);
+                archiveProjectileSeen = archiveProjectileSeen
+                    || std::any_of(
+                        world.enemyProjectiles().begin(),
+                        world.enemyProjectiles().end(),
+                        [](const EnemyProjectile& projectile) {
+                            return projectile.damageType == DamageType::Cold
+                                && projectile.ailment.type == AilmentType::Chill;
+                        }
+                    );
+            }
+            expect(archiveProjectileSeen,
+                "Archive Purge Ranged enemies fire Cold projectiles that Chill");
 
             const Vector2 camera = world.cameraTopLeft();
             input.handleMousePressed(
@@ -3041,6 +3056,13 @@ void testCombinationMapEvents() {
                     && world.map().encounterDefinition().rewardLootBias.secondaryTag
                         == AffixTag::Area,
                 "Forge Collapse uses Fire and Area completion rewards");
+            expect(moveToMapEvent(world, input, {position.x + 160.0f, position.y}),
+                "Forge Collapse fixture reaches the Charger attack path");
+            for (int frame = 0; frame < 30 && !world.player().isIgnited(); ++frame) {
+                world.update(0.05f, input);
+            }
+            expect(world.player().isIgnited(),
+                "Forge Collapse Charger attacks use Fire and Ignite");
 
             const Vector2 camera = world.cameraTopLeft();
             input.handleMousePressed(

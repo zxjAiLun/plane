@@ -64,6 +64,9 @@ struct MapEncounterDefinition {
     EnemyType secondaryEnemyType = EnemyType::Normal;
     LootBias rewardLootBias;
     int forgeFragmentReward = 0;
+    bool overridesEnemyAttackProfile = false;
+    DamageType enemyDamageType = DamageType::Physical;
+    AilmentDefinition enemyAilment;
 };
 
 class MapEncounterLibrary {
@@ -210,13 +213,16 @@ public:
                 {"Inkfreeze Seal", 135.0f, 8.0f, 0.75f, 2,
                     DamageType::Cold,
                     {AilmentType::Chill, 2.5f, 0.0f, 0.60f},
-                    GroundHazardTarget::Both},
+                    GroundHazardTarget::Player},
                 false,
                 4,
                 EnemyType::Warden,
                 EnemyType::Ranged,
                 {AffixTag::Cold, 1.90f, AffixTag::Projectile, 1.25f},
-                4
+                4,
+                true,
+                DamageType::Cold,
+                {AilmentType::Chill, 2.5f, 0.0f, 0.60f}
             },
             {
                 MapEncounterType::ForgeCollapse,
@@ -231,13 +237,16 @@ public:
                 {"Forge Collapse", 140.0f, 7.0f, 0.70f, 3,
                     DamageType::Fire,
                     {AilmentType::Ignite, 2.5f, 0.20f},
-                    GroundHazardTarget::Both},
+                    GroundHazardTarget::Player},
                 false,
                 4,
                 EnemyType::Charger,
                 EnemyType::Summoner,
                 {AffixTag::Fire, 1.90f, AffixTag::Area, 1.25f},
-                4
+                4,
+                true,
+                DamageType::Fire,
+                {AilmentType::Ignite, 2.5f, 0.20f}
             }
         }};
         return definitions;

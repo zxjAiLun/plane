@@ -2017,7 +2017,20 @@ void Renderer::drawEnemies(const GameWorld& world) {
         }
 
         if (definition.outlineThickness > 0.0f) {
-            const std::string label = enemyDisplayLabel(world, enemy);
+            std::string label = enemyDisplayLabel(world, enemy);
+            const int eventIndex = enemy.mapEventIndex();
+            if (eventIndex >= 0
+                && eventIndex < static_cast<int>(world.map().events().size())) {
+                const auto& event = world.map().events()[static_cast<std::size_t>(eventIndex)];
+                const auto& encounter = world.map().encounterDefinition();
+                if (event.type == MapEventType::Combination
+                    && event.encounterType == encounter.type
+                    && encounter.overridesEnemyAttackProfile) {
+                    label += " [" + std::string(
+                        damageTypeName(encounter.enemyDamageType)
+                    ) + "]";
+                }
+            }
             drawCenteredText(label, {screenPosition.x, screenPosition.y - enemy.radius() - 18.0f},
                 11, enemy.isRare()
                     ? sf::Color(255, 220, 90)

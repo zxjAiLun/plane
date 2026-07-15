@@ -2761,7 +2761,10 @@ void testMapEncounterDefinitions() {
             && archiveIt->rewardLootBias.secondaryTag == AffixTag::Projectile
             && archiveIt->hazard.damageType == DamageType::Cold
             && archiveIt->hazard.ailment.type == AilmentType::Chill
-            && archiveIt->hazard.target == GroundHazardTarget::Both,
+            && archiveIt->hazard.target == GroundHazardTarget::Player
+            && archiveIt->overridesEnemyAttackProfile
+            && archiveIt->enemyDamageType == DamageType::Cold
+            && archiveIt->enemyAilment.type == AilmentType::Chill,
         "Archive Purge defines its Cold hazard, Warden screen, and Projectile reward bias");
     expect(forgeIt != encounters.end()
             && forgeIt->eliteCount == 1
@@ -2773,7 +2776,10 @@ void testMapEncounterDefinitions() {
             && forgeIt->rewardLootBias.secondaryTag == AffixTag::Area
             && forgeIt->hazard.damageType == DamageType::Fire
             && forgeIt->hazard.ailment.type == AilmentType::Ignite
-            && forgeIt->hazard.target == GroundHazardTarget::Both,
+            && forgeIt->hazard.target == GroundHazardTarget::Player
+            && forgeIt->overridesEnemyAttackProfile
+            && forgeIt->enemyDamageType == DamageType::Fire
+            && forgeIt->enemyAilment.type == AilmentType::Ignite,
         "Forge Collapse defines its Fire hazard, Charger screen, and Area reward bias");
 }
 

@@ -323,6 +323,27 @@ EnemyAttackProfile mapEnemyAttackProfile(
 
     return {mapTemplate.signatureDamageType, mapTemplate.signatureAilment};
 }
+
+EnemyAttackProfile mapEnemyAttackProfile(
+    const MapInstance& map,
+    const Enemy& enemy,
+    DamageType baseDamageType,
+    const AilmentDefinition& baseAilment
+) {
+    const int eventIndex = enemy.mapEventIndex();
+    if (eventIndex >= 0
+        && eventIndex < static_cast<int>(map.events().size())) {
+        const auto& event = map.events()[static_cast<std::size_t>(eventIndex)];
+        const auto& encounter = map.encounterDefinition();
+        if (event.type == MapEventType::Combination
+            && event.encounterType == encounter.type
+            && encounter.overridesEnemyAttackProfile) {
+            return {encounter.enemyDamageType, encounter.enemyAilment};
+        }
+    }
+
+    return mapEnemyAttackProfile(map.definition(), baseDamageType, baseAilment);
+}
 }
 
 GameWorld::GameWorld(std::uint64_t runSeed)
@@ -2422,7 +2443,8 @@ void GameWorld::handleCollisions() {
                 ) && enemy.consumeChargeHit()) {
                 const auto& definition = EnemyLibrary::forType(enemy.type());
                 const EnemyAttackProfile attack = mapEnemyAttackProfile(
-                    map_.definition(),
+                    map_,
+                    enemy,
                     definition.contactDamageType,
                     definition.contactAilment
                 );
@@ -2453,7 +2475,8 @@ void GameWorld::handleCollisions() {
             const Vector2 direction = toPlayer.normalized();
             if (direction.lengthSquared() > 0.0f) {
                 const EnemyAttackProfile attack = mapEnemyAttackProfile(
-                    map_.definition(),
+                    map_,
+                    enemy,
                     definition.projectileDamageType,
                     definition.projectileAilment
                 );
@@ -2470,7 +2493,8 @@ void GameWorld::handleCollisions() {
             }
         } else if (toPlayer.lengthSquared() <= enemy.attackRange() * enemy.attackRange()) {
             const EnemyAttackProfile attack = mapEnemyAttackProfile(
-                map_.definition(),
+                map_,
+                enemy,
                 definition.contactDamageType,
                 definition.contactAilment
             );
