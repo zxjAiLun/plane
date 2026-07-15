@@ -55,6 +55,7 @@ struct ItemBaseDefinition {
     ItemBaseTheme theme = ItemBaseTheme::None;
     int requiredLevel = 1;
     ItemBuildTheme buildTheme = ItemBuildTheme::General;
+    int variant = 0;
 };
 
 class ItemBaseLibrary {
@@ -73,13 +74,23 @@ public:
         return nullptr;
     }
 
-    static const ItemBaseDefinition& forBossTheme(ItemBaseTheme theme) {
+    static const ItemBaseDefinition& forBossTheme(ItemBaseTheme theme, int variant = 0) {
+        const ItemBaseDefinition* fallback = nullptr;
         for (const auto& base : all()) {
-            if (base.kind == ItemBaseKind::BossRelic && base.theme == theme) {
+            if (base.kind != ItemBaseKind::BossRelic || base.theme != theme) {
+                continue;
+            }
+            if (base.variant == variant) {
                 return base;
+            }
+            if (base.variant == 0) {
+                fallback = &base;
             }
         }
 
+        if (fallback != nullptr) {
+            return *fallback;
+        }
         return all().front();
     }
 
@@ -175,6 +186,22 @@ private:
                 makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.03f,
                     0, 1.0f, 1.0f, 1.06f),
                     ItemBaseKind::BossRelic, ItemBaseTheme::Frost, 1, ItemBuildTheme::Cold},
+
+            // Alternate relic bases keep the same theme identity and passive
+            // effect, but give later encounters a different chase target.
+            {"boss.ashen-crucible", "Ashen Crucible", EquipmentSlot::Amulet,
+                makeStats(8, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.05f, 1.04f),
+                    ItemBaseKind::BossRelic, ItemBaseTheme::Brimstone, 1, ItemBuildTheme::Fire, 1},
+            {"boss.tempest-bow", "Tempest Bow", EquipmentSlot::Weapon,
+                makeStats(0, 1.0f, 1.0f, 1.04f, 1.0f, 1.08f),
+                    ItemBaseKind::BossRelic, ItemBaseTheme::Storm, 1, ItemBuildTheme::Projectile, 1},
+            {"boss.broodscale-band", "Broodscale Band", EquipmentSlot::Ring,
+                makeStats(4, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.05f, 0, 1.0f, 1.06f),
+                    ItemBaseKind::BossRelic, ItemBaseTheme::Brood, 1, ItemBuildTheme::Poison, 1},
+            {"boss.winterheart-pendant", "Winterheart Pendant", EquipmentSlot::Amulet,
+                makeStats(6, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.05f,
+                    0, 1.0f, 1.0f, 1.08f),
+                    ItemBaseKind::BossRelic, ItemBaseTheme::Frost, 1, ItemBuildTheme::Cold, 1},
         };
     }
 };

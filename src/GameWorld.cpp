@@ -4306,7 +4306,11 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
             mergeLootBias(dropBias, bossLootBias(bossDefinition_->lootTheme));
         }
         Item item = enemy.isBoss() && i == 0
-            ? lootGenerator_.generateBossReward(itemLevelForMap(), bossDefinition_->lootTheme)
+            ? lootGenerator_.generateBossReward(
+                itemLevelForMap(),
+                bossDefinition_->lootTheme,
+                LootGenerator::bossRelicVariantForMapLevel(mapLevel_)
+            )
             : lootGenerator_.generate(
                 itemLevelForMap(), random_, mapModifier_.itemRarityMultiplier, dropBias
             );
@@ -4944,7 +4948,9 @@ std::optional<Item> GameWorld::bossRelicPreview() const {
     }
 
     return lootGenerator_.generateBossReward(
-        itemLevelForMap(), bossDefinition_->lootTheme
+        itemLevelForMap(),
+        bossDefinition_->lootTheme,
+        LootGenerator::bossRelicVariantForMapLevel(mapLevel_)
     );
 }
 int GameWorld::mapItemsPickedUp() const { return mapItemsPickedUp_; }

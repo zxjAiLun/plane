@@ -10,6 +10,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <tuple>
 #include <utility>
 
 #include "BossDash.hpp"
@@ -1551,6 +1552,40 @@ void testItemBaseTypes() {
         }
         expect(statsEqual(item.stats, expected),
             "Boss relic stats equal implicit plus affix contributions");
+    }
+
+    expect(LootGenerator::bossRelicVariantForMapLevel(1) == 0
+            && LootGenerator::bossRelicVariantForMapLevel(4) == 0
+            && LootGenerator::bossRelicVariantForMapLevel(5) == 1
+            && LootGenerator::bossRelicVariantForMapLevel(8) == 1
+            && LootGenerator::bossRelicVariantForMapLevel(9) == 0,
+        "Boss relic variants rotate once per four-map boss cycle");
+
+    const std::array<std::tuple<BossLootTheme, ItemBaseTheme, std::string>, 4> alternateBossThemes{{
+        {BossLootTheme::Brimstone, ItemBaseTheme::Brimstone, "boss.ashen-crucible"},
+        {BossLootTheme::Storm, ItemBaseTheme::Storm, "boss.tempest-bow"},
+        {BossLootTheme::Brood, ItemBaseTheme::Brood, "boss.broodscale-band"},
+        {BossLootTheme::Frost, ItemBaseTheme::Frost, "boss.winterheart-pendant"},
+    }};
+    for (const auto& [theme, expectedTheme, expectedBaseId] : alternateBossThemes) {
+        const Item item = generator.generateBossReward(5, theme, 1);
+        expect(item.rarity == Rarity::Unique && item.baseId == expectedBaseId,
+            "alternate Boss relic uses its theme-specific chase base");
+        const auto* base = ItemBaseLibrary::find(item.baseId);
+        expect(base != nullptr
+                && base->kind == ItemBaseKind::BossRelic
+                && base->variant == 1
+                && base->theme == expectedTheme,
+            "alternate Boss relic base keeps a stable relic identity");
+        expect(!item.affixes.empty() && item.name == base->name,
+            "alternate Boss relic has a readable name and affixes");
+
+        Stats expected = item.implicitStats;
+        for (const auto& affix : item.affixes) {
+            expected = combineStats(expected, affix.stats);
+        }
+        expect(statsEqual(item.stats, expected),
+            "alternate Boss relic stats equal implicit plus affix contributions");
     }
 
     const Item brimstone = generator.generateBossReward(5, BossLootTheme::Brimstone);

@@ -80,73 +80,138 @@ public:
         return item;
     }
 
-    Item generateBossReward(int monsterLevel, BossLootTheme theme) const {
+    Item generateBossReward(
+        int monsterLevel,
+        BossLootTheme theme,
+        int variant = 0
+    ) const {
         const int tier = tierForLevel(monsterLevel);
+        const int normalizedVariant = ((variant % 2) + 2) % 2;
         Item item;
         item.itemLevel = monsterLevel;
         item.rarity = Rarity::Unique;
-        applyBase(item, ItemBaseLibrary::forBossTheme(toBaseTheme(theme)));
+        applyBase(item, ItemBaseLibrary::forBossTheme(toBaseTheme(theme), normalizedVariant));
         item.affixes.push_back({"Boss relic", tier + 1, {}, {}, "", AffixStat::None, false});
 
         switch (theme) {
             case BossLootTheme::Brimstone:
-                item.name = "Colossus's Brand";
-                addBossAffix(item, "Brimstone might", tier + 1,
-                    damageContribution(relativeMultiplier(
-                        1.0f + std::array<float, 3>{0.14f, 0.20f, 0.27f}[tier],
-                        item.implicitStats.damageMultiplier)), {AffixTag::Damage});
-                addBossAffix(item, "Molten core", tier + 1,
-                    fireDamageContribution(relativeMultiplier(
-                        1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
-                        item.implicitStats.fireDamageMultiplier)), {AffixTag::Fire, AffixTag::Damage});
-                addBossAffix(item, "Crushing impact", tier + 1,
-                    areaDamageContribution(relativeMultiplier(
-                        1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
-                        item.implicitStats.areaDamageMultiplier)), {AffixTag::Area});
+                if (normalizedVariant == 0) {
+                    item.name = "Colossus's Brand";
+                    addBossAffix(item, "Brimstone might", tier + 1,
+                        damageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.14f, 0.20f, 0.27f}[tier],
+                            item.implicitStats.damageMultiplier)), {AffixTag::Damage});
+                    addBossAffix(item, "Molten core", tier + 1,
+                        fireDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.fireDamageMultiplier)), {AffixTag::Fire, AffixTag::Damage});
+                    addBossAffix(item, "Crushing impact", tier + 1,
+                        areaDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
+                            item.implicitStats.areaDamageMultiplier)), {AffixTag::Area});
+                } else {
+                    item.name = "Ashen Crucible";
+                    addBossAffix(item, "Ashen might", tier + 1,
+                        damageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.16f, 0.22f}[tier],
+                            item.implicitStats.damageMultiplier)), {AffixTag::Damage});
+                    addBossAffix(item, "Smoldering core", tier + 1,
+                        fireDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.15f, 0.20f}[tier],
+                            item.implicitStats.fireDamageMultiplier)), {AffixTag::Fire, AffixTag::Damage});
+                    addBossAffix(item, "Erupting reach", tier + 1,
+                        areaRadiusContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.areaRadiusMultiplier)), {AffixTag::Fire, AffixTag::Area});
+                }
                 break;
 
             case BossLootTheme::Storm:
-                item.name = "Herald's Signet";
-                addBossAffix(item, "Storm cadence", tier + 1,
-                    attackSpeedContribution(relativeMultiplier(
-                        1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
-                        item.implicitStats.attackSpeedMultiplier)), {AffixTag::AttackSpeed});
-                addBossAffix(item, "Conductive edge", tier + 1,
-                    lightningDamageContribution(relativeMultiplier(
-                        1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
-                        item.implicitStats.lightningDamageMultiplier)), {AffixTag::Lightning, AffixTag::Damage});
-                addBossAffix(item, "Charged projectiles", tier + 1,
-                    projectileDamageContribution(relativeMultiplier(
-                        1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
-                        item.implicitStats.projectileDamageMultiplier)), {AffixTag::Projectile, AffixTag::Damage});
+                if (normalizedVariant == 0) {
+                    item.name = "Herald's Signet";
+                    addBossAffix(item, "Storm cadence", tier + 1,
+                        attackSpeedContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.attackSpeedMultiplier)), {AffixTag::AttackSpeed});
+                    addBossAffix(item, "Conductive edge", tier + 1,
+                        lightningDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.lightningDamageMultiplier)), {AffixTag::Lightning, AffixTag::Damage});
+                    addBossAffix(item, "Charged projectiles", tier + 1,
+                        projectileDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.projectileDamageMultiplier)), {AffixTag::Projectile, AffixTag::Damage});
+                } else {
+                    item.name = "Tempest Bow";
+                    addBossAffix(item, "Tempest cadence", tier + 1,
+                        attackSpeedContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
+                            item.implicitStats.attackSpeedMultiplier)), {AffixTag::AttackSpeed});
+                    addBossAffix(item, "Forked current", tier + 1,
+                        lightningDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.15f, 0.20f}[tier],
+                            item.implicitStats.lightningDamageMultiplier)), {AffixTag::Lightning, AffixTag::Damage});
+                    addBossAffix(item, "Charged volleys", tier + 1,
+                        projectileDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.16f, 0.22f}[tier],
+                            item.implicitStats.projectileDamageMultiplier)), {AffixTag::Projectile, AffixTag::Damage});
+                }
                 break;
 
             case BossLootTheme::Brood:
-                item.name = "Matriarch's Talisman";
-                addBossAffix(item, "Brood venom", tier + 1,
-                    poisonDamageContribution(relativeMultiplier(
-                        1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
-                        item.implicitStats.poisonDamageMultiplier)), {AffixTag::Poison, AffixTag::Damage});
-                addBossAffix(item, "Expanding nests", tier + 1,
-                    areaRadiusContribution(relativeMultiplier(
-                        1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
-                        item.implicitStats.areaRadiusMultiplier)), {AffixTag::Area});
+                if (normalizedVariant == 0) {
+                    item.name = "Matriarch's Talisman";
+                    addBossAffix(item, "Brood venom", tier + 1,
+                        poisonDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.poisonDamageMultiplier)), {AffixTag::Poison, AffixTag::Damage});
+                    addBossAffix(item, "Expanding nests", tier + 1,
+                        areaRadiusContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
+                            item.implicitStats.areaRadiusMultiplier)), {AffixTag::Area});
+                } else {
+                    item.name = "Broodscale Band";
+                    addBossAffix(item, "Broodscale venom", tier + 1,
+                        poisonDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.15f, 0.20f}[tier],
+                            item.implicitStats.poisonDamageMultiplier)), {AffixTag::Poison, AffixTag::Damage});
+                    addBossAffix(item, "Nested reach", tier + 1,
+                        areaRadiusContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.areaRadiusMultiplier)), {AffixTag::Poison, AffixTag::Area});
+                }
                 break;
 
             case BossLootTheme::Frost:
-                item.name = "Frostbound Loop";
-                addBossAffix(item, "Winter's bite", tier + 1,
-                    coldDamageContribution(relativeMultiplier(
-                        1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
-                        item.implicitStats.coldDamageMultiplier)), {AffixTag::Cold, AffixTag::Damage});
-                addBossAffix(item, "Biting chill", tier + 1,
-                    areaRadiusContribution(relativeMultiplier(
-                        1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
-                        item.implicitStats.areaRadiusMultiplier)), {AffixTag::Cold, AffixTag::Area});
+                if (normalizedVariant == 0) {
+                    item.name = "Frostbound Loop";
+                    addBossAffix(item, "Winter's bite", tier + 1,
+                        coldDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.coldDamageMultiplier)), {AffixTag::Cold, AffixTag::Damage});
+                    addBossAffix(item, "Biting chill", tier + 1,
+                        areaRadiusContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
+                            item.implicitStats.areaRadiusMultiplier)), {AffixTag::Cold, AffixTag::Area});
+                } else {
+                    item.name = "Winterheart Pendant";
+                    addBossAffix(item, "Winterheart bite", tier + 1,
+                        coldDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.15f, 0.20f}[tier],
+                            item.implicitStats.coldDamageMultiplier)), {AffixTag::Cold, AffixTag::Damage});
+                    addBossAffix(item, "Permafrost reach", tier + 1,
+                        areaRadiusContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.areaRadiusMultiplier)), {AffixTag::Cold, AffixTag::Area});
+                }
                 break;
         }
 
         return item;
+    }
+
+    static int bossRelicVariantForMapLevel(int mapLevel) {
+        return (std::max(1, mapLevel) - 1) / 4 % 2;
     }
 
     static Rarity rarityForRoll(

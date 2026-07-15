@@ -171,7 +171,7 @@ private:
         definition.name = "Frostbound Warden";
         definition.theme = "Ice and control";
         definition.lootTheme = BossLootTheme::Frost;
-        definition.lootRewardDescription = "Unique ring: cold damage and stronger Chill";
+        definition.lootRewardDescription = "Unique relic: cold damage and stronger Chill";
         definition.hpMultiplier = 24.0f;
         definition.damageBonus = 1;
         definition.dropMultiplier = 3.1f;
@@ -240,7 +240,7 @@ private:
                 "Brimstone Colossus",
                 "Lava and stone",
                 BossLootTheme::Brimstone,
-                "Unique weapon: fire and area damage",
+                "Unique relic: fire and area damage",
                 24.0f,
                 2,
                 3.5f,
@@ -304,7 +304,7 @@ private:
                 "Storm Herald",
                 "Lightning and speed",
                 BossLootTheme::Storm,
-                "Unique ring: lightning and projectile damage",
+                "Unique relic: lightning and projectile damage",
                 24.0f,
                 1,
                 3.0f,
@@ -365,7 +365,7 @@ private:
                 "Brood Matriarch",
                 "Acid and brood",
                 BossLootTheme::Brood,
-                "Unique amulet: poison damage and area radius",
+                "Unique relic: poison damage and area radius",
                 24.0f,
                 1,
                 3.2f,
