@@ -3112,7 +3112,8 @@ void GameWorld::noteMapEventEnemyDefeated(const Enemy& enemy) {
                 const int droppedCount = dropItemsAround(
                     event.position,
                     encounter.completionDropCount,
-                    encounter.rewardMultiplier
+                    encounter.rewardMultiplier,
+                    encounter.rewardLootBias
                 );
                 eventStatusMessage_ = encounter.completionDropCount > 0
                     ? encounter.name + " cleared: "

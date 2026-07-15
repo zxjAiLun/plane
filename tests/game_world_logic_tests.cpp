@@ -2398,6 +2398,9 @@ void testCombinationMapEvents() {
             expect(world.activeEliteEventEnemiesRemaining() == 4
                     && world.groundHazards().size() == 1,
                 "Frozen Reliquary spawns one Elite, three Wardens and one Cold hazard");
+            expect(world.map().encounterDefinition().rewardLootBias.primaryTag == AffixTag::Cold
+                    && world.map().encounterDefinition().rewardLootBias.secondaryTag == AffixTag::Area,
+                "Frozen Reliquary configures Cold-biased completion rewards");
             const auto& hazard = world.groundHazards().front().definition();
             expect(hazard.damageType == DamageType::Cold
                     && hazard.ailment.type == AilmentType::Chill,

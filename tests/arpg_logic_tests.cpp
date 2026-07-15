@@ -2318,9 +2318,11 @@ void testMapEncounterDefinitions() {
             && frozenIt->completionDropCount == 3
             && frozenIt->primaryEnemyType == EnemyType::Elite
             && frozenIt->secondaryEnemyType == EnemyType::Warden
+            && frozenIt->rewardLootBias.primaryTag == AffixTag::Cold
+            && frozenIt->rewardLootBias.secondaryTag == AffixTag::Area
             && frozenIt->hazard.damageType == DamageType::Cold
             && frozenIt->hazard.ailment.type == AilmentType::Chill,
-        "Frozen Reliquary defines its Cold hazard and Warden composition");
+        "Frozen Reliquary defines its Cold hazard, loot bias, and Warden composition");
 }
 
 // --- Map layout variants ---
@@ -2378,6 +2380,10 @@ void testMapLayoutVariants() {
             && MapInstance(4).definition().name == "Frostbound Pass"
             && MapInstance(4).encounterDefinition().type == MapEncounterType::FrozenReliquary,
         "map level four selects the Frostbound Pass theme and encounter");
+    const auto frostOptions = MapOptionLibrary::generateOptions(4);
+    expect(frostOptions[2].templateIndex == 3
+            && frostOptions[2].modifier.hasModifier("frostbite"),
+        "high-tier map selection exposes Frostbound Pass with its Cold challenge");
 
     MapInstance map(1, 0, 1);
     expect(!map.intersectsObstacle(map.playerStart(), Config::PlayerRadius),

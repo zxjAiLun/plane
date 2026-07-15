@@ -12,6 +12,7 @@
 #include "Config.hpp"
 #include "EnemyType.hpp"
 #include "GroundHazard.hpp"
+#include "LootBias.hpp"
 #include "MapExploration.hpp"
 #include "MapLayout.hpp"
 #include "Vector2.hpp"
@@ -57,6 +58,7 @@ struct MapEncounterDefinition {
     int completionDropCount = 0;
     EnemyType primaryEnemyType = EnemyType::Elite;
     EnemyType secondaryEnemyType = EnemyType::Normal;
+    LootBias rewardLootBias;
 };
 
 class MapEncounterLibrary {
@@ -163,7 +165,8 @@ public:
                 false,
                 3,
                 EnemyType::Elite,
-                EnemyType::Warden
+                EnemyType::Warden,
+                {AffixTag::Cold, 1.80f, AffixTag::Area, 1.15f}
             }
         }};
         return definitions;

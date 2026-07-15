@@ -378,6 +378,7 @@ public:
     }
 
     static std::array<MapOption, 3> generateOptions(int mapLevel) {
+        const bool frostTier = mapLevel >= 4;
         return {{
             {
                 MapModifierLibrary::compose(
@@ -398,11 +399,13 @@ public:
             {
                 MapModifierLibrary::compose(
                     mapLevel, {"gilded-cache", "elite-tide"},
-                    mapLevel >= 3 ? "venomtide" : "frostbite"
+                    frostTier
+                        ? "frostbite"
+                        : (mapLevel >= 3 ? "venomtide" : "frostbite")
                 ),
                 "Pickup/Area bias, high item quantity and Elite pressure",
                 "Recommended level " + std::to_string(mapLevel + 1),
-                2
+                frostTier ? 3 : 2
             },
         }};
     }
