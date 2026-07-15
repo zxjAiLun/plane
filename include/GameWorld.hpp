@@ -19,6 +19,7 @@
 #include "Inventory.hpp"
 #include "LootGenerator.hpp"
 #include "MapInstance.hpp"
+#include "MapItem.hpp"
 #include "MapModifier.hpp"
 #include "MapRewardLibrary.hpp"
 #include "RandomService.hpp"
@@ -106,6 +107,12 @@ public:
     const std::vector<DroppedItem>& droppedItems() const;
     const Inventory& inventory() const;
     const Stash& stash() const;
+    const std::vector<MapItem>& mapItems() const;
+    int selectedMapItemIndex() const;
+    bool mapDeviceOpen() const;
+    int mapItemCapacity() const;
+    int completedMapCount() const;
+    bool currentMapCompleted() const;
     float inventoryFullPromptTimeRemaining() const;
     int selectedInventoryIndex() const;
     int selectedStashIndex() const;
@@ -337,6 +344,7 @@ private:
     void trySalvageSelectedInventoryItem(Input& input);
     void tryMoveSelectedInventoryToStash(Input& input);
     void tryMoveSelectedStashToInventory(Input& input);
+    void tryChooseStoredMap(Input& input);
     void tryToggleCraftingPanel(Input& input);
     void tryCraftSelectedItem(Input& input);
     void applyCraftingOperation();
@@ -509,4 +517,8 @@ private:
     int mapEventEnemiesRemaining_;
     std::string eventStatusMessage_;
     float eventStatusTimer_ = 0.0f;
+    MapAtlas atlas_;
+    std::vector<MapItem> mapItems_;
+    int selectedMapItemIndex_ = -1;
+    bool mapDeviceOpen_ = false;
 };

@@ -17,6 +17,7 @@ void Input::update() {
     craftingToggle_ = false;
     stashStoreSelected_ = false;
     stashWithdrawSelected_ = false;
+    mapDeviceToggle_ = false;
     saveRun_ = false;
     loadRun_ = false;
     cancel_ = false;
@@ -51,6 +52,7 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::V: craftingToggle_ = true; break;
         case sf::Keyboard::Key::I: stashStoreSelected_ = true; break;
         case sf::Keyboard::Key::O: stashWithdrawSelected_ = true; break;
+        case sf::Keyboard::Key::M: mapDeviceToggle_ = true; break;
         case sf::Keyboard::Key::Num1: numberChoice_ = 1; break;
         case sf::Keyboard::Key::Num2: numberChoice_ = 2; break;
         case sf::Keyboard::Key::Num3: numberChoice_ = 3; break;
@@ -159,6 +161,7 @@ bool Input::inventorySalvageSelected() const { return inventorySalvageSelected_;
 bool Input::craftingToggle() const { return craftingToggle_; }
 bool Input::stashStoreSelected() const { return stashStoreSelected_; }
 bool Input::stashWithdrawSelected() const { return stashWithdrawSelected_; }
+bool Input::mapDeviceToggle() const { return mapDeviceToggle_; }
 bool Input::saveRun() const { return saveRun_; }
 bool Input::loadRun() const { return loadRun_; }
 bool Input::cancel() const { return cancel_; }

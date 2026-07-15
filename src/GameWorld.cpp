@@ -250,6 +250,29 @@ bool validModifierForRestore(const MapModifier& modifier) {
     }
     return true;
 }
+
+bool validMapItemForRestore(const MapItem& item) {
+    if (item.id.empty()
+        || item.mapLevel < 1
+        || item.layoutIndex < 0
+        || item.layoutIndex >= MapLayoutLibrary::VariantCount
+        || item.option.templateIndex < 0
+        || item.option.templateIndex >= MapLayoutLibrary::TemplateCount
+        || !validModifierForRestore(item.option.modifier)) {
+        return false;
+    }
+
+    const MapItem normalized = MapItemLibrary::fromOption(
+        item.option, item.mapLevel, item.layoutIndex
+    );
+    return item.id == normalized.id;
+}
+
+int layoutIndexForMapOption(int mapLevel, const MapOption& option) {
+    return MapLayoutLibrary::normalizeVariantIndex(
+        std::max(1, mapLevel) - 1 + option.templateIndex
+    );
+}
 }
 
 GameWorld::GameWorld(std::uint64_t runSeed)
@@ -380,8 +403,12 @@ void GameWorld::update(float dt, Input& input) {
             break;
 
         case GameState::MapComplete: {
-            const bool craftingContext = craftingState_.open || input.craftingToggle();
-            tryToggleCraftingPanel(input);
+            const bool mapDeviceContext = mapDeviceOpen_;
+            const bool craftingContext = !mapDeviceContext
+                && (craftingState_.open || input.craftingToggle());
+            if (!mapDeviceContext) {
+                tryToggleCraftingPanel(input);
+            }
             if (craftingContext) {
                 tryCraftSelectedItem(input);
                 removeDeadObjects();
@@ -396,18 +423,31 @@ void GameWorld::update(float dt, Input& input) {
             // pick up more drops. tryEquipInventoryItem is intentionally NOT called so
             // 1-9 stays mapped to reward/map choices and never equips during settlement.
             tryPickupDroppedItem(input);
-            trySelectInventoryItem(input);
-            tryMoveSelectedInventoryToStash(input);
-            tryMoveSelectedStashToInventory(input);
-            tryDropSelectedInventoryItem(input);
-            trySalvageSelectedInventoryItem(input);
+            if (!mapDeviceOpen_) {
+                trySelectInventoryItem(input);
+                tryMoveSelectedInventoryToStash(input);
+                tryMoveSelectedStashToInventory(input);
+                tryDropSelectedInventoryItem(input);
+                trySalvageSelectedInventoryItem(input);
+            }
             removeDeadObjects();
+            if (mapRewardChosen_ && input.mapDeviceToggle()) {
+                mapDeviceOpen_ = !mapDeviceOpen_;
+                selectedMapItemIndex_ = -1;
+            }
             if (!mapRewardChosen_) {
                 tryChooseMapReward(input);
+            } else if (mapDeviceOpen_) {
+                tryChooseStoredMap(input);
             } else {
                 tryChooseNextMapOption(input);
             }
-            if (mapRewardChosen_ && nextMapOptionChosen_ && input.nextMap()) {
+            const bool storedMapReady = mapDeviceOpen_
+                && selectedMapItemIndex_ >= 0
+                && selectedMapItemIndex_ < static_cast<int>(mapItems_.size());
+            const bool generatedMapReady = !mapDeviceOpen_ && nextMapOptionChosen_;
+            if (mapRewardChosen_ && (storedMapReady || generatedMapReady)
+                && input.nextMap()) {
                 startNextMap();
             } else if (input.restart()) {
                 reset();
@@ -436,6 +476,12 @@ void GameWorld::handleEscape() {
 
     if (craftingState_.open) {
         closeCraftingPanel();
+        return;
+    }
+
+    if (mapDeviceOpen_) {
+        mapDeviceOpen_ = false;
+        selectedMapItemIndex_ = -1;
         return;
     }
 
@@ -541,6 +587,9 @@ SaveData GameWorld::captureSaveData() const {
     data.skillBar = skillBar_.saveState();
     data.inventory = inventory_.items();
     data.stash = stash_.items();
+    data.mapItems = mapItems_;
+    data.completedMapIds = atlas_.completedMapIds();
+    data.selectedMapItemIndex = selectedMapItemIndex_;
 
     data.droppedItems.reserve(droppedItems_.size());
     for (const auto& dropped : droppedItems_) {
@@ -587,6 +636,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
         || data.currentMapOption.templateIndex != data.mapTemplateIndex
         || data.inventory.size() > static_cast<std::size_t>(Config::InventoryCapacity)
         || data.stash.size() > static_cast<std::size_t>(Config::StashCapacity)
+        || data.mapItems.size() > static_cast<std::size_t>(Config::MapItemCapacity)
         || data.droppedItems.size() > 4096
         || (data.mapEvents.size() != 3 && data.mapEvents.size() != 4)
         || !validFloat(data.survivalTime)
@@ -605,6 +655,17 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
         || !validLevelMap(data.supportLevels, data.unlockedSupports)
         || data.lifeFlaskCharges < 0
         || data.lifeFlaskCharges > Config::LifeFlaskMaxCharges) {
+        return false;
+    }
+
+    if (data.selectedMapItemIndex < -1
+        || data.selectedMapItemIndex >= static_cast<int>(data.mapItems.size())
+        || data.completedMapIds.size() > 4096
+        || std::any_of(
+            data.completedMapIds.begin(),
+            data.completedMapIds.end(),
+            [](const std::string& id) { return id.empty() || id.size() > 1024; }
+        )) {
         return false;
     }
 
@@ -639,6 +700,11 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     }
     for (const auto& item : data.stash) {
         if (!validItemForRestore(item)) {
+            return false;
+        }
+    }
+    for (const auto& mapItem : data.mapItems) {
+        if (!validMapItemForRestore(mapItem)) {
             return false;
         }
     }
@@ -748,6 +814,10 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     skillBar_ = std::move(restoredSkillBar);
     inventory_ = std::move(restoredInventory);
     stash_ = std::move(restoredStash);
+    mapItems_ = data.mapItems;
+    atlas_.restore(data.completedMapIds);
+    selectedMapItemIndex_ = data.selectedMapItemIndex;
+    mapDeviceOpen_ = false;
     progression_.unlockedSkills = data.unlockedSkills;
     progression_.unlockedSupports = data.unlockedSupports;
     progression_.skillLevels = data.skillLevels;
@@ -1035,6 +1105,10 @@ void GameWorld::reset(std::uint64_t runSeed) {
     droppedItems_.clear();
     inventory_.clear();
     stash_.clear();
+    atlas_.clear();
+    mapItems_.clear();
+    selectedMapItemIndex_ = -1;
+    mapDeviceOpen_ = false;
     spawner_.reset();
     pendingFieldPack_.clear();
     fieldPackSequence_ = 0;
@@ -1123,6 +1197,8 @@ void GameWorld::reset(std::uint64_t runSeed) {
     selectedInventoryIndex_ = -1;
     selectedStashIndex_ = -1;
     stashSelectionActive_ = false;
+    selectedMapItemIndex_ = -1;
+    mapDeviceOpen_ = false;
     mapEventInteractionConsumed_ = false;
     activeMapEventIndex_ = -1;
     mapEventEnemiesRemaining_ = 0;
@@ -1131,15 +1207,47 @@ void GameWorld::reset(std::uint64_t runSeed) {
 }
 
 void GameWorld::startNextMap() {
-    if (selectedNextMapOption_ >= 0 && selectedNextMapOption_ < static_cast<int>(nextMapOptions_.size())) {
-        currentMapOption_ = nextMapOptions_[static_cast<std::size_t>(selectedNextMapOption_)];
+    MapItem mapToEnter;
+    bool hasMapToEnter = false;
+    if (mapDeviceOpen_
+        && selectedMapItemIndex_ >= 0
+        && selectedMapItemIndex_ < static_cast<int>(mapItems_.size())) {
+        mapToEnter = mapItems_[static_cast<std::size_t>(selectedMapItemIndex_)];
+        mapItems_.erase(mapItems_.begin() + selectedMapItemIndex_);
+        hasMapToEnter = true;
+    } else if (selectedNextMapOption_ >= 0
+        && selectedNextMapOption_ < static_cast<int>(nextMapOptions_.size())) {
+        currentMapOption_ = nextMapOptions_[
+            static_cast<std::size_t>(selectedNextMapOption_)
+        ];
+        mapToEnter = MapItemLibrary::fromOption(
+            currentMapOption_,
+            mapLevel_ + 1,
+            layoutIndexForMapOption(mapLevel_ + 1, currentMapOption_)
+        );
+        const auto stored = std::find_if(
+            mapItems_.begin(),
+            mapItems_.end(),
+            [&mapToEnter](const MapItem& item) {
+                return item.id == mapToEnter.id;
+            }
+        );
+        if (stored != mapItems_.end()) {
+            mapItems_.erase(stored);
+        }
+        hasMapToEnter = true;
     }
 
-    ++mapLevel_;
+    if (!hasMapToEnter) {
+        return;
+    }
+
+    currentMapOption_ = mapToEnter.option;
+    mapLevel_ = mapToEnter.mapLevel;
     map_ = MapInstance(
         mapLevel_,
         currentMapOption_.templateIndex,
-        MapLayoutLibrary::variantForMapLevel(mapLevel_)
+        mapToEnter.layoutIndex
     );
     bossDefinition_ = &BossLibrary::forMapLevel(mapLevel_);
     player_.setBounds(map_.size());
@@ -1221,6 +1329,8 @@ void GameWorld::startNextMap() {
     selectedNextMapOption_ = -1;
     mapRewardOptions_ = {};
     selectedMapRewardOption_ = -1;
+    selectedMapItemIndex_ = -1;
+    mapDeviceOpen_ = false;
     mapModifier_ = currentMapOption_.modifier;
     mapModifier_.itemQuantityMultiplier *= progression_.itemQuantityRewardMultiplier;
     passiveTreeOpen_ = false;
@@ -4099,6 +4209,30 @@ void GameWorld::tryChooseNextMapOption(Input& input) {
     nextMapOptionChosen_ = true;
 }
 
+void GameWorld::tryChooseStoredMap(Input& input) {
+    if (mapItems_.empty()) {
+        selectedMapItemIndex_ = -1;
+        return;
+    }
+
+    if (input.inventorySelectNext()) {
+        selectedMapItemIndex_ = selectedMapItemIndex_ < 0
+            ? 0
+            : (selectedMapItemIndex_ + 1) % static_cast<int>(mapItems_.size());
+    }
+
+    if (input.numberChoice() <= 0) {
+        return;
+    }
+
+    const int mapIndex = input.numberChoice() - 1;
+    if (mapIndex < 0 || mapIndex >= static_cast<int>(mapItems_.size())) {
+        return;
+    }
+
+    selectedMapItemIndex_ = mapIndex;
+}
+
 void GameWorld::tryChooseMapReward(Input& input) {
     if (mapRewardChosen_ || input.numberChoice() <= 0) {
         return;
@@ -4177,8 +4311,33 @@ void GameWorld::generateMapRewardOptions() {
 
 void GameWorld::generateNextMapOptions() {
     nextMapOptions_ = MapOptionLibrary::generateOptions(mapLevel_ + 1);
+    for (std::size_t index = 0; index < nextMapOptions_.size(); ++index) {
+        if (mapItems_.size() >= static_cast<std::size_t>(Config::MapItemCapacity)) {
+            eventStatusMessage_ = "Map stash full - new map choices remain temporary";
+            eventStatusTimer_ = 2.0f;
+            break;
+        }
+
+        const MapItem mapItem = MapItemLibrary::fromOption(
+            nextMapOptions_[index],
+            mapLevel_ + 1,
+            layoutIndexForMapOption(mapLevel_ + 1, nextMapOptions_[index])
+        );
+        const bool alreadyStored = std::any_of(
+            mapItems_.begin(),
+            mapItems_.end(),
+            [&mapItem](const MapItem& stored) {
+                return stored.id == mapItem.id;
+            }
+        );
+        if (!alreadyStored) {
+            mapItems_.push_back(mapItem);
+        }
+    }
     selectedNextMapOption_ = -1;
     nextMapOptionChosen_ = false;
+    selectedMapItemIndex_ = -1;
+    mapDeviceOpen_ = false;
 }
 
 void GameWorld::spreadPoisonOnDeath(const Enemy& source) {
@@ -4259,6 +4418,9 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
     }
 
     if (enemy.isBoss()) {
+        atlas_.record(MapItemLibrary::fromOption(
+            currentMapOption_, mapLevel_, map_.layoutIndex()
+        ));
         map_.markBossDefeated();
         bossProjectiles_.clear();
         enemyProjectiles_.clear();
@@ -4740,6 +4902,16 @@ const std::vector<GroundHazard>& GameWorld::groundHazards() const { return groun
 const std::vector<DroppedItem>& GameWorld::droppedItems() const { return droppedItems_; }
 const Inventory& GameWorld::inventory() const { return inventory_; }
 const Stash& GameWorld::stash() const { return stash_; }
+const std::vector<MapItem>& GameWorld::mapItems() const { return mapItems_; }
+int GameWorld::selectedMapItemIndex() const { return selectedMapItemIndex_; }
+bool GameWorld::mapDeviceOpen() const { return mapDeviceOpen_; }
+int GameWorld::mapItemCapacity() const { return Config::MapItemCapacity; }
+int GameWorld::completedMapCount() const { return atlas_.completedCount(); }
+bool GameWorld::currentMapCompleted() const {
+    return atlas_.contains(MapItemLibrary::fromOption(
+        currentMapOption_, mapLevel_, map_.layoutIndex()
+    ).id);
+}
 int GameWorld::lifeFlaskCharges() const { return lifeFlaskCharges_; }
 int GameWorld::lifeFlaskMaxCharges() const { return Config::LifeFlaskMaxCharges; }
 std::string GameWorld::lifeFlaskStatusMessage() const { return lifeFlaskStatusMessage_; }
@@ -4834,7 +5006,10 @@ MapArea GameWorld::currentMapArea() const { return map_.areaForPlayer(player_.po
 float GameWorld::distanceToBoss() const { return map_.distanceToBoss(player_.position()); }
 std::string GameWorld::mapObjective() const {
     if (state_ == GameState::MapComplete || map_.bossDefeated()) {
-        return mapRewardChosen_ ? "Choose Next Map" : "Choose Reward";
+        if (!mapRewardChosen_) {
+            return "Choose Reward";
+        }
+        return mapDeviceOpen_ ? "Choose Stored Map" : "Choose Next Map";
     }
 
     if (map_.bossTriggered()) {

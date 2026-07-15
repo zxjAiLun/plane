@@ -608,6 +608,30 @@ bool readMapOption(
         && reader.integer(option.templateIndex);
 }
 
+void writeMapItem(Writer& writer, const MapItem& item) {
+    writer.string(item.id);
+    writer.integer(item.mapLevel);
+    writer.integer(item.layoutIndex);
+    writeMapOption(writer, item.option);
+}
+
+bool readMapItem(
+    Reader& reader,
+    MapItem& item,
+    bool hasElementalChallengeFields,
+    bool hasItemRarityFields
+) {
+    return reader.string(item.id)
+        && reader.integer(item.mapLevel)
+        && reader.integer(item.layoutIndex)
+        && readMapOption(
+            reader,
+            item.option,
+            hasElementalChallengeFields,
+            hasItemRarityFields
+        );
+}
+
 void writeMapReward(Writer& writer, const MapRewardDefinition& reward) {
     writer.integer(static_cast<int>(reward.type));
     writer.string(reward.title);
@@ -734,6 +758,12 @@ void writeSaveData(Writer& writer, const SaveData& data) {
     for (const auto& item : data.stash) {
         writeItem(writer, item);
     }
+    writer.integer<std::uint32_t>(static_cast<std::uint32_t>(data.mapItems.size()));
+    for (const auto& item : data.mapItems) {
+        writeMapItem(writer, item);
+    }
+    writeSet(writer, data.completedMapIds);
+    writer.integer(data.selectedMapItemIndex);
     writer.integer<std::uint32_t>(static_cast<std::uint32_t>(data.droppedItems.size()));
     for (const auto& dropped : data.droppedItems) {
         writeVector2(writer, dropped.position);
@@ -759,7 +789,8 @@ bool readSaveData(
     bool hasGemProgression,
     bool hasFieldPackProgress,
     bool hasRareLeaderProgress,
-    bool hasDropRarityStats
+    bool hasDropRarityStats,
+    bool hasMapItemProgress
 ) {
     int state = 0;
     if (!reader.integer(state)
@@ -864,6 +895,31 @@ bool readSaveData(
             return false;
         }
         data.stash.push_back(std::move(item));
+    }
+    data.mapItems.clear();
+    data.completedMapIds.clear();
+    data.selectedMapItemIndex = -1;
+    if (hasMapItemProgress) {
+        if (!reader.integer(count) || count > MaxVectorLength) {
+            return false;
+        }
+        data.mapItems.reserve(count);
+        for (std::uint32_t index = 0; index < count; ++index) {
+            MapItem item;
+            if (!readMapItem(
+                    reader,
+                    item,
+                    hasElementalChallengeFields,
+                    hasItemRarityFields
+                )) {
+                return false;
+            }
+            data.mapItems.push_back(std::move(item));
+        }
+        if (!readSet(reader, data.completedMapIds)
+            || !reader.integer(data.selectedMapItemIndex)) {
+            return false;
+        }
     }
     if (!reader.integer(count) || count > MaxVectorLength) {
         return false;
@@ -998,6 +1054,7 @@ bool SaveService::load(const std::filesystem::path& path,
         || (version != 3U && version != 4U && version != 5U
             && version != 6U && version != 7U && version != 8U
             && version != 9U && version != 10U && version != 11U
+            && version != 12U
             && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");
@@ -1022,7 +1079,8 @@ bool SaveService::load(const std::filesystem::path& path,
             version >= 7U,
             version >= 8U,
             version >= 9U,
-            version >= 12U
+            version >= 12U,
+            version >= 13U
         )) {
         setError(error, "invalid save payload");
         return false;

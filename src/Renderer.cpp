@@ -1183,6 +1183,7 @@ void Renderer::render(const GameWorld& world) {
             drawMapCompleteBossRelicPreview(world);
             drawMapCompleteInventoryPanel(world);
             drawMapCompleteStashPanel(world);
+            drawMapDevicePanel(world);
             drawCraftingPanel(world);
             drawMapCompleteLootDetail(world);
             break;
@@ -2793,6 +2794,10 @@ void Renderer::drawMapComplete(const GameWorld& world) {
 
     const std::string phaseText = !world.mapRewardChosen()
         ? "PHASE: CHOOSE REWARD"
+        : world.mapDeviceOpen()
+            ? (world.selectedMapItemIndex() >= 0
+                ? "PHASE: PRESS E TO ENTER STORED MAP"
+                : "PHASE: CHOOSE STORED MAP")
         : !world.nextMapOptionChosen()
             ? "PHASE: CHOOSE NEXT MAP"
             : "PHASE: PRESS E TO ENTER MAP " + std::to_string(world.mapLevel() + 1);
@@ -2895,10 +2900,19 @@ void Renderer::drawMapComplete(const GameWorld& world) {
         }
     }
 
+    drawText("M Map Device  Maps " + std::to_string(world.mapItems().size())
+            + "/" + std::to_string(world.mapItemCapacity())
+            + "  Atlas " + std::to_string(world.completedMapCount()),
+        {leftColumnX, 466.0f}, 11, sf::Color(180, 220, 255));
+
     drawBox({centerColumnX, 410.0f}, {190.0f, 36.0f}, sf::Color::White);
     std::string footer;
     if (!world.mapRewardChosen()) {
         footer = "Pick 1 / 2 / 3 reward";
+    } else if (world.mapDeviceOpen()) {
+        footer = world.selectedMapItemIndex() >= 0
+            ? "E Enter stored map"
+            : "Tab / 1-0 select map";
     } else if (world.nextMapOptionChosen()) {
         const auto& selected = mapOptions[static_cast<std::size_t>(world.selectedNextMapOption())];
         footer = "E Enter " + selected.modifier.name;
@@ -3037,7 +3051,56 @@ void Renderer::drawMapCompleteStashPanel(const GameWorld& world) {
     }
 }
 
+void Renderer::drawMapDevicePanel(const GameWorld& world) {
+    if (!world.mapDeviceOpen()) {
+        return;
+    }
+
+    const float width = static_cast<float>(Config::WindowWidth);
+    const float height = static_cast<float>(Config::WindowHeight);
+    drawBox({width / 2.0f, height / 2.0f}, {730.0f, 520.0f}, sf::Color(12, 18, 28));
+    drawCenteredText("MAP DEVICE", {width / 2.0f, 48.0f}, 24, sf::Color(255, 235, 170));
+    drawCenteredText(
+        "Stored maps " + std::to_string(world.mapItems().size()) + "/"
+            + std::to_string(world.mapItemCapacity())
+            + "   Completed atlas maps " + std::to_string(world.completedMapCount()),
+        {width / 2.0f, 78.0f}, 13, sf::Color(185, 220, 245)
+    );
+    drawCenteredText("1-0 Select  Tab Cycle  E Enter  M / Esc Close",
+        {width / 2.0f, 100.0f}, 12, sf::Color(160, 170, 185));
+
+    if (world.mapItems().empty()) {
+        drawCenteredText("No stored maps. Close with M and choose a new map.",
+            {width / 2.0f, 270.0f}, 14, sf::Color(220, 220, 220));
+        return;
+    }
+
+    const auto& maps = world.mapItems();
+    const int selectedIndex = world.selectedMapItemIndex();
+    const std::size_t visibleCount = std::min<std::size_t>(maps.size(), 12);
+    float rowY = 126.0f;
+    for (std::size_t index = 0; index < visibleCount; ++index) {
+        const bool selected = static_cast<int>(index) == selectedIndex;
+        const sf::Color color = selected
+            ? sf::Color(255, 215, 90)
+            : sf::Color(220, 235, 250);
+        const std::string marker = selected ? "> " : "  ";
+        drawText(truncateText(marker + std::to_string(index + 1) + ". "
+                + MapItemLibrary::displayName(maps[index])
+                + " | " + maps[index].option.modifier.name, 82),
+            {72.0f, rowY}, 13, color);
+        drawText(truncateText("    " + maps[index].option.modifier.description
+                + " | " + maps[index].option.rewardDescription, 95),
+            {72.0f, rowY + 16.0f}, 10, sf::Color(190, 205, 220));
+        rowY += 34.0f;
+    }
+}
+
 void Renderer::drawMapCompleteLootDetail(const GameWorld& world) {
+    if (world.mapDeviceOpen()) {
+        return;
+    }
+
     const int index = world.focusedDroppedItemIndex();
     if (index < 0) {
         return;

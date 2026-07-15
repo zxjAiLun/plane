@@ -32,6 +32,7 @@
 #include "MapExploration.hpp"
 #include "MapModifier.hpp"
 #include "MapInstance.hpp"
+#include "MapItem.hpp"
 #include "MapRewardLibrary.hpp"
 #include "MapScaling.hpp"
 #include "PassiveTree.hpp"
@@ -2348,6 +2349,34 @@ void testMapOptionGeneration() {
         "map options bind to distinct map templates 0/1/2");
 }
 
+void testMapItemsAndAtlas() {
+    section("MapItem persistence and atlas identity");
+
+    const auto option = MapOptionLibrary::generateOptions(4)[2];
+    const MapItem map = MapItemLibrary::fromOption(option, 4, 2);
+    expect(map.mapLevel == 4 && map.layoutIndex == 2
+            && map.option.modifier.componentCount == 2,
+        "map item preserves level, layout and composed modifier");
+    expect(!map.id.empty()
+            && map.id == MapItemLibrary::fromOption(option, 4, 2).id,
+        "map item identity is deterministic");
+    expect(MapItemLibrary::displayName(map).find("T4") == 0
+            && MapItemLibrary::summary(map).find(map.option.modifier.name)
+                != std::string::npos,
+        "map item preview includes tier, template and modifier");
+
+    MapAtlas atlas;
+    expect(atlas.completedCount() == 0 && !atlas.contains(map.id),
+        "new atlas starts empty");
+    atlas.record(map);
+    atlas.record(map);
+    expect(atlas.completedCount() == 1 && atlas.contains(map.id),
+        "atlas deduplicates repeated completion of one map identity");
+    atlas.clear();
+    expect(atlas.completedCount() == 0,
+        "atlas reset clears completed map records");
+}
+
 void testMapScalingProgression() {
     section("Map scaling progression and modifier monotonicity");
 
@@ -3034,6 +3063,7 @@ int main() {
     testGroundHazardLifecycle();
     testBossDashStateAndStormPattern();
     testMapOptionGeneration();
+    testMapItemsAndAtlas();
     testMapScalingProgression();
     testMapEncounterDefinitions();
     testMapLayoutVariants();

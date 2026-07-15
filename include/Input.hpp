@@ -40,6 +40,7 @@ public:
     bool craftingToggle() const;
     bool stashStoreSelected() const;
     bool stashWithdrawSelected() const;
+    bool mapDeviceToggle() const;
     bool saveRun() const;
     bool loadRun() const;
     bool cancel() const;
@@ -71,6 +72,7 @@ private:
     bool craftingToggle_ = false;
     bool stashStoreSelected_ = false;
     bool stashWithdrawSelected_ = false;
+    bool mapDeviceToggle_ = false;
     bool saveRun_ = false;
     bool loadRun_ = false;
     bool cancel_ = false;

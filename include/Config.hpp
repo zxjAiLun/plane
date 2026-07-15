@@ -138,6 +138,7 @@ namespace Config {
     constexpr int ItemDropChancePercent = 35;
     constexpr int InventoryCapacity = 9;
     constexpr int StashCapacity = 24;
+    constexpr int MapItemCapacity = 12;
     constexpr int ForgeImproveCost = 2;
     constexpr int ForgeRerollCost = 3;
     constexpr int ForgeRaiseTierCost = 4;

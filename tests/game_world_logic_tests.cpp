@@ -631,6 +631,63 @@ void testContinuousMapProgression() {
     std::filesystem::remove(path);
 }
 
+void testStoredMapDeviceFlow() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_stored_map_device_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld source(15501);
+    expect(source.saveRun(path), "stored map fixture saves a base run");
+    SaveData data;
+    std::string error;
+    expect(SaveService::load(path, data, &error),
+        "stored map fixture loads its base save");
+    data.state = SavedRunState::MapComplete;
+    for (auto& event : data.mapEvents) {
+        event.triggered = true;
+        event.completed = true;
+    }
+    RandomService rewardRandom(data.runSeed + 77U);
+    data.mapRewardOptions = MapRewardLibrary::generateOptions(
+        data.unlockedSkills,
+        data.unlockedSupports,
+        rewardRandom
+    );
+    data.selectedMapRewardOption = -1;
+    data.mapRewardChosen = false;
+    data.selectedNextMapOption = -1;
+    data.nextMapOptionChosen = false;
+    const auto mapOption = MapOptionLibrary::generateOptions(2)[2];
+    data.mapItems.push_back(MapItemLibrary::fromOption(mapOption, 2, 1));
+    data.completedMapIds.insert(MapItemLibrary::fromOption(
+        data.currentMapOption, data.mapLevel, data.mapLayoutIndex
+    ).id);
+    data.selectedMapItemIndex = -1;
+    expect(SaveService::save(path, data, &error) && source.loadRun(path),
+        "stored map fixture restores a settlement with a held map");
+
+    Input input;
+    pressKey(source, input, sf::Keyboard::Key::Num1);
+    expect(source.mapRewardChosen(), "stored map flow still chooses reward first");
+    pressKey(source, input, sf::Keyboard::Key::M);
+    expect(source.mapDeviceOpen()
+            && source.mapObjective() == "Choose Stored Map",
+        "M opens the stored map device after reward selection");
+    pressKey(source, input, sf::Keyboard::Key::Tab);
+    expect(source.selectedMapItemIndex() == 0,
+        "Tab selects the first held map in the map device");
+    pressKey(source, input, sf::Keyboard::Key::E);
+    expect(source.state() == GameState::Playing
+            && source.mapLevel() == 2
+            && source.map().layoutIndex() == 1
+            && source.mapItems().empty(),
+        "E consumes the selected map item and enters its stored layout");
+    expect(source.completedMapCount() == 1 && !source.currentMapCompleted(),
+        "atlas progress persists while the newly entered map is incomplete");
+
+    std::filesystem::remove(path);
+}
+
 void testItemBaseLevelRequirementWorldFlow() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_item_base_requirement_world_test.bin";
@@ -2055,6 +2112,16 @@ void testBossCombatFlow() {
     expect(finalPhaseHazardObserved, "Boss final phase creates its theme hazard");
     expect(world.state() == GameState::MapComplete && world.map().bossDefeated(),
         "Boss death enters MapComplete through the real reward path");
+    expect(world.mapItems().size() == 3 && world.completedMapCount() == 1,
+        "Boss completion creates three held maps and records the atlas entry");
+    expect(std::all_of(
+            world.mapItems().begin(),
+            world.mapItems().end(),
+            [&world](const MapItem& mapItem) {
+                return mapItem.mapLevel == world.mapLevel() + 1
+                    && !mapItem.id.empty();
+            }),
+        "held map items target the next tier with stable identities");
     expect(world.mapBossItemsDropped() >= 1 && !world.droppedItems().empty(),
         "Boss death creates at least one guaranteed ground drop");
     const int qualityDropTotal = world.mapDroppedItemsByRarity(Rarity::Normal)
@@ -2830,6 +2897,7 @@ int main() {
     testRareLeaderCombatEffects();
     testRareLeaderRewardProfiles();
     testContinuousMapProgression();
+    testStoredMapDeviceFlow();
     testItemBaseLevelRequirementWorldFlow();
     testFiveMapRealBossProgression();
     testBossSpawnUsesMapScaling();

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "MapInstance.hpp"
+#include "MapItem.hpp"
 #include "MapModifier.hpp"
 #include "MapRewardLibrary.hpp"
 #include "Player.hpp"
@@ -31,7 +32,7 @@ struct SavedMapEvent {
 
 struct SaveData {
     static constexpr std::uint32_t Magic = 0x4D415247U;
-    static constexpr std::uint32_t Version = 12U;
+    static constexpr std::uint32_t Version = 13U;
 
     SavedRunState state = SavedRunState::Playing;
     std::uint64_t runSeed = 0;
@@ -74,6 +75,9 @@ struct SaveData {
     SkillBarSaveState skillBar;
     std::vector<Item> inventory;
     std::vector<Item> stash;
+    std::vector<MapItem> mapItems;
+    std::set<std::string> completedMapIds;
+    int selectedMapItemIndex = -1;
     std::vector<SavedDroppedItem> droppedItems;
     std::vector<SavedMapEvent> mapEvents;
     std::vector<unsigned char> exploredCells;

@@ -7,6 +7,7 @@
 
 #include "Item.hpp"
 #include "MapModifier.hpp"
+#include "MapItem.hpp"
 #include "RandomService.hpp"
 #include "SaveService.hpp"
 #include "SkillBar.hpp"
@@ -97,6 +98,11 @@ SaveData sampleData() {
     data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Weapon)] = weapon;
     data.inventory.push_back(weapon);
     data.stash.push_back(weapon);
+    data.mapItems.push_back(MapItemLibrary::fromOption(
+        MapOptionLibrary::generateOptions(3)[0], 3, 1
+    ));
+    data.completedMapIds.insert("map:1:0:0:swift-hunt:hardened-front:cinder-ward");
+    data.selectedMapItemIndex = 0;
     data.droppedItems.push_back({{500.0f, 500.0f}, weapon});
     data.itemQuantityRewardMultiplier = 1.15f;
     data.forgeFragments = 7;
@@ -171,6 +177,10 @@ void testFileValidation(const std::filesystem::path& path) {
             && restored.skillBar.supports[2][0] == "Concentration"
             && restored.inventory.size() == 1
             && restored.stash.size() == 1
+            && restored.mapItems.size() == 1
+            && restored.mapItems[0].id == data.mapItems[0].id
+            && restored.completedMapIds == data.completedMapIds
+            && restored.selectedMapItemIndex == 0
             && restored.droppedItems.size() == 1,
         "round-trip preserves run, map, progression and exploration");
     expect(restored.fieldPacksCleared == data.fieldPacksCleared,
