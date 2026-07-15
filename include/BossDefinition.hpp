@@ -241,6 +241,206 @@ private:
         return hazard;
     }
 
+    static BossDefinition drownedBoss() {
+        const AilmentDefinition chill{
+            AilmentType::Chill, 2.5f, 0.0f, 0.55f
+        };
+
+        BossSkillDefinition tidalQuill;
+        tidalQuill.type = BossSkillType::Projectile;
+        tidalQuill.name = "Tidal Quill";
+        tidalQuill.radius = Config::BossProjectileRadius;
+        tidalQuill.damage = 2;
+        tidalQuill.projectileSpeed = 440.0f;
+        tidalQuill.projectileCount = 5;
+        tidalQuill.spreadAngle = 42.0f;
+        tidalQuill.damageType = DamageType::Cold;
+        tidalQuill.ailment = chill;
+
+        BossSkillDefinition undertowSeal;
+        undertowSeal.type = BossSkillType::CircularAoe;
+        undertowSeal.name = "Undertow Seal";
+        undertowSeal.radius = 130.0f;
+        undertowSeal.damage = 3;
+        undertowSeal.telegraphDuration = 0.55f;
+        undertowSeal.effectDuration = 0.25f;
+        undertowSeal.groundHazard = elementalHazard(
+            {"Archive Undertow", 120.0f, 5.0f, 0.75f, 3},
+            DamageType::Cold,
+            chill
+        );
+        undertowSeal.damageType = DamageType::Cold;
+        undertowSeal.ailment = chill;
+
+        BossSkillDefinition drownedWardens;
+        drownedWardens.type = BossSkillType::SummonAdds;
+        drownedWardens.name = "Call Drowned Wardens";
+        drownedWardens.radius = 110.0f;
+        drownedWardens.telegraphDuration = 0.70f;
+        drownedWardens.effectDuration = 0.25f;
+        drownedWardens.summonType = EnemyType::Warden;
+        drownedWardens.summonCount = 2;
+        drownedWardens.damageType = DamageType::Cold;
+
+        BossSkillDefinition inkCurrent;
+        inkCurrent.type = BossSkillType::Dash;
+        inkCurrent.name = "Ink Current";
+        inkCurrent.radius = 52.0f;
+        inkCurrent.damage = 2;
+        inkCurrent.telegraphDuration = 0.55f;
+        inkCurrent.effectDuration = 0.30f;
+        inkCurrent.dash = {320.0f, 620.0f};
+        inkCurrent.damageType = DamageType::Cold;
+        inkCurrent.ailment = chill;
+
+        BossDefinition definition;
+        definition.name = "Tidebound Archivist";
+        definition.theme = "Flooded archives and cold currents";
+        definition.lootTheme = BossLootTheme::Frost;
+        definition.lootRewardDescription = "Unique relic: projectile damage and Chill control";
+        definition.hpMultiplier = 25.0f;
+        definition.damageBonus = 2;
+        definition.dropMultiplier = 3.6f;
+        definition.skillInterval = 1.85f;
+        definition.guaranteedDrops = 2;
+        definition.enrageHealthRatio = 0.48f;
+        definition.enragedSkillIntervalMultiplier = 0.65f;
+        definition.enragedDamageMultiplier = 1.18f;
+        definition.patternDescription = "Cold seals and fan-shaped quills control the archive halls";
+        definition.enragedPatternDescription = "Drowned wardens advance while the undertow seals overlap";
+        definition.skills = {tidalQuill, undertowSeal, drownedWardens, inkCurrent};
+        definition.normalSkillOrder = {0, 1, 0, 2, 3};
+        definition.enragedSkillOrder = {1, 0, 3, 2, 0};
+        definition.igniteResistance = 30;
+        definition.chillResistance = 55;
+        definition.enrageTransitionDescription = "The archive floods: drowned wardens rise from the dark water";
+        definition.enrageSummonType = EnemyType::Warden;
+        definition.enrageSummonCount = 2;
+        definition.enrageHazard = elementalHazard(
+            {"Blackwater Surge", 145.0f, 7.0f, 0.70f, 6},
+            DamageType::Cold,
+            chill
+        );
+        definition.lightningResistance = 25;
+        definition.fireResistance = 35;
+        definition.coldResistance = 55;
+        definition.shockResistance = 35;
+        definition.poisonResistance = 30;
+        definition.finalPhase = {
+            0.20f,
+            0.52f,
+            1.32f,
+            "The drowned archive closes: seals, quills and wardens fill the arena",
+            "The final ledger opens: the Archivist enters its last cycle",
+            {1, 0, 3, 2, 1},
+            EnemyType::Warden,
+            3,
+            {"Deep Undertow", 165.0f, 7.0f, 0.65f, 8,
+                DamageType::Cold, chill}
+        };
+        return definition;
+    }
+
+    static BossDefinition obsidianBoss() {
+        const AilmentDefinition ignite{
+            AilmentType::Ignite, 2.5f, 0.20f
+        };
+
+        BossSkillDefinition shardfall;
+        shardfall.type = BossSkillType::CircularAoe;
+        shardfall.name = "Shardfall";
+        shardfall.radius = 120.0f;
+        shardfall.damage = 4;
+        shardfall.telegraphDuration = 0.45f;
+        shardfall.effectDuration = 0.25f;
+        shardfall.groundHazard = elementalHazard(
+            {"Obsidian Shards", 105.0f, 5.0f, 0.70f, 4},
+            DamageType::Fire,
+            ignite
+        );
+        shardfall.damageType = DamageType::Fire;
+        shardfall.ailment = ignite;
+
+        BossSkillDefinition glassVolley;
+        glassVolley.type = BossSkillType::Projectile;
+        glassVolley.name = "Glass Volley";
+        glassVolley.radius = Config::BossProjectileRadius;
+        glassVolley.damage = 2;
+        glassVolley.projectileSpeed = 480.0f;
+        glassVolley.projectileCount = 3;
+        glassVolley.spreadAngle = 30.0f;
+        glassVolley.damageType = DamageType::Fire;
+        glassVolley.ailment = ignite;
+
+        BossSkillDefinition forgeRavagers;
+        forgeRavagers.type = BossSkillType::SummonAdds;
+        forgeRavagers.name = "Forge Ravagers";
+        forgeRavagers.radius = 115.0f;
+        forgeRavagers.telegraphDuration = 0.60f;
+        forgeRavagers.effectDuration = 0.25f;
+        forgeRavagers.summonType = EnemyType::Charger;
+        forgeRavagers.summonCount = 2;
+        forgeRavagers.damageType = DamageType::Fire;
+
+        BossSkillDefinition blackglassCharge;
+        blackglassCharge.type = BossSkillType::Dash;
+        blackglassCharge.name = "Blackglass Charge";
+        blackglassCharge.radius = 56.0f;
+        blackglassCharge.damage = 3;
+        blackglassCharge.telegraphDuration = 0.50f;
+        blackglassCharge.effectDuration = 0.30f;
+        blackglassCharge.dash = {350.0f, 650.0f};
+        blackglassCharge.damageType = DamageType::Fire;
+        blackglassCharge.ailment = ignite;
+
+        BossDefinition definition;
+        definition.name = "Obsidian Tyrant";
+        definition.theme = "Black glass and ember dust";
+        definition.lootTheme = BossLootTheme::Brimstone;
+        definition.lootRewardDescription = "Unique relic: fire damage and area devastation";
+        definition.hpMultiplier = 26.0f;
+        definition.damageBonus = 2;
+        definition.dropMultiplier = 3.8f;
+        definition.skillInterval = 1.75f;
+        definition.guaranteedDrops = 2;
+        definition.enrageHealthRatio = 0.46f;
+        definition.enragedSkillIntervalMultiplier = 0.63f;
+        definition.enragedDamageMultiplier = 1.20f;
+        definition.patternDescription = "Shardfall zones and glass volleys punish stationary movement";
+        definition.enragedPatternDescription = "Ravagers charge through expanding fields of burning glass";
+        definition.skills = {shardfall, glassVolley, forgeRavagers, blackglassCharge};
+        definition.normalSkillOrder = {0, 1, 0, 2, 3};
+        definition.enragedSkillOrder = {3, 0, 2, 1, 0};
+        definition.igniteResistance = 55;
+        definition.chillResistance = 25;
+        definition.enrageTransitionDescription = "The reliquary cracks: forge ravagers spill into the arena";
+        definition.enrageSummonType = EnemyType::Charger;
+        definition.enrageSummonCount = 2;
+        definition.enrageHazard = elementalHazard(
+            {"Tyrant's Furnace", 150.0f, 7.0f, 0.65f, 8},
+            DamageType::Fire,
+            ignite
+        );
+        definition.lightningResistance = 25;
+        definition.fireResistance = 60;
+        definition.coldResistance = 25;
+        definition.shockResistance = 30;
+        definition.poisonResistance = 30;
+        definition.finalPhase = {
+            0.18f,
+            0.50f,
+            1.35f,
+            "The reliquary collapses: shards, volleys and charges overlap",
+            "The black core ignites: the Tyrant enters its last cycle",
+            {0, 3, 1, 2, 0},
+            EnemyType::Charger,
+            3,
+            {"Melted Reliquary", 170.0f, 8.0f, 0.60f, 9,
+                DamageType::Fire, ignite}
+        };
+        return definition;
+    }
+
     static std::vector<BossDefinition> buildBosses() {
         auto bosses = std::vector<BossDefinition>{
             {
@@ -439,7 +639,9 @@ private:
                 30,
                 45
             },
-            frostBoss()
+            frostBoss(),
+            drownedBoss(),
+            obsidianBoss()
         };
 
         bosses[0].finalPhase = {

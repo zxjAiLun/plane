@@ -8,6 +8,7 @@
 
 #include "DamageType.hpp"
 #include "LootBias.hpp"
+#include "MapLayout.hpp"
 
 struct MapModifierEffect {
     float monsterHpMultiplier = 1.0f;
@@ -512,6 +513,14 @@ public:
 
     static std::array<MapOption, 3> generateOptions(int mapLevel) {
         const bool frostTier = mapLevel >= 4;
+        int firstTemplate = 0;
+        int secondTemplate = 1;
+        int thirdTemplate = frostTier ? 3 : 2;
+        if (mapLevel >= 5) {
+            firstTemplate = (mapLevel - 1) % MapLayoutLibrary::TemplateCount;
+            secondTemplate = (firstTemplate + 1) % MapLayoutLibrary::TemplateCount;
+            thirdTemplate = (firstTemplate + 2) % MapLayoutLibrary::TemplateCount;
+        }
         return {{
             {
                 MapModifierLibrary::compose(
@@ -519,7 +528,7 @@ public:
                 ),
                 "Event quantity and Survival affix bias",
                 "Recommended level " + std::to_string(mapLevel),
-                0
+                firstTemplate
             },
             {
                 MapModifierLibrary::compose(
@@ -527,7 +536,7 @@ public:
                 ),
                 "Damage bias, richer drops and Boss pressure",
                 "Recommended level " + std::to_string(mapLevel + 1),
-                1
+                secondTemplate
             },
             {
                 MapModifierLibrary::compose(
@@ -538,7 +547,7 @@ public:
                 ),
                 "Pickup/Area bias, high item quantity and Elite pressure",
                 "Recommended level " + std::to_string(mapLevel + 1),
-                frostTier ? 3 : 2
+                thirdTemplate
             },
         }};
     }

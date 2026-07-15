@@ -217,8 +217,16 @@ public:
         const int templateCount = MapLayoutLibrary::TemplateCount;
         const int normalizedTemplate = ((templateIndex % templateCount) + templateCount)
             % templateCount;
-        if (normalizedTemplate == templateCount - 1) {
+        if (normalizedTemplate == 3) {
             return all().back();
+        }
+
+        if (normalizedTemplate == 4) {
+            return forType(MapEncounterType::WardenCourt);
+        }
+
+        if (normalizedTemplate == 5) {
+            return forType(MapEncounterType::CursedReliquary);
         }
 
         constexpr int LegacyEncounterCount = 6;
@@ -457,6 +465,40 @@ private:
                 },
                 3
             },
+            {
+                "Drowned Archive",
+                "Flooded halls and blue sigils",
+                {{18, 38, 52}, {58, 100, 120}, {75, 155, 185}, {48, 90, 135}, {45, 110, 125}},
+                {22, 32, 8, "Ranged archivists, Warden patrols and cold elites", 8, 20, 10},
+                {
+                    "Undertow Sigils",
+                    "Cold sigils pull toward the last marked position",
+                    8.5f,
+                    0.65f,
+                    {"Undertow", 115.0f, 4.0f, 0.75f, 2,
+                        DamageType::Cold,
+                        {AilmentType::Chill, 2.5f, 0.0f, 0.60f}},
+                    2
+                },
+                4
+            },
+            {
+                "Obsidian Reliquary",
+                "Black glass and ember dust",
+                {{35, 27, 25}, {88, 72, 68}, {145, 75, 45}, {92, 52, 45}, {65, 90, 70}},
+                {30, 10, 25, "Elite forge guards, chargers and summoner anchors", 12, 5, 18},
+                {
+                    "Shardfall",
+                    "Volcanic shards mark the field before erupting",
+                    10.5f,
+                    0.60f,
+                    {"Obsidian Shards", 105.0f, 5.0f, 0.70f, 3,
+                        DamageType::Fire,
+                        {AilmentType::Ignite, 2.5f, 0.20f}},
+                    2
+                },
+                5
+            },
         };
 
         templates[0].encounter.hardenedEliteModifierWeight = 50;
@@ -471,6 +513,12 @@ private:
         templates[3].encounter.hardenedEliteModifierWeight = 55;
         templates[3].encounter.swiftEliteModifierWeight = 20;
         templates[3].encounter.volatileEliteModifierWeight = 25;
+        templates[4].encounter.hardenedEliteModifierWeight = 20;
+        templates[4].encounter.swiftEliteModifierWeight = 35;
+        templates[4].encounter.volatileEliteModifierWeight = 45;
+        templates[5].encounter.hardenedEliteModifierWeight = 35;
+        templates[5].encounter.swiftEliteModifierWeight = 15;
+        templates[5].encounter.volatileEliteModifierWeight = 50;
 
         templates[0].signatureDamageType = DamageType::Fire;
         templates[0].signatureAilment = {AilmentType::Ignite, 2.5f, 0.20f};
@@ -528,6 +576,34 @@ private:
             1
         };
         templates[3].bossArenaEffect.pattern = MapHazardPattern::Target;
+        templates[4].signatureDamageType = DamageType::Cold;
+        templates[4].signatureAilment = {AilmentType::Chill, 2.5f, 0.0f, 0.60f};
+        templates[4].signatureLootBias = {AffixTag::Cold, 1.35f, AffixTag::Area, 1.15f};
+        templates[4].bossArenaEffect = {
+            "Archive Undertow",
+            "Cold rings pull the player toward the marked center",
+            3.4f,
+            0.55f,
+            {"Archive Undertow", 140.0f, 4.5f, 0.75f, 3,
+                DamageType::Cold, {AilmentType::Chill, 2.5f, 0.0f, 0.60f}},
+            1
+        };
+        templates[4].bossArenaEffect.pattern = MapHazardPattern::Ring;
+        templates[4].bossArenaEffect.patternRadius = 150.0f;
+        templates[5].signatureDamageType = DamageType::Fire;
+        templates[5].signatureAilment = {AilmentType::Ignite, 2.5f, 0.20f};
+        templates[5].signatureLootBias = {AffixTag::Armor, 1.35f, AffixTag::Damage, 1.15f};
+        templates[5].bossArenaEffect = {
+            "Obsidian Collapse",
+            "Burning shards close in around the player",
+            3.1f,
+            0.50f,
+            {"Obsidian Collapse", 135.0f, 5.0f, 0.75f, 3,
+                DamageType::Fire, {AilmentType::Ignite, 2.5f, 0.20f}},
+            1
+        };
+        templates[5].bossArenaEffect.pattern = MapHazardPattern::Cross;
+        templates[5].bossArenaEffect.patternRadius = 160.0f;
         return templates;
     }
 };

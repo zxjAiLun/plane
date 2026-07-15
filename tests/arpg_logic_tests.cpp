@@ -1251,6 +1251,53 @@ void testBossElementalSkills() {
     expect(frost.enrageHazard.damageType == DamageType::Cold
             && frost.enrageHazard.ailment.type == AilmentType::Chill,
         "Frost enrage hazard carries Cold and Chill");
+
+    const auto& archive = BossLibrary::forMapLevel(5);
+    const auto archiveProjectileIt = std::find_if(
+        archive.skills.begin(), archive.skills.end(),
+        [](const BossSkillDefinition& skill) { return skill.name == "Tidal Quill"; }
+    );
+    const auto archiveSummonIt = std::find_if(
+        archive.skills.begin(), archive.skills.end(),
+        [](const BossSkillDefinition& skill) {
+            return skill.name == "Call Drowned Wardens";
+        }
+    );
+    expect(archive.name == "Tidebound Archivist"
+            && archive.lootTheme == BossLootTheme::Frost
+            && archiveProjectileIt != archive.skills.end()
+            && archiveSummonIt != archive.skills.end(),
+        "Tidebound Archivist exposes the Drowned Archive boss kit");
+    if (archiveProjectileIt != archive.skills.end()) {
+        expect(archiveProjectileIt->damageType == DamageType::Cold
+                && archiveProjectileIt->ailment.type == AilmentType::Chill
+                && archiveProjectileIt->projectileCount == 5
+                && archiveProjectileIt->spreadAngle == 42.0f,
+            "Tidal Quill carries its Cold fan-projectile configuration");
+    }
+
+    const auto& reliquary = BossLibrary::forMapLevel(6);
+    const auto reliquaryAoeIt = std::find_if(
+        reliquary.skills.begin(), reliquary.skills.end(),
+        [](const BossSkillDefinition& skill) { return skill.name == "Shardfall"; }
+    );
+    const auto reliquaryDashIt = std::find_if(
+        reliquary.skills.begin(), reliquary.skills.end(),
+        [](const BossSkillDefinition& skill) {
+            return skill.name == "Blackglass Charge";
+        }
+    );
+    expect(reliquary.name == "Obsidian Tyrant"
+            && reliquary.lootTheme == BossLootTheme::Brimstone
+            && reliquaryAoeIt != reliquary.skills.end()
+            && reliquaryDashIt != reliquary.skills.end(),
+        "Obsidian Tyrant exposes the Obsidian Reliquary boss kit");
+    if (reliquaryAoeIt != reliquary.skills.end()) {
+        expect(reliquaryAoeIt->damageType == DamageType::Fire
+                && reliquaryAoeIt->ailment.type == AilmentType::Ignite
+                && reliquaryAoeIt->groundHazard.damageType == DamageType::Fire,
+            "Shardfall carries its Fire, Ignite and burning-ground configuration");
+    }
 }
 
 void testWardenProtectionMath() {
@@ -2242,8 +2289,8 @@ void testGroundHazardLifecycle() {
             configuredHazards += skill.groundHazard.isValid() ? 1 : 0;
         }
     }
-    expect(configuredHazards == 2,
-        "Brimstone and Frost bosses define the current ground hazard set");
+    expect(configuredHazards == 4,
+        "elemental Boss skills define the current ground hazard set");
 }
 
 // --- Boss mobility skills ---
@@ -2718,6 +2765,24 @@ void testMapLayoutVariants() {
     expect(frostOptions[2].templateIndex == 3
             && frostOptions[2].modifier.hasModifier("frostbite"),
         "high-tier map selection exposes Frostbound Pass with its Cold challenge");
+    const auto archiveOptions = MapOptionLibrary::generateOptions(5);
+    const auto reliquaryOptions = MapOptionLibrary::generateOptions(6);
+    expect(archiveOptions[0].templateIndex == 4
+            && archiveOptions[1].templateIndex == 5
+            && reliquaryOptions[0].templateIndex == 5,
+        "map levels five and six rotate in the Drowned Archive and Obsidian Reliquary themes");
+    expect(MapTemplateLibrary::forIndex(4).name == "Drowned Archive"
+            && MapTemplateLibrary::forIndex(4).bossDefinitionIndex == 4
+            && MapTemplateLibrary::forIndex(4).signatureDamageType == DamageType::Cold
+            && MapTemplateLibrary::forIndex(4).signatureLootBias.primaryTag == AffixTag::Cold
+            && MapTemplateLibrary::forIndex(5).name == "Obsidian Reliquary"
+            && MapTemplateLibrary::forIndex(5).bossDefinitionIndex == 5
+            && MapTemplateLibrary::forIndex(5).signatureDamageType == DamageType::Fire
+            && MapTemplateLibrary::forIndex(5).signatureLootBias.primaryTag == AffixTag::Armor,
+        "new map themes bind their intended encounter and loot identities");
+    expect(MapInstance(5).encounterDefinition().type == MapEncounterType::WardenCourt
+            && MapInstance(6).encounterDefinition().type == MapEncounterType::CursedReliquary,
+        "new map themes use distinct combination encounters instead of legacy Frost content");
     expect(MapTemplateLibrary::forIndex(0).ambientEffect.isValid()
             && MapTemplateLibrary::forIndex(0).ambientEffect.hazard.damageType == DamageType::Fire
             && MapTemplateLibrary::forIndex(1).ambientEffect.hazard.damageType == DamageType::Lightning
@@ -3083,7 +3148,7 @@ void testEnemyPackLibrary() {
     section("Data-driven field enemy packs");
 
     const auto& packs = EnemyPackLibrary::all();
-    expect(packs.size() == 12, "four map themes expose three field packs each");
+    expect(packs.size() == 18, "six map themes expose three field packs each");
     for (const auto& pack : packs) {
         expect(!pack.id.empty() && !pack.name.empty()
                 && pack.enemyCount == static_cast<int>(pack.enemies.size())
@@ -3105,6 +3170,8 @@ void testEnemyPackLibrary() {
     const auto& storm = EnemyPackLibrary::forMap(1, 1, 0);
     const auto& venom = EnemyPackLibrary::forMap(2, 1, 0);
     const auto& frost = EnemyPackLibrary::forMap(3, 1, 0);
+    const auto& drowned = EnemyPackLibrary::forMap(4, 1, 0);
+    const auto& obsidian = EnemyPackLibrary::forMap(5, 1, 0);
     const auto hasType = [](const EnemyPackDefinition& pack, EnemyType type) {
         return std::find(pack.enemies.begin(), pack.enemies.end(), type)
             != pack.enemies.end();
@@ -3118,6 +3185,12 @@ void testEnemyPackLibrary() {
     expect(hasType(frost, EnemyType::Warden) && hasType(frost, EnemyType::Charger)
             && frost.lootBias.primaryTag == AffixTag::Cold,
         "Frost packs combine Warden pressure with Cold-biased rewards");
+    expect(hasType(drowned, EnemyType::Ranged) && hasType(drowned, EnemyType::Warden)
+            && drowned.lootBias.primaryTag == AffixTag::Cold,
+        "Drowned Archive packs combine ranged pressure with Cold-biased rewards");
+    expect(hasType(obsidian, EnemyType::Charger) && hasType(obsidian, EnemyType::Elite)
+            && obsidian.lootBias.primaryTag == AffixTag::Fire,
+        "Obsidian Reliquary packs combine chargers with Fire-biased rewards");
     expect(EnemyPackLibrary::forMap(0, 1, 0).id
             != EnemyPackLibrary::forMap(0, 1, 1).id,
         "field pack sequence rotates within a map theme");

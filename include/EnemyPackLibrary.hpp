@@ -32,7 +32,7 @@ struct EnemyPackDefinition {
 
 class EnemyPackLibrary {
 public:
-    static constexpr int ThemeCount = 4;
+    static constexpr int ThemeCount = 6;
     static constexpr int PacksPerTheme = 3;
 
     static const std::array<EnemyPackDefinition, ThemeCount * PacksPerTheme>& all() {
@@ -264,6 +264,120 @@ public:
                 2,
                 {AffixTag::Cold, 1.75f, AffixTag::Survival, 1.25f},
                 "Cold / Survival weighted | 2 guaranteed drops"
+            },
+            {
+                "drowned-quill-line",
+                "Quill Line",
+                "Ranged archivists shelter behind a cold Warden screen",
+                {EnemyType::Ranged, EnemyType::Warden, EnemyType::Normal,
+                 EnemyType::Ranged, EnemyType::Elite, EnemyType::Normal},
+                6,
+                {AffixTag::Cold, 1.45f, AffixTag::Projectile, 1.20f},
+                1,
+                4,
+                "Inkbound Archivist",
+                "A hardened archivist that turns the formation into a freezing crossfire",
+                {EliteModifier::Hardened, EliteModifier::Empowered},
+                2.0f,
+                2,
+                2,
+                {AffixTag::Cold, 1.75f, AffixTag::Projectile, 1.30f},
+                "Cold / Projectile weighted | 2 guaranteed drops"
+            },
+            {
+                "drowned-silt-court",
+                "Siltbound Court",
+                "Wardens and a Hexbinder hold a slow flooded corridor",
+                {EnemyType::Warden, EnemyType::Summoner, EnemyType::Normal,
+                 EnemyType::Elite, EnemyType::Charger, EnemyType::Normal},
+                6,
+                {AffixTag::Cold, 1.40f, AffixTag::Survival, 1.20f},
+                1,
+                3,
+                "Siltbound Custodian",
+                "A rejuvenating court captain keeps the drowned formation alive",
+                {EliteModifier::Rejuvenating, EliteModifier::Hardened},
+                2.0f,
+                2,
+                2,
+                {AffixTag::Survival, 1.75f, AffixTag::Cold, 1.30f},
+                "Survival / Cold weighted | 2 guaranteed drops"
+            },
+            {
+                "drowned-undertow-crossfire",
+                "Undertow Crossfire",
+                "Chargers force movement through overlapping cold projectiles",
+                {EnemyType::Ranged, EnemyType::Charger, EnemyType::Elite,
+                 EnemyType::Normal, EnemyType::Warden, EnemyType::Ranged},
+                6,
+                {AffixTag::Area, 1.35f, AffixTag::Cold, 1.20f},
+                1,
+                2,
+                "Undertow Marshal",
+                "A volatile marshal collapses the crossfire when its formation breaks",
+                {EliteModifier::Volatile, EliteModifier::Swift},
+                2.0f,
+                1,
+                2,
+                {AffixTag::Area, 1.70f, AffixTag::Cold, 1.30f},
+                "Area / Cold weighted | 1 guaranteed drop"
+            },
+            {
+                "obsidian-glassbreakers",
+                "Glassbreakers",
+                "Chargers and empowered elites rush through burning shard fields",
+                {EnemyType::Elite, EnemyType::Charger, EnemyType::Normal,
+                 EnemyType::Charger, EnemyType::Normal, EnemyType::Elite},
+                6,
+                {AffixTag::Fire, 1.45f, AffixTag::Damage, 1.20f},
+                1,
+                0,
+                "Glassbreaker Prime",
+                "An empowered forge captain drives both elite points into the player",
+                {EliteModifier::Empowered, EliteModifier::Volatile},
+                2.0f,
+                2,
+                2,
+                {AffixTag::Fire, 1.80f, AffixTag::Damage, 1.30f},
+                "Fire / Damage weighted | 2 guaranteed drops"
+            },
+            {
+                "obsidian-furnace-anchor",
+                "Furnace Anchor",
+                "A Summoner anchors a durable forge guard and charger screen",
+                {EnemyType::Summoner, EnemyType::Elite, EnemyType::Charger,
+                 EnemyType::Normal, EnemyType::Normal, EnemyType::Warden},
+                6,
+                {AffixTag::Fire, 1.40f, AffixTag::Armor, 1.20f},
+                1,
+                1,
+                "Furnace Castellan",
+                "A hardened anchor protects the reliquary with a burning formation",
+                {EliteModifier::Hardened, EliteModifier::Stormbound},
+                2.0f,
+                2,
+                2,
+                {AffixTag::Armor, 1.75f, AffixTag::Fire, 1.30f},
+                "Armor / Fire weighted | 2 guaranteed drops"
+            },
+            {
+                "obsidian-blackglass-rush",
+                "Blackglass Rush",
+                "Swift chargers collapse a damage-heavy melee wedge",
+                {EnemyType::Charger, EnemyType::Ranged, EnemyType::Elite,
+                 EnemyType::Charger, EnemyType::Normal, EnemyType::Normal},
+                6,
+                {AffixTag::Damage, 1.45f, AffixTag::Area, 1.20f},
+                1,
+                2,
+                "Blackglass Ravager",
+                "A swift ravager turns every opening into a burning charge",
+                {EliteModifier::Swift, EliteModifier::Empowered},
+                2.0f,
+                1,
+                2,
+                {AffixTag::Damage, 1.80f, AffixTag::Area, 1.30f},
+                "Damage / Area weighted | 1 guaranteed drop"
             }
         }};
         return packs;
