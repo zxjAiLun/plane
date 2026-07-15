@@ -665,6 +665,13 @@ void testStoredMapDeviceFlow() {
     data.selectedMapItemIndex = -1;
     expect(SaveService::save(path, data, &error) && source.loadRun(path),
         "stored map fixture restores a settlement with a held map");
+    const MapModifier baseModifier = MapItemLibrary::modifierFor(data.currentMapOption);
+    expect(source.atlasPoints() == 1
+            && source.mapModifier().itemQuantityMultiplier
+                > baseModifier.itemQuantityMultiplier
+            && source.mapModifier().itemRarityMultiplier
+                > baseModifier.itemRarityMultiplier,
+        "loaded Atlas completion applies quantity and rarity bonuses to the map");
 
     Input input;
     pressKey(source, input, sf::Keyboard::Key::Num1);

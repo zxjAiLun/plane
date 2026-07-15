@@ -168,14 +168,21 @@ private:
     }
 };
 
+struct AtlasBonuses {
+    float itemQuantityMultiplier = 1.0f;
+    float itemRarityMultiplier = 1.0f;
+    int eliteWeightBonus = 0;
+    int bossDropBonus = 0;
+};
+
 class MapAtlas {
 public:
     void clear() {
         completedMapIds_.clear();
     }
 
-    void record(const MapItem& map) {
-        completedMapIds_.insert(map.id);
+    bool record(const MapItem& map) {
+        return completedMapIds_.insert(map.id).second;
     }
 
     bool contains(const std::string& mapId) const {
@@ -184,6 +191,22 @@ public:
 
     int completedCount() const {
         return static_cast<int>(completedMapIds_.size());
+    }
+
+    int atlasPoints() const {
+        return completedCount();
+    }
+
+    AtlasBonuses bonuses() const {
+        const int points = atlasPoints();
+        const int quantityPoints = std::min(points, 10);
+        const int rarityPoints = std::min(points, 10);
+        return {
+            1.0f + static_cast<float>(quantityPoints) * 0.03f,
+            1.0f + static_cast<float>(rarityPoints) * 0.02f,
+            points / 2,
+            points / 3
+        };
     }
 
     const std::set<std::string>& completedMapIds() const {

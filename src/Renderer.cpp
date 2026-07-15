@@ -1016,7 +1016,8 @@ void Renderer::render(const GameWorld& world) {
         + "  LAYOUT " + std::to_string(world.map().layoutIndex() + 1) + "/"
             + std::to_string(MapLayoutLibrary::VariantCount)
         + "  AREA " + mapAreaName(world.currentMapArea())
-        + "  ENEMIES " + std::to_string(world.enemiesRemainingInWave());
+        + "  ENEMIES " + std::to_string(world.enemiesRemainingInWave())
+        + "  ATLAS P" + std::to_string(world.atlasPoints());
     drawText(truncateText(mapLine, 60),
         {16.0f, 108.0f}, 16, sf::Color(210, 220, 255));
     drawText("MODS " + truncateText(world.mapModifier().name, 36)
@@ -2957,7 +2958,8 @@ void Renderer::drawMapComplete(const GameWorld& world) {
 
     drawText("M Map Device  Maps " + std::to_string(world.mapItems().size())
             + "/" + std::to_string(world.mapItemCapacity())
-            + "  Atlas " + std::to_string(world.completedMapCount()),
+            + "  Atlas " + std::to_string(world.completedMapCount())
+            + "  P" + std::to_string(world.atlasPoints()),
         {leftColumnX, 466.0f}, 11, sf::Color(180, 220, 255));
 
     drawBox({centerColumnX, 410.0f}, {190.0f, 36.0f}, sf::Color::White);
@@ -3118,11 +3120,20 @@ void Renderer::drawMapDevicePanel(const GameWorld& world) {
     drawCenteredText(
         "Stored maps " + std::to_string(world.mapItems().size()) + "/"
             + std::to_string(world.mapItemCapacity())
-            + "   Completed atlas maps " + std::to_string(world.completedMapCount()),
+            + "   Completed atlas maps " + std::to_string(world.completedMapCount())
+            + "   Points " + std::to_string(world.atlasPoints()),
         {width / 2.0f, 78.0f}, 13, sf::Color(185, 220, 245)
     );
+    const AtlasBonuses atlas = world.atlasBonuses();
+    drawCenteredText(truncateText(
+        "Atlas bonus: Q+" + std::to_string(multiplierPercent(atlas.itemQuantityMultiplier))
+            + "% R+" + std::to_string(multiplierPercent(atlas.itemRarityMultiplier))
+            + "% Elite+" + std::to_string(atlas.eliteWeightBonus)
+            + " Boss+" + std::to_string(atlas.bossDropBonus), 82),
+        {width / 2.0f, 94.0f}, 11, sf::Color(255, 220, 150)
+    );
     drawCenteredText("1-0 Select  Tab Cycle  E Enter  M / Esc Close",
-        {width / 2.0f, 100.0f}, 12, sf::Color(160, 170, 185));
+        {width / 2.0f, 112.0f}, 12, sf::Color(160, 170, 185));
 
     if (world.mapItems().empty()) {
         drawCenteredText("No stored maps. Close with M and choose a new map.",
@@ -3133,7 +3144,7 @@ void Renderer::drawMapDevicePanel(const GameWorld& world) {
     const auto& maps = world.mapItems();
     const int selectedIndex = world.selectedMapItemIndex();
     const std::size_t visibleCount = std::min<std::size_t>(maps.size(), 12);
-    float rowY = 126.0f;
+    float rowY = 138.0f;
     for (std::size_t index = 0; index < visibleCount; ++index) {
         const MapModifier effectiveModifier = MapItemLibrary::modifierFor(maps[index].option);
         const bool selected = static_cast<int>(index) == selectedIndex;

@@ -112,6 +112,8 @@ public:
     bool mapDeviceOpen() const;
     int mapItemCapacity() const;
     int completedMapCount() const;
+    int atlasPoints() const;
+    AtlasBonuses atlasBonuses() const;
     bool currentMapCompleted() const;
     float inventoryFullPromptTimeRemaining() const;
     int selectedInventoryIndex() const;
@@ -256,6 +258,7 @@ private:
     float enemyDamageMultiplier(const Enemy& enemy) const;
     int enemyAttackDamage(const Enemy& enemy) const;
     void resetRareLeaderEffects();
+    void applyAtlasBonuses();
     int damageToEnemy(
         const Enemy& enemy,
         int rawDamage,

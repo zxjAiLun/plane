@@ -2478,6 +2478,21 @@ void testMapItemsAndAtlas() {
     atlas.record(map);
     expect(atlas.completedCount() == 1 && atlas.contains(map.id),
         "atlas deduplicates repeated completion of one map identity");
+    expect(atlas.atlasPoints() == 1
+            && std::abs(atlas.bonuses().itemQuantityMultiplier - 1.03f) < 0.0001f
+            && std::abs(atlas.bonuses().itemRarityMultiplier - 1.02f) < 0.0001f
+            && atlas.bonuses().eliteWeightBonus == 0
+            && atlas.bonuses().bossDropBonus == 0,
+        "first atlas completion grants the baseline atlas bonus");
+    MapItem second = map;
+    second.id += ":second";
+    MapItem third = map;
+    third.id += ":third";
+    expect(atlas.record(second) && atlas.record(third)
+            && atlas.atlasPoints() == 3
+            && atlas.bonuses().eliteWeightBonus == 1
+            && atlas.bonuses().bossDropBonus == 1,
+        "atlas points unlock elite and Boss reward bonuses");
     atlas.clear();
     expect(atlas.completedCount() == 0,
         "atlas reset clears completed map records");

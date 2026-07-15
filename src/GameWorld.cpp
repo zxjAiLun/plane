@@ -894,6 +894,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     mapRewardChosen_ = data.mapRewardChosen;
     mapModifier_ = MapItemLibrary::modifierFor(currentMapOption_);
     mapModifier_.itemQuantityMultiplier *= progression_.itemQuantityRewardMultiplier;
+    applyAtlasBonuses();
     bossDefinition_ = &BossLibrary::forIndex(map_.definition().bossDefinitionIndex);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
@@ -1391,6 +1392,7 @@ void GameWorld::startNextMap() {
     mapDeviceOpen_ = false;
     mapModifier_ = MapItemLibrary::modifierFor(currentMapOption_);
     mapModifier_.itemQuantityMultiplier *= progression_.itemQuantityRewardMultiplier;
+    applyAtlasBonuses();
     passiveTreeOpen_ = false;
     skillPanelOpen_ = false;
     selectedSupportLink_ = 0;
@@ -4575,7 +4577,7 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
     }
 
     if (enemy.isBoss()) {
-        atlas_.record(MapItemLibrary::fromOption(
+        const bool firstAtlasCompletion = atlas_.record(MapItemLibrary::fromOption(
             currentMapOption_, mapLevel_, map_.layoutIndex()
         ));
         map_.markBossDefeated();
@@ -4589,6 +4591,9 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         bossEnraged_ = false;
         bossFinalPhase_ = false;
         eventStatusMessage_ = "Boss defeated: " + bossDefinition_->name;
+        if (firstAtlasCompletion) {
+            eventStatusMessage_ += " | Atlas +1";
+        }
         eventStatusTimer_ = 2.0f;
         generateMapRewardOptions();
         generateNextMapOptions();
@@ -4953,6 +4958,14 @@ int GameWorld::enemyDamageForMap() const {
 
 int GameWorld::itemLevelForMap() const {
     return MapScaling::itemLevel(mapLevel_, mapModifier_);
+}
+
+void GameWorld::applyAtlasBonuses() {
+    const AtlasBonuses bonuses = atlas_.bonuses();
+    mapModifier_.itemQuantityMultiplier *= bonuses.itemQuantityMultiplier;
+    mapModifier_.itemRarityMultiplier *= bonuses.itemRarityMultiplier;
+    mapModifier_.eliteWeightBonus += bonuses.eliteWeightBonus;
+    mapModifier_.bossDropBonus += bonuses.bossDropBonus;
 }
 
 EliteModifier GameWorld::randomEliteModifier() {
@@ -5350,6 +5363,8 @@ const MapModifier& GameWorld::mapModifier() const { return mapModifier_; }
 int GameWorld::mapKills() const { return mapKills_; }
 int GameWorld::mapExperienceGained() const { return mapExperienceGained_; }
 int GameWorld::mapItemsDropped() const { return mapItemsDropped_; }
+int GameWorld::atlasPoints() const { return atlas_.atlasPoints(); }
+AtlasBonuses GameWorld::atlasBonuses() const { return atlas_.bonuses(); }
 int GameWorld::mapBossItemsDropped() const { return mapBossItemsDropped_; }
 std::optional<Item> GameWorld::bossRelicPreview() const {
     if (state_ != GameState::MapComplete
