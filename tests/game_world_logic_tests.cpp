@@ -1234,6 +1234,97 @@ void testUtilitySkillDelivery() {
     std::filesystem::remove(path);
 }
 
+void testPulseShockFlow() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_pulse_shock_flow_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(17603);
+    SaveData data;
+    std::string error;
+    const auto utilityIndex = static_cast<std::size_t>(SkillSlot::Utility);
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Pulse Shock fixture starts from a valid run save");
+
+    data.player.hp = 1000;
+    data.player.upgradeStats.maxHp = 1000;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.player.mana = Config::PlayerMaxMana;
+    data.fieldPacksCleared = Config::BossGateRequiredFieldPacks;
+    data.skillBar.skills[utilityIndex] = "Pulse";
+    data.state = SavedRunState::Playing;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Pulse Shock fixture restores a Boss-ready combat setup");
+
+    Input input;
+    expect(moveToBoss(world, input),
+        "Pulse Shock fixture reaches the Boss Arena through real movement");
+    auto findBoss = [&world]() {
+        return std::find_if(
+            world.enemies().begin(), world.enemies().end(),
+            [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+        );
+    };
+    expect(world.map().bossTriggered() && findBoss() != world.enemies().end(),
+        "Pulse Shock fixture awakens a live Boss through the normal map flow");
+    if (!world.map().bossTriggered() || findBoss() == world.enemies().end()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const auto& pulse = world.skillBar().definition(SkillSlot::Utility);
+    const auto supports = world.skillBar().supportDefinitionsFor(pulse);
+    const int expectedRawDamage = skillDamage(pulse, world.player().stats(), supports);
+    const int expectedFirstDamage = damageAfterResistance(
+        expectedRawDamage,
+        DamageType::Lightning,
+        world.bossDefinition().fireResistance,
+        world.bossDefinition().coldResistance,
+        world.bossDefinition().lightningResistance,
+        world.bossDefinition().poisonResistance
+    );
+    const std::size_t firstFeedbackStart = world.combatFeedback().size();
+    input.handleKeyPressed(sf::Keyboard::Key::Q);
+    world.update(0.05f, input);
+    input.handleKeyReleased(sf::Keyboard::Key::Q);
+
+    int firstPulseDamage = 0;
+    bool shockFeedbackObserved = false;
+    for (std::size_t index = firstFeedbackStart;
+        index < world.combatFeedback().size(); ++index) {
+        const auto& feedback = world.combatFeedback()[index];
+        if (feedback.source == pulse.name && feedback.type == CombatFeedbackType::Damage) {
+            firstPulseDamage += feedback.damage;
+        }
+        shockFeedbackObserved = shockFeedbackObserved
+            || (feedback.source == "Shock" && feedback.type == CombatFeedbackType::Status);
+    }
+    auto boss = findBoss();
+    expect(firstPulseDamage == expectedFirstDamage,
+        "Pulse first hit uses Lightning resistance through the real damage path");
+    expect(boss != world.enemies().end() && boss->isShocked() && shockFeedbackObserved,
+        "Pulse applies Shock and emits typed status feedback");
+
+    world.update(2.10f, input);
+    const std::size_t secondFeedbackStart = world.combatFeedback().size();
+    input.handleKeyPressed(sf::Keyboard::Key::Q);
+    world.update(0.05f, input);
+    input.handleKeyReleased(sf::Keyboard::Key::Q);
+
+    int secondPulseDamage = 0;
+    for (std::size_t index = secondFeedbackStart;
+        index < world.combatFeedback().size(); ++index) {
+        const auto& feedback = world.combatFeedback()[index];
+        if (feedback.source == pulse.name && feedback.type == CombatFeedbackType::Damage) {
+            secondPulseDamage += feedback.damage;
+        }
+    }
+    expect(secondPulseDamage > firstPulseDamage,
+        "Pulse benefits from its active Shock on the next hit");
+
+    std::filesystem::remove(path);
+}
+
 void testIgniteFeedbackMatchesWorldDamage() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_ignite_feedback_world_test.bin";
@@ -2644,6 +2735,7 @@ int main() {
     testSkillFailureFeedback();
     testDelayedSkillEffects();
     testUtilitySkillDelivery();
+    testPulseShockFlow();
     testIgniteFeedbackMatchesWorldDamage();
     testBuildMathMatchesWorldHits();
     testExpandedSkillWorldHits();

@@ -1493,10 +1493,17 @@ void Renderer::drawNovaEffect(const GameWorld& world) {
     const float baseRadius = world.novaEffectRadius();
     const float radius = baseRadius * (1.0f - progress * 0.25f);
     const auto alpha = static_cast<std::uint8_t>(180.0f * progress);
+    const sf::Color elementColor = damageTypeColor(
+        world.skillBar().definition(SkillSlot::Utility).damageType
+    );
 
     sf::CircleShape shape(radius);
-    shape.setFillColor(sf::Color(80, 180, 255, alpha / 4));
-    shape.setOutlineColor(sf::Color(120, 220, 255, alpha));
+    shape.setFillColor(sf::Color(
+        elementColor.r, elementColor.g, elementColor.b, alpha / 4
+    ));
+    shape.setOutlineColor(sf::Color(
+        elementColor.r, elementColor.g, elementColor.b, alpha
+    ));
     shape.setOutlineThickness(3.0f);
     shape.setOrigin({radius, radius});
     shape.setPosition(worldToScreen(world, player.position()));

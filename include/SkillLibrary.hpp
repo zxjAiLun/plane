@@ -195,7 +195,7 @@ public:
     }
 
     static SkillDefinition pulse() {
-        return {
+        SkillDefinition skill = {
             SkillSlot::Utility,
             SkillCastType::SelfCenteredArea,
             "Pulse",
@@ -205,9 +205,11 @@ public:
             Config::PulseEffectDuration,
             1,
             0.0f,
-            {},
+            {AilmentType::Shock, 2.4f, 0.0f, 1.0f, 0, 0, 1.20f},
             Config::PulseManaCost
         };
+        skill.damageType = DamageType::Lightning;
+        return skill;
     }
 
     static SkillDefinition bladestorm() {

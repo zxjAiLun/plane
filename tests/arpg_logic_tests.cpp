@@ -473,6 +473,10 @@ void testManaResourceAndSkillCastGates() {
         "Nova exposes its configured Mana cost");
     expect(std::abs(SkillLibrary::pulse().manaCost - Config::PulseManaCost) < 0.0001f,
         "Pulse exposes its configured Mana cost");
+    expect(SkillLibrary::pulse().damageType == DamageType::Lightning
+            && SkillLibrary::pulse().ailment.type == AilmentType::Shock
+            && SkillLibrary::pulse().ailment.damageTakenMultiplier > 1.0f,
+        "Pulse is a Lightning skill with a Shock payload");
     expect(std::abs(SkillLibrary::bladestorm().manaCost - Config::BladestormManaCost) < 0.0001f,
         "Bladestorm exposes its configured Mana cost");
     expect(SkillLibrary::bladestorm().delivery == SkillDeliveryType::RepeatingArea
