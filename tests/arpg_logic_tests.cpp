@@ -2360,10 +2360,41 @@ void testMapItemsAndAtlas() {
     expect(!map.id.empty()
             && map.id == MapItemLibrary::fromOption(option, 4, 2).id,
         "map item identity is deterministic");
-    expect(MapItemLibrary::displayName(map).find("T4") == 0
+    expect(MapItemLibrary::displayName(map).find("Normal T4") == 0
             && MapItemLibrary::summary(map).find(map.option.modifier.name)
                 != std::string::npos,
         "map item preview includes tier, template and modifier");
+
+    MapOption magicOption = option;
+    magicOption.rarity = MapRarity::Magic;
+    magicOption.quality = 10;
+    magicOption.explicitAffixIds = {"fecund", "guarded"};
+    const MapItem magicMap = MapItemLibrary::fromOption(magicOption, 4, 2);
+    const MapModifier effectiveModifier = MapItemLibrary::modifierFor(magicOption);
+    expect(MapItemLibrary::validOptionMetadata(magicOption)
+            && effectiveModifier.itemQuantityMultiplier
+                > magicOption.modifier.itemQuantityMultiplier
+            && effectiveModifier.bossHpMultiplier
+                > magicOption.modifier.bossHpMultiplier,
+        "map quality and explicit affixes change final map rewards and danger");
+    expect(magicMap.id != map.id
+            && MapItemLibrary::summary(magicMap).find("Fecund") != std::string::npos
+            && MapItemLibrary::summary(magicMap).find("Guarded") != std::string::npos,
+        "map identity and preview include explicit map affixes");
+
+    RandomService mapRolls(7123);
+    bool sawMagic = false;
+    bool sawRare = false;
+    bool allRolledMapsValid = true;
+    for (int index = 0; index < 100; ++index) {
+        const MapItem rolled = MapItemLibrary::rollFromOption(option, 6, index, mapRolls);
+        sawMagic = sawMagic || rolled.option.rarity == MapRarity::Magic;
+        sawRare = sawRare || rolled.option.rarity == MapRarity::Rare;
+        allRolledMapsValid = allRolledMapsValid
+            && MapItemLibrary::validOptionMetadata(rolled.option);
+    }
+    expect(allRolledMapsValid && sawMagic && sawRare,
+        "map roll pool produces magic and rare maps over a run");
 
     MapAtlas atlas;
     expect(atlas.completedCount() == 0 && !atlas.contains(map.id),

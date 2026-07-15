@@ -717,8 +717,11 @@ std::string rewardStatPreview(const MapRewardDefinition& reward, const GameWorld
 }
 
 std::string mapOptionSummary(const MapOption& option) {
-    const auto& modifier = option.modifier;
-    std::string summary = "MHP+" + std::to_string(multiplierPercent(modifier.monsterHpMultiplier))
+    const MapModifier modifier = MapItemLibrary::modifierFor(option);
+    std::string summary = std::string(mapRarityName(option.rarity))
+        + " Q" + std::to_string(option.quality)
+        + " | " + MapItemLibrary::affixSummary(option)
+        + " | MHP+" + std::to_string(multiplierPercent(modifier.monsterHpMultiplier))
         + " MD+" + std::to_string(modifier.monsterDamageBonus)
         + " E+" + std::to_string(modifier.eliteWeightBonus)
         + " BHP+" + std::to_string(multiplierPercent(modifier.bossHpMultiplier))
@@ -990,7 +993,10 @@ void Renderer::render(const GameWorld& world) {
     drawText("TIME " + std::to_string(static_cast<int>(world.survivalTime()))
         + "  SCORE " + std::to_string(world.score()),
         {16.0f, 60.0f}, 18, sf::Color::White);
-    const std::string mapLine = "MAP " + std::to_string(world.mapLevel()) + " " + world.map().definition().name
+    const std::string mapLine = "MAP " + std::to_string(world.mapLevel()) + " "
+        + mapRarityName(world.currentMapOption().rarity)
+        + " Q" + std::to_string(world.currentMapOption().quality) + " "
+        + world.map().definition().name
         + "  LAYOUT " + std::to_string(world.map().layoutIndex() + 1) + "/"
             + std::to_string(MapLayoutLibrary::VariantCount)
         + "  AREA " + mapAreaName(world.currentMapArea())
@@ -2885,14 +2891,15 @@ void Renderer::drawMapComplete(const GameWorld& world) {
         for (std::size_t i = 0; i < mapOptions.size(); ++i) {
             const bool selected = world.selectedNextMapOption() == static_cast<int>(i);
             const auto& option = mapOptions[i];
+            const MapModifier effectiveModifier = MapItemLibrary::modifierFor(option);
             const sf::Color color = selected ? sf::Color(140, 255, 160) : sf::Color(220, 240, 255);
             const std::string marker = selected ? "> " : "  ";
             drawText(truncateText(marker + std::to_string(i + 1) + ". "
-                    + option.modifier.name + " " + option.recommendedLevel, 27),
+                    + effectiveModifier.name + " " + option.recommendedLevel, 27),
                 {centerColumnX - 90.0f, optionY}, 12, color);
             drawText(truncateText("  " +
                         MapTemplateLibrary::forIndex(option.templateIndex).name
-                            + " | " + option.modifier.description, 27),
+                            + " | " + effectiveModifier.description, 27),
                 {centerColumnX - 90.0f, optionY + 16.0f}, 10, sf::Color(230, 220, 170));
             drawText(truncateText("  " + mapOptionSummary(option), 27),
                 {centerColumnX - 90.0f, optionY + 31.0f}, 10, sf::Color(200, 220, 245));
@@ -3080,6 +3087,7 @@ void Renderer::drawMapDevicePanel(const GameWorld& world) {
     const std::size_t visibleCount = std::min<std::size_t>(maps.size(), 12);
     float rowY = 126.0f;
     for (std::size_t index = 0; index < visibleCount; ++index) {
+        const MapModifier effectiveModifier = MapItemLibrary::modifierFor(maps[index].option);
         const bool selected = static_cast<int>(index) == selectedIndex;
         const sf::Color color = selected
             ? sf::Color(255, 215, 90)
@@ -3087,10 +3095,11 @@ void Renderer::drawMapDevicePanel(const GameWorld& world) {
         const std::string marker = selected ? "> " : "  ";
         drawText(truncateText(marker + std::to_string(index + 1) + ". "
                 + MapItemLibrary::displayName(maps[index])
-                + " | " + maps[index].option.modifier.name, 82),
+                + " Q" + std::to_string(maps[index].option.quality)
+                + " | " + effectiveModifier.name, 82),
             {72.0f, rowY}, 13, color);
-        drawText(truncateText("    " + maps[index].option.modifier.description
-                + " | " + maps[index].option.rewardDescription, 95),
+        drawText(truncateText("    " + effectiveModifier.description
+                + " | " + effectiveModifier.rewardDescription, 95),
             {72.0f, rowY + 16.0f}, 10, sf::Color(190, 205, 220));
         rowY += 34.0f;
     }

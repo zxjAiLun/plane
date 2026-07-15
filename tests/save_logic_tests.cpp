@@ -48,6 +48,9 @@ SaveData sampleData() {
     data.mapLayoutIndex = 1;
     data.currentMapOption = MapOptionLibrary::generateOptions(2)[1];
     data.currentMapOption.modifier.itemRarityMultiplier = 1.27f;
+    data.currentMapOption.rarity = MapRarity::Magic;
+    data.currentMapOption.quality = 8;
+    data.currentMapOption.explicitAffixIds = {"fecund", "guarded"};
     data.nextMapOptions = MapOptionLibrary::generateOptions(3);
     data.unlockedSkills.insert("Spread Shot");
     data.unlockedSkills.insert("Arc Bolt");
@@ -158,6 +161,10 @@ void testFileValidation(const std::filesystem::path& path) {
                 == data.currentMapOption.modifier.monsterElementalResistanceBonus
             && std::abs(restored.currentMapOption.modifier.itemRarityMultiplier - 1.27f)
                 < 0.0001f
+            && restored.currentMapOption.rarity == MapRarity::Magic
+            && restored.currentMapOption.quality == 8
+            && restored.currentMapOption.explicitAffixIds
+                == data.currentMapOption.explicitAffixIds
             && restored.unlockedSupports == data.unlockedSupports
             && restored.exploredCells == data.exploredCells
             && restored.player.equipment[0]->affixes[0].id

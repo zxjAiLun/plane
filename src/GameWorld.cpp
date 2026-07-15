@@ -258,6 +258,7 @@ bool validMapItemForRestore(const MapItem& item) {
         || item.layoutIndex >= MapLayoutLibrary::VariantCount
         || item.option.templateIndex < 0
         || item.option.templateIndex >= MapLayoutLibrary::TemplateCount
+        || !MapItemLibrary::validOptionMetadata(item.option)
         || !validModifierForRestore(item.option.modifier)) {
         return false;
     }
@@ -308,7 +309,7 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , selectedNextMapOption_(-1)
     , mapRewardOptions_()
     , selectedMapRewardOption_(-1)
-    , mapModifier_(currentMapOption_.modifier)
+    , mapModifier_(MapItemLibrary::modifierFor(currentMapOption_))
     , mapKills_(0)
     , mapExperienceGained_(0)
     , mapItemsDropped_(0)
@@ -681,11 +682,13 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
 
     for (const auto& option : data.nextMapOptions) {
         if (!validTemplateIndex(option.templateIndex)
+            || !MapItemLibrary::validOptionMetadata(option)
             || !validModifierForRestore(option.modifier)) {
             return false;
         }
     }
-    if (!validModifierForRestore(data.currentMapOption.modifier)) {
+    if (!MapItemLibrary::validOptionMetadata(data.currentMapOption)
+        || !validModifierForRestore(data.currentMapOption.modifier)) {
         return false;
     }
     for (const auto& reward : data.mapRewardOptions) {
@@ -840,7 +843,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     selectedMapRewardOption_ = data.selectedMapRewardOption;
     nextMapOptionChosen_ = data.nextMapOptionChosen;
     mapRewardChosen_ = data.mapRewardChosen;
-    mapModifier_ = currentMapOption_.modifier;
+    mapModifier_ = MapItemLibrary::modifierFor(currentMapOption_);
     mapModifier_.itemQuantityMultiplier *= progression_.itemQuantityRewardMultiplier;
     bossDefinition_ = &BossLibrary::forMapLevel(mapLevel_);
     player_.setBounds(map_.size());
@@ -1182,7 +1185,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     selectedNextMapOption_ = -1;
     mapRewardOptions_ = {};
     selectedMapRewardOption_ = -1;
-    mapModifier_ = currentMapOption_.modifier;
+    mapModifier_ = MapItemLibrary::modifierFor(currentMapOption_);
     passiveTreeOpen_ = false;
     skillPanelOpen_ = false;
     selectedSupportLink_ = 0;
@@ -1331,7 +1334,7 @@ void GameWorld::startNextMap() {
     selectedMapRewardOption_ = -1;
     selectedMapItemIndex_ = -1;
     mapDeviceOpen_ = false;
-    mapModifier_ = currentMapOption_.modifier;
+    mapModifier_ = MapItemLibrary::modifierFor(currentMapOption_);
     mapModifier_.itemQuantityMultiplier *= progression_.itemQuantityRewardMultiplier;
     passiveTreeOpen_ = false;
     skillPanelOpen_ = false;
@@ -4318,11 +4321,13 @@ void GameWorld::generateNextMapOptions() {
             break;
         }
 
-        const MapItem mapItem = MapItemLibrary::fromOption(
+        const MapItem mapItem = MapItemLibrary::rollFromOption(
             nextMapOptions_[index],
             mapLevel_ + 1,
-            layoutIndexForMapOption(mapLevel_ + 1, nextMapOptions_[index])
+            layoutIndexForMapOption(mapLevel_ + 1, nextMapOptions_[index]),
+            random_
         );
+        nextMapOptions_[index] = mapItem.option;
         const bool alreadyStored = std::any_of(
             mapItems_.begin(),
             mapItems_.end(),

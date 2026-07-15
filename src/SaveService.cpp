@@ -589,23 +589,62 @@ void writeMapOption(Writer& writer, const MapOption& option) {
     writer.string(option.rewardDescription);
     writer.string(option.recommendedLevel);
     writer.integer(option.templateIndex);
+    writer.integer(static_cast<int>(option.rarity));
+    writer.integer(option.quality);
+    writer.integer<std::uint32_t>(
+        static_cast<std::uint32_t>(option.explicitAffixIds.size())
+    );
+    for (const auto& affixId : option.explicitAffixIds) {
+        writer.string(affixId);
+    }
 }
 
 bool readMapOption(
     Reader& reader,
     MapOption& option,
     bool hasElementalChallengeFields,
-    bool hasItemRarityFields
+    bool hasItemRarityFields,
+    bool hasMapItemMetadata
 ) {
-    return readModifier(
+    if (!readModifier(
             reader,
             option.modifier,
             hasElementalChallengeFields,
             hasItemRarityFields
         )
-        && reader.string(option.rewardDescription)
-        && reader.string(option.recommendedLevel)
-        && reader.integer(option.templateIndex);
+        || !reader.string(option.rewardDescription)
+        || !reader.string(option.recommendedLevel)
+        || !reader.integer(option.templateIndex)) {
+        return false;
+    }
+
+    option.rarity = MapRarity::Normal;
+    option.quality = 0;
+    option.explicitAffixIds.clear();
+    if (!hasMapItemMetadata) {
+        return true;
+    }
+
+    int rarity = 0;
+    std::uint32_t count = 0;
+    if (!reader.integer(rarity)
+        || !validEnumValue(rarity, 0, static_cast<int>(MapRarity::Rare))
+        || !reader.integer(option.quality)
+        || option.quality < 0 || option.quality > 20
+        || !reader.integer(count)
+        || count > 4) {
+        return false;
+    }
+    option.rarity = static_cast<MapRarity>(rarity);
+    option.explicitAffixIds.reserve(count);
+    for (std::uint32_t index = 0; index < count; ++index) {
+        std::string affixId;
+        if (!reader.string(affixId)) {
+            return false;
+        }
+        option.explicitAffixIds.push_back(std::move(affixId));
+    }
+    return true;
 }
 
 void writeMapItem(Writer& writer, const MapItem& item) {
@@ -619,7 +658,8 @@ bool readMapItem(
     Reader& reader,
     MapItem& item,
     bool hasElementalChallengeFields,
-    bool hasItemRarityFields
+    bool hasItemRarityFields,
+    bool hasMapItemMetadata
 ) {
     return reader.string(item.id)
         && reader.integer(item.mapLevel)
@@ -628,7 +668,8 @@ bool readMapItem(
             reader,
             item.option,
             hasElementalChallengeFields,
-            hasItemRarityFields
+            hasItemRarityFields,
+            hasMapItemMetadata
         );
 }
 
@@ -790,7 +831,8 @@ bool readSaveData(
     bool hasFieldPackProgress,
     bool hasRareLeaderProgress,
     bool hasDropRarityStats,
-    bool hasMapItemProgress
+    bool hasMapItemProgress,
+    bool hasMapItemMetadata
 ) {
     int state = 0;
     if (!reader.integer(state)
@@ -805,7 +847,8 @@ bool readSaveData(
             reader,
             data.currentMapOption,
             hasElementalChallengeFields,
-            hasItemRarityFields
+            hasItemRarityFields,
+            hasMapItemMetadata
         )) {
         return false;
     }
@@ -815,7 +858,8 @@ bool readSaveData(
                 reader,
                 option,
                 hasElementalChallengeFields,
-                hasItemRarityFields
+                hasItemRarityFields,
+                hasMapItemMetadata
             )) {
             return false;
         }
@@ -910,7 +954,8 @@ bool readSaveData(
                     reader,
                     item,
                     hasElementalChallengeFields,
-                    hasItemRarityFields
+                    hasItemRarityFields,
+                    hasMapItemMetadata
                 )) {
                 return false;
             }
@@ -1054,7 +1099,7 @@ bool SaveService::load(const std::filesystem::path& path,
         || (version != 3U && version != 4U && version != 5U
             && version != 6U && version != 7U && version != 8U
             && version != 9U && version != 10U && version != 11U
-            && version != 12U
+            && version != 12U && version != 13U
             && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");
@@ -1080,7 +1125,8 @@ bool SaveService::load(const std::filesystem::path& path,
             version >= 8U,
             version >= 9U,
             version >= 12U,
-            version >= 13U
+            version >= 13U,
+            version >= 14U
         )) {
         setError(error, "invalid save payload");
         return false;

@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <string>
+#include <vector>
 
 #include "DamageType.hpp"
 #include "LootBias.hpp"
@@ -45,6 +46,21 @@ struct MapElementalChallengeDefinition {
     int playerResistancePenalty = 0;
     int monsterResistanceBonus = 0;
 };
+
+enum class MapRarity {
+    Normal,
+    Magic,
+    Rare
+};
+
+inline const char* mapRarityName(MapRarity rarity) {
+    switch (rarity) {
+        case MapRarity::Normal: return "Normal";
+        case MapRarity::Magic: return "Magic";
+        case MapRarity::Rare: return "Rare";
+    }
+    return "Unknown";
+}
 
 struct MapModifier {
     std::string name = "Quiet Coast";
@@ -101,6 +117,9 @@ struct MapOption {
     std::string rewardDescription = "Baseline map rewards";
     std::string recommendedLevel = "Recommended level 1";
     int templateIndex = 0;
+    MapRarity rarity = MapRarity::Normal;
+    int quality = 0;
+    std::vector<std::string> explicitAffixIds;
 };
 
 class MapModifierLibrary {
@@ -272,6 +291,116 @@ public:
             }
         }
         return nullptr;
+    }
+
+    static const std::array<MapModifierDefinition, 8>& mapItemAffixes() {
+        static const std::array<MapModifierDefinition, 8> definitions = {{
+            {
+                "brutal",
+                "Brutal",
+                "Monsters deal more damage",
+                "Item rarity increased",
+                {
+                    1.0f, 2, 1.0f, 1.0f, 0, 0, 0, 1.0f, 1.0f, 0,
+                    1.0f, 0, AffixTag::None, 1.0f,
+                    AffixTag::None, 1.0f, 1.20f
+                }
+            },
+            {
+                "fecund",
+                "Fecund",
+                "Monsters have more life",
+                "Item quantity increased",
+                {
+                    1.20f, 0, 1.0f, 1.20f, 0, 0, 0, 1.0f, 1.0f, 0,
+                    1.0f, 0, AffixTag::None, 1.0f,
+                    AffixTag::None, 1.0f, 1.0f
+                }
+            },
+            {
+                "hasty",
+                "Hasty",
+                "Monsters move faster",
+                "Event rewards increased",
+                {
+                    1.0f, 0, 1.25f, 1.0f, 0, 0, 0, 1.0f, 1.0f, 0,
+                    1.25f, 0, AffixTag::None, 1.0f,
+                    AffixTag::MoveSpeed, 1.20f, 1.0f
+                }
+            },
+            {
+                "guarded",
+                "Guarded",
+                "Bosses have more life",
+                "Boss drops are more reliable",
+                {
+                    1.0f, 0, 1.0f, 1.0f, 1, 0, 0, 1.25f, 1.0f, 0,
+                    1.0f, 0, AffixTag::Survival, 1.15f,
+                    AffixTag::None, 1.0f, 1.0f
+                }
+            },
+            {
+                "overcharged",
+                "Overcharged",
+                "Elite monsters are more common",
+                "Rare items are more common",
+                {
+                    1.0f, 0, 1.0f, 1.0f, 0, 8, 0, 1.0f, 1.0f, 0,
+                    1.0f, 0, AffixTag::Area, 1.15f,
+                    AffixTag::None, 1.0f, 1.20f
+                }
+            },
+            {
+                "hexed",
+                "Hexed",
+                "Monsters resist ailments",
+                "Event rewards increased",
+                {
+                    1.0f, 0, 1.0f, 1.0f, 0, 0, 0, 1.0f, 1.0f, 0,
+                    1.30f, 15, AffixTag::None, 1.0f,
+                    AffixTag::None, 1.0f, 1.0f
+                }
+            },
+            {
+                "bountiful",
+                "Bountiful",
+                "Monsters have more life",
+                "Item quantity greatly increased",
+                {
+                    1.10f, 0, 1.0f, 1.30f, 0, 0, 0, 1.0f, 1.0f, 0,
+                    1.0f, 0, AffixTag::Pickup, 1.25f,
+                    AffixTag::None, 1.0f, 1.05f
+                }
+            },
+            {
+                "relentless",
+                "Relentless",
+                "Monsters have more life and speed",
+                "Item level increased",
+                {
+                    1.15f, 1, 1.15f, 1.0f, 0, 0, 0, 1.0f, 1.0f, 1,
+                    1.0f, 0, AffixTag::Damage, 1.15f,
+                    AffixTag::None, 1.0f, 1.0f
+                }
+            }
+        }};
+        return definitions;
+    }
+
+    static const MapModifierDefinition* findMapItemAffix(const std::string& id) {
+        for (const auto& definition : mapItemAffixes()) {
+            if (definition.id == id) {
+                return &definition;
+            }
+        }
+        return nullptr;
+    }
+
+    static void applyMapItemAffix(MapModifier& target, const std::string& id) {
+        const auto* definition = findMapItemAffix(id);
+        if (definition != nullptr) {
+            addDefinition(target, *definition);
+        }
     }
 
 private:
