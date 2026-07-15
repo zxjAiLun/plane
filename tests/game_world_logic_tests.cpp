@@ -2177,6 +2177,7 @@ void testElementalEnemyProjectileFlow() {
 
     data.mapTemplateIndex = 1;
     data.mapLayoutIndex = 1;
+    data.mapLevel = 2;
     data.currentMapOption = MapOptionLibrary::generateOptions(1)[1];
     data.player.hp = 10000;
     data.player.upgradeStats.maxHp = 10000;
@@ -2251,6 +2252,20 @@ void testElementalEnemyProjectileFlow() {
         "ranged enemy projectile reaches the player collision path");
     expect(shockObserved,
         "Lightning projectile applies Shock to the player after resistance");
+
+    bool stormHazardObserved = false;
+    for (int frame = 0; frame < 260 && world.state() == GameState::Playing; ++frame) {
+        world.update(0.05f, input);
+        stormHazardObserved = stormHazardObserved || std::any_of(
+            world.groundHazards().begin(),
+            world.groundHazards().end(),
+            [](const GroundHazard& hazard) {
+                return hazard.definition().source == "Arc Flash";
+            }
+        );
+    }
+    expect(stormHazardObserved,
+        "Stormscar field spawns its data-driven Arc Flash hazard from map tier two");
 
     const int flaskChargesBefore = world.lifeFlaskCharges();
     input.handleKeyPressed(sf::Keyboard::Key::G);

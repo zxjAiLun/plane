@@ -1007,6 +1007,10 @@ void Renderer::render(const GameWorld& world) {
         + "  |  Threat: "
         + truncateText(world.map().definition().encounter.threatDescription, 28),
         {16.0f, 130.0f}, 14, sf::Color(255, 220, 150));
+    drawText("THEME " + truncateText(world.map().definition().theme, 24)
+        + "  |  FIELD "
+        + truncateText(world.map().definition().ambientEffect.name, 24),
+        {16.0f, 148.0f}, 14, sf::Color(170, 220, 255));
     const std::string bossLine = world.map().bossDefeated()
         ? "Boss defeated: " + world.bossDefinition().name
         : world.map().bossTriggered()

@@ -2614,8 +2614,12 @@ void testMapLayoutVariants() {
             && MapTemplateLibrary::forIndex(0).ambientEffect.hazard.damageType == DamageType::Fire
             && MapTemplateLibrary::forIndex(1).ambientEffect.hazard.damageType == DamageType::Lightning
             && MapTemplateLibrary::forIndex(2).ambientEffect.hazard.damageType == DamageType::Poison
-            && MapTemplateLibrary::forIndex(3).ambientEffect.hazard.damageType == DamageType::Cold,
-        "map themes define valid Fire, Lightning, Poison and Cold field hazards");
+            && MapTemplateLibrary::forIndex(3).ambientEffect.hazard.damageType == DamageType::Cold
+            && MapTemplateLibrary::forIndex(0).ambientEffect.minimumMapLevel == 2
+            && MapTemplateLibrary::forIndex(1).ambientEffect.minimumMapLevel == 2
+            && MapTemplateLibrary::forIndex(2).ambientEffect.minimumMapLevel == 2
+            && MapTemplateLibrary::forIndex(3).ambientEffect.minimumMapLevel == 2,
+        "map themes define valid elemental field hazards from map level two");
 
     MapInstance map(1, 0, 1);
     expect(!map.intersectsObstacle(map.playerStart(), Config::PlayerRadius),

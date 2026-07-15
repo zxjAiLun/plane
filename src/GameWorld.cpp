@@ -1520,7 +1520,7 @@ void GameWorld::updatePendingSkillEffects(float dt) {
 
 void GameWorld::updateAmbientThreat(float dt) {
     const auto& effect = map_.definition().ambientEffect;
-    if (dt <= 0.0f || mapLevel_ < 4 || !effect.isValid()
+    if (dt <= 0.0f || mapLevel_ < effect.minimumMapLevel || !effect.isValid()
         || map_.bossTriggered() || map_.bossDefeated()
         || map_.areaForPlayer(player_.position()) != MapArea::Field) {
         ambientHazardWarningTimer_ = 0.0f;

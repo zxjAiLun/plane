@@ -267,11 +267,13 @@ struct MapAmbientEffectDefinition {
     float interval = 0.0f;
     float telegraphDuration = 0.0f;
     GroundHazardDefinition hazard;
+    int minimumMapLevel = 2;
 
     bool isValid() const {
         return !name.empty()
             && interval > 0.0f
             && telegraphDuration > 0.0f
+            && minimumMapLevel > 0
             && hazard.isValid();
     }
 };
@@ -323,7 +325,8 @@ private:
                     0.65f,
                     {"Cinderfall", 95.0f, 4.0f, 0.75f, 2,
                         DamageType::Fire,
-                        {AilmentType::Ignite, 2.5f, 0.20f}}
+                        {AilmentType::Ignite, 2.5f, 0.20f}},
+                    2
                 },
                 0
             },
@@ -339,7 +342,8 @@ private:
                     0.80f,
                     {"Arc Flash", 100.0f, 3.5f, 0.70f, 2,
                         DamageType::Lightning,
-                        {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.15f}}
+                        {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.15f}},
+                    2
                 },
                 1
             },
@@ -355,7 +359,8 @@ private:
                     0.70f,
                     {"Toxic Bloom", 110.0f, 5.0f, 0.75f, 2,
                         DamageType::Poison,
-                        {AilmentType::Poison, 3.0f}}
+                        {AilmentType::Poison, 3.0f}},
+                    2
                 },
                 2
             },
@@ -371,7 +376,8 @@ private:
                     0.70f,
                     {"Rimefall", 105.0f, 4.5f, 0.75f, 2,
                         DamageType::Cold,
-                        {AilmentType::Chill, 2.5f, 0.0f, 0.60f}}
+                        {AilmentType::Chill, 2.5f, 0.0f, 0.60f}},
+                    2
                 },
                 3
             },
