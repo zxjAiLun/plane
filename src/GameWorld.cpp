@@ -4934,6 +4934,17 @@ EnemyType GameWorld::nextMapEnemyType() {
             pack.enemies.begin() + packSize
         );
 
+        if (mapLevel_ >= 2) {
+            const auto& encounter = map_.definition().encounter;
+            for (std::size_t index = 0; index < pendingFieldPack_.size(); ++index) {
+                if (pendingFieldPack_[index] != EnemyType::Normal
+                    || static_cast<int>(index) == pack.leaderIndex) {
+                    continue;
+                }
+                pendingFieldPack_[index] = encounter.rollEnemyType(random_);
+            }
+        }
+
         const auto replaceNormalWith = [this](EnemyType replacement, int bonus) {
             const int replacementCount = std::min(
                 2, (std::max(0, bonus) + 5) / 6

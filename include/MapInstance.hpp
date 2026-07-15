@@ -15,6 +15,7 @@
 #include "LootBias.hpp"
 #include "MapExploration.hpp"
 #include "MapLayout.hpp"
+#include "RandomService.hpp"
 #include "Vector2.hpp"
 
 enum class MapArea {
@@ -259,6 +260,37 @@ struct MapEncounterProfile {
     int chargerWeight = 0;
     int wardenWeight = 0;
     int summonerWeight = 0;
+
+    EnemyType rollEnemyType(RandomService& random) const {
+        const int normal = std::max(0, normalWeight);
+        const int ranged = std::max(0, rangedWeight);
+        const int elite = std::max(0, eliteWeight);
+        const int charger = std::max(0, chargerWeight);
+        const int warden = std::max(0, wardenWeight);
+        const int summoner = std::max(0, summonerWeight);
+        const int total = normal + ranged + elite + charger + warden + summoner;
+        if (total <= 0) {
+            return EnemyType::Normal;
+        }
+
+        int roll = random.nextInt(1, total);
+        if ((roll -= normal) <= 0) {
+            return EnemyType::Normal;
+        }
+        if ((roll -= ranged) <= 0) {
+            return EnemyType::Ranged;
+        }
+        if ((roll -= elite) <= 0) {
+            return EnemyType::Elite;
+        }
+        if ((roll -= charger) <= 0) {
+            return EnemyType::Charger;
+        }
+        if ((roll -= warden) <= 0) {
+            return EnemyType::Warden;
+        }
+        return EnemyType::Summoner;
+    }
 };
 
 enum class MapHazardPattern {

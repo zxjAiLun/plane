@@ -2021,6 +2021,33 @@ void testChargerStateMachine() {
     }
 }
 
+void testMapEncounterProfileRolls() {
+    section("Map encounter profile composition");
+
+    const auto& profile = MapTemplateLibrary::forIndex(1).encounter;
+    RandomService random(60101);
+    constexpr std::size_t enemyTypeCount =
+        static_cast<std::size_t>(EnemyType::Summoner) + 1;
+    std::array<bool, enemyTypeCount> observed{};
+    for (int index = 0; index < 1000; ++index) {
+        const EnemyType type = profile.rollEnemyType(random);
+        observed[static_cast<std::size_t>(type)] = true;
+    }
+
+    expect(observed[static_cast<std::size_t>(EnemyType::Normal)],
+        "encounter profile can roll Normal enemies");
+    expect(observed[static_cast<std::size_t>(EnemyType::Ranged)],
+        "Storm profile rolls its ranged signature enemies");
+    expect(observed[static_cast<std::size_t>(EnemyType::Elite)],
+        "encounter profile can roll Elite enemies");
+    expect(observed[static_cast<std::size_t>(EnemyType::Charger)],
+        "encounter profile can roll Charger enemies");
+    expect(observed[static_cast<std::size_t>(EnemyType::Warden)],
+        "encounter profile can roll Warden enemies");
+    expect(observed[static_cast<std::size_t>(EnemyType::Summoner)],
+        "encounter profile can roll Summoner enemies");
+}
+
 // --- Flask reward definitions ---
 void testFlaskChargeRewards() {
     section("Enemy flask charge rewards");
@@ -3125,6 +3152,7 @@ int main() {
     testCraftingChoiceOperations();
     testEliteModifierDefinitions();
     testChargerStateMachine();
+    testMapEncounterProfileRolls();
     testFlaskChargeRewards();
     testBossSummonDefinitions();
     testGroundHazardLifecycle();
