@@ -1879,6 +1879,21 @@ void testBossRelicEffectsInWorld() {
             && frostAilment.duration > 2.0f,
         "Frost relic strengthens the effective Cold skill Chill");
 
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Weapon)] =
+        makeBaseItem("weapon.rustbound-blade");
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Amulet)] =
+        makeBaseItem("boss.ashen-crucible");
+    data.skillBar.skills[static_cast<std::size_t>(SkillSlot::Secondary)] = "Flare";
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Boss relic effect fixture equips the alternate Brimstone relic");
+    const auto alternateFireAilment = world.effectiveSkillAilment(
+        world.skillBar().definition(SkillSlot::Secondary)
+    );
+    expect(world.bossRelicEffectSummary().find("Ashen Bloom") != std::string::npos
+            && alternateFireAilment.damageMultiplier > fireAilment.damageMultiplier
+            && alternateFireAilment.duration < 3.0f,
+        "alternate Brimstone relic changes the real Fire ailment effect");
+
     std::filesystem::remove(path);
 }
 

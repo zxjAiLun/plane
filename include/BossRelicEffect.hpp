@@ -89,4 +89,70 @@ public:
         }
         return none;
     }
+
+    static const BossRelicEffectDefinition& forBase(const ItemBaseDefinition& base) {
+        if (base.kind != ItemBaseKind::BossRelic) {
+            return forTheme(ItemBaseTheme::None);
+        }
+
+        if (base.variant == 1) {
+            static const BossRelicEffectDefinition ashenBloom{
+                ItemBaseTheme::Brimstone,
+                BossRelicEffectType::MoltenCore,
+                "Ashen Bloom",
+                "Fire skills deal 45% more Ignite damage and last 15% longer",
+                1.45f,
+                1.15f
+            };
+            static const BossRelicEffectDefinition tempestChain{
+                ItemBaseTheme::Storm,
+                BossRelicEffectType::StormChain,
+                "Tempest Chain",
+                "Lightning hits arc to 3 nearby enemies for 80% damage",
+                1.0f,
+                1.0f,
+                3,
+                190.0f,
+                0.80f
+            };
+            static const BossRelicEffectDefinition broodscaleBloom{
+                ItemBaseTheme::Brood,
+                BossRelicEffectType::BroodBloom,
+                "Broodscale Bloom",
+                "Poisoned enemies spread 70% Poison across a wider radius on death",
+                1.0f,
+                1.0f,
+                0,
+                0.0f,
+                1.0f,
+                190.0f,
+                0.70f
+            };
+            static const BossRelicEffectDefinition winterGrasp{
+                ItemBaseTheme::Frost,
+                BossRelicEffectType::Frostbite,
+                "Winter's Grasp",
+                "Cold skills chill 30% harder and last 50% longer",
+                1.0f,
+                1.0f,
+                0,
+                0.0f,
+                1.0f,
+                0.0f,
+                0.0f,
+                0.70f,
+                1.50f
+            };
+
+            switch (base.theme) {
+                case ItemBaseTheme::Brimstone: return ashenBloom;
+                case ItemBaseTheme::Storm: return tempestChain;
+                case ItemBaseTheme::Brood: return broodscaleBloom;
+                case ItemBaseTheme::Frost: return winterGrasp;
+                case ItemBaseTheme::None: break;
+            }
+        }
+
+        return forTheme(base.theme);
+    }
 };

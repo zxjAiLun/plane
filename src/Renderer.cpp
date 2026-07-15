@@ -156,7 +156,7 @@ std::string bossRelicEffectSummary(const Item& item) {
         return {};
     }
 
-    const auto& effect = BossRelicEffectLibrary::forTheme(base->theme);
+    const auto& effect = BossRelicEffectLibrary::forBase(*base);
     if (effect.type == BossRelicEffectType::None) {
         return {};
     }
@@ -2818,8 +2818,13 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     drawText("Rare " + std::to_string(world.mapRareLeadersDefeated())
         + "  Leader drops " + std::to_string(world.mapRareLeaderItemsDropped()),
         {centerColumnX - 90.0f, 116.0f}, 10, sf::Color(255, 220, 160));
-    const auto& relicEffect = BossRelicEffectLibrary::forTheme(
-        bossRelicTheme(world.bossDefinition().lootTheme));
+    const auto relicPreview = world.bossRelicPreview();
+    const auto* relicBase = relicPreview
+        ? ItemBaseLibrary::find(relicPreview->baseId) : nullptr;
+    const auto& relicEffect = relicBase != nullptr
+        ? BossRelicEffectLibrary::forBase(*relicBase)
+        : BossRelicEffectLibrary::forTheme(
+            bossRelicTheme(world.bossDefinition().lootTheme));
     drawText(truncateText("Effect: " + relicEffect.name, 27),
         {centerColumnX - 90.0f, 132.0f}, 10, sf::Color(255, 180, 80));
     drawText(truncateText("Relic: " + world.bossDefinition().lootRewardDescription, 27),

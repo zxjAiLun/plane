@@ -319,6 +319,7 @@ private:
     float spreadAngleForPlayerSkill(const SkillDefinition& skill) const;
     AilmentDefinition ailmentForPlayerSkill(const SkillDefinition& skill) const;
     bool hasBossRelicTheme(ItemBaseTheme theme) const;
+    const BossRelicEffectDefinition& bossRelicEffectForTheme(ItemBaseTheme theme) const;
     void triggerStormChain(
         const Enemy& source,
         int sourceDamage,

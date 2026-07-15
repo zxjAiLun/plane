@@ -3326,14 +3326,14 @@ AilmentDefinition GameWorld::ailmentForPlayerSkill(const SkillDefinition& skill)
     if (skill.damageType == DamageType::Fire
         && ailment.type == AilmentType::Ignite
         && hasBossRelicTheme(ItemBaseTheme::Brimstone)) {
-        const auto& effect = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Brimstone);
+        const auto& effect = bossRelicEffectForTheme(ItemBaseTheme::Brimstone);
         ailment.damageMultiplier *= effect.igniteDamageMultiplier;
         ailment.duration *= effect.igniteDurationMultiplier;
     }
     if (skill.damageType == DamageType::Poison
         && ailment.type == AilmentType::Poison
         && hasBossRelicTheme(ItemBaseTheme::Brood)) {
-        const auto& effect = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Brood);
+        const auto& effect = bossRelicEffectForTheme(ItemBaseTheme::Brood);
         ailment.poisonSpreadRadius = std::max(
             ailment.poisonSpreadRadius, effect.poisonSpreadRadius
         );
@@ -3344,7 +3344,7 @@ AilmentDefinition GameWorld::ailmentForPlayerSkill(const SkillDefinition& skill)
     if (skill.damageType == DamageType::Cold
         && ailment.type == AilmentType::Chill
         && hasBossRelicTheme(ItemBaseTheme::Frost)) {
-        const auto& effect = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Frost);
+        const auto& effect = bossRelicEffectForTheme(ItemBaseTheme::Frost);
         ailment.speedMultiplier = std::clamp(
             ailment.speedMultiplier * effect.chillSpeedMultiplier,
             0.10f,
@@ -3373,6 +3373,32 @@ bool GameWorld::hasBossRelicTheme(ItemBaseTheme theme) const {
     return false;
 }
 
+const BossRelicEffectDefinition& GameWorld::bossRelicEffectForTheme(
+    ItemBaseTheme theme
+) const {
+    const BossRelicEffectDefinition* defaultEffect = nullptr;
+    for (const auto& item : player_.equipment().items()) {
+        if (!item) {
+            continue;
+        }
+
+        const auto* base = ItemBaseLibrary::find(item->baseId);
+        if (base != nullptr && base->kind == ItemBaseKind::BossRelic
+            && base->theme == theme) {
+            const auto& effect = BossRelicEffectLibrary::forBase(*base);
+            if (base->variant > 0) {
+                return effect;
+            }
+            defaultEffect = &effect;
+        }
+    }
+
+    if (defaultEffect != nullptr) {
+        return *defaultEffect;
+    }
+    return BossRelicEffectLibrary::forTheme(theme);
+}
+
 void GameWorld::triggerStormChain(
     const Enemy& source,
     int sourceDamage,
@@ -3382,7 +3408,7 @@ void GameWorld::triggerStormChain(
         return;
     }
 
-    const auto& effect = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Storm);
+    const auto& effect = bossRelicEffectForTheme(ItemBaseTheme::Storm);
     if (effect.lightningChainCount <= 0 || effect.lightningChainRadius <= 0.0f) {
         return;
     }
@@ -4875,7 +4901,7 @@ std::string GameWorld::bossRelicEffectSummary() const {
         if (!summary.empty()) {
             summary += " | ";
         }
-        summary += BossRelicEffectLibrary::forTheme(theme).name;
+        summary += bossRelicEffectForTheme(theme).name;
     }
     return summary.empty() ? "None" : summary;
 }

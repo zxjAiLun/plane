@@ -1638,6 +1638,38 @@ void testBossRelicEffects() {
             && frost.chillSpeedMultiplier < 1.0f
             && frost.chillDurationMultiplier > 1.0f,
         "Frost relic defines a stronger and longer Chill effect");
+
+    const auto* ashenBase = ItemBaseLibrary::find("boss.ashen-crucible");
+    const auto* tempestBase = ItemBaseLibrary::find("boss.tempest-bow");
+    const auto* broodscaleBase = ItemBaseLibrary::find("boss.broodscale-band");
+    const auto* winterheartBase = ItemBaseLibrary::find("boss.winterheart-pendant");
+    const auto& ashen = ashenBase == nullptr
+        ? none : BossRelicEffectLibrary::forBase(*ashenBase);
+    const auto& tempest = tempestBase == nullptr
+        ? none : BossRelicEffectLibrary::forBase(*tempestBase);
+    const auto& broodscale = broodscaleBase == nullptr
+        ? none : BossRelicEffectLibrary::forBase(*broodscaleBase);
+    const auto& winterheart = winterheartBase == nullptr
+        ? none : BossRelicEffectLibrary::forBase(*winterheartBase);
+    expect(ashenBase != nullptr
+            && ashen.name == "Ashen Bloom"
+            && ashen.igniteDamageMultiplier > molten.igniteDamageMultiplier,
+        "Ashen Crucible selects its stronger Ignite effect");
+    expect(tempestBase != nullptr
+            && tempest.name == "Tempest Chain"
+            && tempest.lightningChainCount > storm.lightningChainCount
+            && tempest.lightningChainDamageMultiplier > storm.lightningChainDamageMultiplier,
+        "Tempest Bow selects its wider Lightning chain effect");
+    expect(broodscaleBase != nullptr
+            && broodscale.name == "Broodscale Bloom"
+            && broodscale.poisonSpreadRadius > brood.poisonSpreadRadius
+            && broodscale.poisonSpreadMultiplier > brood.poisonSpreadMultiplier,
+        "Broodscale Band selects its wider Poison spread effect");
+    expect(winterheartBase != nullptr
+            && winterheart.name == "Winter's Grasp"
+            && winterheart.chillSpeedMultiplier < frost.chillSpeedMultiplier
+            && winterheart.chillDurationMultiplier > frost.chillDurationMultiplier,
+        "Winterheart Pendant selects its stronger Chill effect");
     expect(none.type == BossRelicEffectType::None && none.name.empty(),
         "non-relic themes have no Boss relic effect");
 }
