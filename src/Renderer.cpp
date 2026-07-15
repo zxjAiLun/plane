@@ -529,6 +529,44 @@ std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& sta
     return summary;
 }
 
+std::string craftingPreview(
+    const Item& item,
+    std::size_t affixIndex,
+    CraftingOperation operation
+) {
+    if (operation == CraftingOperation::None) {
+        return {};
+    }
+    if (!craftingOperationAllowed(operation, item)) {
+        return " [Locked for " + std::string(rarityName(item.rarity)) + "]";
+    }
+    if (affixIndex >= item.affixes.size() || item.affixes[affixIndex].id.empty()) {
+        return " [Fixed]";
+    }
+    if (operation == CraftingOperation::RerollAffix) {
+        return "  => Random legal "
+            + std::string(item.affixes[affixIndex].isPrefix ? "prefix" : "suffix");
+    }
+
+    Item candidate = item;
+    const CraftingResult result = operation == CraftingOperation::ImproveAffix
+        ? LootGenerator::improveAffix(candidate, affixIndex)
+        : LootGenerator::raiseAffixTier(candidate, affixIndex);
+    if (result == CraftingResult::Success) {
+        return "  => " + statsDeltaSummary(statsDelta(
+            candidate.affixes[affixIndex].stats,
+            item.affixes[affixIndex].stats
+        ));
+    }
+    if (result == CraftingResult::AlreadyMaxTier) {
+        return " [Already max tier]";
+    }
+    if (result == CraftingResult::NoImprovement) {
+        return " [Already max value]";
+    }
+    return " [Unavailable]";
+}
+
 std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& stats, const SupportDefinition* support = nullptr) {
     return skillEffectiveSummary(skill, stats, SupportList{support, nullptr});
 }
@@ -1211,7 +1249,9 @@ void Renderer::drawCraftingPanel(const GameWorld& world) {
     drawText("Crafting: " + item.name, {x, y}, 18, rarityColor(item.rarity));
     y += 24.0f;
     drawText("Forge Fragments " + std::to_string(world.forgeFragments())
-        + "  Cost " + std::to_string(Config::ForgeUpgradeCost) + " per craft",
+        + "  Costs I" + std::to_string(Config::ForgeImproveCost)
+        + " R" + std::to_string(Config::ForgeRerollCost)
+        + " T" + std::to_string(Config::ForgeRaiseTierCost),
         {x, y}, 13, sf::Color(210, 220, 235));
     y += 22.0f;
     drawText("1 Improve affix   2 Reroll affix   3 Raise affix tier",
@@ -1222,6 +1262,7 @@ void Renderer::drawCraftingPanel(const GameWorld& world) {
     y += 24.0f;
 
     const int selectedAffix = world.craftingAffixIndex();
+    const CraftingOperation operation = world.craftingOperation();
     for (std::size_t index = 0; index < item.affixes.size(); ++index) {
         const auto& affix = item.affixes[index];
         const bool highlighted = static_cast<int>(index) == selectedAffix;
@@ -1230,21 +1271,30 @@ void Renderer::drawCraftingPanel(const GameWorld& world) {
             + "  T" + std::to_string(affix.tier) + "  " + statsSummary(affix.stats);
         if (!craftable) {
             line += "  [Fixed]";
+        } else {
+            line += craftingPreview(item, index, operation);
         }
-        drawText(line, {x, y}, 13,
+        drawText(truncateText(line, 82), {x, y}, 13,
             highlighted ? sf::Color(255, 215, 90)
                 : (craftable ? sf::Color(220, 230, 245) : sf::Color(145, 150, 160)));
         y += 20.0f;
     }
 
     y += 4.0f;
-    drawText("Operation: " + std::string(craftingOperationName(world.craftingOperation())),
-        {x, y}, 14, sf::Color(180, 240, 200));
+    const std::string operationText = "Operation: "
+        + std::string(craftingOperationName(operation))
+        + (operation == CraftingOperation::None
+            ? ""
+            : " (" + std::to_string(world.craftingCost()) + " Fragments)");
+    drawText(operationText, {x, y}, 14,
+        world.forgeFragments() >= world.craftingCost()
+            ? sf::Color(180, 240, 200)
+            : sf::Color(255, 120, 120));
     y += 20.0f;
     if (!world.eventStatusMessage().empty() && world.eventStatusTimeRemaining() > 0.0f) {
         drawText(world.eventStatusMessage(), {x, y}, 13, sf::Color(255, 220, 120));
     } else {
-        drawText("Base and Implicit stay unchanged; only the selected affix changes.",
+        drawText("Preview is deterministic except Reroll, which keeps prefix/suffix type.",
             {x, y}, 12, sf::Color(155, 170, 190));
     }
 }
@@ -2150,8 +2200,7 @@ void Renderer::drawInventory(const GameWorld& world) {
         } else if (selectedIndex >= 0 && static_cast<std::size_t>(selectedIndex) < items.size()) {
             const int key = selectedIndex + 1;
             drawItemDetailPanel(world, inventoryDetailPos, items[selectedIndex], equipment.itemInSlot(items[selectedIndex].slot),
-                "Selected", std::to_string(key) + " Equip  |  Del Drop  |  C Salvage  |  V Craft "
-                    + std::to_string(Config::ForgeUpgradeCost));
+                "Selected", std::to_string(key) + " Equip  |  Del Drop  |  C Salvage  |  V Craft");
         }
     }
 }

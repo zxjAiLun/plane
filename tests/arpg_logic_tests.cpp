@@ -1777,6 +1777,22 @@ void testCraftingChoiceOperations() {
         return;
     }
 
+    expect(craftingCostFor(CraftingOperation::ImproveAffix) == Config::ForgeImproveCost
+            && craftingCostFor(CraftingOperation::RerollAffix) == Config::ForgeRerollCost
+            && craftingCostFor(CraftingOperation::RaiseAffixTier) == Config::ForgeRaiseTierCost,
+        "crafting operations use distinct configured fragment costs");
+    Item normalItem = item;
+    normalItem.rarity = Rarity::Normal;
+    Item magicItem = item;
+    magicItem.rarity = Rarity::Magic;
+    Item uniqueItem = item;
+    uniqueItem.rarity = Rarity::Unique;
+    expect(craftingOperationAllowed(CraftingOperation::ImproveAffix, normalItem)
+            && !craftingOperationAllowed(CraftingOperation::RerollAffix, normalItem)
+            && craftingOperationAllowed(CraftingOperation::RaiseAffixTier, magicItem)
+            && !craftingOperationAllowed(CraftingOperation::ImproveAffix, uniqueItem),
+        "crafting operation availability follows item rarity");
+
     const std::string baseId = item.baseId;
     const std::string baseName = item.baseName;
     const Stats implicit = item.implicitStats;

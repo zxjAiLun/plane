@@ -113,6 +113,7 @@ public:
     bool craftingPanelOpen() const;
     CraftingOperation craftingOperation() const;
     int craftingAffixIndex() const;
+    int craftingCost() const;
     int forgeFragments() const;
     int lifeFlaskCharges() const;
     int lifeFlaskMaxCharges() const;

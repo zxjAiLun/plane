@@ -3942,17 +3942,26 @@ void GameWorld::applyCraftingOperation() {
         eventStatusTimer_ = 2.0f;
         return;
     }
-    if (progression_.forgeFragments < Config::ForgeUpgradeCost) {
-        eventStatusMessage_ = "Need " + std::to_string(Config::ForgeUpgradeCost)
-            + " Forge Fragments";
-        eventStatusTimer_ = 2.0f;
-        return;
-    }
-
     const std::size_t itemIndex = static_cast<std::size_t>(selectedInventoryIndex_);
     Item* item = inventory_.itemAt(itemIndex);
     if (item == nullptr) {
         eventStatusMessage_ = "Select a valid item";
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+
+    if (!craftingOperationAllowed(craftingState_.operation, *item)) {
+        eventStatusMessage_ = craftingState_.operation == CraftingOperation::ImproveAffix
+            ? "This item has no craftable affixes"
+            : std::string(craftingOperationName(craftingState_.operation))
+                + " requires a Magic or Rare item";
+        eventStatusTimer_ = 2.0f;
+        return;
+    }
+
+    const int cost = craftingCostFor(craftingState_.operation);
+    if (progression_.forgeFragments < cost) {
+        eventStatusMessage_ = "Need " + std::to_string(cost) + " Forge Fragments";
         eventStatusTimer_ = 2.0f;
         return;
     }
@@ -3998,7 +4007,7 @@ void GameWorld::applyCraftingOperation() {
     }
 
     *item = std::move(candidate);
-    progression_.forgeFragments -= Config::ForgeUpgradeCost;
+    progression_.forgeFragments -= cost;
     switch (craftingState_.operation) {
         case CraftingOperation::ImproveAffix:
             eventStatusMessage_ = "Affix improved";
@@ -5012,6 +5021,9 @@ bool GameWorld::stashSelectionActive() const { return stashSelectionActive_; }
 bool GameWorld::craftingPanelOpen() const { return craftingState_.open; }
 CraftingOperation GameWorld::craftingOperation() const { return craftingState_.operation; }
 int GameWorld::craftingAffixIndex() const { return craftingState_.affixIndex; }
+int GameWorld::craftingCost() const {
+    return craftingCostFor(craftingState_.operation);
+}
 int GameWorld::forgeFragments() const { return progression_.forgeFragments; }
 int GameWorld::mapEventsCompleted() const {
     return static_cast<int>(std::count_if(map_.events().begin(), map_.events().end(),
