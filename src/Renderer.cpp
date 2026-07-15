@@ -170,6 +170,8 @@ ItemBaseTheme bossRelicTheme(BossLootTheme theme) {
         case BossLootTheme::Storm: return ItemBaseTheme::Storm;
         case BossLootTheme::Brood: return ItemBaseTheme::Brood;
         case BossLootTheme::Frost: return ItemBaseTheme::Frost;
+        case BossLootTheme::Archive: return ItemBaseTheme::Archive;
+        case BossLootTheme::Obsidian: return ItemBaseTheme::Obsidian;
     }
     return ItemBaseTheme::None;
 }

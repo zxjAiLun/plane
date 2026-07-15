@@ -1981,6 +1981,56 @@ void testBossRelicEffectsInWorld() {
             && alternateFireAilment.duration < 3.0f,
         "alternate Brimstone relic changes the real Fire ailment effect");
 
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Weapon)] =
+        makeBaseItem("weapon.rustbound-blade");
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Ring)] =
+        makeBaseItem("ring.cinder-band");
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Amulet)] =
+        makeBaseItem("amulet.ironheart-pendant");
+    data.unlockedSkills.insert("Frost Bomb");
+    data.skillBar.skills[static_cast<std::size_t>(SkillSlot::Secondary)] = "Frost Bomb";
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Boss relic effect fixture resets to a plain Cold skill");
+    const auto plainChillAilment = world.effectiveSkillAilment(
+        world.skillBar().definition(SkillSlot::Secondary)
+    );
+
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Weapon)] =
+        makeBaseItem("boss.tidebound-ledger");
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Boss relic effect fixture equips the Archive relic");
+    const auto archiveChillAilment = world.effectiveSkillAilment(
+        world.skillBar().definition(SkillSlot::Secondary)
+    );
+    expect(world.bossRelicEffectSummary().find("Archive Current") != std::string::npos
+            && archiveChillAilment.speedMultiplier < plainChillAilment.speedMultiplier
+            && archiveChillAilment.duration > plainChillAilment.duration,
+        "Archive relic changes the real Cold skill Chill");
+
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Weapon)] =
+        makeBaseItem("weapon.rustbound-blade");
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Ring)] =
+        makeBaseItem("ring.cinder-band");
+    data.unlockedSkills.insert("Flare");
+    data.skillBar.skills[static_cast<std::size_t>(SkillSlot::Secondary)] = "Flare";
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Boss relic effect fixture resets to a plain Fire skill");
+    const auto plainIgniteAilment = world.effectiveSkillAilment(
+        world.skillBar().definition(SkillSlot::Secondary)
+    );
+
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Amulet)] =
+        makeBaseItem("boss.obsidian-crown");
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Boss relic effect fixture equips the Obsidian relic");
+    const auto obsidianIgniteAilment = world.effectiveSkillAilment(
+        world.skillBar().definition(SkillSlot::Secondary)
+    );
+    expect(world.bossRelicEffectSummary().find("Obsidian Furnace") != std::string::npos
+            && obsidianIgniteAilment.damageMultiplier > plainIgniteAilment.damageMultiplier
+            && obsidianIgniteAilment.duration > plainIgniteAilment.duration,
+        "Obsidian relic changes the real Fire skill Ignite");
+
     std::filesystem::remove(path);
 }
 

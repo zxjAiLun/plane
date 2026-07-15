@@ -21,7 +21,9 @@ enum class BossLootTheme {
     Brimstone,
     Storm,
     Brood,
-    Frost
+    Frost,
+    Archive,
+    Obsidian
 };
 
 struct BossSkillDefinition {
@@ -296,7 +298,7 @@ private:
         BossDefinition definition;
         definition.name = "Tidebound Archivist";
         definition.theme = "Flooded archives and cold currents";
-        definition.lootTheme = BossLootTheme::Frost;
+        definition.lootTheme = BossLootTheme::Archive;
         definition.lootRewardDescription = "Unique relic: projectile damage and Chill control";
         definition.hpMultiplier = 25.0f;
         definition.damageBonus = 2;
@@ -396,7 +398,7 @@ private:
         BossDefinition definition;
         definition.name = "Obsidian Tyrant";
         definition.theme = "Black glass and ember dust";
-        definition.lootTheme = BossLootTheme::Brimstone;
+        definition.lootTheme = BossLootTheme::Obsidian;
         definition.lootRewardDescription = "Unique relic: fire damage and area devastation";
         definition.hpMultiplier = 26.0f;
         definition.damageBonus = 2;

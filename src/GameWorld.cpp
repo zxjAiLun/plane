@@ -21,6 +21,10 @@ LootBias bossLootBias(BossLootTheme theme) {
             return {AffixTag::Poison, 1.45f, AffixTag::Area, 1.20f};
         case BossLootTheme::Frost:
             return {AffixTag::Cold, 1.45f, AffixTag::Area, 1.20f};
+        case BossLootTheme::Archive:
+            return {AffixTag::Cold, 1.50f, AffixTag::Projectile, 1.25f};
+        case BossLootTheme::Obsidian:
+            return {AffixTag::Fire, 1.50f, AffixTag::Area, 1.25f};
     }
     return {};
 }
@@ -31,6 +35,8 @@ DamageType bossRewardDamageType(BossLootTheme theme) {
         case BossLootTheme::Storm: return DamageType::Lightning;
         case BossLootTheme::Brood: return DamageType::Poison;
         case BossLootTheme::Frost: return DamageType::Cold;
+        case BossLootTheme::Archive: return DamageType::Cold;
+        case BossLootTheme::Obsidian: return DamageType::Fire;
     }
     return DamageType::Physical;
 }
@@ -3677,6 +3683,24 @@ AilmentDefinition GameWorld::ailmentForPlayerSkill(const SkillDefinition& skill)
         );
         ailment.duration *= effect.chillDurationMultiplier;
     }
+    if (skill.damageType == DamageType::Cold
+        && ailment.type == AilmentType::Chill
+        && hasBossRelicTheme(ItemBaseTheme::Archive)) {
+        const auto& effect = bossRelicEffectForTheme(ItemBaseTheme::Archive);
+        ailment.speedMultiplier = std::clamp(
+            ailment.speedMultiplier * effect.chillSpeedMultiplier,
+            0.10f,
+            1.0f
+        );
+        ailment.duration *= effect.chillDurationMultiplier;
+    }
+    if (skill.damageType == DamageType::Fire
+        && ailment.type == AilmentType::Ignite
+        && hasBossRelicTheme(ItemBaseTheme::Obsidian)) {
+        const auto& effect = bossRelicEffectForTheme(ItemBaseTheme::Obsidian);
+        ailment.damageMultiplier *= effect.igniteDamageMultiplier;
+        ailment.duration *= effect.igniteDurationMultiplier;
+    }
     return ailment;
 }
 
@@ -5366,7 +5390,9 @@ std::string GameWorld::bossRelicEffectSummary() const {
         ItemBaseTheme::Brimstone,
         ItemBaseTheme::Storm,
         ItemBaseTheme::Brood,
-        ItemBaseTheme::Frost
+        ItemBaseTheme::Frost,
+        ItemBaseTheme::Archive,
+        ItemBaseTheme::Obsidian
     };
     std::string summary;
     for (const auto theme : themes) {

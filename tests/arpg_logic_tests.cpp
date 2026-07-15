@@ -1263,11 +1263,13 @@ void testBossElementalSkills() {
             return skill.name == "Call Drowned Wardens";
         }
     );
-    expect(archive.name == "Tidebound Archivist"
-            && archive.lootTheme == BossLootTheme::Frost
-            && archiveProjectileIt != archive.skills.end()
+    expect(archive.name == "Tidebound Archivist",
+        "Tidebound Archivist keeps its data-driven name");
+    expect(archive.lootTheme == BossLootTheme::Archive,
+        "Tidebound Archivist uses the Archive loot theme");
+    expect(archiveProjectileIt != archive.skills.end()
             && archiveSummonIt != archive.skills.end(),
-        "Tidebound Archivist exposes the Drowned Archive boss kit");
+        "Tidebound Archivist exposes projectile and summon skills");
     if (archiveProjectileIt != archive.skills.end()) {
         expect(archiveProjectileIt->damageType == DamageType::Cold
                 && archiveProjectileIt->ailment.type == AilmentType::Chill
@@ -1288,7 +1290,7 @@ void testBossElementalSkills() {
         }
     );
     expect(reliquary.name == "Obsidian Tyrant"
-            && reliquary.lootTheme == BossLootTheme::Brimstone
+            && reliquary.lootTheme == BossLootTheme::Obsidian
             && reliquaryAoeIt != reliquary.skills.end()
             && reliquaryDashIt != reliquary.skills.end(),
         "Obsidian Tyrant exposes the Obsidian Reliquary boss kit");
@@ -1581,11 +1583,13 @@ void testItemBaseTypes() {
     expect(lowLevelCanDropHigherRequirementBase,
         "low-level maps can drop higher-requirement bases for meaningful upgrades");
 
-    const std::array<std::pair<BossLootTheme, std::string>, 4> bossThemes{{
+    const std::array<std::pair<BossLootTheme, std::string>, 6> bossThemes{{
         {BossLootTheme::Brimstone, "boss.brimstone-brand"},
         {BossLootTheme::Storm, "boss.storm-signet"},
         {BossLootTheme::Brood, "boss.brood-talisman"},
         {BossLootTheme::Frost, "boss.frostbound-loop"},
+        {BossLootTheme::Archive, "boss.tidebound-ledger"},
+        {BossLootTheme::Obsidian, "boss.obsidian-crown"},
     }};
     for (const auto& [theme, expectedBaseId] : bossThemes) {
         const Item item = generator.generateBossReward(5, theme);
@@ -1609,11 +1613,13 @@ void testItemBaseTypes() {
             && LootGenerator::bossRelicVariantForMapLevel(9) == 0,
         "Boss relic variants rotate once per four-map boss cycle");
 
-    const std::array<std::tuple<BossLootTheme, ItemBaseTheme, std::string>, 4> alternateBossThemes{{
+    const std::array<std::tuple<BossLootTheme, ItemBaseTheme, std::string>, 6> alternateBossThemes{{
         {BossLootTheme::Brimstone, ItemBaseTheme::Brimstone, "boss.ashen-crucible"},
         {BossLootTheme::Storm, ItemBaseTheme::Storm, "boss.tempest-bow"},
         {BossLootTheme::Brood, ItemBaseTheme::Brood, "boss.broodscale-band"},
         {BossLootTheme::Frost, ItemBaseTheme::Frost, "boss.winterheart-pendant"},
+        {BossLootTheme::Archive, ItemBaseTheme::Archive, "boss.drowned-compass"},
+        {BossLootTheme::Obsidian, ItemBaseTheme::Obsidian, "boss.blackglass-heart"},
     }};
     for (const auto& [theme, expectedTheme, expectedBaseId] : alternateBossThemes) {
         const Item item = generator.generateBossReward(5, theme, 1);
@@ -1640,6 +1646,8 @@ void testItemBaseTypes() {
     const Item storm = generator.generateBossReward(5, BossLootTheme::Storm);
     const Item brood = generator.generateBossReward(5, BossLootTheme::Brood);
     const Item frost = generator.generateBossReward(5, BossLootTheme::Frost);
+    const Item archive = generator.generateBossReward(5, BossLootTheme::Archive);
+    const Item obsidian = generator.generateBossReward(5, BossLootTheme::Obsidian);
     expect(std::abs(brimstone.stats.damageMultiplier - 1.27f) < 0.0001f
             && std::abs(brimstone.stats.areaDamageMultiplier - 1.14f) < 0.0001f,
         "Brimstone relic preserves its level-scaled combat bonuses");
@@ -1655,6 +1663,13 @@ void testItemBaseTypes() {
         "Frost relic preserves its level-scaled combat bonuses");
     expect(std::abs(brimstone.stats.fireDamageMultiplier - 1.16f) < 0.0001f,
         "Brimstone relic adds a level-scaled Fire bonus");
+    expect(std::abs(archive.stats.coldDamageMultiplier - 1.20f) < 0.0001f
+            && std::abs(archive.stats.projectileDamageMultiplier - 1.21f) < 0.0001f,
+        "Archive relic adds level-scaled Cold and Projectile bonuses");
+    expect(std::abs(obsidian.stats.fireDamageMultiplier - 1.20f) < 0.0001f
+            && std::abs(obsidian.stats.areaDamageMultiplier - 1.21f) < 0.0001f
+            && std::abs(obsidian.stats.areaRadiusMultiplier - 1.14f) < 0.0001f,
+        "Obsidian relic adds level-scaled Fire and Area bonuses");
 }
 
 void testBossRelicEffects() {
@@ -1664,6 +1679,8 @@ void testBossRelicEffects() {
     const auto& storm = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Storm);
     const auto& brood = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Brood);
     const auto& frost = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Frost);
+    const auto& archive = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Archive);
+    const auto& obsidian = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Obsidian);
     const auto& none = BossRelicEffectLibrary::forTheme(ItemBaseTheme::None);
 
     expect(molten.type == BossRelicEffectType::MoltenCore
@@ -1686,11 +1703,21 @@ void testBossRelicEffects() {
             && frost.chillSpeedMultiplier < 1.0f
             && frost.chillDurationMultiplier > 1.0f,
         "Frost relic defines a stronger and longer Chill effect");
+    expect(archive.type == BossRelicEffectType::ArchiveCurrent
+            && archive.chillSpeedMultiplier < 1.0f
+            && archive.chillDurationMultiplier > frost.chillDurationMultiplier,
+        "Archive relic defines its stronger current Chill effect");
+    expect(obsidian.type == BossRelicEffectType::ObsidianFurnace
+            && obsidian.igniteDamageMultiplier > 1.0f
+            && obsidian.igniteDurationMultiplier > 1.0f,
+        "Obsidian relic defines its Furnace Ignite effect");
 
     const auto* ashenBase = ItemBaseLibrary::find("boss.ashen-crucible");
     const auto* tempestBase = ItemBaseLibrary::find("boss.tempest-bow");
     const auto* broodscaleBase = ItemBaseLibrary::find("boss.broodscale-band");
     const auto* winterheartBase = ItemBaseLibrary::find("boss.winterheart-pendant");
+    const auto* drownedCompassBase = ItemBaseLibrary::find("boss.drowned-compass");
+    const auto* blackglassHeartBase = ItemBaseLibrary::find("boss.blackglass-heart");
     const auto& ashen = ashenBase == nullptr
         ? none : BossRelicEffectLibrary::forBase(*ashenBase);
     const auto& tempest = tempestBase == nullptr
@@ -1699,6 +1726,10 @@ void testBossRelicEffects() {
         ? none : BossRelicEffectLibrary::forBase(*broodscaleBase);
     const auto& winterheart = winterheartBase == nullptr
         ? none : BossRelicEffectLibrary::forBase(*winterheartBase);
+    const auto& drownedCompass = drownedCompassBase == nullptr
+        ? none : BossRelicEffectLibrary::forBase(*drownedCompassBase);
+    const auto& blackglassHeart = blackglassHeartBase == nullptr
+        ? none : BossRelicEffectLibrary::forBase(*blackglassHeartBase);
     expect(ashenBase != nullptr
             && ashen.name == "Ashen Bloom"
             && ashen.igniteDamageMultiplier > molten.igniteDamageMultiplier,
@@ -1718,6 +1749,16 @@ void testBossRelicEffects() {
             && winterheart.chillSpeedMultiplier < frost.chillSpeedMultiplier
             && winterheart.chillDurationMultiplier > frost.chillDurationMultiplier,
         "Winterheart Pendant selects its stronger Chill effect");
+    expect(drownedCompassBase != nullptr
+            && drownedCompass.name == "Drowned Compass"
+            && drownedCompass.chillSpeedMultiplier < archive.chillSpeedMultiplier
+            && drownedCompass.chillDurationMultiplier > archive.chillDurationMultiplier,
+        "Drowned Compass selects its stronger Archive current effect");
+    expect(blackglassHeartBase != nullptr
+            && blackglassHeart.name == "Blackglass Heart"
+            && blackglassHeart.igniteDamageMultiplier > obsidian.igniteDamageMultiplier
+            && blackglassHeart.igniteDurationMultiplier > obsidian.igniteDurationMultiplier,
+        "Blackglass Heart selects its stronger Obsidian Furnace effect");
     expect(none.type == BossRelicEffectType::None && none.name.empty(),
         "non-relic themes have no Boss relic effect");
 }

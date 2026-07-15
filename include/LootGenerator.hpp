@@ -205,6 +205,67 @@ public:
                             item.implicitStats.areaRadiusMultiplier)), {AffixTag::Cold, AffixTag::Area});
                 }
                 break;
+
+            case BossLootTheme::Archive:
+                if (normalizedVariant == 0) {
+                    item.name = "Tidebound Ledger";
+                    addBossAffix(item, "Tidal memory", tier + 1,
+                        coldDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.15f, 0.20f}[tier],
+                            item.implicitStats.coldDamageMultiplier)),
+                        {AffixTag::Cold, AffixTag::Damage});
+                    addBossAffix(item, "Quill doctrine", tier + 1,
+                        projectileDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.15f, 0.21f}[tier],
+                            item.implicitStats.projectileDamageMultiplier)),
+                        {AffixTag::Cold, AffixTag::Projectile});
+                } else {
+                    item.name = "Drowned Compass";
+                    addBossAffix(item, "Compass of currents", tier + 1,
+                        coldDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.12f, 0.18f, 0.24f}[tier],
+                            item.implicitStats.coldDamageMultiplier)),
+                        {AffixTag::Cold, AffixTag::Damage});
+                    addBossAffix(item, "Far-shore volleys", tier + 1,
+                        projectileDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.12f, 0.18f, 0.24f}[tier],
+                            item.implicitStats.projectileDamageMultiplier)),
+                        {AffixTag::Projectile, AffixTag::Damage});
+                }
+                break;
+
+            case BossLootTheme::Obsidian:
+                if (normalizedVariant == 0) {
+                    item.name = "Obsidian Crown";
+                    addBossAffix(item, "Shard authority", tier + 1,
+                        areaDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.15f, 0.21f}[tier],
+                            item.implicitStats.areaDamageMultiplier)),
+                        {AffixTag::Area, AffixTag::Damage});
+                    addBossAffix(item, "Furnace edge", tier + 1,
+                        fireDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.15f, 0.20f}[tier],
+                            item.implicitStats.fireDamageMultiplier)),
+                        {AffixTag::Fire, AffixTag::Damage});
+                    addBossAffix(item, "Blackglass reach", tier + 1,
+                        areaRadiusContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
+                            item.implicitStats.areaRadiusMultiplier)),
+                        {AffixTag::Fire, AffixTag::Area});
+                } else {
+                    item.name = "Blackglass Heart";
+                    addBossAffix(item, "Melted core", tier + 1,
+                        fireDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.12f, 0.18f, 0.24f}[tier],
+                            item.implicitStats.fireDamageMultiplier)),
+                        {AffixTag::Fire, AffixTag::Damage});
+                    addBossAffix(item, "Rupturing impact", tier + 1,
+                        areaDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.12f, 0.18f, 0.24f}[tier],
+                            item.implicitStats.areaDamageMultiplier)),
+                        {AffixTag::Area, AffixTag::Damage});
+                }
+                break;
         }
 
         return item;
@@ -422,6 +483,8 @@ private:
             case BossLootTheme::Storm: return ItemBaseTheme::Storm;
             case BossLootTheme::Brood: return ItemBaseTheme::Brood;
             case BossLootTheme::Frost: return ItemBaseTheme::Frost;
+            case BossLootTheme::Archive: return ItemBaseTheme::Archive;
+            case BossLootTheme::Obsidian: return ItemBaseTheme::Obsidian;
         }
         return ItemBaseTheme::None;
     }

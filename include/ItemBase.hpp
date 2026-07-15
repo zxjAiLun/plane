@@ -16,7 +16,9 @@ enum class ItemBaseTheme {
     Brimstone,
     Storm,
     Brood,
-    Frost
+    Frost,
+    Archive,
+    Obsidian
 };
 
 enum class ItemBuildTheme {
@@ -185,7 +187,14 @@ private:
             {"boss.frostbound-loop", "Frostbound Loop", EquipmentSlot::Ring,
                 makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.03f,
                     0, 1.0f, 1.0f, 1.06f),
-                    ItemBaseKind::BossRelic, ItemBaseTheme::Frost, 1, ItemBuildTheme::Cold},
+                ItemBaseKind::BossRelic, ItemBaseTheme::Frost, 1, ItemBuildTheme::Cold},
+            {"boss.tidebound-ledger", "Tidebound Ledger", EquipmentSlot::Weapon,
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.08f, 1.0f, 1.0f,
+                    0, 1.0f, 1.0f, 1.06f),
+                ItemBaseKind::BossRelic, ItemBaseTheme::Archive, 1, ItemBuildTheme::Cold},
+            {"boss.obsidian-crown", "Obsidian Crown", EquipmentSlot::Amulet,
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.08f, 1.05f),
+                ItemBaseKind::BossRelic, ItemBaseTheme::Obsidian, 1, ItemBuildTheme::Area},
 
             // Alternate relic bases keep the same theme identity and passive
             // effect, but give later encounters a different chase target.
@@ -202,6 +211,15 @@ private:
                 makeStats(6, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.05f,
                     0, 1.0f, 1.0f, 1.08f),
                     ItemBaseKind::BossRelic, ItemBaseTheme::Frost, 1, ItemBuildTheme::Cold, 1},
+            {"boss.drowned-compass", "Drowned Compass", EquipmentSlot::Amulet,
+                makeStats(5, 1.0f, 1.0f, 1.0f, 1.0f, 1.10f, 1.0f, 1.0f,
+                    0, 1.0f, 1.0f, 1.08f),
+                    ItemBaseKind::BossRelic, ItemBaseTheme::Archive, 1,
+                    ItemBuildTheme::Projectile, 1},
+            {"boss.blackglass-heart", "Blackglass Heart", EquipmentSlot::Ring,
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.10f, 1.08f),
+                    ItemBaseKind::BossRelic, ItemBaseTheme::Obsidian, 1,
+                    ItemBuildTheme::Area, 1},
         };
     }
 };

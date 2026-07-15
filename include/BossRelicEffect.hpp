@@ -9,7 +9,9 @@ enum class BossRelicEffectType {
     MoltenCore,
     StormChain,
     BroodBloom,
-    Frostbite
+    Frostbite,
+    ArchiveCurrent,
+    ObsidianFurnace
 };
 
 struct BossRelicEffectDefinition {
@@ -79,12 +81,37 @@ public:
             0.80f,
             1.25f
         };
+        static const BossRelicEffectDefinition archiveCurrent{
+            ItemBaseTheme::Archive,
+            BossRelicEffectType::ArchiveCurrent,
+            "Archive Current",
+            "Cold skills apply a stronger Chill that lasts 35% longer",
+            1.0f,
+            1.0f,
+            0,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            0.72f,
+            1.35f
+        };
+        static const BossRelicEffectDefinition obsidianFurnace{
+            ItemBaseTheme::Obsidian,
+            BossRelicEffectType::ObsidianFurnace,
+            "Obsidian Furnace",
+            "Fire skills deal 30% more Ignite damage and last 20% longer",
+            1.30f,
+            1.20f
+        };
 
         switch (theme) {
             case ItemBaseTheme::Brimstone: return moltenCore;
             case ItemBaseTheme::Storm: return stormChain;
             case ItemBaseTheme::Brood: return broodBloom;
             case ItemBaseTheme::Frost: return frostbite;
+            case ItemBaseTheme::Archive: return archiveCurrent;
+            case ItemBaseTheme::Obsidian: return obsidianFurnace;
             case ItemBaseTheme::None: break;
         }
         return none;
@@ -143,12 +170,37 @@ public:
                 0.70f,
                 1.50f
             };
+            static const BossRelicEffectDefinition drownedCompass{
+                ItemBaseTheme::Archive,
+                BossRelicEffectType::ArchiveCurrent,
+                "Drowned Compass",
+                "Cold skills apply a much stronger Chill that lasts 50% longer",
+                1.0f,
+                1.0f,
+                0,
+                0.0f,
+                1.0f,
+                0.0f,
+                0.0f,
+                0.62f,
+                1.50f
+            };
+            static const BossRelicEffectDefinition blackglassHeart{
+                ItemBaseTheme::Obsidian,
+                BossRelicEffectType::ObsidianFurnace,
+                "Blackglass Heart",
+                "Fire skills deal 45% more Ignite damage and last 35% longer",
+                1.45f,
+                1.35f
+            };
 
             switch (base.theme) {
                 case ItemBaseTheme::Brimstone: return ashenBloom;
                 case ItemBaseTheme::Storm: return tempestChain;
                 case ItemBaseTheme::Brood: return broodscaleBloom;
                 case ItemBaseTheme::Frost: return winterGrasp;
+                case ItemBaseTheme::Archive: return drownedCompass;
+                case ItemBaseTheme::Obsidian: return blackglassHeart;
                 case ItemBaseTheme::None: break;
             }
         }
