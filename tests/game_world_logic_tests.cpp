@@ -2188,8 +2188,9 @@ void testCombinationMapEvents() {
             );
             world.update(0.05f, input);
             const MapEventInstance* afterClear = combinationEvent(world);
+            const int remainingAfterClear = world.activeEliteEventEnemiesRemaining();
             expect(afterClear != nullptr && afterClear->completed
-                    && world.activeEliteEventEnemiesRemaining() == 0,
+                    && remainingAfterClear == 0,
                 "Hazardous Elite Pack completes after its owned enemies die");
             const std::size_t enemyCount = world.enemies().size();
             for (int frame = 0; frame < 20; ++frame) {
@@ -2378,6 +2379,29 @@ void testCombinationMapEvents() {
             expect(world.activeEliteEventEnemiesRemaining() == 0
                     && world.mapEventsCompleted() == 1,
                 "Warden Court clears and completes its encounter");
+        }
+    }
+
+    {
+        GameWorld world(21008);
+        prepareCombinationFixture(world, path, 3, 0, 4);
+        const MapEventInstance* event = combinationEvent(world);
+        expect(event != nullptr
+                && event->encounterType == MapEncounterType::FrozenReliquary,
+            "map level four selects the Frost Frozen Reliquary encounter");
+        if (event != nullptr) {
+            const Vector2 position = event->position;
+            Input input;
+            expect(moveToMapEvent(world, input, {840.0f, 700.0f})
+                    && moveToMapEvent(world, input, position),
+                "player can reach the Frost Frozen Reliquary encounter");
+            expect(world.activeEliteEventEnemiesRemaining() == 4
+                    && world.groundHazards().size() == 1,
+                "Frozen Reliquary spawns one Elite, three Wardens and one Cold hazard");
+            const auto& hazard = world.groundHazards().front().definition();
+            expect(hazard.damageType == DamageType::Cold
+                    && hazard.ailment.type == AilmentType::Chill,
+                "Frozen Reliquary hazard applies Cold and Chill feedback");
         }
     }
 

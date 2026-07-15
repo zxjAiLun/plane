@@ -38,7 +38,8 @@ enum class MapEncounterType {
     GuardedShrine,
     BountyHunt,
     CursedReliquary,
-    WardenCourt
+    WardenCourt,
+    FrozenReliquary
 };
 
 struct MapEncounterDefinition {
@@ -60,8 +61,8 @@ struct MapEncounterDefinition {
 
 class MapEncounterLibrary {
 public:
-    static const std::array<MapEncounterDefinition, 6>& all() {
-        static const std::array<MapEncounterDefinition, 6> definitions = {{
+    static const std::array<MapEncounterDefinition, 7>& all() {
+        static const std::array<MapEncounterDefinition, 7> definitions = {{
             {
                 MapEncounterType::EnhancedCache,
                 "enhanced-cache",
@@ -146,6 +147,23 @@ public:
                 3,
                 EnemyType::Warden,
                 EnemyType::Summoner
+            },
+            {
+                MapEncounterType::FrozenReliquary,
+                "frozen-reliquary",
+                "Frozen Reliquary",
+                "Break the ice seal and defeat its wardens for a Cold-biased reward",
+                124.0f,
+                0,
+                1,
+                3,
+                1.40f,
+                {"Rime Sigil", 125.0f, 8.0f, 0.75f, 3,
+                    DamageType::Cold, {AilmentType::Chill, 2.5f, 0.0f, 0.55f}},
+                false,
+                3,
+                EnemyType::Elite,
+                EnemyType::Warden
             }
         }};
         return definitions;
@@ -166,9 +184,17 @@ public:
         int templateIndex,
         int layoutIndex
     ) {
-        const int count = static_cast<int>(all().size());
+        const int templateCount = MapLayoutLibrary::TemplateCount;
+        const int normalizedTemplate = ((templateIndex % templateCount) + templateCount)
+            % templateCount;
+        if (normalizedTemplate == templateCount - 1) {
+            return all().back();
+        }
+
+        constexpr int LegacyEncounterCount = 6;
         const int normalizedLevel = std::max(1, mapLevel) - 1;
-        const int index = ((normalizedLevel + templateIndex + layoutIndex) % count + count) % count;
+        const int index = ((normalizedLevel + normalizedTemplate + layoutIndex)
+                % LegacyEncounterCount + LegacyEncounterCount) % LegacyEncounterCount;
         return all()[static_cast<std::size_t>(index)];
     }
 };
@@ -257,6 +283,12 @@ private:
                 "Acid and overgrowth",
                 {{23, 38, 31}, {55, 82, 61}, {105, 125, 55}, {92, 68, 35}, {42, 110, 70}},
                 {20, 20, 25, "Elite patrols, chargers and Summoner anchors", 15, 10, 10}
+            },
+            {
+                "Frostbound Pass",
+                "Snow and fractured ice",
+                {{28, 38, 52}, {90, 115, 135}, {110, 180, 225}, {55, 120, 165}, {55, 105, 135}},
+                {14, 16, 18, "Warden formations, chargers and cold-forged elites", 20, 20, 12}
             },
         };
     }

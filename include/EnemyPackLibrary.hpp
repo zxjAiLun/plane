@@ -32,7 +32,7 @@ struct EnemyPackDefinition {
 
 class EnemyPackLibrary {
 public:
-    static constexpr int ThemeCount = 3;
+    static constexpr int ThemeCount = 4;
     static constexpr int PacksPerTheme = 3;
 
     static const std::array<EnemyPackDefinition, ThemeCount * PacksPerTheme>& all() {
@@ -207,6 +207,63 @@ public:
                 2,
                 {AffixTag::Poison, 1.80f, AffixTag::Survival, 1.30f},
                 "Poison / Survival weighted | 2 guaranteed drops"
+            },
+            {
+                "frost-shard-wall",
+                "Shard Wall",
+                "Wardens hold a cold-forged line while chargers break your escape route",
+                {EnemyType::Warden, EnemyType::Charger, EnemyType::Normal,
+                 EnemyType::Elite, EnemyType::Charger, EnemyType::Normal},
+                6,
+                {AffixTag::Cold, 1.45f, AffixTag::Area, 1.20f},
+                1,
+                3,
+                "Rime Bastion",
+                "A hardened rejuvenating captain that refuses to yield ground",
+                {EliteModifier::Hardened, EliteModifier::Rejuvenating},
+                2.0f,
+                2,
+                2,
+                {AffixTag::Cold, 1.75f, AffixTag::Area, 1.30f},
+                "Cold / Area weighted | 2 guaranteed drops"
+            },
+            {
+                "frost-whiteout-crossfire",
+                "Whiteout Crossfire",
+                "Ranged wardens and chargers create a freezing crossfire",
+                {EnemyType::Ranged, EnemyType::Warden, EnemyType::Charger,
+                 EnemyType::Elite, EnemyType::Ranged, EnemyType::Normal},
+                6,
+                {AffixTag::Cold, 1.35f, AffixTag::Projectile, 1.20f},
+                1,
+                3,
+                "Whiteout Marshal",
+                "An empowered stormbound commander concealed by the blizzard",
+                {EliteModifier::Stormbound, EliteModifier::Empowered},
+                2.0f,
+                2,
+                2,
+                {AffixTag::Cold, 1.70f, AffixTag::Projectile, 1.30f},
+                "Cold / Projectile weighted | 2 guaranteed drops"
+            },
+            {
+                "frost-frozen-procession",
+                "Frozen Procession",
+                "A Warden procession advances behind a volatile icebreaker",
+                {EnemyType::Warden, EnemyType::Summoner, EnemyType::Charger,
+                 EnemyType::Elite, EnemyType::Normal, EnemyType::Charger},
+                6,
+                {AffixTag::Cold, 1.40f, AffixTag::Survival, 1.15f},
+                1,
+                3,
+                "Rime Processioner",
+                "A rejuvenating volatile leader that turns every opening into a hazard",
+                {EliteModifier::Rejuvenating, EliteModifier::Volatile},
+                2.0f,
+                2,
+                2,
+                {AffixTag::Cold, 1.75f, AffixTag::Survival, 1.25f},
+                "Cold / Survival weighted | 2 guaranteed drops"
             }
         }};
         return packs;

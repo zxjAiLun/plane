@@ -2283,8 +2283,15 @@ void testMapEncounterDefinitions() {
             return encounter.type == MapEncounterType::WardenCourt;
         }
     );
-    expect(encounters.size() == 6,
-        "map encounter library contains six data-driven encounter definitions");
+    const auto frozenIt = std::find_if(
+        encounters.begin(),
+        encounters.end(),
+        [](const MapEncounterDefinition& encounter) {
+            return encounter.type == MapEncounterType::FrozenReliquary;
+        }
+    );
+    expect(encounters.size() == 7,
+        "map encounter library contains seven data-driven encounter definitions");
     expect(bountyIt != encounters.end()
             && !bountyIt->id.empty()
             && bountyIt->eliteCount == 2
@@ -2305,6 +2312,15 @@ void testMapEncounterDefinitions() {
             && courtIt->primaryEnemyType == EnemyType::Warden
             && courtIt->secondaryEnemyType == EnemyType::Summoner,
         "Warden Court defines its Warden and Hexbinder composition");
+    expect(frozenIt != encounters.end()
+            && frozenIt->eliteCount == 1
+            && frozenIt->normalCount == 3
+            && frozenIt->completionDropCount == 3
+            && frozenIt->primaryEnemyType == EnemyType::Elite
+            && frozenIt->secondaryEnemyType == EnemyType::Warden
+            && frozenIt->hazard.damageType == DamageType::Cold
+            && frozenIt->hazard.ailment.type == AilmentType::Chill,
+        "Frozen Reliquary defines its Cold hazard and Warden composition");
 }
 
 // --- Map layout variants ---
@@ -2358,6 +2374,10 @@ void testMapLayoutVariants() {
             && MapInstance(3, 1).layoutIndex() == 2
             && MapInstance(4, 1).layoutIndex() == 0,
         "map level selects layout variants deterministically");
+    expect(MapInstance(4).templateIndex() == 3
+            && MapInstance(4).definition().name == "Frostbound Pass"
+            && MapInstance(4).encounterDefinition().type == MapEncounterType::FrozenReliquary,
+        "map level four selects the Frostbound Pass theme and encounter");
 
     MapInstance map(1, 0, 1);
     expect(!map.intersectsObstacle(map.playerStart(), Config::PlayerRadius),
@@ -2689,7 +2709,7 @@ void testEnemyPackLibrary() {
     section("Data-driven field enemy packs");
 
     const auto& packs = EnemyPackLibrary::all();
-    expect(packs.size() == 9, "three map themes expose three field packs each");
+    expect(packs.size() == 12, "four map themes expose three field packs each");
     for (const auto& pack : packs) {
         expect(!pack.id.empty() && !pack.name.empty()
                 && pack.enemyCount == static_cast<int>(pack.enemies.size())
@@ -2710,6 +2730,7 @@ void testEnemyPackLibrary() {
     const auto& ashen = EnemyPackLibrary::forMap(0, 1, 0);
     const auto& storm = EnemyPackLibrary::forMap(1, 1, 0);
     const auto& venom = EnemyPackLibrary::forMap(2, 1, 0);
+    const auto& frost = EnemyPackLibrary::forMap(3, 1, 0);
     const auto hasType = [](const EnemyPackDefinition& pack, EnemyType type) {
         return std::find(pack.enemies.begin(), pack.enemies.end(), type)
             != pack.enemies.end();
@@ -2720,6 +2741,9 @@ void testEnemyPackLibrary() {
         "Storm packs combine ranged pressure with a summoner anchor");
     expect(hasType(venom, EnemyType::Warden) && hasType(venom, EnemyType::Charger),
         "Venom packs combine a defensive anchor with chargers");
+    expect(hasType(frost, EnemyType::Warden) && hasType(frost, EnemyType::Charger)
+            && frost.lootBias.primaryTag == AffixTag::Cold,
+        "Frost packs combine Warden pressure with Cold-biased rewards");
     expect(EnemyPackLibrary::forMap(0, 1, 0).id
             != EnemyPackLibrary::forMap(0, 1, 1).id,
         "field pack sequence rotates within a map theme");

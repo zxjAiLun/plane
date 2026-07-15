@@ -2633,6 +2633,7 @@ void GameWorld::updateMapEvents(float /*dt*/, Input& input) {
                     case MapEncounterType::HazardousElitePack:
                     case MapEncounterType::BountyHunt:
                     case MapEncounterType::WardenCourt:
+                    case MapEncounterType::FrozenReliquary:
                         if (!event.triggered
                             && activeMapEventIndex_ >= 0
                             && mapEventEnemiesRemaining_ > 0) {
@@ -2774,6 +2775,7 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
         case MapEncounterType::HazardousElitePack:
         case MapEncounterType::BountyHunt:
         case MapEncounterType::WardenCourt:
+        case MapEncounterType::FrozenReliquary:
             activeMapEventIndex_ = static_cast<int>(eventIndex);
             mapEventEnemiesRemaining_ = encounter.eliteCount + encounter.normalCount;
             spawnMapEventEnemies(
