@@ -285,6 +285,8 @@ struct MapTemplateDefinition {
     MapEncounterProfile encounter;
     MapAmbientEffectDefinition ambientEffect;
     int bossDefinitionIndex = 0;
+    DamageType signatureDamageType = DamageType::Physical;
+    AilmentDefinition signatureAilment;
 };
 
 class MapTemplateLibrary {
@@ -312,7 +314,7 @@ public:
 
 private:
     static std::vector<MapTemplateDefinition> buildTemplates() {
-        return {
+        auto templates = std::vector<MapTemplateDefinition>{
             {
                 "Ashen Causeway",
                 "Ash and stone",
@@ -382,6 +384,16 @@ private:
                 3
             },
         };
+
+        templates[0].signatureDamageType = DamageType::Fire;
+        templates[0].signatureAilment = {AilmentType::Ignite, 2.5f, 0.20f};
+        templates[1].signatureDamageType = DamageType::Lightning;
+        templates[1].signatureAilment = {AilmentType::Shock, 2.0f, 0.0f, 1.15f};
+        templates[2].signatureDamageType = DamageType::Poison;
+        templates[2].signatureAilment = {AilmentType::Poison, 2.5f, 0.35f};
+        templates[3].signatureDamageType = DamageType::Cold;
+        templates[3].signatureAilment = {AilmentType::Chill, 2.0f, 0.0f, 0.65f};
+        return templates;
     }
 };
 

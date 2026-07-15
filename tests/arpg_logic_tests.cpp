@@ -2615,6 +2615,14 @@ void testMapLayoutVariants() {
             && MapTemplateLibrary::forIndex(1).ambientEffect.hazard.damageType == DamageType::Lightning
             && MapTemplateLibrary::forIndex(2).ambientEffect.hazard.damageType == DamageType::Poison
             && MapTemplateLibrary::forIndex(3).ambientEffect.hazard.damageType == DamageType::Cold
+            && MapTemplateLibrary::forIndex(0).signatureDamageType == DamageType::Fire
+            && MapTemplateLibrary::forIndex(1).signatureDamageType == DamageType::Lightning
+            && MapTemplateLibrary::forIndex(2).signatureDamageType == DamageType::Poison
+            && MapTemplateLibrary::forIndex(3).signatureDamageType == DamageType::Cold
+            && MapTemplateLibrary::forIndex(0).signatureAilment.type == AilmentType::Ignite
+            && MapTemplateLibrary::forIndex(1).signatureAilment.type == AilmentType::Shock
+            && MapTemplateLibrary::forIndex(2).signatureAilment.type == AilmentType::Poison
+            && MapTemplateLibrary::forIndex(3).signatureAilment.type == AilmentType::Chill
             && MapTemplateLibrary::forIndex(0).ambientEffect.minimumMapLevel == 2
             && MapTemplateLibrary::forIndex(1).ambientEffect.minimumMapLevel == 2
             && MapTemplateLibrary::forIndex(2).ambientEffect.minimumMapLevel == 2

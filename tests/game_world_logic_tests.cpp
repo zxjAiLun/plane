@@ -2279,6 +2279,46 @@ void testElementalEnemyProjectileFlow() {
     std::filesystem::remove(path);
 }
 
+void testThemeEnemyElementalAttacks() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_theme_enemy_attack_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(20002);
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Venom theme attack fixture starts from a valid run save");
+
+    data.mapLevel = 2;
+    data.mapTemplateIndex = 2;
+    data.mapLayoutIndex = 0;
+    data.currentMapOption = MapOptionLibrary::defaultOption();
+    data.currentMapOption.templateIndex = 2;
+    data.player.hp = 10000;
+    data.player.upgradeStats.maxHp = 10000;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.state = SavedRunState::Playing;
+    data.mapRewardChosen = false;
+    data.nextMapOptionChosen = false;
+    data.selectedMapRewardOption = -1;
+    data.selectedNextMapOption = -1;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Venom theme attack fixture restores the T2 map");
+
+    Input input;
+    advanceIntoTheField(world, input);
+    bool poisonObserved = false;
+    for (int frame = 0; frame < 240 && world.state() == GameState::Playing; ++frame) {
+        world.update(0.05f, input);
+        poisonObserved = poisonObserved || world.player().isPoisoned();
+    }
+    expect(poisonObserved,
+        "Venom theme converts physical field attacks into Poison pressure");
+
+    std::filesystem::remove(path);
+}
+
 void testElitePackEventFlow() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_elite_pack_event_test.bin";
@@ -2933,6 +2973,7 @@ int main() {
     testBossRelicEffectsInWorld();
     testBossCombatFlow();
     testElementalEnemyProjectileFlow();
+    testThemeEnemyElementalAttacks();
     testElitePackEventFlow();
     testCombinationMapEvents();
     testStormRelicAreaChain();

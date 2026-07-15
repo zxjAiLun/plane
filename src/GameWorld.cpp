@@ -274,6 +274,24 @@ int layoutIndexForMapOption(int mapLevel, const MapOption& option) {
         std::max(1, mapLevel) - 1 + option.templateIndex
     );
 }
+
+struct EnemyAttackProfile {
+    DamageType damageType = DamageType::Physical;
+    AilmentDefinition ailment;
+};
+
+EnemyAttackProfile mapEnemyAttackProfile(
+    const MapTemplateDefinition& mapTemplate,
+    DamageType baseDamageType,
+    const AilmentDefinition& baseAilment
+) {
+    if (baseDamageType != DamageType::Physical
+        || mapTemplate.signatureDamageType == DamageType::Physical) {
+        return {baseDamageType, baseAilment};
+    }
+
+    return {mapTemplate.signatureDamageType, mapTemplate.signatureAilment};
+}
 }
 
 GameWorld::GameWorld(std::uint64_t runSeed)
@@ -2228,11 +2246,16 @@ void GameWorld::handleCollisions() {
                     enemy.position(), enemy.radius()
                 ) && enemy.consumeChargeHit()) {
                 const auto& definition = EnemyLibrary::forType(enemy.type());
+                const EnemyAttackProfile attack = mapEnemyAttackProfile(
+                    map_.definition(),
+                    definition.contactDamageType,
+                    definition.contactAilment
+                );
                 damagePlayer(
                     enemyAttackDamage(enemy),
                     definition.name + " charge",
-                    definition.contactDamageType,
-                    definition.contactAilment
+                    attack.damageType,
+                    attack.ailment
                 );
             }
             continue;
@@ -2254,23 +2277,33 @@ void GameWorld::handleCollisions() {
         if (enemy.isRanged()) {
             const Vector2 direction = toPlayer.normalized();
             if (direction.lengthSquared() > 0.0f) {
+                const EnemyAttackProfile attack = mapEnemyAttackProfile(
+                    map_.definition(),
+                    definition.projectileDamageType,
+                    definition.projectileAilment
+                );
                 enemyProjectiles_.push_back({
                     enemy.position(),
                     direction * definition.projectileSpeed,
                     definition.projectileRadius,
                     enemyAttackDamage(enemy),
                     definition.name + " shot",
-                    definition.projectileDamageType,
-                    definition.projectileAilment,
+                    attack.damageType,
+                    attack.ailment,
                     true
                 });
             }
         } else if (toPlayer.lengthSquared() <= enemy.attackRange() * enemy.attackRange()) {
+            const EnemyAttackProfile attack = mapEnemyAttackProfile(
+                map_.definition(),
+                definition.contactDamageType,
+                definition.contactAilment
+            );
             damagePlayer(
                 enemyAttackDamage(enemy),
                 definition.name + " strike",
-                definition.contactDamageType,
-                definition.contactAilment
+                attack.damageType,
+                attack.ailment
             );
         }
     }
