@@ -2600,16 +2600,24 @@ void Renderer::drawBossHealth(const GameWorld& world) {
         1.0f
     );
 
+    const int bossPhase = world.bossPhase();
+    const std::string phaseLabel = bossPhase >= 2
+        ? "  FINAL"
+        : bossPhase == 1 ? "  ENRAGED" : "";
     const std::string bossLabel = world.bossDefinition().name
-        + (world.bossEnraged() ? "  ENRAGED" : "") + "  "
+        + phaseLabel + "  "
         + std::to_string(std::max(0, boss->hp())) + "/" + std::to_string(boss->maxHp());
     drawText(truncateText(bossLabel, 34),
         {position.x, position.y - 18.0f}, 13,
-        world.bossEnraged() ? sf::Color(255, 150, 80) : sf::Color(255, 210, 160));
+        bossPhase >= 2 ? sf::Color(255, 95, 65)
+            : bossPhase == 1 ? sf::Color(255, 150, 80)
+            : sf::Color(255, 210, 160));
 
     float detailY = position.y + 18.0f;
     drawText(truncateText(world.bossPhaseSummary(), 34), {position.x, detailY}, 12,
-        world.bossEnraged() ? sf::Color(255, 175, 95) : sf::Color(230, 210, 175));
+        bossPhase >= 2 ? sf::Color(255, 125, 95)
+            : bossPhase == 1 ? sf::Color(255, 175, 95)
+            : sf::Color(230, 210, 175));
     detailY += 17.0f;
 
     drawText("Fire Res " + std::to_string(world.bossDefinition().fireResistance)
@@ -2634,8 +2642,9 @@ void Renderer::drawBossHealth(const GameWorld& world) {
 
     sf::RectangleShape fill({size.x * ratio, size.y});
     fill.setPosition(position);
-    fill.setFillColor(world.bossEnraged()
-        ? sf::Color(255, 125, 35)
+    fill.setFillColor(bossPhase >= 2
+        ? sf::Color(255, 75, 35)
+        : bossPhase == 1 ? sf::Color(255, 125, 35)
         : sf::Color(220, 55, 45));
     window_.draw(fill);
 }

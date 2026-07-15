@@ -1925,6 +1925,19 @@ void testBossSummonDefinitions() {
                 && boss.enrageSummonCount > 0
                 && boss.enrageHazard.isValid(),
             boss.name + " defines a data-driven enrage transition");
+        expect(boss.finalPhase.isValid()
+                && boss.finalPhase.healthRatio < boss.enrageHealthRatio
+                && !boss.finalPhase.patternDescription.empty()
+                && !boss.finalPhase.skillOrder.empty()
+                && boss.finalPhase.hazard.isValid(),
+            boss.name + " defines a data-driven final phase");
+        expect(std::all_of(
+                boss.finalPhase.skillOrder.begin(),
+                boss.finalPhase.skillOrder.end(),
+                [&boss](std::size_t skillIndex) {
+                    return skillIndex < boss.skills.size();
+                }),
+            boss.name + " final phase skill order references valid skills");
     }
 
     const auto broodIt = std::find_if(
@@ -1967,6 +1980,16 @@ void testBossSummonDefinitions() {
                 && skill.summonType == EnemyType::Ranged);
     }
     expect(enragedOrderSummonsRanged, "Brood enrage order schedules ranged broodlings");
+
+    bool finalOrderSummonsRanged = false;
+    for (std::size_t i = 0; i < broodIt->finalPhase.skillOrder.size(); ++i) {
+        const auto& skill = broodIt->skillForCast(i, 2);
+        finalOrderSummonsRanged = finalOrderSummonsRanged
+            || (skill.type == BossSkillType::SummonAdds
+                && skill.summonType == EnemyType::Ranged);
+    }
+    expect(finalOrderSummonsRanged,
+        "Brood final phase order keeps ranged brood pressure");
 
     expect(availableBossSummonCount(4, 0, 10) == 4,
         "summon count is unchanged below the population cap");

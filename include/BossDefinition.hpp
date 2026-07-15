@@ -42,6 +42,25 @@ struct BossSkillDefinition {
     AilmentDefinition ailment;
 };
 
+struct BossPhaseDefinition {
+    float healthRatio = 0.0f;
+    float skillIntervalMultiplier = 1.0f;
+    float damageMultiplier = 1.0f;
+    std::string patternDescription;
+    std::string transitionDescription;
+    std::vector<std::size_t> skillOrder;
+    EnemyType summonType = EnemyType::Normal;
+    int summonCount = 0;
+    GroundHazardDefinition hazard;
+
+    bool isValid() const {
+        return healthRatio > 0.0f
+            && healthRatio < 1.0f
+            && skillIntervalMultiplier > 0.0f
+            && damageMultiplier > 0.0f;
+    }
+};
+
 struct BossDefinition {
     std::string name;
     std::string theme;
@@ -71,16 +90,26 @@ struct BossDefinition {
     int coldResistance = 0;
     int shockResistance = 0;
     int poisonResistance = 0;
+    BossPhaseDefinition finalPhase;
 
     const BossSkillDefinition& skillForCast(std::size_t castIndex, bool enraged) const {
+        return skillForCast(castIndex, enraged ? 1 : 0);
+    }
+
+    const BossSkillDefinition& skillForCast(
+        std::size_t castIndex,
+        int phase
+    ) const {
         static const BossSkillDefinition fallback;
         if (skills.empty()) {
             return fallback;
         }
 
-        const auto& order = enraged && !enragedSkillOrder.empty()
-            ? enragedSkillOrder
-            : normalSkillOrder;
+        const auto& order = phase >= 2 && !finalPhase.skillOrder.empty()
+            ? finalPhase.skillOrder
+            : phase >= 1 && !enragedSkillOrder.empty()
+                ? enragedSkillOrder
+                : normalSkillOrder;
         if (order.empty()) {
             return skills[castIndex % skills.size()];
         }
@@ -170,6 +199,18 @@ private:
         definition.coldResistance = 50;
         definition.shockResistance = 35;
         definition.poisonResistance = 30;
+        definition.finalPhase = {
+            0.20f,
+            0.55f,
+            1.30f,
+            "Absolute zero: wardens and expanding frost zones control the arena",
+            "The pass freezes solid: the Warden enters its final cycle",
+            {0, 2, 0, 1, 2},
+            EnemyType::Warden,
+            3,
+            {"Absolute Zero", 165.0f, 7.0f, 0.65f, 8,
+                DamageType::Cold, {AilmentType::Chill, 2.5f, 0.0f, 0.50f}}
+        };
         return definition;
     }
 
@@ -194,7 +235,7 @@ private:
     }
 
     static std::vector<BossDefinition> buildBosses() {
-        return {
+        auto bosses = std::vector<BossDefinition>{
             {
                 "Brimstone Colossus",
                 "Lava and stone",
@@ -393,5 +434,44 @@ private:
             },
             frostBoss()
         };
+
+        bosses[0].finalPhase = {
+            0.25f,
+            0.55f,
+            1.35f,
+            "The arena burns: magma slams chain while Ravagers close in",
+            "The core ruptures: the Colossus enters its final eruption",
+            {0, 0, 1, 0, 1},
+            EnemyType::Charger,
+            2,
+            {"Final Inferno", 170.0f, 6.5f, 0.60f, 3,
+                DamageType::Fire, {AilmentType::Ignite, 2.5f, 0.20f}}
+        };
+        bosses[1].finalPhase = {
+            0.22f,
+            0.50f,
+            1.30f,
+            "The storm collapses inward: dashes and lightning strikes overlap",
+            "The storm eye opens: the Herald unleashes its last cycle",
+            {2, 1, 0, 2, 2},
+            EnemyType::Ranged,
+            3,
+            {"Eye of the Storm", 155.0f, 6.0f, 0.60f, 3,
+                DamageType::Lightning,
+                {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.20f}}
+        };
+        bosses[2].finalPhase = {
+            0.25f,
+            0.58f,
+            1.35f,
+            "The nest ruptures: acid bursts and ranged brood overlap",
+            "The brood awakens: the Matriarch fights through its last clutch",
+            {1, 3, 0, 2, 1},
+            EnemyType::Ranged,
+            3,
+            {"Brood Acid", 150.0f, 7.0f, 0.70f, 3,
+                DamageType::Poison, {AilmentType::Poison, 2.5f, 0.35f}}
+        };
+        return bosses;
     }
 };

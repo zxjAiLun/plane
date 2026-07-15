@@ -189,6 +189,7 @@ public:
     int activeEliteEventEnemiesRemaining() const;
     std::string bossSkillWarning() const;
     bool bossEnraged() const;
+    int bossPhase() const;
     std::string bossPhaseSummary() const;
     bool nextMapOptionChosen() const;
     bool mapRewardChosen() const;
@@ -212,6 +213,7 @@ private:
     void updateBossSkills(float dt);
     void updateBossDash(float dt, Enemy& boss);
     void triggerBossEnrage(Enemy& boss);
+    void triggerBossFinalPhase(Enemy& boss);
     int summonBossAdds(const Enemy& boss, const BossSkillDefinition& skill);
     void updateBossProjectiles(float dt);
     void updateEnemyProjectiles(float dt);
@@ -416,6 +418,7 @@ private:
     float bossSkillTimer_;
     int bossSkillIndex_;
     bool bossEnraged_ = false;
+    bool bossFinalPhase_ = false;
     const BossDefinition* bossDefinition_;
     float playerHitCooldown_;
     float playerHitEffectTimer_ = 0.0f;

@@ -272,6 +272,7 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , bossSkillTimer_(Config::BossSkillInterval)
     , bossSkillIndex_(0)
     , bossEnraged_(false)
+    , bossFinalPhase_(false)
     , bossDefinition_(&BossLibrary::forMapLevel(1))
     , playerHitCooldown_(0.0f)
     , mapLevel_(1)
@@ -827,6 +828,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
     bossEnraged_ = false;
+    bossFinalPhase_ = false;
     playerHitCooldown_ = 0.0f;
     playerHitEffectTimer_ = 0.0f;
     playerHitDamage_ = 0;
@@ -1065,6 +1067,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
     bossEnraged_ = false;
+    bossFinalPhase_ = false;
     playerHitCooldown_ = 0.0f;
     playerHitEffectTimer_ = 0.0f;
     playerHitDamage_ = 0;
@@ -1149,6 +1152,7 @@ void GameWorld::startNextMap() {
     bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
     bossEnraged_ = false;
+    bossFinalPhase_ = false;
     playerHitCooldown_ = 0.0f;
     playerHitEffectTimer_ = 0.0f;
     playerHitDamage_ = 0;
@@ -1350,6 +1354,23 @@ void GameWorld::updateBossSkills(float dt) {
         bossSkillTimer_ = std::min(bossSkillTimer_, bossSkillInterval());
     }
 
+    if (!bossFinalPhase_
+        && bossDefinition_->finalPhase.isValid()
+        && hpRatio <= bossDefinition_->finalPhase.healthRatio) {
+        bossFinalPhase_ = true;
+        bossEnraged_ = true;
+        triggerBossFinalPhase(*boss);
+        // Final-phase summons can append to enemies_ and invalidate the
+        // pointer returned by activeBoss(). Reacquire it before resuming.
+        boss = activeBoss();
+        if (!boss) {
+            return;
+        }
+        bossSkillIndex_ = 0;
+        bossSkillTimer_ = std::min(bossSkillTimer_, bossSkillInterval());
+        return;
+    }
+
     if (bossDashState_.isActive()) {
         updateBossDash(dt, *boss);
         return;
@@ -1403,7 +1424,8 @@ void GameWorld::updateBossSkills(float dt) {
     }
 
     const BossSkillDefinition& skill = bossDefinition_->skillForCast(
-        static_cast<std::size_t>(bossSkillIndex_), bossEnraged_
+        static_cast<std::size_t>(bossSkillIndex_),
+        bossFinalPhase_ ? 2 : bossEnraged_ ? 1 : 0
     );
 
     switch (skill.type) {
@@ -1521,6 +1543,41 @@ void GameWorld::triggerBossEnrage(Enemy& boss) {
     eventStatusMessage_ = "Boss enraged: " + bossDefinition_->name;
     if (!bossDefinition_->enrageTransitionDescription.empty()) {
         eventStatusMessage_ += " - " + bossDefinition_->enrageTransitionDescription;
+    }
+    if (summonedCount > 0) {
+        eventStatusMessage_ += " (" + std::to_string(summonedCount) + " adds)";
+    }
+    eventStatusTimer_ = 3.0f;
+}
+
+void GameWorld::triggerBossFinalPhase(Enemy& boss) {
+    const auto& phase = bossDefinition_->finalPhase;
+    const Vector2 bossPosition = boss.position();
+    int summonedCount = 0;
+    if (phase.summonCount > 0) {
+        BossSkillDefinition finalSummon;
+        finalSummon.type = BossSkillType::SummonAdds;
+        finalSummon.name = "Final reinforcements";
+        finalSummon.radius = 135.0f;
+        finalSummon.summonType = phase.summonType;
+        finalSummon.summonCount = phase.summonCount;
+        summonedCount = summonBossAdds(boss, finalSummon);
+    }
+
+    if (phase.hazard.isValid()) {
+        GroundHazardDefinition hazard = phase.hazard;
+        hazard.damage = bossSkillDamage(hazard.damage);
+        groundHazards_.emplace_back(bossPosition, std::move(hazard));
+    }
+
+    bossAoeTelegraphTimer_ = 0.0f;
+    bossAoeEffectTimer_ = 0.0f;
+    bossAoeSkill_ = BossSkillDefinition();
+    resetBossDash();
+    bossSkillIndex_ = 0;
+    eventStatusMessage_ = "Final phase: " + bossDefinition_->name;
+    if (!phase.transitionDescription.empty()) {
+        eventStatusMessage_ += " - " + phase.transitionDescription;
     }
     if (summonedCount > 0) {
         eventStatusMessage_ += " (" + std::to_string(summonedCount) + " adds)";
@@ -3921,6 +3978,7 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         bossAoeSkill_ = BossSkillDefinition();
         resetBossDash();
         bossEnraged_ = false;
+        bossFinalPhase_ = false;
         eventStatusMessage_ = "Boss defeated: " + bossDefinition_->name;
         eventStatusTimer_ = 2.0f;
         generateMapRewardOptions();
@@ -4221,18 +4279,22 @@ void GameWorld::resetBossDash() {
 }
 
 float GameWorld::bossSkillInterval() const {
+    if (bossFinalPhase_) {
+        return bossDefinition_->skillInterval
+            * bossDefinition_->finalPhase.skillIntervalMultiplier;
+    }
     return bossDefinition_->skillInterval * (bossEnraged_
         ? bossDefinition_->enragedSkillIntervalMultiplier
         : 1.0f);
 }
 
 int GameWorld::bossSkillDamage(int baseDamage) const {
-    const float enrageMultiplier = bossEnraged_
-        ? bossDefinition_->enragedDamageMultiplier
-        : 1.0f;
+    const float phaseMultiplier = bossFinalPhase_
+        ? bossDefinition_->finalPhase.damageMultiplier
+        : bossEnraged_ ? bossDefinition_->enragedDamageMultiplier : 1.0f;
     const float mapDamage = static_cast<float>(baseDamage + mapModifier_.monsterDamageBonus)
         * mapModifier_.bossDamageMultiplier;
-    return std::max(1, static_cast<int>(std::ceil(mapDamage * enrageMultiplier)));
+    return std::max(1, static_cast<int>(std::ceil(mapDamage * phaseMultiplier)));
 }
 
 void GameWorld::advanceWaveIfComplete() {
@@ -4356,6 +4418,7 @@ void GameWorld::triggerBossIfNeeded() {
     bossSkillTimer_ = bossDefinition_->skillInterval * 0.5f;
     bossSkillIndex_ = 0;
     bossEnraged_ = false;
+    bossFinalPhase_ = false;
     eventStatusMessage_ = "Boss awakened: " + bossDefinition_->name;
     eventStatusTimer_ = 2.0f;
 
@@ -4637,7 +4700,18 @@ std::string GameWorld::bossSkillWarning() const {
     return bossSkillWarningText(bossAoeSkill_);
 }
 bool GameWorld::bossEnraged() const { return bossEnraged_; }
+int GameWorld::bossPhase() const {
+    return bossFinalPhase_ ? 2 : bossEnraged_ ? 1 : 0;
+}
 std::string GameWorld::bossPhaseSummary() const {
+    if (bossFinalPhase_) {
+        std::string summary = "Final: " + bossDefinition_->finalPhase.patternDescription;
+        if (!bossDefinition_->finalPhase.transitionDescription.empty()) {
+            summary += " | " + bossDefinition_->finalPhase.transitionDescription;
+        }
+        return summary;
+    }
+
     if (!bossEnraged_) {
         return "Pattern: " + bossDefinition_->patternDescription;
     }

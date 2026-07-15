@@ -1720,6 +1720,9 @@ void testBossCombatFlow() {
     bool enrageObserved = false;
     bool enrageAddsObserved = false;
     bool enrageHazardObserved = false;
+    bool finalPhaseObserved = false;
+    bool finalPhaseAddsObserved = false;
+    bool finalPhaseHazardObserved = false;
     for (int frame = 0; frame < 120 && world.state() == GameState::Playing; ++frame) {
         const auto bossIt = std::find_if(
             world.enemies().begin(),
@@ -1749,6 +1752,22 @@ void testBossCombatFlow() {
                 [&world](const GroundHazard& hazard) {
                     return hazard.definition().source
                         == world.bossDefinition().enrageHazard.source;
+                }
+            );
+        }
+        if (world.bossPhase() >= 2) {
+            finalPhaseObserved = true;
+            finalPhaseAddsObserved = finalPhaseAddsObserved || std::any_of(
+                world.enemies().begin(), world.enemies().end(),
+                [](const Enemy& enemy) {
+                    return !enemy.isBoss() && !enemy.isDead();
+                }
+            );
+            finalPhaseHazardObserved = finalPhaseHazardObserved || std::any_of(
+                world.groundHazards().begin(), world.groundHazards().end(),
+                [&world](const GroundHazard& hazard) {
+                    return hazard.definition().source
+                        == world.bossDefinition().finalPhase.hazard.source;
                 }
             );
         }
@@ -1795,6 +1814,9 @@ void testBossCombatFlow() {
     expect(enrageObserved, "Boss enters its data-driven enrage phase");
     expect(enrageAddsObserved, "Boss enrage phase adds reinforcements");
     expect(enrageHazardObserved, "Boss enrage phase creates its arena hazard");
+    expect(finalPhaseObserved, "Boss enters its data-driven final phase");
+    expect(finalPhaseAddsObserved, "Boss final phase adds theme reinforcements");
+    expect(finalPhaseHazardObserved, "Boss final phase creates its theme hazard");
     expect(world.state() == GameState::MapComplete && world.map().bossDefeated(),
         "Boss death enters MapComplete through the real reward path");
     expect(world.mapBossItemsDropped() >= 1 && !world.droppedItems().empty(),
