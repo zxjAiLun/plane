@@ -190,6 +190,7 @@ public:
     int mapBossItemsDropped() const;
     std::optional<Item> bossRelicPreview() const;
     int mapItemsPickedUp() const;
+    int mapDroppedItemsByRarity(Rarity rarity) const;
     int mapRareLeadersDefeated() const;
     int mapRareLeaderItemsDropped() const;
     std::string lastRareLeaderName() const;
@@ -308,6 +309,7 @@ private:
         float eventRewardMultiplier = 1.0f,
         const LootBias& extraBias = {}
     );
+    void recordMapItemDrop(const Item& item);
     int damageForPlayerSkill(const SkillDefinition& skill) const;
     void applySkillProgression();
     float radiusForPlayerSkill(const SkillDefinition& skill) const;
@@ -475,6 +477,7 @@ private:
     int mapItemsDropped_;
     int mapBossItemsDropped_;
     int mapItemsPickedUp_;
+    std::array<int, 4> mapDroppedItemsByRarity_;
     int mapRareLeadersDefeated_;
     int mapRareLeaderItemsDropped_;
     std::string lastRareLeaderName_;

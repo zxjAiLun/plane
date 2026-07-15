@@ -103,6 +103,7 @@ SaveData sampleData() {
     data.fieldPacksCleared = 2;
     data.mapRareLeadersDefeated = 3;
     data.mapRareLeaderItemsDropped = 5;
+    data.mapDroppedItemsByRarity = {2, 3, 4, 1};
     data.lastRareLeaderName = "Storm Herald";
     data.lastRareLeaderRewardDescription = "Lightning / Projectile weighted | 2 guaranteed drops";
     data.mapEvents = {
@@ -179,6 +180,8 @@ void testFileValidation(const std::filesystem::path& path) {
             && restored.lastRareLeaderName == data.lastRareLeaderName
             && restored.lastRareLeaderRewardDescription == data.lastRareLeaderRewardDescription,
         "round-trip preserves rare leader settlement statistics");
+    expect(restored.mapDroppedItemsByRarity == data.mapDroppedItemsByRarity,
+        "round-trip preserves map drop rarity statistics");
 
     std::vector<unsigned char> bytes = readBytes(path);
     expect(bytes.size() > 16, "save has a versioned header and payload");

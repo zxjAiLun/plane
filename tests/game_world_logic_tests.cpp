@@ -2042,6 +2042,13 @@ void testBossCombatFlow() {
         "Boss death enters MapComplete through the real reward path");
     expect(world.mapBossItemsDropped() >= 1 && !world.droppedItems().empty(),
         "Boss death creates at least one guaranteed ground drop");
+    const int qualityDropTotal = world.mapDroppedItemsByRarity(Rarity::Normal)
+        + world.mapDroppedItemsByRarity(Rarity::Magic)
+        + world.mapDroppedItemsByRarity(Rarity::Rare)
+        + world.mapDroppedItemsByRarity(Rarity::Unique);
+    expect(qualityDropTotal == world.mapItemsDropped()
+            && world.mapDroppedItemsByRarity(Rarity::Unique) >= 1,
+        "Boss rewards update the per-rarity drop breakdown");
     expect(std::any_of(
             world.droppedItems().begin(),
             world.droppedItems().end(),

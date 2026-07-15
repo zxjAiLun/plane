@@ -708,6 +708,9 @@ void writeSaveData(Writer& writer, const SaveData& data) {
     writer.integer(data.mapItemsDropped);
     writer.integer(data.mapBossItemsDropped);
     writer.integer(data.mapItemsPickedUp);
+    for (const int count : data.mapDroppedItemsByRarity) {
+        writer.integer(count);
+    }
     writer.integer(data.mapRareLeadersDefeated);
     writer.integer(data.mapRareLeaderItemsDropped);
     writer.string(data.lastRareLeaderName);
@@ -755,7 +758,8 @@ bool readSaveData(
     std::size_t passiveNodeCount,
     bool hasGemProgression,
     bool hasFieldPackProgress,
-    bool hasRareLeaderProgress
+    bool hasRareLeaderProgress,
+    bool hasDropRarityStats
 ) {
     int state = 0;
     if (!reader.integer(state)
@@ -791,6 +795,7 @@ bool readSaveData(
         }
     }
     data.fieldPacksCleared = 0;
+    data.mapDroppedItemsByRarity = {};
     data.mapRareLeadersDefeated = 0;
     data.mapRareLeaderItemsDropped = 0;
     data.lastRareLeaderName.clear();
@@ -806,6 +811,11 @@ bool readSaveData(
         || !reader.integer(data.mapItemsDropped)
         || !reader.integer(data.mapBossItemsDropped)
         || !reader.integer(data.mapItemsPickedUp)
+        || (hasDropRarityStats
+            && (!reader.integer(data.mapDroppedItemsByRarity[0])
+                || !reader.integer(data.mapDroppedItemsByRarity[1])
+                || !reader.integer(data.mapDroppedItemsByRarity[2])
+                || !reader.integer(data.mapDroppedItemsByRarity[3])))
         || (hasRareLeaderProgress
             && (!reader.integer(data.mapRareLeadersDefeated)
                 || !reader.integer(data.mapRareLeaderItemsDropped)
@@ -987,7 +997,7 @@ bool SaveService::load(const std::filesystem::path& path,
         || magic != SaveData::Magic
         || (version != 3U && version != 4U && version != 5U
             && version != 6U && version != 7U && version != 8U
-            && version != 9U && version != 10U
+            && version != 9U && version != 10U && version != 11U
             && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");
@@ -1011,7 +1021,8 @@ bool SaveService::load(const std::filesystem::path& path,
             version >= 6U ? PassiveTree::NodeCount : PassiveTree::LegacyNodeCount,
             version >= 7U,
             version >= 8U,
-            version >= 9U
+            version >= 9U,
+            version >= 12U
         )) {
         setError(error, "invalid save payload");
         return false;

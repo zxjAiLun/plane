@@ -2750,29 +2750,35 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     drawCenteredText(truncateText(phaseText, 28), {centerColumnX, 24.0f}, 14,
         sf::Color(255, 240, 180));
 
-    drawBox({centerColumnX, 100.0f}, {190.0f, 130.0f}, sf::Color::Green);
+    drawBox({centerColumnX, 105.0f}, {190.0f, 160.0f}, sf::Color::Green);
     drawText(truncateText("BOSS: " + world.bossDefinition().name, 27),
-        {centerColumnX - 90.0f, 58.0f}, 14, sf::Color::White);
+        {centerColumnX - 90.0f, 47.0f}, 14, sf::Color::White);
     drawText("Kills " + std::to_string(world.mapKills())
         + "  XP " + std::to_string(world.mapExperienceGained()),
-        {centerColumnX - 90.0f, 82.0f}, 12, sf::Color::White);
+        {centerColumnX - 90.0f, 68.0f}, 12, sf::Color::White);
     drawText("Drops " + std::to_string(world.mapItemsDropped())
         + "  Boss " + std::to_string(world.mapBossItemsDropped())
         + "  F " + std::to_string(world.mapItemsPickedUp()),
-        {centerColumnX - 90.0f, 100.0f}, 11, sf::Color::White);
+        {centerColumnX - 90.0f, 84.0f}, 11, sf::Color::White);
+    drawText("Quality N/M/R/U "
+            + std::to_string(world.mapDroppedItemsByRarity(Rarity::Normal)) + "/"
+            + std::to_string(world.mapDroppedItemsByRarity(Rarity::Magic)) + "/"
+            + std::to_string(world.mapDroppedItemsByRarity(Rarity::Rare)) + "/"
+            + std::to_string(world.mapDroppedItemsByRarity(Rarity::Unique)),
+        {centerColumnX - 90.0f, 100.0f}, 10, sf::Color(255, 225, 145));
     drawText("Rare " + std::to_string(world.mapRareLeadersDefeated())
         + "  Leader drops " + std::to_string(world.mapRareLeaderItemsDropped()),
-        {centerColumnX - 90.0f, 118.0f}, 10, sf::Color(255, 220, 160));
+        {centerColumnX - 90.0f, 116.0f}, 10, sf::Color(255, 220, 160));
     const auto& relicEffect = BossRelicEffectLibrary::forTheme(
         bossRelicTheme(world.bossDefinition().lootTheme));
     drawText(truncateText("Effect: " + relicEffect.name, 27),
-        {centerColumnX - 90.0f, 134.0f}, 10, sf::Color(255, 180, 80));
+        {centerColumnX - 90.0f, 132.0f}, 10, sf::Color(255, 180, 80));
     drawText(truncateText("Relic: " + world.bossDefinition().lootRewardDescription, 27),
-        {centerColumnX - 90.0f, 148.0f}, 9, sf::Color(255, 225, 145));
+        {centerColumnX - 90.0f, 147.0f}, 9, sf::Color(255, 225, 145));
     if (!world.lastRareLeaderName().empty()) {
         drawText(truncateText("Rare: " + world.lastRareLeaderName()
                 + " | " + world.lastRareLeaderRewardDescription(), 27),
-            {centerColumnX - 90.0f, 160.0f}, 9, sf::Color(255, 205, 140));
+            {centerColumnX - 90.0f, 161.0f}, 9, sf::Color(255, 205, 140));
     }
 
     // Left-side pickup guidance (always available during MapComplete):
@@ -2797,9 +2803,9 @@ void Renderer::drawMapComplete(const GameWorld& world) {
 
     const auto& mapOptions = world.nextMapOptions();
     if (!world.mapRewardChosen()) {
-        drawText("Choose Reward", {centerColumnX - 90.0f, 168.0f}, 16, sf::Color::White);
+        drawText("Choose Reward", {centerColumnX - 90.0f, 192.0f}, 16, sf::Color::White);
         const auto& rewards = world.mapRewardOptions();
-        float optionY = 194.0f;
+        float optionY = 218.0f;
         for (std::size_t i = 0; i < rewards.size(); ++i) {
             const auto& reward = rewards[i];
             drawText(truncateText(std::to_string(i + 1) + ". " + reward.title, 27),
@@ -2814,9 +2820,9 @@ void Renderer::drawMapComplete(const GameWorld& world) {
         const auto selectedReward = static_cast<std::size_t>(world.selectedMapRewardOption());
         const auto& reward = world.mapRewardOptions()[selectedReward];
         drawText(truncateText("Reward: " + reward.title, 27),
-            {centerColumnX - 90.0f, 168.0f}, 13, sf::Color(150, 255, 175));
-        drawText("Choose Next Map", {centerColumnX - 90.0f, 188.0f}, 16, sf::Color::White);
-        float optionY = 214.0f;
+            {centerColumnX - 90.0f, 192.0f}, 13, sf::Color(150, 255, 175));
+        drawText("Choose Next Map", {centerColumnX - 90.0f, 212.0f}, 16, sf::Color::White);
+        float optionY = 238.0f;
         for (std::size_t i = 0; i < mapOptions.size(); ++i) {
             const bool selected = world.selectedNextMapOption() == static_cast<int>(i);
             const auto& option = mapOptions[i];

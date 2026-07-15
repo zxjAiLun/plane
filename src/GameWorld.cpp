@@ -291,6 +291,7 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , mapItemsDropped_(0)
     , mapBossItemsDropped_(0)
     , mapItemsPickedUp_(0)
+    , mapDroppedItemsByRarity_{}
     , mapRareLeadersDefeated_(0)
     , mapRareLeaderItemsDropped_(0)
     , lastRareLeaderName_()
@@ -520,6 +521,7 @@ SaveData GameWorld::captureSaveData() const {
     data.mapItemsDropped = mapItemsDropped_;
     data.mapBossItemsDropped = mapBossItemsDropped_;
     data.mapItemsPickedUp = mapItemsPickedUp_;
+    data.mapDroppedItemsByRarity = mapDroppedItemsByRarity_;
     data.mapRareLeadersDefeated = mapRareLeadersDefeated_;
     data.mapRareLeaderItemsDropped = mapRareLeaderItemsDropped_;
     data.lastRareLeaderName = lastRareLeaderName_;
@@ -594,6 +596,11 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
         || data.fieldPacksCleared < 0
         || data.mapRareLeadersDefeated < 0
         || data.mapRareLeaderItemsDropped < 0
+        || std::any_of(
+            data.mapDroppedItemsByRarity.begin(),
+            data.mapDroppedItemsByRarity.end(),
+            [](int count) { return count < 0; }
+        )
         || !validLevelMap(data.skillLevels, data.unlockedSkills)
         || !validLevelMap(data.supportLevels, data.unlockedSupports)
         || data.lifeFlaskCharges < 0
@@ -779,6 +786,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     mapItemsDropped_ = data.mapItemsDropped;
     mapBossItemsDropped_ = data.mapBossItemsDropped;
     mapItemsPickedUp_ = data.mapItemsPickedUp;
+    mapDroppedItemsByRarity_ = data.mapDroppedItemsByRarity;
     mapRareLeadersDefeated_ = std::max(0, data.mapRareLeadersDefeated);
     mapRareLeaderItemsDropped_ = std::max(0, data.mapRareLeaderItemsDropped);
     lastRareLeaderName_ = data.lastRareLeaderName;
@@ -1087,6 +1095,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     mapItemsDropped_ = 0;
     mapBossItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
+    mapDroppedItemsByRarity_ = {};
     mapRareLeadersDefeated_ = 0;
     mapRareLeaderItemsDropped_ = 0;
     lastRareLeaderName_.clear();
@@ -1201,6 +1210,7 @@ void GameWorld::startNextMap() {
     mapItemsDropped_ = 0;
     mapBossItemsDropped_ = 0;
     mapItemsPickedUp_ = 0;
+    mapDroppedItemsByRarity_ = {};
     mapRareLeadersDefeated_ = 0;
     mapRareLeaderItemsDropped_ = 0;
     lastRareLeaderName_.clear();
@@ -3212,10 +3222,19 @@ int GameWorld::dropItemsAround(
                 itemLevelForMap(), random_, mapModifier_.itemRarityMultiplier, dropBias
             )
         ));
+        recordMapItemDrop(droppedItems_.back().item());
         ++mapItemsDropped_;
     }
 
     return scaledCount;
+}
+
+void GameWorld::recordMapItemDrop(const Item& item) {
+    const int rarityIndex = static_cast<int>(item.rarity);
+    if (rarityIndex >= 0
+        && rarityIndex < static_cast<int>(mapDroppedItemsByRarity_.size())) {
+        ++mapDroppedItemsByRarity_[static_cast<std::size_t>(rarityIndex)];
+    }
 }
 
 int GameWorld::damageForPlayerSkill(const SkillDefinition& skill) const {
@@ -4283,6 +4302,7 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
                 itemLevelForMap(), random_, mapModifier_.itemRarityMultiplier, dropBias
             );
         droppedItems_.push_back(DroppedItem(enemy.position() + offset, std::move(item)));
+        recordMapItemDrop(droppedItems_.back().item());
         ++mapItemsDropped_;
         if (enemy.isBoss()) {
             ++mapBossItemsDropped_;
@@ -4919,6 +4939,14 @@ std::optional<Item> GameWorld::bossRelicPreview() const {
     );
 }
 int GameWorld::mapItemsPickedUp() const { return mapItemsPickedUp_; }
+int GameWorld::mapDroppedItemsByRarity(const Rarity rarity) const {
+    const int rarityIndex = static_cast<int>(rarity);
+    if (rarityIndex < 0
+        || rarityIndex >= static_cast<int>(mapDroppedItemsByRarity_.size())) {
+        return 0;
+    }
+    return mapDroppedItemsByRarity_[static_cast<std::size_t>(rarityIndex)];
+}
 int GameWorld::mapRareLeadersDefeated() const { return mapRareLeadersDefeated_; }
 int GameWorld::mapRareLeaderItemsDropped() const { return mapRareLeaderItemsDropped_; }
 std::string GameWorld::lastRareLeaderName() const { return lastRareLeaderName_; }
