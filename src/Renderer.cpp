@@ -570,10 +570,49 @@ std::vector<std::string> skillImpactDetailLines(const Stats& before, const Stats
     return lines;
 }
 
+std::string rewardThemeLabel(const MapRewardDefinition& reward) {
+    DamageType theme = DamageType::Physical;
+    if (reward.type == MapRewardType::UnlockSkill
+        || reward.type == MapRewardType::UpgradeSkill) {
+        const auto* skill = SkillLibrary::find(reward.skillName);
+        if (skill != nullptr) {
+            theme = skill->damageType;
+        }
+    } else if (reward.type == MapRewardType::UnlockSupport
+        || reward.type == MapRewardType::UpgradeSupport) {
+        const auto* support = SupportLibrary::find(reward.supportName);
+        if (support != nullptr) {
+            switch (support->kind) {
+                case SupportKind::Combustion: theme = DamageType::Fire; break;
+                case SupportKind::DeepChill: theme = DamageType::Cold; break;
+                case SupportKind::Conductivity: theme = DamageType::Lightning; break;
+                case SupportKind::Toxicity:
+                case SupportKind::Contagion: theme = DamageType::Poison; break;
+                case SupportKind::Pierce:
+                case SupportKind::Amplify:
+                case SupportKind::Quickcast:
+                case SupportKind::Volley:
+                case SupportKind::Trailblazer:
+                case SupportKind::Barrage:
+                case SupportKind::Concentration:
+                case SupportKind::Echo:
+                case SupportKind::Pinpoint:
+                    break;
+            }
+        }
+    }
+
+    return theme == DamageType::Physical
+        ? ""
+        : std::string(damageTypeName(theme)) + " build";
+}
+
 std::string rewardDetailSummary(const MapRewardDefinition& reward, const GameWorld& world) {
+    const std::string theme = rewardThemeLabel(reward);
+    const std::string themePrefix = theme.empty() ? "" : theme + " | ";
     if (reward.type == MapRewardType::UnlockSupport
         || reward.type == MapRewardType::UpgradeSupport) {
-        return "Support rune: " + reward.description;
+        return themePrefix + "Support rune: " + reward.description;
     }
 
     if (reward.type != MapRewardType::UnlockSkill
@@ -591,7 +630,7 @@ std::string rewardDetailSummary(const MapRewardDefinition& reward, const GameWor
         ? "Lv" + std::to_string(world.skillLevel(skill->name))
             + " -> Lv" + std::to_string(reward.targetLevel) + "  |  "
         : "";
-    return levelText + skillSlotName(skill->slot) + " / " + skillCastTypeName(skill->castType)
+    return themePrefix + levelText + skillSlotName(skill->slot) + " / " + skillCastTypeName(skill->castType)
         + "  |  Replaces " + current.name;
 }
 

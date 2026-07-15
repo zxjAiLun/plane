@@ -23,6 +23,15 @@ LootBias bossLootBias(BossLootTheme theme) {
     return {};
 }
 
+DamageType bossRewardDamageType(BossLootTheme theme) {
+    switch (theme) {
+        case BossLootTheme::Brimstone: return DamageType::Fire;
+        case BossLootTheme::Storm: return DamageType::Lightning;
+        case BossLootTheme::Brood: return DamageType::Poison;
+    }
+    return DamageType::Physical;
+}
+
 void mergeLootBias(LootBias& target, const LootBias& extra) {
     const auto add = [&](AffixTag tag, float multiplier) {
         if (tag == AffixTag::None || multiplier <= 0.0f) {
@@ -3745,6 +3754,7 @@ void GameWorld::generateMapRewardOptions() {
         progression_.skillLevels,
         progression_.supportLevels,
         mapLevel_,
+        bossRewardDamageType(bossDefinition_->lootTheme),
         random_
     );
     selectedMapRewardOption_ = -1;

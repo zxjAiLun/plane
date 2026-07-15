@@ -2420,6 +2420,52 @@ void testMapRewardGeneration() {
     }
     expect(skillUnlocks >= 1, "at least one reward unlocks a new skill while skills remain locked");
 
+    const auto themedReward = [&](DamageType theme, std::uint64_t seed) {
+        RandomService themedRandom(seed);
+        return MapRewardLibrary::generateOptions(
+            unlockedSkills,
+            unlockedSupports,
+            std::map<std::string, int>{},
+            std::map<std::string, int>{},
+            1,
+            theme,
+            themedRandom
+        );
+    };
+    const auto fireRewards = themedReward(DamageType::Fire, 11);
+    const auto lightningRewards = themedReward(DamageType::Lightning, 12);
+    const auto poisonRewards = themedReward(DamageType::Poison, 13);
+    expect(fireRewards[0].skillName == SkillLibrary::flare().name,
+        "Brimstone-themed rewards lead with a Fire skill unlock");
+    expect(lightningRewards[0].skillName == SkillLibrary::arcBolt().name,
+        "Storm-themed rewards lead with a Lightning skill unlock");
+    expect(poisonRewards[0].skillName == SkillLibrary::toxicBurst().name,
+        "Brood-themed rewards lead with a Poison skill unlock");
+
+    std::set<std::string> allSkills;
+    for (const auto& skill : SkillLibrary::all()) {
+        allSkills.insert(skill.name);
+    }
+    std::set<std::string> allSupports;
+    for (const auto& support : SupportLibrary::all()) {
+        allSupports.insert(support.name);
+    }
+    RandomService themedUpgradeRandom(14);
+    const auto lightningUpgrades = MapRewardLibrary::generateOptions(
+        allSkills,
+        allSupports,
+        std::map<std::string, int>{},
+        std::map<std::string, int>{},
+        2,
+        DamageType::Lightning,
+        themedUpgradeRandom
+    );
+    expect((lightningUpgrades[0].type == MapRewardType::UpgradeSkill
+                && lightningUpgrades[0].skillName == SkillLibrary::arcBolt().name)
+            || (lightningUpgrades[0].type == MapRewardType::UpgradeSupport
+                && lightningUpgrades[0].supportName == "Conductivity"),
+        "later Storm maps prefer a Lightning skill or support upgrade");
+
     const std::string arcBoltName = SkillLibrary::arcBolt().name;
     const std::string shockwaveName = SkillLibrary::shockwave().name;
     expect(unlockedSkills.count(arcBoltName) == 0 && unlockedSkills.count(shockwaveName) == 0,
@@ -2440,14 +2486,6 @@ void testMapRewardGeneration() {
     expect(sawArcBolt, "MapRewardLibrary can generate Arc Bolt unlock reward");
     expect(sawShockwave, "MapRewardLibrary can generate Shockwave unlock reward");
 
-    std::set<std::string> allSkills;
-    for (const auto& skill : SkillLibrary::all()) {
-        allSkills.insert(skill.name);
-    }
-    std::set<std::string> allSupports;
-    for (const auto& support : SupportLibrary::all()) {
-        allSupports.insert(support.name);
-    }
     std::set<std::string> onlyExpandedSupports = allSupports;
     onlyExpandedSupports.erase("Barrage");
     onlyExpandedSupports.erase("Concentration");

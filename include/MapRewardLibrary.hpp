@@ -2,12 +2,14 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <set>
 #include <string>
 #include <map>
 #include <vector>
 
 #include "Config.hpp"
+#include "DamageType.hpp"
 #include "RandomService.hpp"
 #include "SkillLibrary.hpp"
 #include "SupportLibrary.hpp"
@@ -136,6 +138,7 @@ public:
             {},
             {},
             1,
+            DamageType::Physical,
             random,
             false
         );
@@ -155,6 +158,28 @@ public:
             skillLevels,
             supportLevels,
             mapLevel,
+            DamageType::Physical,
+            random,
+            true
+        );
+    }
+
+    static std::array<MapRewardDefinition, 3> generateOptions(
+        const std::set<std::string>& unlockedSkills,
+        const std::set<std::string>& unlockedSupports,
+        const std::map<std::string, int>& skillLevels,
+        const std::map<std::string, int>& supportLevels,
+        int mapLevel,
+        DamageType rewardTheme,
+        RandomService& random
+    ) {
+        return generateOptionsImpl(
+            unlockedSkills,
+            unlockedSupports,
+            skillLevels,
+            supportLevels,
+            mapLevel,
+            rewardTheme,
             random,
             true
         );
@@ -166,6 +191,7 @@ public:
         const std::map<std::string, int>& skillLevels,
         const std::map<std::string, int>& supportLevels,
         int mapLevel,
+        DamageType rewardTheme,
         RandomService& random,
         bool includeUpgrades
     ) {
@@ -211,12 +237,6 @@ public:
         const std::size_t contentLimit = upgrades.empty()
             ? rewards.size()
             : rewards.size() - 1;
-        while (rewardIndex < contentLimit && !lockedSkills.empty()) {
-            const auto randomIndex = random.nextIndex(lockedSkills.size());
-            rewards[rewardIndex] = skillUnlockReward(*lockedSkills[randomIndex]);
-            lockedSkills.erase(lockedSkills.begin() + randomIndex);
-            ++rewardIndex;
-        }
 
         // Once the remaining skill pool no longer fills all three choices,
         // offer supports that can already modify an unlocked skill. This lets
@@ -238,6 +258,70 @@ public:
             if (matchesUnlockedSkill) {
                 lockedSupports.push_back(&support);
             }
+        }
+
+        // Boss themes should teach a build direction without removing the
+        // normal random reward pool. Prefer one matching unlock first; when
+        // the library is already unlocked, the upgrade pass below can provide
+        // the matching gem instead.
+        if (rewardTheme != DamageType::Physical && rewardIndex < contentLimit) {
+            std::vector<std::size_t> themedSkillIndices;
+            for (std::size_t index = 0; index < lockedSkills.size(); ++index) {
+                if (lockedSkills[index]->damageType == rewardTheme) {
+                    themedSkillIndices.push_back(index);
+                }
+            }
+            if (!themedSkillIndices.empty()) {
+                const std::size_t choice = random.nextIndex(themedSkillIndices.size());
+                const std::size_t skillIndex = themedSkillIndices[choice];
+                rewards[rewardIndex] = skillUnlockReward(*lockedSkills[skillIndex]);
+                lockedSkills.erase(lockedSkills.begin()
+                    + static_cast<std::ptrdiff_t>(skillIndex));
+                ++rewardIndex;
+            } else {
+                std::vector<std::size_t> themedSupportIndices;
+                for (std::size_t index = 0; index < lockedSupports.size(); ++index) {
+                    if (supportMatchesTheme(*lockedSupports[index], rewardTheme)) {
+                        themedSupportIndices.push_back(index);
+                    }
+                }
+                if (!themedSupportIndices.empty()) {
+                    const std::size_t choice = random.nextIndex(themedSupportIndices.size());
+                    const std::size_t supportIndex = themedSupportIndices[choice];
+                    rewards[rewardIndex] = supportUnlockReward(
+                        *lockedSupports[supportIndex]);
+                    lockedSupports.erase(lockedSupports.begin()
+                        + static_cast<std::ptrdiff_t>(supportIndex));
+                    ++rewardIndex;
+                }
+            }
+        }
+
+        // If the themed skill/support is already unlocked, use a matching
+        // level upgrade before filling the remaining choices with unrelated
+        // unlocks. This keeps later maps on the same build path.
+        if (rewardTheme != DamageType::Physical && rewardIndex == 0
+            && !upgrades.empty()) {
+            std::vector<std::size_t> themedUpgradeIndices;
+            for (std::size_t index = 0; index < upgrades.size(); ++index) {
+                if (rewardMatchesTheme(upgrades[index], rewardTheme)) {
+                    themedUpgradeIndices.push_back(index);
+                }
+            }
+            if (!themedUpgradeIndices.empty()) {
+                const std::size_t choice = random.nextIndex(themedUpgradeIndices.size());
+                const std::size_t upgradeIndex = themedUpgradeIndices[choice];
+                rewards[rewardIndex] = upgrades[upgradeIndex];
+                upgrades.erase(upgrades.begin() + static_cast<std::ptrdiff_t>(upgradeIndex));
+                ++rewardIndex;
+            }
+        }
+
+        while (rewardIndex < contentLimit && !lockedSkills.empty()) {
+            const auto randomIndex = random.nextIndex(lockedSkills.size());
+            rewards[rewardIndex] = skillUnlockReward(*lockedSkills[randomIndex]);
+            lockedSkills.erase(lockedSkills.begin() + randomIndex);
+            ++rewardIndex;
         }
 
         while (rewardIndex < contentLimit && !lockedSupports.empty()) {
@@ -293,5 +377,38 @@ private:
         }
 
         return "Unknown";
+    }
+
+    static bool supportMatchesTheme(const SupportDefinition& support, DamageType theme) {
+        switch (theme) {
+            case DamageType::Fire:
+                return support.kind == SupportKind::Combustion;
+            case DamageType::Cold:
+                return support.kind == SupportKind::DeepChill;
+            case DamageType::Lightning:
+                return support.kind == SupportKind::Conductivity;
+            case DamageType::Poison:
+                return support.kind == SupportKind::Toxicity
+                    || support.kind == SupportKind::Contagion;
+            case DamageType::Physical:
+                return false;
+        }
+        return false;
+    }
+
+    static bool rewardMatchesTheme(const MapRewardDefinition& reward, DamageType theme) {
+        if (reward.type == MapRewardType::UnlockSkill
+            || reward.type == MapRewardType::UpgradeSkill) {
+            const auto* skill = SkillLibrary::find(reward.skillName);
+            return skill != nullptr && skill->damageType == theme;
+        }
+
+        if (reward.type == MapRewardType::UnlockSupport
+            || reward.type == MapRewardType::UpgradeSupport) {
+            const auto* support = SupportLibrary::find(reward.supportName);
+            return support != nullptr && supportMatchesTheme(*support, theme);
+        }
+
+        return false;
     }
 };

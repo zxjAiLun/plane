@@ -1792,6 +1792,9 @@ void testBossCombatFlow() {
                 return dropped.item().rarity == Rarity::Unique;
             }),
         "Boss death includes a Unique theme relic on the ground");
+    expect(world.mapRewardOptions()[0].skillName == SkillLibrary::flare().name
+            || world.mapRewardOptions()[0].supportName == "Combustion",
+        "Brimstone Boss reward path leads with a Fire build option");
 
     std::filesystem::remove(path);
 }
