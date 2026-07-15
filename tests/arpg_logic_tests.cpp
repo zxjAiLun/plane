@@ -2768,7 +2768,8 @@ void testMapEncounterDefinitions() {
             && archiveIt->leaderSkill.isValid()
             && archiveIt->leaderSkill.damageType == DamageType::Cold
             && archiveIt->leaderSkill.ailment.type == AilmentType::Chill
-            && archiveIt->leaderSkill.groundHazard.source == "Frozen Ink",
+            && archiveIt->leaderSkill.groundHazard.source == "Frozen Ink"
+            && archiveIt->bossDropBonus == 1,
         "Archive Purge defines its Cold hazard, Warden screen, and Projectile reward bias");
     expect(forgeIt != encounters.end()
             && forgeIt->eliteCount == 1
@@ -2787,7 +2788,8 @@ void testMapEncounterDefinitions() {
             && forgeIt->leaderSkill.isValid()
             && forgeIt->leaderSkill.damageType == DamageType::Fire
             && forgeIt->leaderSkill.ailment.type == AilmentType::Ignite
-            && forgeIt->leaderSkill.groundHazard.source == "Magma Brand",
+            && forgeIt->leaderSkill.groundHazard.source == "Magma Brand"
+            && forgeIt->bossDropBonus == 1,
         "Forge Collapse defines its Fire hazard, Charger screen, and Area reward bias");
 }
 

@@ -3763,6 +3763,24 @@ void GameWorld::spawnPlayerSkillHazard(
     }
 }
 
+const MapEncounterDefinition* GameWorld::completedBossRewardEncounter() const {
+    const auto& encounter = map_.encounterDefinition();
+    if (encounter.bossDropBonus <= 0) {
+        return nullptr;
+    }
+
+    const auto completed = std::find_if(
+        map_.events().begin(),
+        map_.events().end(),
+        [&encounter](const MapEventInstance& event) {
+            return event.type == MapEventType::Combination
+                && event.encounterType == encounter.type
+                && event.completed;
+        }
+    );
+    return completed == map_.events().end() ? nullptr : &encounter;
+}
+
 void GameWorld::applySkillProgression() {
     skillBar_.applyProgression(progression_.skillLevels, progression_.supportLevels);
     skillBar_.applyStats(player_.stats());
@@ -4790,6 +4808,8 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
     spreadPoisonOnDeath(enemy);
 
     const auto& definition = EnemyLibrary::forType(enemy.type());
+    const MapEncounterDefinition* completedEncounter = enemy.isBoss()
+        ? completedBossRewardEncounter() : nullptr;
 
     const auto applyDeathBurst = [&](EliteModifier modifier) {
         const auto& definition = EliteModifierLibrary::forModifier(modifier);
@@ -4830,6 +4850,9 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         if (firstAtlasCompletion) {
             eventStatusMessage_ += " | Atlas +1";
         }
+        if (completedEncounter != nullptr) {
+            eventStatusMessage_ += " | " + bossRewardSummary();
+        }
         eventStatusTimer_ = 2.0f;
         generateMapRewardOptions();
         generateNextMapOptions();
@@ -4852,7 +4875,8 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         );
     }
 
-    const float eliteDropMultiplier = enemy.isBoss() ? bossDefinition_->dropMultiplier
+    const float eliteDropMultiplier = enemy.isBoss()
+        ? bossDefinition_->dropMultiplier
         : definition.dropMultiplier * enemy.rewardDropMultiplier();
     const int dropChance = itemDropChancePercent(
         Config::ItemDropChancePercent,
@@ -4865,7 +4889,9 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         dropsToCreate = std::max(dropsToCreate, enemy.bonusDropCount());
     }
     if (enemy.isBoss()) {
-        const int guaranteedDrops = bossDefinition_->guaranteedDrops + mapModifier_.bossDropBonus;
+        const int guaranteedDrops = bossDefinition_->guaranteedDrops
+            + mapModifier_.bossDropBonus
+            + (completedEncounter == nullptr ? 0 : completedEncounter->bossDropBonus);
         const int scaledGuaranteedDrops = std::max(guaranteedDrops, static_cast<int>(std::ceil(
             static_cast<float>(guaranteedDrops) * player_.stats().itemQuantityMultiplier
         )));
@@ -4902,6 +4928,9 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         }
         if (enemy.isBoss()) {
             mergeLootBias(dropBias, bossLootBias(bossDefinition_->lootTheme));
+            if (completedEncounter != nullptr) {
+                mergeLootBias(dropBias, completedEncounter->rewardLootBias);
+            }
         }
         Item item = enemy.isBoss() && i == 0
             ? lootGenerator_.generateBossReward(
@@ -5557,6 +5586,29 @@ std::string GameWorld::bossRelicEffectSummary() const {
         summary += bossRelicEffectForTheme(theme).name;
     }
     return summary.empty() ? "None" : summary;
+}
+std::string GameWorld::bossRewardSummary() const {
+    const auto* encounter = completedBossRewardEncounter();
+    if (encounter == nullptr) {
+        return "";
+    }
+
+    std::string summary = encounter->name + ": +"
+        + std::to_string(encounter->bossDropBonus) + " Boss Drop";
+    const auto appendTag = [&summary](AffixTag tag) {
+        if (tag == AffixTag::None) {
+            return;
+        }
+        summary += " / ";
+        summary += affixTagName(tag);
+    };
+    appendTag(encounter->rewardLootBias.primaryTag);
+    if (encounter->rewardLootBias.secondaryTag
+        != encounter->rewardLootBias.primaryTag) {
+        appendTag(encounter->rewardLootBias.secondaryTag);
+    }
+    summary += " loot bias";
+    return summary;
 }
 bool GameWorld::isSkillUnlocked(const std::string& name) const {
     return progression_.unlockedSkills.find(name) != progression_.unlockedSkills.end();

@@ -182,6 +182,7 @@ public:
     int hoveredPassiveNode() const;
     std::string passiveBuildSummary() const;
     std::string bossRelicEffectSummary() const;
+    std::string bossRewardSummary() const;
     bool isSkillUnlocked(const std::string& name) const;
     bool isSupportUnlocked(const std::string& name) const;
     int skillLevel(const std::string& name) const;
@@ -339,6 +340,7 @@ private:
     void recordMapItemDrop(const Item& item);
     int damageForPlayerSkill(const SkillDefinition& skill) const;
     void applySkillProgression();
+    const MapEncounterDefinition* completedBossRewardEncounter() const;
     float radiusForPlayerSkill(const SkillDefinition& skill) const;
     int pierceCountForPlayerSkill(const SkillDefinition& skill) const;
     int projectileCountForPlayerSkill(const SkillDefinition& skill) const;

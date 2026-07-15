@@ -3031,6 +3031,29 @@ void testCombinationMapEvents() {
             expect(world.mapEventsCompleted() == 1
                     && world.mapItemsDropped() >= 4,
                 "Archive Purge drops its configured completion reward");
+            expect(world.bossRewardSummary().find("+1 Boss Drop") != std::string::npos
+                    && world.bossRewardSummary().find("Cold") != std::string::npos
+                    && world.bossRewardSummary().find("Projectile") != std::string::npos,
+                "Archive Purge adds Cold / Projectile bias to the Boss reward");
+
+            SaveData rewardData;
+            std::string rewardError;
+            expect(world.saveRun(path)
+                    && SaveService::load(path, rewardData, &rewardError),
+                "Archive Purge reward fixture saves its completed encounter");
+            rewardData.fieldPacksCleared = world.fieldPacksRequired();
+            rewardData.state = SavedRunState::Playing;
+            expect(SaveService::save(path, rewardData, &rewardError)
+                    && world.loadRun(path),
+                "Archive Purge reward fixture restores the unlocked Boss path");
+            Input bossInput;
+            expect(moveToBoss(world, bossInput),
+                "Archive Purge reward fixture reaches its themed Boss");
+            expect(defeatBossWithAreaSkill(world, bossInput),
+                "Archive Purge reward fixture defeats its themed Boss");
+            expect(world.mapBossItemsDropped()
+                    >= world.bossDefinition().guaranteedDrops + 1,
+                "Archive Purge guarantees an extra Boss drop after event completion");
         }
     }
 
@@ -3121,6 +3144,10 @@ void testCombinationMapEvents() {
             expect(world.mapEventsCompleted() == 1
                     && world.mapItemsDropped() >= 4,
                 "Forge Collapse drops its configured completion reward");
+            expect(world.bossRewardSummary().find("+1 Boss Drop") != std::string::npos
+                    && world.bossRewardSummary().find("Fire") != std::string::npos
+                    && world.bossRewardSummary().find("Area") != std::string::npos,
+                "Forge Collapse adds Fire / Area bias to the Boss reward");
         }
     }
 

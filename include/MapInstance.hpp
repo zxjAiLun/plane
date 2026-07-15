@@ -88,6 +88,7 @@ struct MapEncounterDefinition {
     DamageType enemyDamageType = DamageType::Physical;
     AilmentDefinition enemyAilment;
     MapEncounterSkillDefinition leaderSkill;
+    int bossDropBonus = 0;
 };
 
 class MapEncounterLibrary {
@@ -257,7 +258,8 @@ public:
                         DamageType::Cold,
                         {AilmentType::Chill, 2.5f, 0.0f, 0.55f},
                         GroundHazardTarget::Player}
-                }
+                },
+                1
             },
             {
                 MapEncounterType::ForgeCollapse,
@@ -295,7 +297,8 @@ public:
                         DamageType::Fire,
                         {AilmentType::Ignite, 2.5f, 0.20f},
                         GroundHazardTarget::Player}
-                }
+                },
+                1
             }
         }};
         return definitions;

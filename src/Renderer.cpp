@@ -3020,6 +3020,10 @@ void Renderer::drawMapComplete(const GameWorld& world) {
             + "  Atlas " + std::to_string(world.completedMapCount())
             + "  P" + std::to_string(world.atlasPoints()) + "  T Atlas",
         {leftColumnX, 466.0f}, 11, sf::Color(180, 220, 255));
+    if (!world.bossRewardSummary().empty()) {
+        drawText(truncateText("Boss bonus: " + world.bossRewardSummary(), 48),
+            {leftColumnX, 486.0f}, 11, sf::Color(255, 220, 145));
+    }
 
     drawBox({centerColumnX, 410.0f}, {190.0f, 36.0f}, sf::Color::White);
     std::string footer;
