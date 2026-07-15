@@ -299,7 +299,7 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , bossSkillIndex_(0)
     , bossEnraged_(false)
     , bossFinalPhase_(false)
-    , bossDefinition_(&BossLibrary::forMapLevel(1))
+    , bossDefinition_(&BossLibrary::forIndex(map_.definition().bossDefinitionIndex))
     , playerHitCooldown_(0.0f)
     , mapLevel_(1)
     , currentWave_(0)
@@ -845,7 +845,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     mapRewardChosen_ = data.mapRewardChosen;
     mapModifier_ = MapItemLibrary::modifierFor(currentMapOption_);
     mapModifier_.itemQuantityMultiplier *= progression_.itemQuantityRewardMultiplier;
-    bossDefinition_ = &BossLibrary::forMapLevel(mapLevel_);
+    bossDefinition_ = &BossLibrary::forIndex(map_.definition().bossDefinitionIndex);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
     resetAmbientThreat();
@@ -1094,7 +1094,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     random_.reseed(runSeed_);
     player_ = Player();
     map_ = MapInstance(1, 0);
-    bossDefinition_ = &BossLibrary::forMapLevel(1);
+    bossDefinition_ = &BossLibrary::forIndex(map_.definition().bossDefinitionIndex);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
     resetAmbientThreat();
@@ -1252,7 +1252,7 @@ void GameWorld::startNextMap() {
         currentMapOption_.templateIndex,
         mapToEnter.layoutIndex
     );
-    bossDefinition_ = &BossLibrary::forMapLevel(mapLevel_);
+    bossDefinition_ = &BossLibrary::forIndex(map_.definition().bossDefinitionIndex);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
     resetAmbientThreat();

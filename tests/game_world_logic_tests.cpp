@@ -954,6 +954,10 @@ void testBossSpawnUsesMapScaling() {
         data.player.mana = Config::PlayerMaxMana;
         expect(SaveService::save(path, data, &error) && world.loadRun(path),
             "Boss scaling fixture loads map " + std::to_string(mapLevel));
+        expect(world.bossDefinition().name
+                == BossLibrary::forIndex(mapOption.templateIndex).name,
+            "runtime Boss follows the selected map theme on map "
+                + std::to_string(mapLevel));
 
         Input input;
         expect(moveToBoss(world, input),

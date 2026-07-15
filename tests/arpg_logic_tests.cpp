@@ -2554,8 +2554,16 @@ void testMapLayoutVariants() {
     std::set<std::string> layoutIds;
     for (int templateIndex = 0; templateIndex < MapLayoutLibrary::TemplateCount; ++templateIndex) {
         const auto& variants = layouts[static_cast<std::size_t>(templateIndex)];
+        const auto& templateDefinition = MapTemplateLibrary::forIndex(templateIndex);
+        const auto& templateBoss = BossLibrary::forIndex(
+            templateDefinition.bossDefinitionIndex
+        );
         expect(variants.size() >= 3,
             "each map template has at least three layout variants");
+        expect(templateDefinition.bossDefinitionIndex == templateIndex
+                && !templateBoss.name.empty(),
+            "map template binds an explicit Boss definition ["
+                + templateDefinition.name + "]");
 
         for (int variantIndex = 0; variantIndex < MapLayoutLibrary::VariantCount; ++variantIndex) {
             const auto& layout = MapLayoutLibrary::forTemplate(templateIndex, variantIndex);

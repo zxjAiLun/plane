@@ -132,6 +132,13 @@ public:
         return bosses[index];
     }
 
+    static const BossDefinition& forIndex(int bossIndex) {
+        const auto& bosses = all();
+        const int count = static_cast<int>(bosses.size());
+        const int normalizedIndex = ((bossIndex % count) + count) % count;
+        return bosses[static_cast<std::size_t>(normalizedIndex)];
+    }
+
 private:
     static BossDefinition frostBoss() {
         BossSkillDefinition frostNova;

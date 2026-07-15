@@ -282,6 +282,7 @@ struct MapTemplateDefinition {
     MapPalette palette;
     MapEncounterProfile encounter;
     MapAmbientEffectDefinition ambientEffect;
+    int bossDefinitionIndex = 0;
 };
 
 class MapTemplateLibrary {
@@ -323,7 +324,8 @@ private:
                     {"Cinderfall", 95.0f, 4.0f, 0.75f, 2,
                         DamageType::Fire,
                         {AilmentType::Ignite, 2.5f, 0.20f}}
-                }
+                },
+                0
             },
             {
                 "Stormscar Expanse",
@@ -338,7 +340,8 @@ private:
                     {"Arc Flash", 100.0f, 3.5f, 0.70f, 2,
                         DamageType::Lightning,
                         {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.15f}}
-                }
+                },
+                1
             },
             {
                 "Venom Hollow",
@@ -353,7 +356,8 @@ private:
                     {"Toxic Bloom", 110.0f, 5.0f, 0.75f, 2,
                         DamageType::Poison,
                         {AilmentType::Poison, 3.0f}}
-                }
+                },
+                2
             },
             {
                 "Frostbound Pass",
@@ -368,7 +372,8 @@ private:
                     {"Rimefall", 105.0f, 4.5f, 0.75f, 2,
                         DamageType::Cold,
                         {AilmentType::Chill, 2.5f, 0.0f, 0.60f}}
-                }
+                },
+                3
             },
         };
     }
