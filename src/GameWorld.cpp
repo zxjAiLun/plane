@@ -1042,6 +1042,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     volatileExplosionTimer_ = 0.0f;
     volatileExplosionRadius_ = 0.0f;
     resetRareLeaderEffects();
+    resetMapEncounterSkill();
     bossAoeSkill_ = BossSkillDefinition();
     bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
@@ -1185,6 +1186,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     spawnEnemies(dt);
     updateObjects(dt);
     updateRareLeaderEffects(dt);
+    updateMapEncounterSkill(dt);
     updateBossSkills(dt);
     updateBossProjectiles(dt);
     updateEnemyProjectiles(dt);
@@ -1287,6 +1289,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     volatileExplosionTimer_ = 0.0f;
     volatileExplosionRadius_ = 0.0f;
     resetRareLeaderEffects();
+    resetMapEncounterSkill();
     bossAoeSkill_ = BossSkillDefinition();
     resetBossDash();
     bossSkillTimer_ = bossDefinition_->skillInterval;
@@ -1410,6 +1413,7 @@ void GameWorld::startNextMap() {
     volatileExplosionTimer_ = 0.0f;
     volatileExplosionRadius_ = 0.0f;
     resetRareLeaderEffects();
+    resetMapEncounterSkill();
     bossAoeSkill_ = BossSkillDefinition();
     resetBossDash();
     bossSkillTimer_ = bossDefinition_->skillInterval;
@@ -2198,6 +2202,106 @@ void GameWorld::resetRareLeaderEffects() {
     rareLeaderAoeDamageType_ = DamageType::Physical;
     rareLeaderAoeAilment_ = {};
     rareLeaderAoeName_.clear();
+}
+
+void GameWorld::resetMapEncounterSkill() {
+    mapEventSkillLeaderId_ = -1;
+    mapEventSkillTimer_ = 0.0f;
+    mapEventSkillCenter_ = {};
+    mapEventSkillTelegraphTimer_ = 0.0f;
+    mapEventSkillTelegraphDuration_ = 0.0f;
+    mapEventSkillRadius_ = 0.0f;
+    mapEventSkillDamage_ = 0;
+    mapEventSkillDamageType_ = DamageType::Physical;
+    mapEventSkillAilment_ = {};
+    mapEventSkillGroundHazard_ = {};
+    mapEventSkillName_.clear();
+}
+
+void GameWorld::updateMapEncounterSkill(float dt) {
+    if (dt <= 0.0f
+        || map_.bossTriggered()
+        || map_.bossDefeated()
+        || activeMapEventIndex_ < 0
+        || mapEventEnemiesRemaining_ <= 0) {
+        resetMapEncounterSkill();
+        return;
+    }
+
+    const auto& encounter = map_.encounterDefinition();
+    const auto& skill = encounter.leaderSkill;
+    if (!skill.isValid()) {
+        resetMapEncounterSkill();
+        return;
+    }
+
+    const Enemy* leader = nullptr;
+    for (const auto& enemy : enemies_) {
+        if (enemy.isDead() || enemy.mapEventIndex() != activeMapEventIndex_) {
+            continue;
+        }
+
+        leader = &enemy;
+        break;
+    }
+    if (leader == nullptr) {
+        resetMapEncounterSkill();
+        return;
+    }
+
+    if (mapEventSkillLeaderId_ != leader->id()) {
+        resetMapEncounterSkill();
+        mapEventSkillLeaderId_ = leader->id();
+        mapEventSkillTimer_ = skill.interval * 0.5f;
+    }
+
+    if (mapEventSkillTelegraphTimer_ > 0.0f) {
+        const float before = mapEventSkillTelegraphTimer_;
+        mapEventSkillTelegraphTimer_ = std::max(
+            0.0f, mapEventSkillTelegraphTimer_ - dt
+        );
+        if (before > 0.0f && mapEventSkillTelegraphTimer_ == 0.0f) {
+            damagePlayer(
+                mapEventSkillDamage_,
+                mapEventSkillName_,
+                mapEventSkillDamageType_,
+                mapEventSkillAilment_
+            );
+            if (mapEventSkillGroundHazard_.isValid()) {
+                groundHazards_.emplace_back(
+                    mapEventSkillCenter_, mapEventSkillGroundHazard_
+                );
+            }
+            mapEventSkillTimer_ = skill.interval;
+        }
+        return;
+    }
+
+    mapEventSkillTimer_ = std::max(0.0f, mapEventSkillTimer_ - dt);
+    if (mapEventSkillTimer_ > 0.0f) {
+        return;
+    }
+
+    mapEventSkillCenter_ = player_.position();
+    mapEventSkillTelegraphDuration_ = skill.telegraphDuration;
+    mapEventSkillTelegraphTimer_ = skill.telegraphDuration;
+    mapEventSkillRadius_ = skill.radius;
+    mapEventSkillDamage_ = std::max(1, skill.damage + enemyDamageForMap() / 2);
+    mapEventSkillDamageType_ = skill.damageType;
+    mapEventSkillAilment_ = skill.ailment;
+    mapEventSkillGroundHazard_ = skill.groundHazard;
+    if (mapEventSkillGroundHazard_.isValid()) {
+        mapEventSkillGroundHazard_.damage = std::max(
+            1, skill.groundHazard.damage + enemyDamageForMap() / 3
+        );
+    }
+    mapEventSkillName_ = skill.name;
+    addCombatFeedback(
+        leader->position(),
+        0,
+        "Encounter casting: " + mapEventSkillName_,
+        CombatFeedbackType::Telegraph
+    );
 }
 
 void GameWorld::updateRareLeaderEffects(float dt) {
@@ -3331,6 +3435,7 @@ void GameWorld::triggerElitePackEvent(std::size_t eventIndex) {
     activeFieldPackLeaderLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     resetRareLeaderEffects();
+    resetMapEncounterSkill();
     spawner_.reset();
     activeMapEventIndex_ = static_cast<int>(eventIndex);
     mapEventEnemiesRemaining_ = 5;
@@ -3374,6 +3479,7 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
     activeFieldPackLeaderLootBias_ = {};
     activeFieldPackRewardDrops_ = 0;
     resetRareLeaderEffects();
+    resetMapEncounterSkill();
     spawner_.reset();
     switch (encounter.type) {
         case MapEncounterType::EnhancedCache: {
@@ -5219,6 +5325,7 @@ void GameWorld::triggerBossIfNeeded() {
     volatileExplosionTimer_ = 0.0f;
     volatileExplosionRadius_ = 0.0f;
     resetRareLeaderEffects();
+    resetMapEncounterSkill();
     bossAoeSkill_ = BossSkillDefinition();
     resetBossDash();
     bossSkillTimer_ = bossDefinition_->skillInterval * 0.5f;
@@ -5351,6 +5458,22 @@ std::string GameWorld::rareLeaderSkillWarning() const {
         return "";
     }
     return "Rare casting: " + rareLeaderAoeName_;
+}
+const Vector2& GameWorld::mapEventSkillCenter() const { return mapEventSkillCenter_; }
+float GameWorld::mapEventSkillRadius() const { return mapEventSkillRadius_; }
+float GameWorld::mapEventSkillTelegraphProgress() const {
+    return mapEventSkillTelegraphDuration_ > 0.0f
+        ? mapEventSkillTelegraphTimer_ / mapEventSkillTelegraphDuration_
+        : 0.0f;
+}
+DamageType GameWorld::mapEventSkillDamageType() const {
+    return mapEventSkillDamageType_;
+}
+std::string GameWorld::mapEventSkillWarning() const {
+    if (mapEventSkillTelegraphTimer_ <= 0.0f || mapEventSkillName_.empty()) {
+        return "";
+    }
+    return "Encounter casting: " + mapEventSkillName_;
 }
 const BossDefinition& GameWorld::bossDefinition() const { return *bossDefinition_; }
 const SkillBar& GameWorld::skillBar() const { return skillBar_; }

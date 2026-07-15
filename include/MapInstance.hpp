@@ -47,6 +47,26 @@ enum class MapEncounterType {
     ForgeCollapse
 };
 
+struct MapEncounterSkillDefinition {
+    std::string name;
+    std::string description;
+    float interval = 0.0f;
+    float telegraphDuration = 0.0f;
+    float radius = 0.0f;
+    int damage = 0;
+    DamageType damageType = DamageType::Physical;
+    AilmentDefinition ailment;
+    GroundHazardDefinition groundHazard;
+
+    bool isValid() const {
+        return !name.empty()
+            && interval > 0.0f
+            && telegraphDuration > 0.0f
+            && radius > 0.0f
+            && damage > 0;
+    }
+};
+
 struct MapEncounterDefinition {
     MapEncounterType type = MapEncounterType::None;
     std::string id;
@@ -67,6 +87,7 @@ struct MapEncounterDefinition {
     bool overridesEnemyAttackProfile = false;
     DamageType enemyDamageType = DamageType::Physical;
     AilmentDefinition enemyAilment;
+    MapEncounterSkillDefinition leaderSkill;
 };
 
 class MapEncounterLibrary {
@@ -222,7 +243,21 @@ public:
                 4,
                 true,
                 DamageType::Cold,
-                {AilmentType::Chill, 2.5f, 0.0f, 0.60f}
+                {AilmentType::Chill, 2.5f, 0.0f, 0.60f},
+                {
+                    "Inkfreeze Pulse",
+                    "The Warden marks the player with a slowing cold burst",
+                    4.5f,
+                    0.75f,
+                    110.0f,
+                    4,
+                    DamageType::Cold,
+                    {AilmentType::Chill, 2.5f, 0.0f, 0.55f},
+                    {"Frozen Ink", 92.0f, 2.4f, 0.60f, 2,
+                        DamageType::Cold,
+                        {AilmentType::Chill, 2.5f, 0.0f, 0.55f},
+                        GroundHazardTarget::Player}
+                }
             },
             {
                 MapEncounterType::ForgeCollapse,
@@ -246,7 +281,21 @@ public:
                 4,
                 true,
                 DamageType::Fire,
-                {AilmentType::Ignite, 2.5f, 0.20f}
+                {AilmentType::Ignite, 2.5f, 0.20f},
+                {
+                    "Magma Collapse",
+                    "The Charger marks the ground before a burning detonation",
+                    4.0f,
+                    0.65f,
+                    115.0f,
+                    5,
+                    DamageType::Fire,
+                    {AilmentType::Ignite, 2.5f, 0.20f},
+                    {"Magma Brand", 100.0f, 2.6f, 0.65f, 3,
+                        DamageType::Fire,
+                        {AilmentType::Ignite, 2.5f, 0.20f},
+                        GroundHazardTarget::Player}
+                }
             }
         }};
         return definitions;

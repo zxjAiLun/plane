@@ -163,6 +163,11 @@ public:
     float rareLeaderAoeRadius() const;
     float rareLeaderAoeTelegraphProgress() const;
     std::string rareLeaderSkillWarning() const;
+    const Vector2& mapEventSkillCenter() const;
+    float mapEventSkillRadius() const;
+    float mapEventSkillTelegraphProgress() const;
+    DamageType mapEventSkillDamageType() const;
+    std::string mapEventSkillWarning() const;
     const BossDefinition& bossDefinition() const;
     const SkillBar& skillBar() const;
     AilmentDefinition effectiveSkillAilment(const SkillDefinition& skill) const;
@@ -256,6 +261,7 @@ private:
     void updateBossProjectiles(float dt);
     void updateEnemyProjectiles(float dt);
     void updateRareLeaderEffects(float dt);
+    void updateMapEncounterSkill(float dt);
     void spawnEnemies(float dt);
     void handleCollisions();
     int summonEnemyAdds(Enemy& summoner);
@@ -263,6 +269,7 @@ private:
     float enemyDamageMultiplier(const Enemy& enemy) const;
     int enemyAttackDamage(const Enemy& enemy) const;
     void resetRareLeaderEffects();
+    void resetMapEncounterSkill();
     void applyAtlasBonuses();
     void trySpendAtlasPoint(Input& input);
     int damageToEnemy(
@@ -473,6 +480,17 @@ private:
     DamageType rareLeaderAoeDamageType_ = DamageType::Physical;
     AilmentDefinition rareLeaderAoeAilment_;
     std::string rareLeaderAoeName_;
+    int mapEventSkillLeaderId_ = -1;
+    float mapEventSkillTimer_ = 0.0f;
+    Vector2 mapEventSkillCenter_;
+    float mapEventSkillTelegraphTimer_ = 0.0f;
+    float mapEventSkillTelegraphDuration_ = 0.0f;
+    float mapEventSkillRadius_ = 0.0f;
+    int mapEventSkillDamage_ = 0;
+    DamageType mapEventSkillDamageType_ = DamageType::Physical;
+    AilmentDefinition mapEventSkillAilment_;
+    GroundHazardDefinition mapEventSkillGroundHazard_;
+    std::string mapEventSkillName_;
     BossSkillDefinition bossAoeSkill_;
     BossDashState bossDashState_;
     BossSkillDefinition bossDashSkill_;

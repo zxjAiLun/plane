@@ -2998,6 +2998,25 @@ void testCombinationMapEvents() {
             }
             expect(archiveProjectileSeen,
                 "Archive Purge Ranged enemies fire Cold projectiles that Chill");
+            bool archiveSkillTelegraphSeen = false;
+            bool archiveSkillHazardSeen = false;
+            for (int frame = 0; frame < 120; ++frame) {
+                world.update(0.05f, input);
+                archiveSkillTelegraphSeen = archiveSkillTelegraphSeen
+                    || !world.mapEventSkillWarning().empty();
+                archiveSkillHazardSeen = archiveSkillHazardSeen
+                    || std::any_of(
+                        world.groundHazards().begin(),
+                        world.groundHazards().end(),
+                        [](const GroundHazard& hazard) {
+                            return hazard.definition().source == "Frozen Ink";
+                        }
+                    );
+            }
+            expect(archiveSkillTelegraphSeen,
+                "Archive Purge Warden telegraphs its Inkfreeze Pulse");
+            expect(archiveSkillHazardSeen,
+                "Archive Purge Inkfreeze Pulse leaves a Cold ground hazard");
 
             const Vector2 camera = world.cameraTopLeft();
             input.handleMousePressed(
@@ -3063,15 +3082,40 @@ void testCombinationMapEvents() {
             }
             expect(world.player().isIgnited(),
                 "Forge Collapse Charger attacks use Fire and Ignite");
+            bool forgeSkillTelegraphSeen = false;
+            bool forgeSkillHazardSeen = false;
+            for (int frame = 0; frame < 120; ++frame) {
+                world.update(0.05f, input);
+                forgeSkillTelegraphSeen = forgeSkillTelegraphSeen
+                    || !world.mapEventSkillWarning().empty();
+                forgeSkillHazardSeen = forgeSkillHazardSeen
+                    || std::any_of(
+                        world.groundHazards().begin(),
+                        world.groundHazards().end(),
+                        [](const GroundHazard& hazard) {
+                            return hazard.definition().source == "Magma Brand";
+                        }
+                    );
+            }
+            expect(forgeSkillTelegraphSeen,
+                "Forge Collapse Charger telegraphs its Magma Collapse");
+            expect(forgeSkillHazardSeen,
+                "Forge Collapse Magma Collapse leaves a Fire ground hazard");
 
-            const Vector2 camera = world.cameraTopLeft();
-            input.handleMousePressed(
-                sf::Mouse::Button::Right,
-                {static_cast<int>(std::lround(position.x - camera.x)),
-                 static_cast<int>(std::lround(position.y - camera.y))}
-            );
-            world.update(0.05f, input);
-            resolvePendingSkillEffects(world, input);
+            for (int cast = 0; cast < 8
+                && world.activeEliteEventEnemiesRemaining() > 0; ++cast) {
+                const Vector2 camera = world.cameraTopLeft();
+                input.handleMousePressed(
+                    sf::Mouse::Button::Right,
+                    {static_cast<int>(std::lround(position.x - camera.x)),
+                     static_cast<int>(std::lround(position.y - camera.y))}
+                );
+                world.update(0.05f, input);
+                resolvePendingSkillEffects(world, input);
+                for (int frame = 0; frame < 35; ++frame) {
+                    world.update(0.05f, input);
+                }
+            }
             expect(world.activeEliteEventEnemiesRemaining() == 0,
                 "Forge Collapse encounter enemies can be cleared");
             expect(world.mapEventsCompleted() == 1

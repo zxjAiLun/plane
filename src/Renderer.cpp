@@ -994,6 +994,7 @@ void Renderer::render(const GameWorld& world) {
     drawDashImpactEffect(world);
     drawBossAoeEffect(world);
     drawRareLeaderEffect(world);
+    drawMapEncounterSkillEffect(world);
     drawBossDashEffect(world);
     drawVolatileExplosionEffect(world);
     drawPlayer(world);
@@ -1105,6 +1106,11 @@ void Renderer::render(const GameWorld& world) {
     if (!world.rareLeaderSkillWarning().empty()) {
         drawText(truncateText(world.rareLeaderSkillWarning(), 34),
             {16.0f, hudY}, 14, sf::Color(130, 220, 255));
+        hudY += 18.0f;
+    }
+    if (!world.mapEventSkillWarning().empty()) {
+        drawText(truncateText(world.mapEventSkillWarning(), 34),
+            {16.0f, hudY}, 14, damageTypeColor(world.mapEventSkillDamageType()));
         hudY += 18.0f;
     }
     if (!world.nearbyEventPrompt().empty()) {
@@ -1713,6 +1719,30 @@ void Renderer::drawRareLeaderEffect(const GameWorld& world) {
     shape.setOutlineThickness(3.0f);
     shape.setOrigin({radius, radius});
     shape.setPosition(worldToScreen(world, world.rareLeaderAoeCenter()));
+    window_.draw(shape);
+}
+
+void Renderer::drawMapEncounterSkillEffect(const GameWorld& world) {
+    const float progress = world.mapEventSkillTelegraphProgress();
+    if (progress <= 0.0f) {
+        return;
+    }
+
+    const float radius = world.mapEventSkillRadius();
+    const sf::Color elementColor = damageTypeColor(world.mapEventSkillDamageType());
+    const auto alpha = static_cast<std::uint8_t>(
+        70.0f + 150.0f * (1.0f - progress)
+    );
+    sf::CircleShape shape(radius);
+    shape.setFillColor(sf::Color(
+        elementColor.r, elementColor.g, elementColor.b, alpha / 4
+    ));
+    shape.setOutlineColor(sf::Color(
+        elementColor.r, elementColor.g, elementColor.b, alpha
+    ));
+    shape.setOutlineThickness(3.0f);
+    shape.setOrigin({radius, radius});
+    shape.setPosition(worldToScreen(world, world.mapEventSkillCenter()));
     window_.draw(shape);
 }
 
