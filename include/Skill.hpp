@@ -20,6 +20,11 @@ enum class SkillCastType {
     Dash
 };
 
+enum class SkillDeliveryType {
+    Instant,
+    DelayedArea
+};
+
 struct SkillDefinition {
     SkillSlot slot = SkillSlot::Primary;
     SkillCastType castType = SkillCastType::Projectile;
@@ -33,4 +38,6 @@ struct SkillDefinition {
     AilmentDefinition ailment;
     float manaCost = 0.0f;
     DamageType damageType = DamageType::Physical;
+    SkillDeliveryType delivery = SkillDeliveryType::Instant;
+    float castDelay = 0.0f;
 };

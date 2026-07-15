@@ -105,6 +105,8 @@ public:
             Config::MeteorManaCost
         };
         skill.damageType = DamageType::Fire;
+        skill.delivery = SkillDeliveryType::DelayedArea;
+        skill.castDelay = 0.55f;
         return skill;
     }
 
@@ -123,6 +125,8 @@ public:
             Config::FrostBombManaCost
         };
         skill.damageType = DamageType::Cold;
+        skill.delivery = SkillDeliveryType::DelayedArea;
+        skill.castDelay = 0.20f;
         return skill;
     }
 

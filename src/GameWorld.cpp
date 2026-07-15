@@ -790,6 +790,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     quitRequested_ = false;
 
     projectiles_.clear();
+    pendingSkillEffects_.clear();
     combatFeedback_.clear();
     bossProjectiles_.clear();
     enemyProjectiles_.clear();
@@ -919,6 +920,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     skillFailureFeedbackTimer_ = std::max(0.0f, skillFailureFeedbackTimer_ - dt);
     shrineBuffTimer_ = std::max(0.0f, shrineBuffTimer_ - dt);
     updateGroundHazards(dt);
+    updatePendingSkillEffects(dt);
     updateAmbientThreat(dt);
     if (lifeFlaskStatusTimer_ > 0.0f) {
         lifeFlaskStatusTimer_ = std::max(0.0f, lifeFlaskStatusTimer_ - dt);
@@ -1014,6 +1016,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     player_.setPosition(map_.playerStart());
     resetAmbientThreat();
     projectiles_.clear();
+    pendingSkillEffects_.clear();
     combatFeedback_.clear();
     bossProjectiles_.clear();
     enemyProjectiles_.clear();
@@ -1161,6 +1164,7 @@ void GameWorld::startNextMap() {
     lastSkillFailureFeedback_.clear();
 
     projectiles_.clear();
+    pendingSkillEffects_.clear();
     combatFeedback_.clear();
     bossProjectiles_.clear();
     enemyProjectiles_.clear();
@@ -1282,6 +1286,47 @@ void GameWorld::updateGroundHazards(float dt) {
         groundHazards_.begin(), groundHazards_.end(),
         [](const GroundHazard& hazard) { return !hazard.isActive(); }
     ), groundHazards_.end());
+}
+
+void GameWorld::updatePendingSkillEffects(float dt) {
+    if (dt <= 0.0f) {
+        return;
+    }
+
+    for (auto& effect : pendingSkillEffects_) {
+        if (!effect.impacted) {
+            effect.delayRemaining = std::max(0.0f, effect.delayRemaining - dt);
+            if (effect.delayRemaining > 0.0f) {
+                continue;
+            }
+
+            dealAreaDamage(
+                effect.position,
+                effect.radius,
+                effect.damage,
+                &effect.ailment,
+                effect.source,
+                effect.damageType
+            );
+            effect.impacted = true;
+            effect.impactDurationRemaining = effect.impactDuration;
+        } else {
+            effect.impactDurationRemaining = std::max(
+                0.0f, effect.impactDurationRemaining - dt
+            );
+        }
+    }
+
+    pendingSkillEffects_.erase(
+        std::remove_if(
+            pendingSkillEffects_.begin(),
+            pendingSkillEffects_.end(),
+            [](const PendingSkillEffect& effect) {
+                return effect.impacted && effect.impactDurationRemaining <= 0.0f;
+            }
+        ),
+        pendingSkillEffects_.end()
+    );
 }
 
 void GameWorld::updateAmbientThreat(float dt) {
@@ -2333,17 +2378,29 @@ void GameWorld::tryCastSecondarySkill(Input& input) {
         skill, skillBar_.supportDefinitionsFor(skill)
     );
     for (int repeat = 0; repeat < repeatCount; ++repeat) {
-        dealAreaDamage(
-            aimPosition_,
-            radiusForPlayerSkill(skill),
-            damageForPlayerSkill(skill),
-            &ailment,
-            skill.name,
-            skill.damageType
-        );
+        const bool delayed = skill.delivery == SkillDeliveryType::DelayedArea
+            && skill.castDelay > 0.0f;
+        if (delayed) {
+            queueAreaSkillEffect(
+                skill,
+                aimPosition_,
+                skill.castDelay + static_cast<float>(repeat) * 0.12f
+            );
+        } else {
+            dealAreaDamage(
+                aimPosition_,
+                radiusForPlayerSkill(skill),
+                damageForPlayerSkill(skill),
+                &ailment,
+                skill.name,
+                skill.damageType
+            );
+        }
     }
-    secondarySkillEffectPosition_ = aimPosition_;
-    secondarySkillEffectTimer_ = skill.effectDuration;
+    if (skill.delivery != SkillDeliveryType::DelayedArea) {
+        secondarySkillEffectPosition_ = aimPosition_;
+        secondarySkillEffectTimer_ = skill.effectDuration;
+    }
 }
 
 void GameWorld::tryCastPrimarySkill(Input& input) {
@@ -3049,6 +3106,24 @@ int GameWorld::damageForPlayerSkill(const SkillDefinition& skill) const {
     return skillDamage(
         skill, player_.stats(), skillBar_.supportDefinitionsFor(skill), shrineMultiplier
     );
+}
+
+void GameWorld::queueAreaSkillEffect(
+    const SkillDefinition& skill,
+    const Vector2& center,
+    float delay
+) {
+    PendingSkillEffect effect;
+    effect.position = center;
+    effect.radius = radiusForPlayerSkill(skill);
+    effect.damage = damageForPlayerSkill(skill);
+    effect.ailment = ailmentForPlayerSkill(skill);
+    effect.damageType = skill.damageType;
+    effect.source = skill.name;
+    effect.delayRemaining = std::max(0.0f, delay);
+    effect.delayDuration = effect.delayRemaining;
+    effect.impactDuration = std::max(0.0f, skill.effectDuration);
+    pendingSkillEffects_.push_back(std::move(effect));
 }
 
 void GameWorld::applySkillProgression() {
@@ -4401,6 +4476,7 @@ void GameWorld::triggerBossIfNeeded() {
     map_.triggerBoss();
     enemies_.clear();
     projectiles_.clear();
+    pendingSkillEffects_.clear();
     bossProjectiles_.clear();
     enemyProjectiles_.clear();
     activeMapEventIndex_ = -1;
@@ -4433,6 +4509,9 @@ const Player& GameWorld::player() const { return player_; }
 const std::vector<Projectile>& GameWorld::projectiles() const { return projectiles_; }
 const std::vector<BossProjectile>& GameWorld::bossProjectiles() const { return bossProjectiles_; }
 const std::vector<EnemyProjectile>& GameWorld::enemyProjectiles() const { return enemyProjectiles_; }
+const std::vector<PendingSkillEffect>& GameWorld::pendingSkillEffects() const {
+    return pendingSkillEffects_;
+}
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
 const std::vector<CombatFeedback>& GameWorld::combatFeedback() const { return combatFeedback_; }
 const std::vector<GroundHazard>& GameWorld::groundHazards() const { return groundHazards_; }

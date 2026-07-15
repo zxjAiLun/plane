@@ -62,6 +62,18 @@ void settleEnemies(GameWorld& world, Input& input) {
     }
 }
 
+void resolvePendingSkillEffects(GameWorld& world, Input& input) {
+    for (int frame = 0; frame < 24 && !world.pendingSkillEffects().empty(); ++frame) {
+        world.update(0.05f, input);
+        if (std::any_of(
+                world.pendingSkillEffects().begin(),
+                world.pendingSkillEffects().end(),
+                [](const PendingSkillEffect& effect) { return effect.impacted; })) {
+            return;
+        }
+    }
+}
+
 void pressKey(GameWorld& world, Input& input, sf::Keyboard::Key key) {
     input.handleKeyPressed(key);
     world.update(0.05f, input);
@@ -1027,6 +1039,7 @@ void testCombatFeedbackAndDeathClaim() {
     );
     input.handleMousePressed(sf::Mouse::Button::Right, screenTarget);
     world.update(0.05f, input);
+    resolvePendingSkillEffects(world, input);
 
     expect(!world.combatFeedback().empty(),
         "a real player area skill creates combat feedback on hit");
@@ -1109,6 +1122,39 @@ void testSkillFailureFeedback() {
     std::filesystem::remove(path);
 }
 
+void testDelayedSkillEffects() {
+    GameWorld world(17601);
+    Input input;
+    const Vector2 target = world.player().position();
+    const Vector2 camera = world.cameraTopLeft();
+    const sf::Vector2i screenTarget(
+        static_cast<int>(std::lround(target.x - camera.x)),
+        static_cast<int>(std::lround(target.y - camera.y))
+    );
+
+    input.handleMousePressed(sf::Mouse::Button::Right, screenTarget);
+    world.update(0.05f, input);
+    expect(world.pendingSkillEffects().size() == 1
+            && !world.pendingSkillEffects().front().impacted
+            && world.pendingSkillEffects().front().source == "Meteor",
+        "Meteor queues a named pending impact instead of resolving immediately");
+    input.handleMouseReleased(sf::Mouse::Button::Right, screenTarget);
+
+    for (int frame = 0; frame < 11; ++frame) {
+        world.update(0.05f, input);
+    }
+    expect(!world.pendingSkillEffects().empty()
+            && world.pendingSkillEffects().front().impacted
+            && world.pendingSkillEffects().front().impactDurationRemaining > 0.0f,
+        "Meteor resolves after its telegraph and exposes the impact effect");
+
+    for (int frame = 0; frame < 12; ++frame) {
+        world.update(0.05f, input);
+    }
+    expect(world.pendingSkillEffects().empty(),
+        "resolved pending skill effects expire after their impact duration");
+}
+
 void testIgniteFeedbackMatchesWorldDamage() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_ignite_feedback_world_test.bin";
@@ -1153,6 +1199,7 @@ void testIgniteFeedbackMatchesWorldDamage() {
     );
     input.handleMousePressed(sf::Mouse::Button::Right, screenTarget);
     world.update(0.05f, input);
+    resolvePendingSkillEffects(world, input);
     expect(world.player().mana() < Config::PlayerMaxMana,
         "Ignite feedback fixture casts the real Secondary skill");
 
@@ -1353,17 +1400,18 @@ void testBuildMathMatchesWorldHits() {
         secondary, world.player().stats(), secondarySupports
     );
     const int bossHpBeforeArea = boss->hp();
-    const std::size_t areaFeedbackStart = world.combatFeedback().size();
     input.handleMousePressed(sf::Mouse::Button::Right, worldToScreen(boss->position()));
     world.update(0.05f, input);
+    resolvePendingSkillEffects(world, input);
 
-    bool areaFeedbackMatches = false;
-    for (std::size_t i = areaFeedbackStart; i < world.combatFeedback().size(); ++i) {
-        const auto& feedback = world.combatFeedback()[i];
-        if (feedback.source == secondary.name) {
-            areaFeedbackMatches = areaFeedbackMatches || feedback.damage == expectedAreaDamage;
+    const bool areaFeedbackMatches = std::any_of(
+        world.combatFeedback().begin(),
+        world.combatFeedback().end(),
+        [&secondary, expectedAreaDamage](const CombatFeedback& feedback) {
+            return feedback.source == secondary.name
+                && feedback.damage == expectedAreaDamage;
         }
-    }
+    );
     boss = findBoss();
     const int bossHpAfterArea = boss == world.enemies().end() ? 0 : boss->hp();
     const int bossAreaDamage = bossHpBeforeArea - bossHpAfterArea;
@@ -1741,6 +1789,7 @@ void testBossCombatFlow() {
         );
         input.handleMousePressed(sf::Mouse::Button::Right, screenTarget);
         world.update(0.05f, input);
+        resolvePendingSkillEffects(world, input);
         if (world.bossEnraged()) {
             enrageObserved = true;
             enrageAddsObserved = enrageAddsObserved || std::any_of(
@@ -2047,6 +2096,7 @@ void testElitePackEventFlow() {
         );
         input.handleMousePressed(sf::Mouse::Button::Right, screenTarget);
         world.update(0.05f, input);
+        resolvePendingSkillEffects(world, input);
     }
 
     expect(world.activeEliteEventEnemiesRemaining() == 0,
@@ -2209,6 +2259,7 @@ void testCombinationMapEvents() {
                  static_cast<int>(std::lround(position.y - camera.y))}
             );
             world.update(0.05f, input);
+            resolvePendingSkillEffects(world, input);
             const MapEventInstance* afterClear = combinationEvent(world);
             const int remainingAfterClear = world.activeEliteEventEnemiesRemaining();
             expect(afterClear != nullptr && afterClear->completed
@@ -2283,6 +2334,7 @@ void testCombinationMapEvents() {
                  static_cast<int>(std::lround(position.y - camera.y))}
             );
             world.update(0.05f, input);
+            resolvePendingSkillEffects(world, input);
             expect(world.activeEliteEventEnemiesRemaining() == 0
                     && world.mapEventsCompleted() == 0,
                 "Guarded Shrine remains incomplete after guardians are defeated");
@@ -2320,6 +2372,7 @@ void testCombinationMapEvents() {
                  static_cast<int>(std::lround(position.y - camera.y))}
             );
             world.update(0.05f, input);
+            resolvePendingSkillEffects(world, input);
             const MapEventInstance* afterClear = combinationEvent(world);
             expect(afterClear != nullptr && afterClear->completed
                     && world.activeEliteEventEnemiesRemaining() == 0,
@@ -2357,6 +2410,7 @@ void testCombinationMapEvents() {
                  static_cast<int>(std::lround(position.y - camera.y))}
             );
             world.update(0.05f, input);
+            resolvePendingSkillEffects(world, input);
             expect(world.activeEliteEventEnemiesRemaining() == 0
                     && world.mapEventsCompleted() == 1
                     && world.mapItemsDropped() >= 4,
@@ -2398,6 +2452,7 @@ void testCombinationMapEvents() {
                  static_cast<int>(std::lround(position.y - camera.y))}
             );
             world.update(0.05f, input);
+            resolvePendingSkillEffects(world, input);
             expect(world.activeEliteEventEnemiesRemaining() == 0
                     && world.mapEventsCompleted() == 1,
                 "Warden Court clears and completes its encounter");
@@ -2506,6 +2561,7 @@ int main() {
     testInvalidProgressionSaveDoesNotMutate();
     testCombatFeedbackAndDeathClaim();
     testSkillFailureFeedback();
+    testDelayedSkillEffects();
     testIgniteFeedbackMatchesWorldDamage();
     testBuildMathMatchesWorldHits();
     testExpandedSkillWorldHits();

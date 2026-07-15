@@ -515,6 +515,9 @@ std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& sta
     if (repeatCount > 1) {
         summary += "  Hits " + std::to_string(repeatCount);
     }
+    if (skill.delivery == SkillDeliveryType::DelayedArea && skill.castDelay > 0.0f) {
+        summary += "  Impact " + formatFloat(skill.castDelay, 2) + "s";
+    }
     return summary;
 }
 
@@ -903,6 +906,7 @@ void Renderer::render(const GameWorld& world) {
     drawMap(world);
     drawAmbientHazardWarning(world);
     drawGroundHazards(world);
+    drawPendingSkillEffects(world);
     drawNovaEffect(world);
     drawSecondarySkillEffect(world);
     drawDashImpactEffect(world);
@@ -1355,6 +1359,50 @@ void Renderer::drawGroundHazards(const GameWorld& world) {
             11,
             sf::Color(255, 205, 120)
         );
+    }
+}
+
+void Renderer::drawPendingSkillEffects(const GameWorld& world) {
+    for (const auto& effect : world.pendingSkillEffects()) {
+        const sf::Color elementColor = damageTypeColor(effect.damageType);
+        const float progress = effect.impacted
+            ? 1.0f
+            : effect.delayDuration > 0.0f
+                ? 1.0f - effect.delayRemaining / effect.delayDuration
+                : 1.0f;
+        const float radius = effect.radius * (0.82f + 0.18f * std::clamp(progress, 0.0f, 1.0f));
+        const auto alpha = static_cast<std::uint8_t>(
+            effect.impacted
+                ? 190.0f * std::clamp(
+                    effect.impactDuration > 0.0f
+                        ? effect.impactDurationRemaining / effect.impactDuration
+                        : 1.0f,
+                    0.0f,
+                    1.0f
+                )
+                : 80.0f + 130.0f * std::clamp(progress, 0.0f, 1.0f)
+        );
+
+        sf::CircleShape marker(radius);
+        sf::Color fill = elementColor;
+        fill.a = effect.impacted ? alpha / 5 : 22;
+        sf::Color outline = elementColor;
+        outline.a = alpha;
+        marker.setFillColor(fill);
+        marker.setOutlineColor(outline);
+        marker.setOutlineThickness(effect.impacted ? 3.0f : 4.0f);
+        marker.setOrigin({radius, radius});
+        marker.setPosition(worldToScreen(world, effect.position));
+        window_.draw(marker);
+
+        if (!effect.impacted) {
+            drawCenteredText(
+                "! " + effect.source,
+                worldToScreen(world, effect.position + Vector2(0.0f, -radius - 16.0f)),
+                12,
+                sf::Color(255, 220, 150, alpha)
+            );
+        }
     }
 }
 

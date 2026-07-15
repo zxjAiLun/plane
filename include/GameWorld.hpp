@@ -58,6 +58,20 @@ struct EnemyProjectile {
     bool alive = true;
 };
 
+struct PendingSkillEffect {
+    Vector2 position;
+    float radius = 0.0f;
+    int damage = 0;
+    AilmentDefinition ailment;
+    DamageType damageType = DamageType::Physical;
+    std::string source;
+    float delayRemaining = 0.0f;
+    float delayDuration = 0.0f;
+    float impactDurationRemaining = 0.0f;
+    float impactDuration = 0.0f;
+    bool impacted = false;
+};
+
 struct RunProgression {
     std::set<std::string> unlockedSkills;
     std::set<std::string> unlockedSupports;
@@ -82,6 +96,7 @@ public:
     const std::vector<Projectile>& projectiles() const;
     const std::vector<BossProjectile>& bossProjectiles() const;
     const std::vector<EnemyProjectile>& enemyProjectiles() const;
+    const std::vector<PendingSkillEffect>& pendingSkillEffects() const;
     const std::vector<Enemy>& enemies() const;
     const std::vector<CombatFeedback>& combatFeedback() const;
     const std::vector<GroundHazard>& groundHazards() const;
@@ -209,6 +224,7 @@ private:
     void movePlayerBy(const Vector2& delta);
     void updateObjects(float dt);
     void updateGroundHazards(float dt);
+    void updatePendingSkillEffects(float dt);
     void updateAmbientThreat(float dt);
     void updateBossSkills(float dt);
     void updateBossDash(float dt, Enemy& boss);
@@ -255,6 +271,11 @@ private:
         const AilmentDefinition* ailment = nullptr,
         const std::string& source = "",
         DamageType damageType = DamageType::Physical
+    );
+    void queueAreaSkillEffect(
+        const SkillDefinition& skill,
+        const Vector2& center,
+        float delay
     );
     void applySkillAilment(Enemy& enemy, const AilmentDefinition& ailment, int hitDamage);
     void updateMapEvents(float dt, Input& input);
@@ -348,6 +369,7 @@ private:
     std::vector<Projectile> projectiles_;
     std::vector<BossProjectile> bossProjectiles_;
     std::vector<EnemyProjectile> enemyProjectiles_;
+    std::vector<PendingSkillEffect> pendingSkillEffects_;
     std::vector<Enemy> enemies_;
     std::vector<CombatFeedback> combatFeedback_;
     std::vector<GroundHazard> groundHazards_;

@@ -16,6 +16,7 @@ private:
     void drawMap(const GameWorld& world);
     void drawAmbientHazardWarning(const GameWorld& world);
     void drawGroundHazards(const GameWorld& world);
+    void drawPendingSkillEffects(const GameWorld& world);
     void drawPlayer(const GameWorld& world);
     void drawNovaEffect(const GameWorld& world);
     void drawSecondarySkillEffect(const GameWorld& world);
