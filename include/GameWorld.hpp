@@ -208,6 +208,7 @@ public:
     std::string pickupPrompt() const;
     float shrineBuffTimeRemaining() const;
     const Vector2& ambientHazardWarningPosition() const;
+    const std::vector<Vector2>& ambientHazardWarningPositions() const;
     float ambientHazardWarningProgress() const;
     int mapEventsCompleted() const;
     int mapEventsTotal() const;
@@ -386,6 +387,9 @@ private:
     bool shouldSpawnBoss() const;
     void triggerBossIfNeeded();
     void resetAmbientThreat();
+    std::vector<Vector2> ambientHazardPositions(
+        const MapAmbientEffectDefinition& effect
+    ) const;
 
     float currentSpawnInterval() const;
 
@@ -503,6 +507,7 @@ private:
     std::string nearbyEventPrompt_;
     float shrineBuffTimer_;
     Vector2 ambientHazardWarningPosition_;
+    std::vector<Vector2> ambientHazardWarningPositions_;
     float ambientHazardTimer_ = 0.0f;
     float ambientHazardWarningTimer_ = 0.0f;
     int lifeFlaskCharges_;

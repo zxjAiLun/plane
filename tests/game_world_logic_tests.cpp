@@ -2017,6 +2017,7 @@ void testBossCombatFlow() {
     bool enrageAddsObserved = false;
     bool enrageHazardObserved = false;
     bool arenaHazardObserved = false;
+    bool arenaHazardPatternObserved = false;
     bool finalPhaseObserved = false;
     bool finalPhaseAddsObserved = false;
     bool finalPhaseHazardObserved = false;
@@ -2077,6 +2078,15 @@ void testBossCombatFlow() {
                     == world.map().definition().bossArenaEffect.hazard.source;
             }
         );
+        const int arenaHazardCount = static_cast<int>(std::count_if(
+            world.groundHazards().begin(),
+            world.groundHazards().end(),
+            [&world](const GroundHazard& hazard) {
+                return hazard.definition().source
+                    == world.map().definition().bossArenaEffect.hazard.source;
+            }
+        ));
+        arenaHazardPatternObserved = arenaHazardPatternObserved || arenaHazardCount >= 4;
         telegraphFeedbackObserved = telegraphFeedbackObserved || std::any_of(
             world.combatFeedback().begin(),
             world.combatFeedback().end(),
@@ -2122,6 +2132,8 @@ void testBossCombatFlow() {
     expect(enrageHazardObserved, "Boss enrage phase creates its arena hazard");
     expect(arenaHazardObserved,
         "map theme creates an independent Boss Arena hazard");
+    expect(arenaHazardPatternObserved,
+        "Brimstone Boss Arena hazard uses its data-driven ring pattern");
     expect(finalPhaseObserved, "Boss enters its data-driven final phase");
     expect(finalPhaseAddsObserved, "Boss final phase adds theme reinforcements");
     expect(finalPhaseHazardObserved, "Boss final phase creates its theme hazard");

@@ -1390,17 +1390,24 @@ void Renderer::drawAmbientHazardWarning(const GameWorld& world) {
     sf::Color outlineColor = elementColor;
     outlineColor.a = alpha;
 
-    sf::CircleShape warning(radius);
-    warning.setFillColor(fillColor);
-    warning.setOutlineColor(outlineColor);
-    warning.setOutlineThickness(4.0f);
-    warning.setOrigin({radius, radius});
-    warning.setPosition(worldToScreen(world, world.ambientHazardWarningPosition()));
-    window_.draw(warning);
+    const auto& warningPositions = world.ambientHazardWarningPositions();
+    if (warningPositions.empty()) {
+        return;
+    }
+
+    for (const auto& position : warningPositions) {
+        sf::CircleShape warning(radius);
+        warning.setFillColor(fillColor);
+        warning.setOutlineColor(outlineColor);
+        warning.setOutlineThickness(4.0f);
+        warning.setOrigin({radius, radius});
+        warning.setPosition(worldToScreen(world, position));
+        window_.draw(warning);
+    }
 
     drawCenteredText(
         "! " + effect.name,
-        worldToScreen(world, world.ambientHazardWarningPosition()
+        worldToScreen(world, warningPositions.front()
             + Vector2(0.0f, -radius - 16.0f)),
         12,
         sf::Color(255, 210, 130, alpha)

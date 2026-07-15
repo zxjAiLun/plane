@@ -2631,6 +2631,10 @@ void testMapLayoutVariants() {
             && MapTemplateLibrary::forIndex(1).bossArenaEffect.hazard.damageType == DamageType::Lightning
             && MapTemplateLibrary::forIndex(2).bossArenaEffect.hazard.damageType == DamageType::Poison
             && MapTemplateLibrary::forIndex(3).bossArenaEffect.hazard.damageType == DamageType::Cold
+            && MapTemplateLibrary::forIndex(0).bossArenaEffect.pattern == MapHazardPattern::Ring
+            && MapTemplateLibrary::forIndex(1).bossArenaEffect.pattern == MapHazardPattern::Cross
+            && MapTemplateLibrary::forIndex(2).bossArenaEffect.pattern == MapHazardPattern::Ring
+            && MapTemplateLibrary::forIndex(3).bossArenaEffect.pattern == MapHazardPattern::Target
             && MapTemplateLibrary::forIndex(0).signatureAilment.type == AilmentType::Ignite
             && MapTemplateLibrary::forIndex(1).signatureAilment.type == AilmentType::Shock
             && MapTemplateLibrary::forIndex(2).signatureAilment.type == AilmentType::Poison

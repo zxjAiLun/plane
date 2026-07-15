@@ -1576,6 +1576,7 @@ void GameWorld::updateAmbientThreat(float dt) {
         || (!bossArenaActive
             && (!fieldActive || mapLevel_ < effect.minimumMapLevel))) {
         ambientHazardWarningTimer_ = 0.0f;
+        ambientHazardWarningPositions_.clear();
         ambientHazardTimer_ = effect.isValid() ? effect.interval : 0.0f;
         return;
     }
@@ -1585,24 +1586,38 @@ void GameWorld::updateAmbientThreat(float dt) {
             0.0f, ambientHazardWarningTimer_ - dt
         );
         if (ambientHazardWarningTimer_ == 0.0f) {
-            groundHazards_.emplace_back(
-                ambientHazardWarningPosition_, effect.hazard
-            );
+            for (const auto& position : ambientHazardWarningPositions_) {
+                groundHazards_.emplace_back(position, effect.hazard);
+            }
+            ambientHazardWarningPositions_.clear();
         }
         return;
     }
 
     ambientHazardTimer_ = std::max(0.0f, ambientHazardTimer_ - dt);
     const std::size_t hazardLimit = bossArenaActive ? 6U : 4U;
-    if (ambientHazardTimer_ > 0.0f || groundHazards_.size() >= hazardLimit) {
+    const std::size_t activeAmbientHazards = static_cast<std::size_t>(std::count_if(
+        groundHazards_.begin(),
+        groundHazards_.end(),
+        [&effect](const GroundHazard& hazard) {
+            return hazard.definition().source == effect.hazard.source;
+        }
+    ));
+    if (ambientHazardTimer_ > 0.0f || activeAmbientHazards >= hazardLimit) {
+        return;
+    }
+
+    const std::vector<Vector2> positions = ambientHazardPositions(effect);
+    if (positions.empty() || activeAmbientHazards + positions.size() > hazardLimit) {
         return;
     }
 
     ambientHazardTimer_ = effect.interval;
-    ambientHazardWarningPosition_ = player_.position();
+    ambientHazardWarningPositions_ = positions;
+    ambientHazardWarningPosition_ = positions.front();
     ambientHazardWarningTimer_ = effect.telegraphDuration;
     addCombatFeedback(
-        ambientHazardWarningPosition_,
+        player_.position(),
         0,
         effect.name,
         CombatFeedbackType::Telegraph
@@ -1615,8 +1630,48 @@ void GameWorld::resetAmbientThreat() {
         ? map_.definition().bossArenaEffect
         : map_.definition().ambientEffect;
     ambientHazardWarningPosition_ = player_.position();
+    ambientHazardWarningPositions_.clear();
     ambientHazardTimer_ = effect.isValid() ? effect.interval : 0.0f;
     ambientHazardWarningTimer_ = 0.0f;
+}
+
+std::vector<Vector2> GameWorld::ambientHazardPositions(
+    const MapAmbientEffectDefinition& effect
+) const {
+    const Vector2 origin = player_.position();
+    switch (effect.pattern) {
+        case MapHazardPattern::Target:
+            return {origin};
+        case MapHazardPattern::Ring: {
+            constexpr float twoPi = 6.28318531f;
+            constexpr int positionCount = 4;
+            std::vector<Vector2> positions;
+            positions.reserve(positionCount);
+            for (int index = 0; index < positionCount; ++index) {
+                const float angle = twoPi * static_cast<float>(index)
+                    / static_cast<float>(positionCount);
+                const Vector2 offset(
+                    std::cos(angle) * effect.patternRadius,
+                    std::sin(angle) * effect.patternRadius
+                );
+                positions.push_back(map_.resolveMovement(
+                    origin, effect.hazard.radius, offset
+                ));
+            }
+            return positions;
+        }
+        case MapHazardPattern::Cross: {
+            const float radius = effect.patternRadius;
+            return {
+                map_.resolveMovement(origin, effect.hazard.radius, {radius, 0.0f}),
+                map_.resolveMovement(origin, effect.hazard.radius, {-radius, 0.0f}),
+                map_.resolveMovement(origin, effect.hazard.radius, {0.0f, radius}),
+                map_.resolveMovement(origin, effect.hazard.radius, {0.0f, -radius})
+            };
+        }
+    }
+
+    return {origin};
 }
 
 void GameWorld::updateBossSkills(float dt) {
@@ -5003,6 +5058,9 @@ float GameWorld::playerHitEffectProgress() const {
 const Vector2& GameWorld::aimPosition() const { return aimPosition_; }
 const Vector2& GameWorld::ambientHazardWarningPosition() const {
     return ambientHazardWarningPosition_;
+}
+const std::vector<Vector2>& GameWorld::ambientHazardWarningPositions() const {
+    return ambientHazardWarningPositions_;
 }
 float GameWorld::ambientHazardWarningProgress() const {
     const bool bossArenaActive = map_.bossTriggered() && !map_.bossDefeated();

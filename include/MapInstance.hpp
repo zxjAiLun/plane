@@ -261,6 +261,12 @@ struct MapEncounterProfile {
     int summonerWeight = 0;
 };
 
+enum class MapHazardPattern {
+    Target,
+    Ring,
+    Cross
+};
+
 struct MapAmbientEffectDefinition {
     std::string name;
     std::string description;
@@ -268,13 +274,18 @@ struct MapAmbientEffectDefinition {
     float telegraphDuration = 0.0f;
     GroundHazardDefinition hazard;
     int minimumMapLevel = 2;
+    MapHazardPattern pattern = MapHazardPattern::Target;
+    float patternRadius = 0.0f;
 
     bool isValid() const {
+        const bool validPattern = pattern == MapHazardPattern::Target
+            || patternRadius > 0.0f;
         return !name.empty()
             && interval > 0.0f
             && telegraphDuration > 0.0f
             && minimumMapLevel > 0
-            && hazard.isValid();
+            && hazard.isValid()
+            && validPattern;
     }
 };
 
@@ -399,6 +410,8 @@ private:
                 DamageType::Fire, {AilmentType::Ignite, 2.5f, 0.20f}},
             1
         };
+        templates[0].bossArenaEffect.pattern = MapHazardPattern::Ring;
+        templates[0].bossArenaEffect.patternRadius = 155.0f;
         templates[1].signatureDamageType = DamageType::Lightning;
         templates[1].signatureAilment = {AilmentType::Shock, 2.0f, 0.0f, 1.15f};
         templates[1].signatureLootBias = {AffixTag::Lightning, 1.35f};
@@ -412,6 +425,8 @@ private:
                 {AilmentType::Shock, 2.0f, 0.0f, 1.15f}},
             1
         };
+        templates[1].bossArenaEffect.pattern = MapHazardPattern::Cross;
+        templates[1].bossArenaEffect.patternRadius = 165.0f;
         templates[2].signatureDamageType = DamageType::Poison;
         templates[2].signatureAilment = {AilmentType::Poison, 2.5f, 0.35f};
         templates[2].signatureLootBias = {AffixTag::Poison, 1.35f};
@@ -424,6 +439,8 @@ private:
                 DamageType::Poison, {AilmentType::Poison, 2.5f, 0.35f}},
             1
         };
+        templates[2].bossArenaEffect.pattern = MapHazardPattern::Ring;
+        templates[2].bossArenaEffect.patternRadius = 135.0f;
         templates[3].signatureDamageType = DamageType::Cold;
         templates[3].signatureAilment = {AilmentType::Chill, 2.0f, 0.0f, 0.65f};
         templates[3].signatureLootBias = {AffixTag::Cold, 1.35f};
@@ -436,6 +453,7 @@ private:
                 DamageType::Cold, {AilmentType::Chill, 2.0f, 0.0f, 0.65f}},
             1
         };
+        templates[3].bossArenaEffect.pattern = MapHazardPattern::Target;
         return templates;
     }
 };
