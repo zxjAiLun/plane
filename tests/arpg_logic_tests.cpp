@@ -1976,6 +1976,15 @@ void testEliteModifierDefinitions() {
             && rejuvenating.healFraction > 0.0f
             && rejuvenating.healFraction < 1.0f,
         "Rejuvenating defines a bounded area heal");
+    expect(hardened.rewardLootBias.primaryTag == AffixTag::Survival
+            && hardened.rewardLootBias.secondaryTag == AffixTag::Armor,
+        "Hardened biases survival and armor rewards");
+    expect(swift.rewardLootBias.primaryTag == AffixTag::AttackSpeed
+            && swift.rewardLootBias.secondaryTag == AffixTag::MoveSpeed,
+        "Swift biases attack speed and movement rewards");
+    expect(volatileModifier.rewardLootBias.primaryTag == AffixTag::Damage
+            && volatileModifier.rewardLootBias.secondaryTag == AffixTag::Area,
+        "Volatile biases damage and area rewards");
 
     Enemy normal({400.0f, 400.0f}, 10, 1, EnemyType::Normal, EliteModifier::Hardened);
     expect(normal.eliteModifier() == EliteModifier::None,

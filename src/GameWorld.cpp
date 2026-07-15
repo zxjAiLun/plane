@@ -361,6 +361,8 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , mapDroppedItemsByRarity_{}
     , mapRareLeadersDefeated_(0)
     , mapRareLeaderItemsDropped_(0)
+    , mapDoubleModifierElitesDefeated_(0)
+    , mapDoubleModifierItemsDropped_(0)
     , lastRareLeaderName_()
     , lastRareLeaderRewardDescription_()
     , fieldPacksCleared_(0)
@@ -614,6 +616,8 @@ SaveData GameWorld::captureSaveData() const {
     data.mapDroppedItemsByRarity = mapDroppedItemsByRarity_;
     data.mapRareLeadersDefeated = mapRareLeadersDefeated_;
     data.mapRareLeaderItemsDropped = mapRareLeaderItemsDropped_;
+    data.mapDoubleModifierElitesDefeated = mapDoubleModifierElitesDefeated_;
+    data.mapDoubleModifierItemsDropped = mapDoubleModifierItemsDropped_;
     data.lastRareLeaderName = lastRareLeaderName_;
     data.lastRareLeaderRewardDescription = lastRareLeaderRewardDescription_;
     data.fieldPacksCleared = fieldPacksCleared_;
@@ -690,6 +694,8 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
         || data.fieldPacksCleared < 0
         || data.mapRareLeadersDefeated < 0
         || data.mapRareLeaderItemsDropped < 0
+        || data.mapDoubleModifierElitesDefeated < 0
+        || data.mapDoubleModifierItemsDropped < 0
         || std::any_of(
             data.mapDroppedItemsByRarity.begin(),
             data.mapDroppedItemsByRarity.end(),
@@ -905,6 +911,8 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     mapDroppedItemsByRarity_ = data.mapDroppedItemsByRarity;
     mapRareLeadersDefeated_ = std::max(0, data.mapRareLeadersDefeated);
     mapRareLeaderItemsDropped_ = std::max(0, data.mapRareLeaderItemsDropped);
+    mapDoubleModifierElitesDefeated_ = std::max(0, data.mapDoubleModifierElitesDefeated);
+    mapDoubleModifierItemsDropped_ = std::max(0, data.mapDoubleModifierItemsDropped);
     lastRareLeaderName_ = data.lastRareLeaderName;
     lastRareLeaderRewardDescription_ = data.lastRareLeaderRewardDescription;
     fieldPacksCleared_ = std::min(data.fieldPacksCleared, Config::BossGateRequiredFieldPacks);
@@ -1218,6 +1226,8 @@ void GameWorld::reset(std::uint64_t runSeed) {
     mapDroppedItemsByRarity_ = {};
     mapRareLeadersDefeated_ = 0;
     mapRareLeaderItemsDropped_ = 0;
+    mapDoubleModifierElitesDefeated_ = 0;
+    mapDoubleModifierItemsDropped_ = 0;
     lastRareLeaderName_.clear();
     lastRareLeaderRewardDescription_.clear();
     fieldPacksCleared_ = 0;
@@ -1367,6 +1377,8 @@ void GameWorld::startNextMap() {
     mapDroppedItemsByRarity_ = {};
     mapRareLeadersDefeated_ = 0;
     mapRareLeaderItemsDropped_ = 0;
+    mapDoubleModifierElitesDefeated_ = 0;
+    mapDoubleModifierItemsDropped_ = 0;
     lastRareLeaderName_.clear();
     lastRareLeaderRewardDescription_.clear();
     fieldPacksCleared_ = 0;
@@ -4635,6 +4647,18 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
             mergeLootBias(leaderBias, dropBias);
             dropBias = leaderBias;
         }
+        if (enemy.type() == EnemyType::Elite) {
+            const auto& primaryModifier = EliteModifierLibrary::forModifier(
+                enemy.eliteModifier()
+            );
+            mergeLootBias(dropBias, primaryModifier.rewardLootBias);
+            if (enemy.secondaryEliteModifier() != enemy.eliteModifier()) {
+                const auto& secondaryModifier = EliteModifierLibrary::forModifier(
+                    enemy.secondaryEliteModifier()
+                );
+                mergeLootBias(dropBias, secondaryModifier.rewardLootBias);
+            }
+        }
         if (enemy.isBoss()) {
             mergeLootBias(dropBias, bossLootBias(bossDefinition_->lootTheme));
         }
@@ -4653,6 +4677,13 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         if (enemy.isBoss()) {
             ++mapBossItemsDropped_;
         }
+    }
+
+    if (enemy.type() == EnemyType::Elite
+        && !enemy.isRare()
+        && enemy.secondaryEliteModifier() != EliteModifier::None) {
+        ++mapDoubleModifierElitesDefeated_;
+        mapDoubleModifierItemsDropped_ += dropsToCreate;
     }
 
     if (enemy.isRare() && enemy.fieldPackIndex() == activeFieldPackId_) {
@@ -5344,6 +5375,12 @@ int GameWorld::mapDroppedItemsByRarity(const Rarity rarity) const {
 }
 int GameWorld::mapRareLeadersDefeated() const { return mapRareLeadersDefeated_; }
 int GameWorld::mapRareLeaderItemsDropped() const { return mapRareLeaderItemsDropped_; }
+int GameWorld::mapDoubleModifierElitesDefeated() const {
+    return mapDoubleModifierElitesDefeated_;
+}
+int GameWorld::mapDoubleModifierItemsDropped() const {
+    return mapDoubleModifierItemsDropped_;
+}
 std::string GameWorld::lastRareLeaderName() const { return lastRareLeaderName_; }
 std::string GameWorld::lastRareLeaderRewardDescription() const {
     return lastRareLeaderRewardDescription_;

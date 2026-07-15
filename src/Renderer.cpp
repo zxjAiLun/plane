@@ -1078,6 +1078,13 @@ void Renderer::render(const GameWorld& world) {
             hudY += 16.0f;
         }
     }
+    if (world.mapDoubleModifierElitesDefeated() > 0) {
+        drawText("Double-mod Elite: "
+                + std::to_string(world.mapDoubleModifierElitesDefeated())
+                + " | Drops " + std::to_string(world.mapDoubleModifierItemsDropped()),
+            {16.0f, hudY}, 12, sf::Color(255, 210, 150));
+        hudY += 16.0f;
+    }
     if (!world.rareLeaderSkillWarning().empty()) {
         drawText(truncateText(world.rareLeaderSkillWarning(), 34),
             {16.0f, hudY}, 14, sf::Color(130, 220, 255));
@@ -2848,7 +2855,7 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     drawCenteredText(truncateText(phaseText, 28), {centerColumnX, 24.0f}, 14,
         sf::Color(255, 240, 180));
 
-    drawBox({centerColumnX, 105.0f}, {190.0f, 160.0f}, sf::Color::Green);
+    drawBox({centerColumnX, 105.0f}, {190.0f, 190.0f}, sf::Color::Green);
     drawText(truncateText("BOSS: " + world.bossDefinition().name, 27),
         {centerColumnX - 90.0f, 47.0f}, 14, sf::Color::White);
     drawText("Kills " + std::to_string(world.mapKills())
@@ -2867,6 +2874,9 @@ void Renderer::drawMapComplete(const GameWorld& world) {
     drawText("Rare " + std::to_string(world.mapRareLeadersDefeated())
         + "  Leader drops " + std::to_string(world.mapRareLeaderItemsDropped()),
         {centerColumnX - 90.0f, 116.0f}, 10, sf::Color(255, 220, 160));
+    drawText("Double " + std::to_string(world.mapDoubleModifierElitesDefeated())
+        + "  Drops " + std::to_string(world.mapDoubleModifierItemsDropped()),
+        {centerColumnX - 90.0f, 132.0f}, 10, sf::Color(255, 210, 150));
     const auto relicPreview = world.bossRelicPreview();
     const auto* relicBase = relicPreview
         ? ItemBaseLibrary::find(relicPreview->baseId) : nullptr;
@@ -2875,13 +2885,13 @@ void Renderer::drawMapComplete(const GameWorld& world) {
         : BossRelicEffectLibrary::forTheme(
             bossRelicTheme(world.bossDefinition().lootTheme));
     drawText(truncateText("Effect: " + relicEffect.name, 27),
-        {centerColumnX - 90.0f, 132.0f}, 10, sf::Color(255, 180, 80));
+        {centerColumnX - 90.0f, 148.0f}, 10, sf::Color(255, 180, 80));
     drawText(truncateText("Relic: " + world.bossDefinition().lootRewardDescription, 27),
-        {centerColumnX - 90.0f, 147.0f}, 9, sf::Color(255, 225, 145));
+        {centerColumnX - 90.0f, 163.0f}, 9, sf::Color(255, 225, 145));
     if (!world.lastRareLeaderName().empty()) {
         drawText(truncateText("Rare: " + world.lastRareLeaderName()
                 + " | " + world.lastRareLeaderRewardDescription(), 27),
-            {centerColumnX - 90.0f, 161.0f}, 9, sf::Color(255, 205, 140));
+            {centerColumnX - 90.0f, 177.0f}, 9, sf::Color(255, 205, 140));
     }
 
     // Left-side pickup guidance (always available during MapComplete):

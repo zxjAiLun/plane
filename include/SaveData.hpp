@@ -32,7 +32,7 @@ struct SavedMapEvent {
 
 struct SaveData {
     static constexpr std::uint32_t Magic = 0x4D415247U;
-    static constexpr std::uint32_t Version = 14U;
+    static constexpr std::uint32_t Version = 15U;
 
     SavedRunState state = SavedRunState::Playing;
     std::uint64_t runSeed = 0;
@@ -59,6 +59,8 @@ struct SaveData {
     std::array<int, 4> mapDroppedItemsByRarity{};
     int mapRareLeadersDefeated = 0;
     int mapRareLeaderItemsDropped = 0;
+    int mapDoubleModifierElitesDefeated = 0;
+    int mapDoubleModifierItemsDropped = 0;
     std::string lastRareLeaderName;
     std::string lastRareLeaderRewardDescription;
     int fieldPacksCleared = 0;

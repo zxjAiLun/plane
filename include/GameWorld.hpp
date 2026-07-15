@@ -201,6 +201,8 @@ public:
     int mapDroppedItemsByRarity(Rarity rarity) const;
     int mapRareLeadersDefeated() const;
     int mapRareLeaderItemsDropped() const;
+    int mapDoubleModifierElitesDefeated() const;
+    int mapDoubleModifierItemsDropped() const;
     std::string lastRareLeaderName() const;
     std::string lastRareLeaderRewardDescription() const;
     std::string nearbyEventPrompt() const;
@@ -495,6 +497,8 @@ private:
     std::array<int, 4> mapDroppedItemsByRarity_;
     int mapRareLeadersDefeated_;
     int mapRareLeaderItemsDropped_;
+    int mapDoubleModifierElitesDefeated_;
+    int mapDoubleModifierItemsDropped_;
     std::string lastRareLeaderName_;
     std::string lastRareLeaderRewardDescription_;
     int fieldPacksCleared_;

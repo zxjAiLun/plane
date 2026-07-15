@@ -778,6 +778,8 @@ void writeSaveData(Writer& writer, const SaveData& data) {
     }
     writer.integer(data.mapRareLeadersDefeated);
     writer.integer(data.mapRareLeaderItemsDropped);
+    writer.integer(data.mapDoubleModifierElitesDefeated);
+    writer.integer(data.mapDoubleModifierItemsDropped);
     writer.string(data.lastRareLeaderName);
     writer.string(data.lastRareLeaderRewardDescription);
     writer.integer(data.fieldPacksCleared);
@@ -830,6 +832,7 @@ bool readSaveData(
     bool hasGemProgression,
     bool hasFieldPackProgress,
     bool hasRareLeaderProgress,
+    bool hasEliteModifierProgress,
     bool hasDropRarityStats,
     bool hasMapItemProgress,
     bool hasMapItemMetadata
@@ -873,6 +876,8 @@ bool readSaveData(
     data.mapDroppedItemsByRarity = {};
     data.mapRareLeadersDefeated = 0;
     data.mapRareLeaderItemsDropped = 0;
+    data.mapDoubleModifierElitesDefeated = 0;
+    data.mapDoubleModifierItemsDropped = 0;
     data.lastRareLeaderName.clear();
     data.lastRareLeaderRewardDescription.clear();
     if (!reader.integer(data.selectedNextMapOption)
@@ -893,8 +898,12 @@ bool readSaveData(
                 || !reader.integer(data.mapDroppedItemsByRarity[3])))
         || (hasRareLeaderProgress
             && (!reader.integer(data.mapRareLeadersDefeated)
-                || !reader.integer(data.mapRareLeaderItemsDropped)
-                || !reader.string(data.lastRareLeaderName)
+                || !reader.integer(data.mapRareLeaderItemsDropped)))
+        || (hasEliteModifierProgress
+            && (!reader.integer(data.mapDoubleModifierElitesDefeated)
+                || !reader.integer(data.mapDoubleModifierItemsDropped)))
+        || (hasRareLeaderProgress
+            && (!reader.string(data.lastRareLeaderName)
                 || !reader.string(data.lastRareLeaderRewardDescription)))
         || (hasFieldPackProgress && !reader.integer(data.fieldPacksCleared))
         || !reader.integer(data.lifeFlaskCharges)
@@ -1099,7 +1108,7 @@ bool SaveService::load(const std::filesystem::path& path,
         || (version != 3U && version != 4U && version != 5U
             && version != 6U && version != 7U && version != 8U
             && version != 9U && version != 10U && version != 11U
-            && version != 12U && version != 13U
+            && version != 12U && version != 13U && version != 14U
             && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");
@@ -1124,6 +1133,7 @@ bool SaveService::load(const std::filesystem::path& path,
             version >= 7U,
             version >= 8U,
             version >= 9U,
+            version >= 15U,
             version >= 12U,
             version >= 13U,
             version >= 14U
