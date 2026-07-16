@@ -316,6 +316,7 @@ private:
         const std::string& source = "",
         DamageType damageType = DamageType::Physical
     );
+    int countEnemiesInArea(const Vector2& center, float radius) const;
     void queueAreaSkillEffect(
         const SkillDefinition& skill,
         const Vector2& center,

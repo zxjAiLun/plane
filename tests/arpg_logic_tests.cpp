@@ -498,7 +498,7 @@ void testManaResourceAndSkillCastGates() {
         "resource Stats combine multiplicatively");
 
     const auto& skills = SkillLibrary::all();
-    expect(skills.size() == 17, "skill library exposes the elemental build skill set");
+    expect(skills.size() == 18, "skill library exposes the elemental build skill set");
     const auto& primary = SkillLibrary::spreadShot();
     const auto& secondary = SkillLibrary::meteor();
     const auto& utility = SkillLibrary::pulse();
@@ -511,6 +511,7 @@ void testManaResourceAndSkillCastGates() {
     const auto& glacialShard = SkillLibrary::glacialShard();
     const auto& stormfield = SkillLibrary::stormfield();
     const auto& blightRing = SkillLibrary::blightRing();
+    const auto& siphonPulse = SkillLibrary::siphonPulse();
     expect(primary.manaCost > 0.0f && primary.manaCost < secondary.manaCost,
         "Primary has a lower Mana cost than Meteor");
     expect(secondary.manaCost > 0.0f && utility.manaCost > 0.0f,
@@ -561,6 +562,12 @@ void testManaResourceAndSkillCastGates() {
             && blightRing.delivery == SkillDeliveryType::DelayedArea
             && blightRing.groundHazard.isValid(),
         "Stormfield and Blight Ring define persistent Lightning and Poison area paths");
+    expect(siphonPulse.slot == SkillSlot::Utility
+            && siphonPulse.castType == SkillCastType::SelfCenteredArea
+            && siphonPulse.damageType == DamageType::Poison
+            && siphonPulse.healOnHit == Config::SiphonPulseHealOnHit
+            && siphonPulse.healOnHit > 0,
+        "Siphon Pulse defines a Poison area skill with hit-based recovery");
     expect(std::abs(SkillLibrary::flare().manaCost - Config::FlareManaCost) < 0.0001f,
         "Flare exposes its configured Mana cost");
     expect(std::abs(SkillLibrary::meteor().manaCost - Config::MeteorManaCost) < 0.0001f,
@@ -3479,6 +3486,14 @@ void testMapRewardGeneration() {
         }
     }
     expect(skillUnlocks >= 1, "at least one reward unlocks a new skill while skills remain locked");
+
+    const auto siphonReward = MapRewardLibrary::skillUnlockReward(
+        SkillLibrary::siphonPulse()
+    );
+    expect(siphonReward.skillName == "Siphon Pulse"
+            && siphonReward.description.find("Heal 2 HP per enemy hit")
+                != std::string::npos,
+        "Siphon Pulse reward preview exposes its recovery effect");
 
     RandomService earlySupportRandom(8);
     const auto earlySupportRewards = MapRewardLibrary::generateOptions(

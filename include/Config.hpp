@@ -112,6 +112,12 @@ namespace Config {
     constexpr float BlightRingGroundHazardDuration = 2.20f;
     constexpr float BlightRingGroundHazardTickInterval = 0.55f;
     constexpr int BlightRingGroundHazardDamage = 1;
+    constexpr float SiphonPulseRadius = 105.0f;
+    constexpr int SiphonPulseDamage = 2;
+    constexpr float SiphonPulseCooldown = 2.10f;
+    constexpr float SiphonPulseManaCost = 11.0f;
+    constexpr float SiphonPulseEffectDuration = 0.30f;
+    constexpr int SiphonPulseHealOnHit = 2;
 
     constexpr float EnemySpeed = 120.0f;
     constexpr float EnemyRadius = 20.0f;

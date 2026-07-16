@@ -3092,6 +3092,9 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
     }
 
     for (int repeat = 0; repeat < repeatCount; ++repeat) {
+        const int hitCount = skill.healOnHit > 0
+            ? countEnemiesInArea(player_.position(), radiusForPlayerSkill(skill))
+            : 0;
         dealAreaDamage(
             player_.position(),
             radiusForPlayerSkill(skill),
@@ -3100,6 +3103,17 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
             skill.name,
             skill.damageType
         );
+        if (hitCount > 0 && skill.healOnHit > 0) {
+            const int healed = player_.heal(hitCount * skill.healOnHit);
+            if (healed > 0) {
+                addCombatFeedback(
+                    player_.position(),
+                    healed,
+                    skill.name + " +" + std::to_string(healed) + " HP",
+                    CombatFeedbackType::Status
+                );
+            }
+        }
     }
     spawnPlayerSkillHazard(skill, player_.position());
     novaEffectTimer_ = skill.effectDuration;
@@ -3339,6 +3353,19 @@ void GameWorld::dealAreaDamage(
             }
         }
     }
+}
+
+int GameWorld::countEnemiesInArea(const Vector2& center, float radius) const {
+    return static_cast<int>(std::count_if(
+        enemies_.begin(),
+        enemies_.end(),
+        [&center, radius](const Enemy& enemy) {
+            return !enemy.isDead()
+                && Collision::circleCircle(
+                    center, radius, enemy.position(), enemy.radius()
+                );
+        }
+    ));
 }
 
 void GameWorld::addCombatFeedback(
@@ -4379,8 +4406,8 @@ void GameWorld::tryAssignSkill(Input& input) {
     const auto& skills = SkillLibrary::all();
     int skillIndex = input.numberChoice() - 1;
     const int functionChoice = input.functionChoice();
-    if (skillIndex < 0 && functionChoice >= 7 && functionChoice <= 13) {
-        // Number keys cover the first ten entries. F7-F13 extend the panel
+    if (skillIndex < 0 && functionChoice >= 7 && functionChoice <= 14) {
+        // Number keys cover the first ten entries. F7-F14 extend the panel
         // to later skills without colliding with the support link controls.
         skillIndex = functionChoice + 3;
     }

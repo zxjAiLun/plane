@@ -37,7 +37,7 @@ struct MapRewardDefinition {
 class MapRewardLibrary {
 public:
     static MapRewardDefinition skillUnlockReward(const SkillDefinition& skill) {
-        return {
+        MapRewardDefinition reward = {
             MapRewardType::UnlockSkill,
             "Unlock " + skill.name,
             skillSlotLabel(skill.slot) + " / " + skillTypeLabel(skill.castType)
@@ -49,6 +49,11 @@ public:
             1.0f,
             1
         };
+        if (skill.healOnHit > 0) {
+            reward.description += "  Heal " + std::to_string(skill.healOnHit)
+                + " HP per enemy hit";
+        }
+        return reward;
     }
 
     static MapRewardDefinition supportUnlockReward(const SupportDefinition& support) {

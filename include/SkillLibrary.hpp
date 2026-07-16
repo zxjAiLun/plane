@@ -363,6 +363,25 @@ public:
         return skill;
     }
 
+    static SkillDefinition siphonPulse() {
+        SkillDefinition skill = {
+            SkillSlot::Utility,
+            SkillCastType::SelfCenteredArea,
+            "Siphon Pulse",
+            Config::SiphonPulseCooldown,
+            Config::SiphonPulseRadius,
+            Config::SiphonPulseDamage,
+            Config::SiphonPulseEffectDuration,
+            1,
+            0.0f,
+            {AilmentType::Poison, 2.8f, 0.25f},
+            Config::SiphonPulseManaCost
+        };
+        skill.damageType = DamageType::Poison;
+        skill.healOnHit = Config::SiphonPulseHealOnHit;
+        return skill;
+    }
+
     static SkillDefinition dash() {
         return {
             SkillSlot::Movement,
@@ -398,7 +417,8 @@ private:
             glacialShard(),
             stormfield(),
             blightRing(),
-            dash()
+            dash(),
+            siphonPulse()
         };
     }
 };

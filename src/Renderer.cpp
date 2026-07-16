@@ -579,6 +579,9 @@ std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& sta
         summary += "  Leaves " + skill.groundHazard.source
             + " " + formatFloat(skill.groundHazard.duration, 1) + "s";
     }
+    if (skill.healOnHit > 0) {
+        summary += "  Heal " + std::to_string(skill.healOnHit) + "/hit";
+    }
     return summary;
 }
 
@@ -2687,7 +2690,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
 
     drawBox({center.x, center.y}, {760.0f, 560.0f}, sf::Color(24, 30, 40));
     drawCenteredText("Skill Panel", {center.x, center.y - 248.0f}, 24, sf::Color::White);
-    drawCenteredText("1-0 / F7-F13 assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
+    drawCenteredText("1-0 / F7-F14 assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
         {center.x, center.y - 220.0f}, 14, sf::Color(210, 230, 255));
 
     const SkillSlot slots[] = {

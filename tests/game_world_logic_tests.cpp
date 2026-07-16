@@ -1458,6 +1458,61 @@ void testPulseShockFlow() {
     std::filesystem::remove(path);
 }
 
+void testSiphonPulseRecovery() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_siphon_pulse_recovery_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(17604);
+    SaveData data;
+    std::string error;
+    const auto utilityIndex = static_cast<std::size_t>(SkillSlot::Utility);
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Siphon Pulse fixture starts from a valid run save");
+
+    data.player.hp = 40;
+    data.player.upgradeStats.maxHp = 1000;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.player.mana = Config::PlayerMaxMana;
+    data.fieldPacksCleared = Config::BossGateRequiredFieldPacks;
+    data.unlockedSkills.insert("Siphon Pulse");
+    data.skillLevels["Siphon Pulse"] = 1;
+    data.skillBar.skills[utilityIndex] = "Siphon Pulse";
+    data.state = SavedRunState::Playing;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Siphon Pulse fixture restores the unlocked Utility skill");
+
+    Input input;
+    expect(moveToBoss(world, input),
+        "Siphon Pulse fixture reaches the Boss Arena through real movement");
+    const auto bossIt = std::find_if(
+        world.enemies().begin(),
+        world.enemies().end(),
+        [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+    );
+    expect(bossIt != world.enemies().end(),
+        "Siphon Pulse fixture awakens a live Boss target");
+    if (bossIt != world.enemies().end()) {
+        const int hpBefore = world.player().hp();
+        input.handleKeyPressed(sf::Keyboard::Key::Q);
+        world.update(0.05f, input);
+        input.handleKeyReleased(sf::Keyboard::Key::Q);
+
+        const bool recoveryFeedback = std::any_of(
+            world.combatFeedback().begin(),
+            world.combatFeedback().end(),
+            [](const CombatFeedback& feedback) {
+                return feedback.type == CombatFeedbackType::Status
+                    && feedback.source.rfind("Siphon Pulse +", 0) == 0;
+            }
+        );
+        expect(world.player().hp() > hpBefore && recoveryFeedback,
+            "Siphon Pulse heals after hitting an enemy and exposes recovery feedback");
+    }
+
+    std::filesystem::remove(path);
+}
+
 void testIgniteFeedbackMatchesWorldDamage() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_ignite_feedback_world_test.bin";
@@ -1752,6 +1807,7 @@ void testExpandedSkillWorldHits() {
             && !world.isSkillUnlocked("Glacial Shard")
             && !world.isSkillUnlocked("Stormfield")
             && !world.isSkillUnlocked("Blight Ring")
+            && !world.isSkillUnlocked("Siphon Pulse")
             && !world.isSupportUnlocked("Barrage")
             && !world.isSupportUnlocked("Concentration"),
         "expanded skills and Supports start locked");
@@ -1772,6 +1828,7 @@ void testExpandedSkillWorldHits() {
     data.unlockedSkills.insert("Glacial Shard");
     data.unlockedSkills.insert("Stormfield");
     data.unlockedSkills.insert("Blight Ring");
+    data.unlockedSkills.insert("Siphon Pulse");
     data.unlockedSupports.insert("Barrage");
     data.unlockedSupports.insert("Concentration");
     data.unlockedSupports.insert("Echo");
@@ -1967,6 +2024,14 @@ void testExpandedSkillWorldHits() {
     world.update(0.05f, input);
     expect(world.skillBar().definition(SkillSlot::Utility).name == "Blight Ring",
         "Skill Panel F12 assigns the later Poison skill entry");
+    input.handleKeyPressed(sf::Keyboard::Key::F14);
+    world.update(0.05f, input);
+    expect(world.skillBar().definition(SkillSlot::Utility).name == "Siphon Pulse",
+        "Skill Panel F14 assigns the appended recovery skill entry");
+    input.handleKeyPressed(sf::Keyboard::Key::F12);
+    world.update(0.05f, input);
+    expect(world.skillBar().definition(SkillSlot::Utility).name == "Blight Ring",
+        "Skill Panel can restore Blight Ring after the F14 assignment");
     input.handleKeyPressed(sf::Keyboard::Key::K);
     world.update(0.05f, input);
 
@@ -3619,6 +3684,7 @@ int main() {
     testDelayedSkillEffects();
     testUtilitySkillDelivery();
     testPulseShockFlow();
+    testSiphonPulseRecovery();
     testIgniteFeedbackMatchesWorldDamage();
     testBuildMathMatchesWorldHits();
     testExpandedSkillWorldHits();
