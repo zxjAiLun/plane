@@ -11,7 +11,8 @@ Projectile::Projectile(
     int pierceCount,
     AilmentDefinition ailment,
     std::string source,
-    DamageType damageType
+    DamageType damageType,
+    int physicalPenetration
 )
     : position_(position)
     , velocity_(velocity)
@@ -20,6 +21,7 @@ Projectile::Projectile(
     , ailment_(ailment)
     , source_(std::move(source))
     , damageType_(damageType)
+    , physicalPenetration_(std::max(0, physicalPenetration))
     , remainingPierces_(pierceCount)
     , hitEnemyIds_()
     , alive_(true) {
@@ -42,6 +44,7 @@ int Projectile::damage() const { return damage_; }
 const AilmentDefinition& Projectile::ailment() const { return ailment_; }
 const std::string& Projectile::source() const { return source_; }
 DamageType Projectile::damageType() const { return damageType_; }
+int Projectile::physicalPenetration() const { return physicalPenetration_; }
 bool Projectile::hasHitEnemy(int enemyId) const {
     return std::find(hitEnemyIds_.begin(), hitEnemyIds_.end(), enemyId) != hitEnemyIds_.end();
 }

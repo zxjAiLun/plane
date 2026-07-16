@@ -595,6 +595,7 @@ void testManaResourceAndSkillCastGates() {
             && rendingVolley.projectileCount == Config::RendingVolleyProjectileCount
             && rendingVolley.ailment.type == AilmentType::Bleed
             && bloodletting != nullptr
+            && bloodletting->physicalPenetration == 20
             && SupportLibrary::supportsSkill(*bloodletting, rendingVolley),
         "Rending Volley and Bloodletting define the physical Bleed path");
     const auto* vitality = SupportLibrary::find("Vitality");
@@ -1067,7 +1068,8 @@ void testSkillAilments() {
             && bloodlettingBleed.type == AilmentType::Bleed
             && bloodlettingBleed.damageMultiplier
                 > SkillLibrary::rendingVolley().ailment.damageMultiplier
-            && bloodlettingBleed.bleedPenetration == 20,
+            && bloodlettingBleed.bleedPenetration == 20
+            && skillPhysicalPenetration(bloodletting) == 20,
         "Bloodletting increases Bleed damage and penetration");
     Stats poisonStats;
     poisonStats.poisonDamageMultiplier = 1.50f;

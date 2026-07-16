@@ -57,6 +57,7 @@ struct SupportDefinition {
     float elementalDamageMultiplier = 1.0f;
     int healOnHitBonus = 0;
     int bleedPenetration = 0;
+    int physicalPenetration = 0;
 };
 
 inline constexpr std::size_t SupportLinkCount = 2;
@@ -219,11 +220,12 @@ public:
                 SupportDefinition support;
                 support.kind = SupportKind::Bloodletting;
                 support.name = "Bloodletting";
-                support.description = "+70% Bleed damage, +25% duration, +20% Bleed penetration, -15% hit damage";
+                support.description = "+70% Bleed damage, +25% duration, +20% Bleed and Physical penetration, -15% hit damage";
                 support.damageMultiplier = 0.85f;
                 support.ailmentDamageMultiplier = 1.70f;
                 support.ailmentDurationMultiplier = 1.25f;
                 support.bleedPenetration = 20;
+                support.physicalPenetration = 20;
                 return support;
             }(),
         };

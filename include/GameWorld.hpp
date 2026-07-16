@@ -65,6 +65,7 @@ struct PendingSkillEffect {
     int damage = 0;
     AilmentDefinition ailment;
     DamageType damageType = DamageType::Physical;
+    int physicalPenetration = 0;
     std::string source;
     float delayRemaining = 0.0f;
     float delayDuration = 0.0f;
@@ -292,7 +293,8 @@ private:
     int damageToEnemy(
         const Enemy& enemy,
         int rawDamage,
-        DamageType damageType = DamageType::Physical
+        DamageType damageType = DamageType::Physical,
+        int physicalPenetration = 0
     ) const;
     void handleBossProjectileCollisions();
     void handleEnemyProjectileCollisions();
@@ -320,7 +322,8 @@ private:
         int damage,
         const AilmentDefinition* ailment = nullptr,
         const std::string& source = "",
-        DamageType damageType = DamageType::Physical
+        DamageType damageType = DamageType::Physical,
+        int physicalPenetration = 0
     );
     int countEnemiesInArea(const Vector2& center, float radius) const;
     void queueAreaSkillEffect(
@@ -363,6 +366,7 @@ private:
     float radiusForPlayerSkill(const SkillDefinition& skill) const;
     int healOnHitForPlayerSkill(const SkillDefinition& skill) const;
     int pierceCountForPlayerSkill(const SkillDefinition& skill) const;
+    int physicalPenetrationForPlayerSkill(const SkillDefinition& skill) const;
     int projectileCountForPlayerSkill(const SkillDefinition& skill) const;
     float spreadAngleForPlayerSkill(const SkillDefinition& skill) const;
     AilmentDefinition ailmentForPlayerSkill(const SkillDefinition& skill) const;

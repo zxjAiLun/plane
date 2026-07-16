@@ -16,7 +16,8 @@ public:
         int pierceCount = 0,
         AilmentDefinition ailment = {},
         std::string source = {},
-        DamageType damageType = DamageType::Physical
+        DamageType damageType = DamageType::Physical,
+        int physicalPenetration = 0
     );
 
     void update(float dt, const Vector2& worldSize);
@@ -27,6 +28,7 @@ public:
     const AilmentDefinition& ailment() const;
     const std::string& source() const;
     DamageType damageType() const;
+    int physicalPenetration() const;
     bool hasHitEnemy(int enemyId) const;
     void recordEnemyHit(int enemyId);
 
@@ -41,6 +43,7 @@ private:
     AilmentDefinition ailment_;
     std::string source_;
     DamageType damageType_;
+    int physicalPenetration_;
     int remainingPierces_;
     std::vector<int> hitEnemyIds_;
     bool alive_;

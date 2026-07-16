@@ -294,6 +294,20 @@ inline int skillPierceCount(const SupportDefinition* support) {
     return skillPierceCount(SupportList{support, nullptr});
 }
 
+inline int skillPhysicalPenetration(const SupportList& supports) {
+    int penetration = 0;
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            penetration += support->physicalPenetration;
+        }
+    }
+    return std::max(0, penetration);
+}
+
+inline int skillPhysicalPenetration(const SupportDefinition* support) {
+    return skillPhysicalPenetration(SupportList{support, nullptr});
+}
+
 inline int skillProjectileCount(const SkillDefinition& skill, const SupportList& supports) {
     int extraProjectiles = 0;
     for (const auto* support : supports) {

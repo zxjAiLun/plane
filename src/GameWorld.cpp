@@ -1806,7 +1806,8 @@ void GameWorld::updatePendingSkillEffects(float dt) {
                 effect.damage,
                 &effect.ailment,
                 effect.source,
-                effect.damageType
+                effect.damageType,
+                effect.physicalPenetration
             );
             if (effect.groundHazard.isValid()) {
                 groundHazards_.emplace_back(effect.position, effect.groundHazard);
@@ -2761,7 +2762,10 @@ void GameWorld::handleCollisions() {
                 }
 
                 const int mitigatedDamage = damageToEnemy(
-                    enemy, projectile.damage(), projectile.damageType()
+                    enemy,
+                    projectile.damage(),
+                    projectile.damageType(),
+                    projectile.physicalPenetration()
                 );
                 const int dealtDamage = enemy.takeDamage(mitigatedDamage);
                 if (dealtDamage > 0) {
@@ -2958,7 +2962,8 @@ int GameWorld::summonEnemyAdds(Enemy& summoner) {
 int GameWorld::damageToEnemy(
     const Enemy& enemy,
     int rawDamage,
-    DamageType damageType
+    DamageType damageType,
+    int physicalPenetration
 ) const {
     if (rawDamage <= 0 || enemy.isDead()) {
         return 0;
@@ -2975,6 +2980,9 @@ int GameWorld::damageToEnemy(
         lightningResistance = bossDefinition_->lightningResistance;
         poisonResistance = bossDefinition_->poisonResistance;
         physicalResistance = bossDefinition_->physicalResistance;
+    }
+    if (damageType == DamageType::Physical) {
+        physicalResistance -= std::max(0, physicalPenetration);
     }
     fireResistance += mapElementalResistanceAdjustment(
         mapModifier_, DamageType::Fire, true
@@ -3216,7 +3224,8 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
             damageForPlayerSkill(skill),
             &ailment,
             skill.name,
-            skill.damageType
+            skill.damageType,
+            physicalPenetrationForPlayerSkill(skill)
         );
         if (hitCount > 0 && healOnHit > 0) {
             const int healed = player_.heal(hitCount * healOnHit);
@@ -3260,7 +3269,8 @@ void GameWorld::tryCastSecondarySkill(Input& input) {
                 damageForPlayerSkill(skill),
                 &ailment,
                 skill.name,
-                skill.damageType
+                skill.damageType,
+                physicalPenetrationForPlayerSkill(skill)
             );
         }
     }
@@ -3294,7 +3304,8 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
     if (projectileCount <= 1 || spreadAngle <= 0.0f) {
         projectiles_.push_back(Projectile(
             player_.position(), direction * Config::ProjectileSpeed, damage,
-            pierceCountForPlayerSkill(skill), ailment, skill.name, skill.damageType
+            pierceCountForPlayerSkill(skill), ailment, skill.name, skill.damageType,
+            physicalPenetrationForPlayerSkill(skill)
         ));
         return;
     }
@@ -3318,7 +3329,8 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
             pierceCountForPlayerSkill(skill),
             ailment,
             skill.name,
-            skill.damageType
+            skill.damageType,
+            physicalPenetrationForPlayerSkill(skill)
         ));
     }
 }
@@ -3438,7 +3450,8 @@ void GameWorld::dealAreaDamage(
     int damage,
     const AilmentDefinition* ailment,
     const std::string& source,
-    DamageType damageType
+    DamageType damageType,
+    int physicalPenetration
 ) {
     for (auto& enemy : enemies_) {
         if (enemy.isDead()) {
@@ -3449,7 +3462,9 @@ void GameWorld::dealAreaDamage(
                 center, radius,
                 enemy.position(), enemy.radius()
             )) {
-            const int mitigatedDamage = damageToEnemy(enemy, damage, damageType);
+            const int mitigatedDamage = damageToEnemy(
+                enemy, damage, damageType, physicalPenetration
+            );
             const int dealtDamage = enemy.takeDamage(mitigatedDamage);
             if (dealtDamage > 0) {
                 addCombatFeedback(enemy.position(), dealtDamage, source);
@@ -4152,6 +4167,7 @@ void GameWorld::queueAreaSkillEffect(
     effect.damage = damageForPlayerSkill(skill);
     effect.ailment = ailmentForPlayerSkill(skill);
     effect.damageType = skill.damageType;
+    effect.physicalPenetration = physicalPenetrationForPlayerSkill(skill);
     effect.source = skill.name;
     effect.delayRemaining = std::max(0.0f, delay);
     effect.delayDuration = effect.delayRemaining;
@@ -4225,6 +4241,10 @@ int GameWorld::healOnHitForPlayerSkill(const SkillDefinition& skill) const {
 
 int GameWorld::pierceCountForPlayerSkill(const SkillDefinition& skill) const {
     return skillPierceCount(skillBar_.supportDefinitionsFor(skill));
+}
+
+int GameWorld::physicalPenetrationForPlayerSkill(const SkillDefinition& skill) const {
+    return skillPhysicalPenetration(skillBar_.supportDefinitionsFor(skill));
 }
 
 int GameWorld::projectileCountForPlayerSkill(const SkillDefinition& skill) const {
