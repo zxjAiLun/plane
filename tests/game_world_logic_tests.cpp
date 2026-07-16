@@ -2282,7 +2282,11 @@ void testThemedBossPhaseHazards() {
         std::string label;
     };
 
-    const std::array<HazardCase, 2> cases{{
+    const std::array<HazardCase, 6> cases{{
+        {1, 0, "Cinder Cross", DamageType::Fire, 4, "Brimstone"},
+        {2, 1, "Static Lattice", DamageType::Lightning, 4, "Storm"},
+        {3, 2, "Acid Bloom", DamageType::Poison, 4, "Brood"},
+        {4, 3, "Frostline Cross", DamageType::Cold, 4, "Frost"},
         {5, 4, "Archive Undertow", DamageType::Cold, 1, "Archive"},
         {6, 5, "Molten Ring", DamageType::Fire, 4, "Obsidian"}
     }};

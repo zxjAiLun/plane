@@ -244,6 +244,14 @@ private:
             {"Absolute Zero", 165.0f, 7.0f, 0.65f, 8,
                 DamageType::Cold, {AilmentType::Chill, 2.5f, 0.0f, 0.50f}}
         };
+        definition.finalPhase.recurringHazard = {
+            3.8f,
+            0.60f,
+            {"Frostline Cross", 78.0f, 4.0f, 0.60f, 4,
+                DamageType::Cold, {AilmentType::Chill, 2.5f, 0.0f, 0.50f}},
+            BossPhaseHazardPattern::Cross,
+            165.0f
+        };
         return definition;
     }
 
@@ -698,6 +706,14 @@ private:
             {"Final Inferno", 170.0f, 6.5f, 0.60f, 3,
                 DamageType::Fire, {AilmentType::Ignite, 2.5f, 0.20f}}
         };
+        bosses[0].finalPhase.recurringHazard = {
+            3.7f,
+            0.58f,
+            {"Cinder Cross", 88.0f, 4.5f, 0.70f, 4,
+                DamageType::Fire, {AilmentType::Ignite, 2.5f, 0.20f}},
+            BossPhaseHazardPattern::Cross,
+            145.0f
+        };
         bosses[1].finalPhase = {
             0.22f,
             0.50f,
@@ -711,6 +727,15 @@ private:
                 DamageType::Lightning,
                 {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.20f}}
         };
+        bosses[1].finalPhase.recurringHazard = {
+            3.2f,
+            0.50f,
+            {"Static Lattice", 72.0f, 3.5f, 0.60f, 3,
+                DamageType::Lightning,
+                {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.20f}},
+            BossPhaseHazardPattern::Cross,
+            175.0f
+        };
         bosses[2].finalPhase = {
             0.25f,
             0.58f,
@@ -722,6 +747,14 @@ private:
             3,
             {"Brood Acid", 150.0f, 7.0f, 0.70f, 3,
                 DamageType::Poison, {AilmentType::Poison, 2.5f, 0.35f}}
+        };
+        bosses[2].finalPhase.recurringHazard = {
+            4.0f,
+            0.65f,
+            {"Acid Bloom", 96.0f, 3.5f, 0.80f, 4,
+                DamageType::Poison, {AilmentType::Poison, 2.5f, 0.35f}},
+            BossPhaseHazardPattern::Ring,
+            135.0f
         };
         return bosses;
     }

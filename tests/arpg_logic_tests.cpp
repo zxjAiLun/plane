@@ -2233,32 +2233,29 @@ void testBossSummonDefinitions() {
             boss.name + " final phase skill order references valid skills");
     }
 
-    const auto archiveIt = std::find_if(
-        bosses.begin(), bosses.end(),
-        [](const BossDefinition& boss) {
-            return boss.name == "Tidebound Archivist";
-        }
-    );
-    expect(archiveIt != bosses.end()
-            && archiveIt->finalPhase.recurringHazard.pattern
-                == BossPhaseHazardPattern::Target
-            && archiveIt->finalPhase.recurringHazard.hazard.damageType
-                == DamageType::Cold,
-        "Tidebound Archivist final phase targets a Cold hazard at the player");
-
-    const auto obsidianIt = std::find_if(
-        bosses.begin(), bosses.end(),
-        [](const BossDefinition& boss) {
-            return boss.name == "Obsidian Tyrant";
-        }
-    );
-    expect(obsidianIt != bosses.end()
-            && obsidianIt->finalPhase.recurringHazard.pattern
-                == BossPhaseHazardPattern::Ring
-            && obsidianIt->finalPhase.recurringHazard.patternRadius > 0.0f
-            && obsidianIt->finalPhase.recurringHazard.hazard.damageType
-                == DamageType::Fire,
-        "Obsidian Tyrant final phase surrounds the player with Fire hazards");
+    const std::array<std::tuple<std::string, BossPhaseHazardPattern, DamageType>, 6>
+        recurringHazards{{
+            {"Brimstone Colossus", BossPhaseHazardPattern::Cross, DamageType::Fire},
+            {"Storm Herald", BossPhaseHazardPattern::Cross, DamageType::Lightning},
+            {"Brood Matriarch", BossPhaseHazardPattern::Ring, DamageType::Poison},
+            {"Frostbound Warden", BossPhaseHazardPattern::Cross, DamageType::Cold},
+            {"Tidebound Archivist", BossPhaseHazardPattern::Target, DamageType::Cold},
+            {"Obsidian Tyrant", BossPhaseHazardPattern::Ring, DamageType::Fire}
+        }};
+    for (const auto& expected : recurringHazards) {
+        const auto it = std::find_if(
+            bosses.begin(), bosses.end(),
+            [&expected](const BossDefinition& boss) {
+                return boss.name == std::get<0>(expected);
+            }
+        );
+        expect(it != bosses.end()
+                && it->finalPhase.recurringHazard.isValid()
+                && it->finalPhase.recurringHazard.pattern == std::get<1>(expected)
+                && it->finalPhase.recurringHazard.hazard.damageType
+                    == std::get<2>(expected),
+            std::get<0>(expected) + " final phase has its themed recurring hazard");
+    }
 
     const auto broodIt = std::find_if(
         bosses.begin(), bosses.end(),
