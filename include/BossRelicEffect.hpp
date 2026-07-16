@@ -11,7 +11,8 @@ enum class BossRelicEffectType {
     BroodBloom,
     Frostbite,
     ArchiveCurrent,
-    ObsidianFurnace
+    ObsidianFurnace,
+    AetherReserve
 };
 
 struct BossRelicEffectDefinition {
@@ -104,6 +105,12 @@ public:
             1.30f,
             1.20f
         };
+        static const BossRelicEffectDefinition aetherReserve{
+            ItemBaseTheme::Aether,
+            BossRelicEffectType::AetherReserve,
+            "Aether Reserve",
+            "The relic grants maximum Mana, Mana recovery and reduced skill costs"
+        };
 
         switch (theme) {
             case ItemBaseTheme::Brimstone: return moltenCore;
@@ -112,6 +119,7 @@ public:
             case ItemBaseTheme::Frost: return frostbite;
             case ItemBaseTheme::Archive: return archiveCurrent;
             case ItemBaseTheme::Obsidian: return obsidianFurnace;
+            case ItemBaseTheme::Aether: return aetherReserve;
             case ItemBaseTheme::None: break;
         }
         return none;
@@ -193,6 +201,12 @@ public:
                 1.45f,
                 1.35f
             };
+            static const BossRelicEffectDefinition nullCrown{
+                ItemBaseTheme::Aether,
+                BossRelicEffectType::AetherReserve,
+                "Null Crown",
+                "The crown sharply reduces skill costs and accelerates Mana recovery"
+            };
 
             switch (base.theme) {
                 case ItemBaseTheme::Brimstone: return ashenBloom;
@@ -201,6 +215,7 @@ public:
                 case ItemBaseTheme::Frost: return winterGrasp;
                 case ItemBaseTheme::Archive: return drownedCompass;
                 case ItemBaseTheme::Obsidian: return blackglassHeart;
+                case ItemBaseTheme::Aether: return nullCrown;
                 case ItemBaseTheme::None: break;
             }
         }

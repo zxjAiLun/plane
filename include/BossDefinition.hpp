@@ -23,7 +23,8 @@ enum class BossLootTheme {
     Brood,
     Frost,
     Archive,
-    Obsidian
+    Obsidian,
+    Aether
 };
 
 struct BossSkillDefinition {
@@ -491,6 +492,114 @@ private:
         return definition;
     }
 
+    static BossDefinition aetherBoss() {
+        const AilmentDefinition shock{
+            AilmentType::Shock, 2.0f, 0.0f, 1.15f
+        };
+
+        BossSkillDefinition prismPulse;
+        prismPulse.type = BossSkillType::CircularAoe;
+        prismPulse.name = "Prism Pulse";
+        prismPulse.radius = 142.0f;
+        prismPulse.damage = 3;
+        prismPulse.telegraphDuration = 0.50f;
+        prismPulse.effectDuration = 0.25f;
+        prismPulse.groundHazard = elementalHazard(
+            {"Prism Residue", 118.0f, 5.0f, 0.70f, 3},
+            DamageType::Lightning,
+            shock
+        );
+        prismPulse.damageType = DamageType::Lightning;
+        prismPulse.ailment = shock;
+
+        BossSkillDefinition lensVolley;
+        lensVolley.type = BossSkillType::Projectile;
+        lensVolley.name = "Lens Volley";
+        lensVolley.radius = Config::BossProjectileRadius;
+        lensVolley.damage = 2;
+        lensVolley.projectileSpeed = 500.0f;
+        lensVolley.projectileCount = 5;
+        lensVolley.spreadAngle = 46.0f;
+        lensVolley.damageType = DamageType::Lightning;
+        lensVolley.ailment = shock;
+
+        BossSkillDefinition summonCasters;
+        summonCasters.type = BossSkillType::SummonAdds;
+        summonCasters.name = "Summon Lens Casters";
+        summonCasters.radius = 120.0f;
+        summonCasters.telegraphDuration = 0.70f;
+        summonCasters.effectDuration = 0.25f;
+        summonCasters.summonType = EnemyType::Ranged;
+        summonCasters.summonCount = 2;
+        summonCasters.damageType = DamageType::Lightning;
+
+        BossSkillDefinition phaseDash;
+        phaseDash.type = BossSkillType::Dash;
+        phaseDash.name = "Phase Shift";
+        phaseDash.radius = 54.0f;
+        phaseDash.damage = 2;
+        phaseDash.telegraphDuration = 0.55f;
+        phaseDash.effectDuration = 0.30f;
+        phaseDash.dash = {360.0f, 700.0f};
+        phaseDash.damageType = DamageType::Lightning;
+        phaseDash.ailment = shock;
+
+        BossDefinition definition;
+        definition.name = "Astral Nullifier";
+        definition.theme = "Aether lenses and charged void";
+        definition.lootTheme = BossLootTheme::Aether;
+        definition.lootRewardDescription = "Unique relic: maximum Mana, Mana recovery and reduced skill costs";
+        definition.hpMultiplier = 27.0f;
+        definition.damageBonus = 2;
+        definition.dropMultiplier = 4.0f;
+        definition.skillInterval = 1.75f;
+        definition.guaranteedDrops = 2;
+        definition.enrageHealthRatio = 0.46f;
+        definition.enragedSkillIntervalMultiplier = 0.62f;
+        definition.enragedDamageMultiplier = 1.20f;
+        definition.patternDescription = "Prism pulses, lens volleys and phase shifts protect the observatory core";
+        definition.enragedPatternDescription = "Charged casters reinforce the arena while pulses overlap";
+        definition.skills = {prismPulse, lensVolley, summonCasters, phaseDash};
+        definition.normalSkillOrder = {0, 1, 0, 2, 3};
+        definition.enragedSkillOrder = {3, 0, 2, 1, 0};
+        definition.igniteResistance = 25;
+        definition.chillResistance = 25;
+        definition.lightningResistance = 60;
+        definition.fireResistance = 25;
+        definition.coldResistance = 30;
+        definition.shockResistance = 55;
+        definition.poisonResistance = 35;
+        definition.enrageTransitionDescription = "The lens fractures: charged casters join the null field";
+        definition.enrageSummonType = EnemyType::Ranged;
+        definition.enrageSummonCount = 2;
+        definition.enrageHazard = elementalHazard(
+            {"Null Field", 148.0f, 7.0f, 0.65f, 7},
+            DamageType::Lightning,
+            shock
+        );
+        definition.finalPhase = {
+            0.18f,
+            0.50f,
+            1.35f,
+            "The observatory collapses: pulses, volleys and phase shifts fill the core",
+            "The null lens opens: the Nullifier enters its final cycle",
+            {0, 3, 2, 1, 0},
+            EnemyType::Ranged,
+            3,
+            {"Astral Collapse", 168.0f, 8.0f, 0.60f, 9,
+                DamageType::Lightning, shock}
+        };
+        definition.finalPhase.recurringHazard = {
+            3.5f,
+            0.55f,
+            {"Rotating Lens", 84.0f, 3.0f, 0.60f, 5,
+                DamageType::Lightning, shock},
+            BossPhaseHazardPattern::Ring,
+            158.0f
+        };
+        return definition;
+    }
+
     static std::vector<BossDefinition> buildBosses() {
         auto bosses = std::vector<BossDefinition>{
             {
@@ -691,7 +800,8 @@ private:
             },
             frostBoss(),
             drownedBoss(),
-            obsidianBoss()
+            obsidianBoss(),
+            aetherBoss()
         };
 
         bosses[0].finalPhase = {

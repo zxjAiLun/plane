@@ -44,7 +44,8 @@ enum class MapEncounterType {
     WardenCourt,
     FrozenReliquary,
     ArchivePurge,
-    ForgeCollapse
+    ForgeCollapse,
+    AetherConvergence
 };
 
 struct MapEncounterSkillDefinition {
@@ -93,8 +94,8 @@ struct MapEncounterDefinition {
 
 class MapEncounterLibrary {
 public:
-    static const std::array<MapEncounterDefinition, 9>& all() {
-        static const std::array<MapEncounterDefinition, 9> definitions = {{
+    static const std::array<MapEncounterDefinition, 10>& all() {
+        static const std::array<MapEncounterDefinition, 10> definitions = {{
             {
                 MapEncounterType::EnhancedCache,
                 "enhanced-cache",
@@ -299,6 +300,45 @@ public:
                         GroundHazardTarget::Player}
                 },
                 1
+            },
+            {
+                MapEncounterType::AetherConvergence,
+                "aether-convergence",
+                "Aether Convergence",
+                "Break the lens focus while charged constructs and ranged casters close in",
+                134.0f,
+                0,
+                2,
+                3,
+                1.65f,
+                {"Aether Pulse", 138.0f, 8.0f, 0.65f, 3,
+                    DamageType::Lightning,
+                    {AilmentType::Shock, 2.0f, 0.0f, 1.15f},
+                    GroundHazardTarget::Player},
+                false,
+                4,
+                EnemyType::Elite,
+                EnemyType::Ranged,
+                {AffixTag::Survival, 1.90f, AffixTag::Lightning, 1.30f},
+                4,
+                true,
+                DamageType::Lightning,
+                {AilmentType::Shock, 2.0f, 0.0f, 1.15f},
+                {
+                    "Lens Discharge",
+                    "The lens locks onto the player before a charged pulse detonates",
+                    4.2f,
+                    0.70f,
+                    116.0f,
+                    5,
+                    DamageType::Lightning,
+                    {AilmentType::Shock, 2.0f, 0.0f, 1.15f},
+                    {"Residual Charge", 96.0f, 2.8f, 0.65f, 3,
+                        DamageType::Lightning,
+                        {AilmentType::Shock, 2.0f, 0.0f, 1.15f},
+                        GroundHazardTarget::Player}
+                },
+                2
             }
         }};
         return definitions;
@@ -332,6 +372,10 @@ public:
 
         if (normalizedTemplate == 5) {
             return forType(MapEncounterType::ForgeCollapse);
+        }
+
+        if (normalizedTemplate == 6) {
+            return forType(MapEncounterType::AetherConvergence);
         }
 
         constexpr int LegacyEncounterCount = 6;
@@ -721,6 +765,45 @@ private:
         };
         templates[5].bossArenaEffect.pattern = MapHazardPattern::Cross;
         templates[5].bossArenaEffect.patternRadius = 160.0f;
+        templates.push_back({
+            "Aether Observatory",
+            "Arcane lenses and charged void",
+            {{24, 22, 44}, {72, 64, 112}, {100, 75, 170}, {62, 38, 135}, {45, 78, 112}},
+            {18, 22, 18, "Ranged casters, Wardens and charged Summoner anchors", 8, 14, 20},
+            {
+                "Aether Pulse",
+                "Charged lenses mark the field before a lightning pulse",
+                10.0f,
+                0.65f,
+                {"Aether Pulse", 120.0f, 4.0f, 0.70f, 2,
+                    DamageType::Lightning,
+                    {AilmentType::Shock, 2.0f, 0.0f, 1.15f}},
+                2,
+                MapHazardPattern::Cross,
+                150.0f
+            },
+            6,
+            DamageType::Lightning,
+            {AilmentType::Shock, 2.0f, 0.0f, 1.15f},
+            {AffixTag::Survival, 1.35f, AffixTag::Lightning, 1.20f},
+            {
+                "Null Orbit",
+                "The arena rotates charged zones around the player",
+                3.3f,
+                0.55f,
+                {"Null Orbit", 138.0f, 5.0f, 0.70f, 3,
+                    DamageType::Lightning,
+                    {AilmentType::Shock, 2.0f, 0.0f, 1.15f}},
+                2,
+                MapHazardPattern::Ring,
+                158.0f
+            }
+        });
+        templates[6].encounter.hardenedEliteModifierWeight = 30;
+        templates[6].encounter.swiftEliteModifierWeight = 25;
+        templates[6].encounter.volatileEliteModifierWeight = 45;
+        templates[6].signatureLootBias.baseTheme = ItemBuildTheme::Mana;
+        templates[6].signatureLootBias.baseThemeWeightMultiplier = 2.5f;
         return templates;
     }
 };

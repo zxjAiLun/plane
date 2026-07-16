@@ -19,7 +19,8 @@ enum class ItemBaseTheme {
     Brood,
     Frost,
     Archive,
-    Obsidian
+    Obsidian,
+    Aether
 };
 
 struct ItemBaseDefinition {
@@ -216,6 +217,16 @@ private:
                 makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.10f, 1.08f),
                     ItemBaseKind::BossRelic, ItemBaseTheme::Obsidian, 1,
                     ItemBuildTheme::Area, 1},
+            {"boss.aether-orb", "Aether Orb", EquipmentSlot::Weapon,
+                makeStats(0, 1.0f, 0.98f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                    0, 1.0f, 1.0f, 1.0f, 1.18f, 1.10f, 0.92f),
+                    ItemBaseKind::BossRelic, ItemBaseTheme::Aether, 1,
+                    ItemBuildTheme::Mana},
+            {"boss.null-crown", "Null Crown", EquipmentSlot::Amulet,
+                makeStats(5, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                    0, 1.0f, 1.0f, 1.0f, 1.12f, 1.18f, 0.88f),
+                    ItemBaseKind::BossRelic, ItemBaseTheme::Aether, 1,
+                    ItemBuildTheme::Mana, 1},
         };
     }
 };

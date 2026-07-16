@@ -268,6 +268,50 @@ public:
                         {AffixTag::Area, AffixTag::Damage});
                 }
                 break;
+
+            case BossLootTheme::Aether:
+                if (normalizedVariant == 0) {
+                    item.name = "Aether Orb";
+                    addBossAffix(item, "Expanded reservoir", tier + 1,
+                        maxManaContribution(relativeMultiplier(
+                            item.implicitStats.maxManaMultiplier
+                                + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.maxManaMultiplier)),
+                        {AffixTag::Survival});
+                    addBossAffix(item, "Aether flow", tier + 1,
+                        manaRegenContribution(relativeMultiplier(
+                            item.implicitStats.manaRegenMultiplier
+                                + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.manaRegenMultiplier)),
+                        {AffixTag::Survival});
+                    addBossAffix(item, "Efficient circuits", tier + 1,
+                        skillCostContribution(relativeMultiplier(
+                            item.implicitStats.skillCostMultiplier
+                                - std::array<float, 3>{0.04f, 0.07f, 0.10f}[tier],
+                            item.implicitStats.skillCostMultiplier)),
+                        {AffixTag::Survival});
+                } else {
+                    item.name = "Null Crown";
+                    addBossAffix(item, "Null reservoir", tier + 1,
+                        maxManaContribution(relativeMultiplier(
+                            item.implicitStats.maxManaMultiplier
+                                + std::array<float, 3>{0.10f, 0.15f, 0.20f}[tier],
+                            item.implicitStats.maxManaMultiplier)),
+                        {AffixTag::Survival});
+                    addBossAffix(item, "Deep meditation", tier + 1,
+                        manaRegenContribution(relativeMultiplier(
+                            item.implicitStats.manaRegenMultiplier
+                                + std::array<float, 3>{0.10f, 0.15f, 0.20f}[tier],
+                            item.implicitStats.manaRegenMultiplier)),
+                        {AffixTag::Survival});
+                    addBossAffix(item, "Null cost", tier + 1,
+                        skillCostContribution(relativeMultiplier(
+                            item.implicitStats.skillCostMultiplier
+                                - std::array<float, 3>{0.05f, 0.08f, 0.11f}[tier],
+                            item.implicitStats.skillCostMultiplier)),
+                        {AffixTag::Survival});
+                }
+                break;
         }
 
         return item;
@@ -487,6 +531,7 @@ private:
             case BossLootTheme::Frost: return ItemBaseTheme::Frost;
             case BossLootTheme::Archive: return ItemBaseTheme::Archive;
             case BossLootTheme::Obsidian: return ItemBaseTheme::Obsidian;
+            case BossLootTheme::Aether: return ItemBaseTheme::Aether;
         }
         return ItemBaseTheme::None;
     }
@@ -624,6 +669,24 @@ private:
     static Stats poisonDamageContribution(float multiplier) {
         Stats stats;
         stats.poisonDamageMultiplier = multiplier;
+        return stats;
+    }
+
+    static Stats maxManaContribution(float multiplier) {
+        Stats stats;
+        stats.maxManaMultiplier = multiplier;
+        return stats;
+    }
+
+    static Stats manaRegenContribution(float multiplier) {
+        Stats stats;
+        stats.manaRegenMultiplier = multiplier;
+        return stats;
+    }
+
+    static Stats skillCostContribution(float multiplier) {
+        Stats stats;
+        stats.skillCostMultiplier = multiplier;
         return stats;
     }
 

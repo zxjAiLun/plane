@@ -32,7 +32,7 @@ struct EnemyPackDefinition {
 
 class EnemyPackLibrary {
 public:
-    static constexpr int ThemeCount = 6;
+    static constexpr int ThemeCount = 7;
     static constexpr int PacksPerTheme = 3;
 
     static const std::array<EnemyPackDefinition, ThemeCount * PacksPerTheme>& all() {
@@ -378,6 +378,63 @@ public:
                 2,
                 {AffixTag::Damage, 1.80f, AffixTag::Area, 1.30f},
                 "Damage / Area weighted | 1 guaranteed drop"
+            },
+            {
+                "aether-lens-guard",
+                "Lens Guard",
+                "A charged Warden formation screens a ranged lens battery",
+                {EnemyType::Warden, EnemyType::Ranged, EnemyType::Normal,
+                 EnemyType::Elite, EnemyType::Normal, EnemyType::Charger},
+                6,
+                {AffixTag::Survival, 1.40f, AffixTag::Lightning, 1.20f},
+                1,
+                3,
+                "Lens Custodian",
+                "A hardened stormbound custodian protects the observatory focus",
+                {EliteModifier::Hardened, EliteModifier::Stormbound},
+                2.0f,
+                2,
+                2,
+                {AffixTag::Survival, 1.75f, AffixTag::Lightning, 1.30f},
+                "Mana / Lightning weighted | 2 guaranteed drops"
+            },
+            {
+                "aether-void-choir",
+                "Void Choir",
+                "Summoners and ranged casters overload the field with charged fire",
+                {EnemyType::Summoner, EnemyType::Ranged, EnemyType::Ranged,
+                 EnemyType::Elite, EnemyType::Normal, EnemyType::Warden},
+                6,
+                {AffixTag::Lightning, 1.45f, AffixTag::Projectile, 1.20f},
+                1,
+                3,
+                "Void Cantor",
+                "A volatile cantor turns every summoned pulse into a lightning threat",
+                {EliteModifier::Volatile, EliteModifier::Stormbound},
+                2.0f,
+                1,
+                2,
+                {AffixTag::Lightning, 1.80f, AffixTag::Projectile, 1.30f},
+                "Lightning / Projectile weighted rewards | 1 guaranteed drop"
+            },
+            {
+                "aether-overcharge",
+                "Overcharge Wing",
+                "Swift chargers collapse on a damage-heavy lens battery",
+                {EnemyType::Elite, EnemyType::Charger, EnemyType::Ranged,
+                 EnemyType::Ranged, EnemyType::Normal, EnemyType::Summoner},
+                6,
+                {AffixTag::Damage, 1.45f, AffixTag::Lightning, 1.20f},
+                1,
+                0,
+                "Overcharge Prime",
+                "An empowered captain accelerates the final collapse of the lens array",
+                {EliteModifier::Swift, EliteModifier::Empowered},
+                2.0f,
+                2,
+                2,
+                {AffixTag::Damage, 1.80f, AffixTag::Survival, 1.25f},
+                "Damage / Mana weighted rewards | 2 guaranteed drops"
             }
         }};
         return packs;

@@ -49,6 +49,12 @@ LootBias bossLootBias(BossLootTheme theme) {
             bias.baseThemeWeightMultiplier = 2.5f;
             return bias;
         }
+        case BossLootTheme::Aether: {
+            LootBias bias{AffixTag::Survival, 1.55f, AffixTag::Lightning, 1.25f};
+            bias.baseTheme = ItemBuildTheme::Mana;
+            bias.baseThemeWeightMultiplier = 3.0f;
+            return bias;
+        }
     }
     return {};
 }
@@ -61,6 +67,7 @@ DamageType bossRewardDamageType(BossLootTheme theme) {
         case BossLootTheme::Frost: return DamageType::Cold;
         case BossLootTheme::Archive: return DamageType::Cold;
         case BossLootTheme::Obsidian: return DamageType::Fire;
+        case BossLootTheme::Aether: return DamageType::Lightning;
     }
     return DamageType::Physical;
 }
@@ -5807,7 +5814,8 @@ std::string GameWorld::bossRelicEffectSummary() const {
         ItemBaseTheme::Brood,
         ItemBaseTheme::Frost,
         ItemBaseTheme::Archive,
-        ItemBaseTheme::Obsidian
+        ItemBaseTheme::Obsidian,
+        ItemBaseTheme::Aether
     };
     std::string summary;
     for (const auto theme : themes) {

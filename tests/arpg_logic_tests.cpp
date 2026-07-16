@@ -1694,13 +1694,14 @@ void testItemBaseTypes() {
             > unweightedManaAffixes * weightedManaAffixBases,
         "selected Mana bases softly prefer Mana affixes");
 
-    const std::array<std::pair<BossLootTheme, std::string>, 6> bossThemes{{
+    const std::array<std::pair<BossLootTheme, std::string>, 7> bossThemes{{
         {BossLootTheme::Brimstone, "boss.brimstone-brand"},
         {BossLootTheme::Storm, "boss.storm-signet"},
         {BossLootTheme::Brood, "boss.brood-talisman"},
         {BossLootTheme::Frost, "boss.frostbound-loop"},
         {BossLootTheme::Archive, "boss.tidebound-ledger"},
         {BossLootTheme::Obsidian, "boss.obsidian-crown"},
+        {BossLootTheme::Aether, "boss.aether-orb"},
     }};
     for (const auto& [theme, expectedBaseId] : bossThemes) {
         const Item item = generator.generateBossReward(5, theme);
@@ -1724,13 +1725,14 @@ void testItemBaseTypes() {
             && LootGenerator::bossRelicVariantForMapLevel(9) == 0,
         "Boss relic variants rotate once per four-map boss cycle");
 
-    const std::array<std::tuple<BossLootTheme, ItemBaseTheme, std::string>, 6> alternateBossThemes{{
+    const std::array<std::tuple<BossLootTheme, ItemBaseTheme, std::string>, 7> alternateBossThemes{{
         {BossLootTheme::Brimstone, ItemBaseTheme::Brimstone, "boss.ashen-crucible"},
         {BossLootTheme::Storm, ItemBaseTheme::Storm, "boss.tempest-bow"},
         {BossLootTheme::Brood, ItemBaseTheme::Brood, "boss.broodscale-band"},
         {BossLootTheme::Frost, ItemBaseTheme::Frost, "boss.winterheart-pendant"},
         {BossLootTheme::Archive, ItemBaseTheme::Archive, "boss.drowned-compass"},
         {BossLootTheme::Obsidian, ItemBaseTheme::Obsidian, "boss.blackglass-heart"},
+        {BossLootTheme::Aether, ItemBaseTheme::Aether, "boss.null-crown"},
     }};
     for (const auto& [theme, expectedTheme, expectedBaseId] : alternateBossThemes) {
         const Item item = generator.generateBossReward(5, theme, 1);
@@ -1759,6 +1761,7 @@ void testItemBaseTypes() {
     const Item frost = generator.generateBossReward(5, BossLootTheme::Frost);
     const Item archive = generator.generateBossReward(5, BossLootTheme::Archive);
     const Item obsidian = generator.generateBossReward(5, BossLootTheme::Obsidian);
+    const Item aether = generator.generateBossReward(5, BossLootTheme::Aether);
     expect(std::abs(brimstone.stats.damageMultiplier - 1.27f) < 0.0001f
             && std::abs(brimstone.stats.areaDamageMultiplier - 1.14f) < 0.0001f,
         "Brimstone relic preserves its level-scaled combat bonuses");
@@ -1781,6 +1784,10 @@ void testItemBaseTypes() {
             && std::abs(obsidian.stats.areaDamageMultiplier - 1.21f) < 0.0001f
             && std::abs(obsidian.stats.areaRadiusMultiplier - 1.14f) < 0.0001f,
         "Obsidian relic adds level-scaled Fire and Area bonuses");
+    expect(aether.stats.maxManaMultiplier > aether.implicitStats.maxManaMultiplier
+            && aether.stats.manaRegenMultiplier > aether.implicitStats.manaRegenMultiplier
+            && aether.stats.skillCostMultiplier < aether.implicitStats.skillCostMultiplier,
+        "Aether relic adds real Mana sustain and skill cost bonuses");
 }
 
 void testBossRelicEffects() {
@@ -1792,6 +1799,7 @@ void testBossRelicEffects() {
     const auto& frost = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Frost);
     const auto& archive = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Archive);
     const auto& obsidian = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Obsidian);
+    const auto& aether = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Aether);
     const auto& none = BossRelicEffectLibrary::forTheme(ItemBaseTheme::None);
 
     expect(molten.type == BossRelicEffectType::MoltenCore
@@ -1822,6 +1830,10 @@ void testBossRelicEffects() {
             && obsidian.igniteDamageMultiplier > 1.0f
             && obsidian.igniteDurationMultiplier > 1.0f,
         "Obsidian relic defines its Furnace Ignite effect");
+    expect(aether.type == BossRelicEffectType::AetherReserve
+            && !aether.name.empty()
+            && !aether.description.empty(),
+        "Aether relic defines its Mana reserve effect");
 
     const auto* ashenBase = ItemBaseLibrary::find("boss.ashen-crucible");
     const auto* tempestBase = ItemBaseLibrary::find("boss.tempest-bow");
@@ -2491,13 +2503,26 @@ void testGroundHazardLifecycle() {
             "Magma Pool is smaller than the initial slam telegraph");
     }
 
+    const auto& aether = BossLibrary::forMapLevel(7);
+    const auto prismIt = std::find_if(
+        aether.skills.begin(),
+        aether.skills.end(),
+        [](const BossSkillDefinition& skill) { return skill.name == "Prism Pulse"; }
+    );
+    expect(aether.lootTheme == BossLootTheme::Aether
+            && prismIt != aether.skills.end()
+            && prismIt->damageType == DamageType::Lightning
+            && prismIt->ailment.type == AilmentType::Shock
+            && prismIt->groundHazard.source == "Prism Residue",
+        "Astral Nullifier adds a Lightning residue hazard to the Boss skill set");
+
     int configuredHazards = 0;
     for (const auto& boss : BossLibrary::all()) {
         for (const auto& skill : boss.skills) {
             configuredHazards += skill.groundHazard.isValid() ? 1 : 0;
         }
     }
-    expect(configuredHazards == 4,
+    expect(configuredHazards == 5,
         "elemental Boss skills define the current ground hazard set");
 }
 
@@ -2875,8 +2900,15 @@ void testMapEncounterDefinitions() {
             return encounter.type == MapEncounterType::ForgeCollapse;
         }
     );
-    expect(encounters.size() == 9,
-        "map encounter library contains nine data-driven encounter definitions");
+    const auto aetherIt = std::find_if(
+        encounters.begin(),
+        encounters.end(),
+        [](const MapEncounterDefinition& encounter) {
+            return encounter.type == MapEncounterType::AetherConvergence;
+        }
+    );
+    expect(encounters.size() == 10,
+        "map encounter library contains ten data-driven encounter definitions");
     expect(std::all_of(
                 encounters.begin(), encounters.end(),
                 [](const MapEncounterDefinition& encounter) {
@@ -2958,6 +2990,23 @@ void testMapEncounterDefinitions() {
             && forgeIt->leaderSkill.groundHazard.source == "Magma Brand"
             && forgeIt->bossDropBonus == 1,
         "Forge Collapse defines its Fire hazard, Charger screen, and Area reward bias");
+    expect(aetherIt != encounters.end()
+            && aetherIt->eliteCount == 2
+            && aetherIt->normalCount == 3
+            && aetherIt->primaryEnemyType == EnemyType::Elite
+            && aetherIt->secondaryEnemyType == EnemyType::Ranged
+            && aetherIt->completionDropCount == 4
+            && aetherIt->rewardLootBias.primaryTag == AffixTag::Survival
+            && aetherIt->rewardLootBias.secondaryTag == AffixTag::Lightning
+            && aetherIt->hazard.damageType == DamageType::Lightning
+            && aetherIt->hazard.ailment.type == AilmentType::Shock
+            && aetherIt->overridesEnemyAttackProfile
+            && aetherIt->enemyDamageType == DamageType::Lightning
+            && aetherIt->leaderSkill.isValid()
+            && aetherIt->leaderSkill.damageType == DamageType::Lightning
+            && aetherIt->leaderSkill.ailment.type == AilmentType::Shock
+            && aetherIt->bossDropBonus == 2,
+        "Aether Convergence defines its Lightning hazard, ranged screen, and Mana reward bias");
 }
 
 // --- Map layout variants ---
@@ -3040,10 +3089,15 @@ void testMapLayoutVariants() {
             && MapTemplateLibrary::forIndex(5).name == "Obsidian Reliquary"
             && MapTemplateLibrary::forIndex(5).bossDefinitionIndex == 5
             && MapTemplateLibrary::forIndex(5).signatureDamageType == DamageType::Fire
-            && MapTemplateLibrary::forIndex(5).signatureLootBias.primaryTag == AffixTag::Armor,
+            && MapTemplateLibrary::forIndex(5).signatureLootBias.primaryTag == AffixTag::Armor
+            && MapTemplateLibrary::forIndex(6).name == "Aether Observatory"
+            && MapTemplateLibrary::forIndex(6).bossDefinitionIndex == 6
+            && MapTemplateLibrary::forIndex(6).signatureDamageType == DamageType::Lightning
+            && MapTemplateLibrary::forIndex(6).signatureLootBias.baseTheme == ItemBuildTheme::Mana,
         "new map themes bind their intended encounter and loot identities");
     expect(MapInstance(5).encounterDefinition().type == MapEncounterType::ArchivePurge
-            && MapInstance(6).encounterDefinition().type == MapEncounterType::ForgeCollapse,
+            && MapInstance(6).encounterDefinition().type == MapEncounterType::ForgeCollapse
+            && MapInstance(7).encounterDefinition().type == MapEncounterType::AetherConvergence,
         "new map themes use their own combination encounters instead of legacy content");
     expect(MapTemplateLibrary::forIndex(0).ambientEffect.isValid()
             && MapTemplateLibrary::forIndex(0).ambientEffect.hazard.damageType == DamageType::Fire
@@ -3413,7 +3467,7 @@ void testEnemyPackLibrary() {
     section("Data-driven field enemy packs");
 
     const auto& packs = EnemyPackLibrary::all();
-    expect(packs.size() == 18, "six map themes expose three field packs each");
+    expect(packs.size() == 21, "seven map themes expose three field packs each");
     for (const auto& pack : packs) {
         expect(!pack.id.empty() && !pack.name.empty()
                 && pack.enemyCount == static_cast<int>(pack.enemies.size())
