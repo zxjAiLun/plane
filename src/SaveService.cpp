@@ -1242,6 +1242,8 @@ bool SaveService::load(const std::filesystem::path& path,
             && version != 16U
             && version != 17U
             && version != 18U
+            && version != 19U
+            && version != 20U
             && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");
@@ -1265,11 +1267,13 @@ bool SaveService::load(const std::filesystem::path& path,
             version >= 17U,
             version >= 20U,
             version >= 18U,
-            version >= 19U
+            version >= SaveData::Version
                 ? PassiveTree::NodeCount
-                : version >= 6U
-                    ? PassiveTree::PreviousNodeCount
-                    : PassiveTree::LegacyNodeCount,
+                : version >= 19U
+                    ? PassiveTree::PrePhysicalBleedNodeCount
+                    : version >= 6U
+                        ? PassiveTree::PreviousNodeCount
+                        : PassiveTree::LegacyNodeCount,
             version >= 7U,
             version >= 8U,
             version >= 9U,

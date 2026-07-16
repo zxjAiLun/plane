@@ -323,6 +323,20 @@ void testPassiveKeystones() {
             > skillDamage(SkillLibrary::toxicBurst(), Stats{}, nullptr),
         "Poison branch increases actual Toxic Burst damage");
 
+    PassiveTree physicalBleed;
+    for (std::size_t index = 28; index < 33; ++index) {
+        expect(physicalBleed.allocate(index),
+            "allocate Physical / Bleed branch node " + std::to_string(index));
+    }
+    expect(physicalBleed.allocatedCount(PassiveBranch::PhysicalBleed) == 5,
+        "Physical / Bleed branch reports all five allocated nodes");
+    const Stats physicalBleedStats = physicalBleed.combinedStats();
+    expect(physicalBleedStats.physicalDamageMultiplier > 1.0f
+            && physicalBleedStats.bleedDamageMultiplier > 1.0f
+            && physicalBleedStats.bleedDurationMultiplier > 1.0f
+            && physicalBleedStats.bleedPenetration == 16,
+        "Physical / Bleed branch combines hit, ailment, duration, and penetration bonuses");
+
     PassiveTree elemental;
     expect(elemental.allocate(25), "allocate Ember Attunement root");
     expect(elemental.allocate(26), "allocate Glacial Attunement root");

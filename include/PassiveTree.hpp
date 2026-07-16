@@ -15,7 +15,8 @@ enum class PassiveBranch {
     Poison,
     Fire,
     Cold,
-    Lightning
+    Lightning,
+    PhysicalBleed
 };
 
 enum class PassiveNodeSize {
@@ -58,7 +59,8 @@ class PassiveTree {
 public:
     static constexpr std::size_t LegacyNodeCount = 20;
     static constexpr std::size_t PreviousNodeCount = 25;
-    static constexpr std::size_t NodeCount = 28;
+    static constexpr std::size_t PrePhysicalBleedNodeCount = 28;
+    static constexpr std::size_t NodeCount = 33;
 
     PassiveTree() {
         // Projectile branch (0-4)
@@ -100,6 +102,14 @@ public:
         nodes_[25] = {"Ember Attunement", "+18% Fire damage, +15% Ignite damage, +5 Fire resistance", fireStats(1.18f, 5, 1.15f, 1.10f), -1, false, {0.0f, -196.0f}, PassiveBranch::Fire, PassiveNodeSize::Notable};
         nodes_[26] = {"Glacial Attunement", "+18% Cold damage, +15% Chill effect/duration, +5 Cold resistance", coldStats(1.18f, 5, 1.15f, 1.15f), -1, false, {0.0f, 196.0f}, PassiveBranch::Cold, PassiveNodeSize::Notable};
         nodes_[27] = {"Storm Attunement", "+18% Lightning damage, +15% Shock effect/duration, +5 Lightning resistance", lightningStats(1.18f, 5, 1.15f, 1.15f), -1, false, {-70.0f, 0.0f}, PassiveBranch::Lightning, PassiveNodeSize::Notable};
+
+        // Physical / Bleed branch: a separate damage-over-time route for
+        // builds that use Hemorrhage skills and physical hit scaling.
+        nodes_[28] = {"Bloodied Edge", "+8% Physical damage", physicalBleedStats(1.08f), -1, false, {-135.0f, 0.0f}, PassiveBranch::PhysicalBleed, PassiveNodeSize::Small};
+        nodes_[29] = {"Open Veins", "+10% Bleed damage", physicalBleedStats(1.0f, 1.10f), 28, false, {-200.0f, 0.0f}, PassiveBranch::PhysicalBleed, PassiveNodeSize::Small};
+        nodes_[30] = {"Deep Cuts", "+12% Bleed duration, +4% Bleed penetration", physicalBleedStats(1.0f, 1.0f, 1.12f, 4), 29, false, {-260.0f, 0.0f}, PassiveBranch::PhysicalBleed, PassiveNodeSize::Small};
+        nodes_[31] = {"Sundering Wounds", "+6% Physical damage, +4% Bleed penetration", physicalBleedStats(1.06f, 1.0f, 1.0f, 4), 30, false, {-318.0f, 0.0f}, PassiveBranch::PhysicalBleed, PassiveNodeSize::Small};
+        nodes_[32] = {"Hemorrhagic Momentum", "+20% Physical damage, +20% Bleed damage, +15% Bleed duration, +8% Bleed penetration", physicalBleedStats(1.20f, 1.20f, 1.15f, 8), 31, false, {-350.0f, -42.0f}, PassiveBranch::PhysicalBleed, PassiveNodeSize::Notable};
     }
 
     bool allocate(std::size_t index) {
@@ -282,6 +292,20 @@ private:
         stats.lightningResistance = resistance;
         stats.shockMagnitudeMultiplier = shockMagnitudeMultiplier;
         stats.shockDurationMultiplier = shockDurationMultiplier;
+        return stats;
+    }
+
+    static Stats physicalBleedStats(
+        float physicalDamageMultiplier = 1.0f,
+        float bleedDamageMultiplier = 1.0f,
+        float bleedDurationMultiplier = 1.0f,
+        int bleedPenetration = 0
+    ) {
+        Stats stats;
+        stats.physicalDamageMultiplier = physicalDamageMultiplier;
+        stats.bleedDamageMultiplier = bleedDamageMultiplier;
+        stats.bleedDurationMultiplier = bleedDurationMultiplier;
+        stats.bleedPenetration = bleedPenetration;
         return stats;
     }
 

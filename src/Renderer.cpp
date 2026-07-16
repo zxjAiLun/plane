@@ -463,6 +463,7 @@ sf::Color passiveBranchColor(PassiveBranch branch) {
         case PassiveBranch::Fire: return sf::Color(255, 115, 65);
         case PassiveBranch::Cold: return sf::Color(120, 220, 255);
         case PassiveBranch::Lightning: return sf::Color(190, 150, 255);
+        case PassiveBranch::PhysicalBleed: return sf::Color(235, 90, 95);
     }
     return sf::Color::White;
 }
@@ -487,6 +488,7 @@ std::string passiveBranchName(PassiveBranch branch) {
         case PassiveBranch::Fire: return "Fire";
         case PassiveBranch::Cold: return "Cold";
         case PassiveBranch::Lightning: return "Lightning";
+        case PassiveBranch::PhysicalBleed: return "Physical / Bleed";
     }
     return "Unknown";
 }
