@@ -3422,6 +3422,93 @@ void testCombinationMapEvents() {
     }
 
     {
+        GameWorld world(21004);
+        prepareCombinationFixture(world, path, 0, 2, 3, 0);
+        const MapEventInstance* event = combinationEvent(world);
+        expect(event != nullptr
+                && event->encounterType == MapEncounterType::BloodlettingPit,
+            "map level three Ashen variant uses the Bloodletting Pit encounter");
+        if (event != nullptr) {
+            const Vector2 position = event->position;
+            Input input;
+            expect(moveToMapEvent(world, input, position),
+                "player can reach the Bloodletting Pit encounter");
+            expect(world.activeEliteEventEnemiesRemaining() == 5
+                    && std::any_of(
+                        world.groundHazards().begin(),
+                        world.groundHazards().end(),
+                        [](const GroundHazard& hazard) {
+                            return hazard.definition().source == "Hemorrhage Pool"
+                                && hazard.definition().damageType == DamageType::Physical
+                                && hazard.definition().ailment.type == AilmentType::Bleed;
+                        }
+                    ),
+                "Bloodletting Pit spawns its Bleed hazard and five owned enemies");
+
+            bool bleedObserved = false;
+            for (int frame = 0; frame < 120; ++frame) {
+                world.update(0.05f, input);
+                bleedObserved = bleedObserved || world.player().isBleeding();
+            }
+            expect(bleedObserved && world.player().bleedStacks() > 0,
+                "Bloodletting Pit applies real Bleed pressure to the player");
+
+            const Vector2 camera = world.cameraTopLeft();
+            input.handleMousePressed(
+                sf::Mouse::Button::Right,
+                {static_cast<int>(std::lround(position.x - camera.x)),
+                 static_cast<int>(std::lround(position.y - camera.y))}
+            );
+            world.update(0.05f, input);
+            resolvePendingSkillEffects(world, input);
+            const MapEventInstance* afterClear = combinationEvent(world);
+            expect(afterClear != nullptr && afterClear->completed
+                    && world.activeEliteEventEnemiesRemaining() == 0
+                    && world.mapItemsDropped() >= 4,
+                "Bloodletting Pit clears and drops its Physical/Bleed reward");
+            expect(world.map().encounterDefinition().bossDropBonus == 2,
+                "Bloodletting Pit increases the completed-map Boss reward");
+        }
+    }
+
+    {
+        GameWorld world(21008);
+        prepareCombinationFixture(world, path, 6, 0, 7, 0);
+        const MapEventInstance* event = combinationEvent(world);
+        expect(event != nullptr
+                && event->encounterType == MapEncounterType::AetherConvergence,
+            "map level seven uses the data-driven Aether Convergence encounter");
+        if (event != nullptr) {
+            const Vector2 position = event->position;
+            Input input;
+            expect(moveToMapEvent(world, input, position),
+                "player can reach the Aether Convergence encounter");
+            expect(world.activeEliteEventEnemiesRemaining() == 5
+                    && std::any_of(
+                        world.groundHazards().begin(),
+                        world.groundHazards().end(),
+                        [](const GroundHazard& hazard) {
+                            return hazard.definition().damageType == DamageType::Lightning;
+                        }
+                    ),
+                "Aether Convergence spawns its Lightning hazard and owned enemies");
+
+            const Vector2 camera = world.cameraTopLeft();
+            input.handleMousePressed(
+                sf::Mouse::Button::Right,
+                {static_cast<int>(std::lround(position.x - camera.x)),
+                 static_cast<int>(std::lround(position.y - camera.y))}
+            );
+            world.update(0.05f, input);
+            resolvePendingSkillEffects(world, input);
+            const MapEventInstance* afterClear = combinationEvent(world);
+            expect(afterClear != nullptr && afterClear->completed
+                    && world.activeEliteEventEnemiesRemaining() == 0,
+                "Aether Convergence now triggers and clears through the shared event path");
+        }
+    }
+
+    {
         GameWorld world(21005);
         prepareCombinationFixture(world, path, 1, 2);
         const MapEventInstance* event = combinationEvent(world);

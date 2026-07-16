@@ -46,7 +46,8 @@ enum class MapEncounterType {
     ArchivePurge,
     ForgeCollapse,
     AetherConvergence,
-    NecroticOssuary
+    NecroticOssuary,
+    BloodlettingPit
 };
 
 struct MapEncounterSkillDefinition {
@@ -95,8 +96,8 @@ struct MapEncounterDefinition {
 
 class MapEncounterLibrary {
 public:
-    static const std::array<MapEncounterDefinition, 11>& all() {
-        static const std::array<MapEncounterDefinition, 11> definitions = {{
+    static const std::array<MapEncounterDefinition, 12>& all() {
+        static const std::array<MapEncounterDefinition, 12> definitions = {{
             {
                 MapEncounterType::EnhancedCache,
                 "enhanced-cache",
@@ -379,6 +380,45 @@ public:
                         GroundHazardTarget::Player}
                 },
                 2
+            },
+            {
+                MapEncounterType::BloodlettingPit,
+                "bloodletting-pit",
+                "Bloodletting Pit",
+                "Break a blood-soaked ambush while wounded enemies turn every hit into Bleed pressure",
+                138.0f,
+                0,
+                1,
+                4,
+                1.75f,
+                {"Hemorrhage Pool", 122.0f, 8.0f, 0.75f, 2,
+                    DamageType::Physical,
+                    {AilmentType::Bleed, 2.5f, 0.20f},
+                    GroundHazardTarget::Player},
+                false,
+                4,
+                EnemyType::Charger,
+                EnemyType::Normal,
+                {AffixTag::Physical, 1.95f, AffixTag::Bleed, 1.35f},
+                5,
+                true,
+                DamageType::Physical,
+                {AilmentType::Bleed, 2.5f, 0.20f},
+                {
+                    "Blood Rush",
+                    "The bloodied Charger marks the player before a violent Bleed burst",
+                    4.0f,
+                    0.65f,
+                    118.0f,
+                    5,
+                    DamageType::Physical,
+                    {AilmentType::Bleed, 2.5f, 0.20f},
+                    {"Blood Mark", 100.0f, 2.6f, 0.65f, 3,
+                        DamageType::Physical,
+                        {AilmentType::Bleed, 2.5f, 0.20f},
+                        GroundHazardTarget::Player}
+                },
+                2
             }
         }};
         return definitions;
@@ -420,6 +460,10 @@ public:
 
         if (normalizedTemplate == 7) {
             return forType(MapEncounterType::NecroticOssuary);
+        }
+
+        if (normalizedTemplate == 0 && mapLevel >= 3 && layoutIndex == 2) {
+            return forType(MapEncounterType::BloodlettingPit);
         }
 
         constexpr int LegacyEncounterCount = 6;

@@ -3262,8 +3262,15 @@ void testMapEncounterDefinitions() {
             return encounter.type == MapEncounterType::NecroticOssuary;
         }
     );
-    expect(encounters.size() == 11,
-        "map encounter library contains eleven data-driven encounter definitions");
+    const auto bloodlettingIt = std::find_if(
+        encounters.begin(),
+        encounters.end(),
+        [](const MapEncounterDefinition& encounter) {
+            return encounter.type == MapEncounterType::BloodlettingPit;
+        }
+    );
+    expect(encounters.size() == 12,
+        "map encounter library contains twelve data-driven encounter definitions");
     expect(std::all_of(
                 encounters.begin(), encounters.end(),
                 [](const MapEncounterDefinition& encounter) {
@@ -3376,6 +3383,23 @@ void testMapEncounterDefinitions() {
             && sableIt->leaderSkill.damageType == DamageType::Poison
             && sableIt->bossDropBonus == 2,
         "Necrotic Ossuary defines its Poison hazard, Warden screen, and Survival reward bias");
+    expect(bloodlettingIt != encounters.end()
+            && bloodlettingIt->eliteCount == 1
+            && bloodlettingIt->normalCount == 4
+            && bloodlettingIt->primaryEnemyType == EnemyType::Charger
+            && bloodlettingIt->secondaryEnemyType == EnemyType::Normal
+            && bloodlettingIt->completionDropCount == 4
+            && bloodlettingIt->rewardLootBias.primaryTag == AffixTag::Physical
+            && bloodlettingIt->rewardLootBias.secondaryTag == AffixTag::Bleed
+            && bloodlettingIt->hazard.damageType == DamageType::Physical
+            && bloodlettingIt->hazard.ailment.type == AilmentType::Bleed
+            && bloodlettingIt->overridesEnemyAttackProfile
+            && bloodlettingIt->enemyDamageType == DamageType::Physical
+            && bloodlettingIt->enemyAilment.type == AilmentType::Bleed
+            && bloodlettingIt->leaderSkill.isValid()
+            && bloodlettingIt->leaderSkill.ailment.type == AilmentType::Bleed
+            && bloodlettingIt->bossDropBonus == 2,
+        "Bloodletting Pit defines its Physical hazard, Bleed screen, and build reward bias");
 }
 
 // --- Map layout variants ---
@@ -3474,6 +3498,9 @@ void testMapLayoutVariants() {
             && MapInstance(7).encounterDefinition().type == MapEncounterType::AetherConvergence
             && MapInstance(8).encounterDefinition().type == MapEncounterType::NecroticOssuary,
         "new map themes use their own combination encounters instead of legacy content");
+    expect(MapInstance(3, 0, 2).encounterDefinition().type
+            == MapEncounterType::BloodlettingPit,
+        "Ashen Causeway variant exposes the Bloodletting Pit encounter");
     expect(MapTemplateLibrary::forIndex(0).ambientEffect.isValid()
             && MapTemplateLibrary::forIndex(0).ambientEffect.hazard.damageType == DamageType::Fire
             && MapTemplateLibrary::forIndex(1).ambientEffect.hazard.damageType == DamageType::Lightning
