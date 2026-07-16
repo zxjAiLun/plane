@@ -49,7 +49,7 @@ inline int bossContactDamage(
     )));
 }
 
-inline GroundHazardDefinition ambientHazard(
+inline GroundHazardDefinition environmentHazard(
     int mapLevel,
     const MapModifier& modifier,
     const GroundHazardDefinition& baseHazard,

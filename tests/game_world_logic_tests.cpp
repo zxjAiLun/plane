@@ -3190,6 +3190,8 @@ void testCombinationMapEvents() {
             expect(hazard.damageType == DamageType::Cold
                     && hazard.ailment.type == AilmentType::Chill,
                 "Frozen Reliquary hazard applies Cold and Chill feedback");
+            expect(hazard.damage > world.map().encounterDefinition().hazard.damage,
+                "Frozen Reliquary hazard damage scales with its map level");
             for (int frame = 0; frame < 210; ++frame) {
                 world.update(0.05f, input);
             }

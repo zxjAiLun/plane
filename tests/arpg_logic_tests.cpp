@@ -3000,7 +3000,7 @@ void testMapScalingProgression() {
     baseHazard.ailment = {AilmentType::Ignite, 2.0f, 0.2f};
 
     const MapModifier baseline = MapModifierLibrary::empty();
-    const auto levelOne = MapScaling::ambientHazard(1, baseline, baseHazard);
+    const auto levelOne = MapScaling::environmentHazard(1, baseline, baseHazard);
     expect(levelOne.damage == baseHazard.damage,
         "map level one ambient hazard keeps its authored damage");
 
@@ -3009,7 +3009,7 @@ void testMapScalingProgression() {
     dangerous.bossDamageMultiplier = 1.25f;
     int previousFieldDamage = 0;
     for (int mapLevel = 1; mapLevel <= 5; ++mapLevel) {
-        const auto fieldHazard = MapScaling::ambientHazard(
+        const auto fieldHazard = MapScaling::environmentHazard(
             mapLevel, dangerous, baseHazard
         );
         expect(fieldHazard.damage >= previousFieldDamage
@@ -3019,7 +3019,7 @@ void testMapScalingProgression() {
         previousFieldDamage = fieldHazard.damage;
     }
 
-    const auto arenaHazard = MapScaling::ambientHazard(
+    const auto arenaHazard = MapScaling::environmentHazard(
         5, dangerous, baseHazard, true
     );
     expect(arenaHazard.damage > previousFieldDamage,

@@ -1775,7 +1775,7 @@ void GameWorld::updateAmbientThreat(float dt) {
             0.0f, ambientHazardWarningTimer_ - dt
         );
         if (ambientHazardWarningTimer_ == 0.0f) {
-            const GroundHazardDefinition scaledHazard = MapScaling::ambientHazard(
+            const GroundHazardDefinition scaledHazard = MapScaling::environmentHazard(
                 mapLevel_,
                 mapModifier_,
                 effect.hazard,
@@ -3750,7 +3750,12 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
                 encounter.normalCount
             );
             if (encounter.hazard.isValid()) {
-                groundHazards_.emplace_back(event.position, encounter.hazard);
+                groundHazards_.emplace_back(
+                    event.position,
+                    MapScaling::environmentHazard(
+                        mapLevel_, mapModifier_, encounter.hazard
+                    )
+                );
             }
             eventStatusMessage_ = encounter.name + " awakened";
             eventStatusTimer_ = 2.0f;
