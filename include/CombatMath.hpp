@@ -19,14 +19,15 @@ inline int resistanceForDamageType(
     int fireResistance,
     int coldResistance,
     int lightningResistance,
-    int poisonResistance = 0
+    int poisonResistance = 0,
+    int physicalResistance = 0
 ) {
     switch (type) {
+        case DamageType::Physical: return physicalResistance;
         case DamageType::Fire: return fireResistance;
         case DamageType::Cold: return coldResistance;
         case DamageType::Lightning: return lightningResistance;
         case DamageType::Poison: return poisonResistance;
-        case DamageType::Physical: break;
     }
     return 0;
 }
@@ -37,7 +38,8 @@ inline int damageAfterResistance(
     int fireResistance,
     int coldResistance,
     int lightningResistance,
-    int poisonResistance = 0
+    int poisonResistance = 0,
+    int physicalResistance = 0
 ) {
     if (rawDamage <= 0) {
         return 0;
@@ -47,7 +49,8 @@ inline int damageAfterResistance(
     // the player's resistance below zero and should increase incoming damage.
     const int resistance = std::clamp(
         resistanceForDamageType(
-            type, fireResistance, coldResistance, lightningResistance, poisonResistance
+            type, fireResistance, coldResistance, lightningResistance, poisonResistance,
+            physicalResistance
         ),
         -100,
         100

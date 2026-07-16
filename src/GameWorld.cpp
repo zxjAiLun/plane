@@ -2954,11 +2954,13 @@ int GameWorld::damageToEnemy(
     int coldResistance = EnemyLibrary::forType(enemy.type()).coldResistance;
     int lightningResistance = EnemyLibrary::forType(enemy.type()).lightningResistance;
     int poisonResistance = EnemyLibrary::forType(enemy.type()).poisonResistance;
+    int physicalResistance = EnemyLibrary::forType(enemy.type()).physicalResistance;
     if (enemy.isBoss()) {
         fireResistance = bossDefinition_->fireResistance;
         coldResistance = bossDefinition_->coldResistance;
         lightningResistance = bossDefinition_->lightningResistance;
         poisonResistance = bossDefinition_->poisonResistance;
+        physicalResistance = bossDefinition_->physicalResistance;
     }
     fireResistance += mapElementalResistanceAdjustment(
         mapModifier_, DamageType::Fire, true
@@ -2979,7 +2981,8 @@ int GameWorld::damageToEnemy(
         fireResistance,
         coldResistance,
         lightningResistance,
-        poisonResistance
+        poisonResistance,
+        physicalResistance
     );
     const int shockedDamage = resistedDamage <= 0
         ? 0

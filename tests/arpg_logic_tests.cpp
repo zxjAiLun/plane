@@ -744,6 +744,8 @@ void testCombatMathDamageRadiusPierce() {
         "Lightning resistance mitigates Lightning damage");
     expect(damageAfterResistance(100, DamageType::Physical, 100, 100, 100) == 100,
         "elemental resistance does not mitigate Physical damage");
+    expect(damageAfterResistance(100, DamageType::Physical, 0, 0, 0, 0, 35) == 65,
+        "Physical resistance mitigates Physical damage when explicitly configured");
     expect(damageAfterResistance(100, DamageType::Fire, 100, 0, 0) == 0,
         "full elemental resistance prevents matching damage");
     expect(damageAfterResistance(100, DamageType::Fire, -25, 0, 0) == 125,
@@ -1342,6 +1344,9 @@ void testAilmentResistances() {
         "Elite enemies use the elevated ailment resistance baseline");
     expect(charger.igniteResistance == 15 && charger.chillResistance == 10,
         "Charger enemies use the data-driven ailment resistance baseline");
+    expect(charger.physicalResistance == 15
+            && damageAfterResistance(100, DamageType::Physical, 0, 0, 0, 0, 15) == 85,
+        "Charger enemies expose and apply a Physical resistance baseline");
     expect(warden.name == "Warden"
             && warden.igniteResistance == 25
             && warden.chillResistance == 20,

@@ -60,6 +60,7 @@ struct EnemyDefinition {
     AilmentDefinition projectileAilment;
     int poisonResistance = 0;
     int bleedResistance = 0;
+    int physicalResistance = 0;
 };
 
 class EnemyLibrary {
@@ -221,6 +222,7 @@ public:
                 DamageType::Physical,
                 {AilmentType::Ignite, 3.0f, 0.20f},
                 {},
+                15,
                 15,
                 15
             },

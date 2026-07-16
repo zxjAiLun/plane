@@ -120,6 +120,7 @@ struct BossDefinition {
     int poisonResistance = 0;
     BossPhaseDefinition finalPhase;
     int bleedResistance = 0;
+    int physicalResistance = 0;
 
     const BossSkillDefinition& skillForCast(std::size_t castIndex, bool enraged) const {
         return skillForCast(castIndex, enraged ? 1 : 0);
