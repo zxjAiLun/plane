@@ -182,6 +182,7 @@ ItemBaseTheme bossRelicTheme(BossLootTheme theme) {
         case BossLootTheme::Archive: return ItemBaseTheme::Archive;
         case BossLootTheme::Obsidian: return ItemBaseTheme::Obsidian;
         case BossLootTheme::Aether: return ItemBaseTheme::Aether;
+        case BossLootTheme::Sable: return ItemBaseTheme::Sable;
     }
     return ItemBaseTheme::None;
 }
@@ -813,6 +814,7 @@ sf::Color mapEventColor(const MapEventInstance& event) {
                 case MapEncounterType::FrozenReliquary: return sf::Color(145, 225, 255);
                 case MapEncounterType::ArchivePurge: return sf::Color(95, 205, 235);
                 case MapEncounterType::ForgeCollapse: return sf::Color(245, 125, 55);
+                case MapEncounterType::NecroticOssuary: return sf::Color(185, 105, 145);
                 case MapEncounterType::None: break;
             }
             break;
@@ -938,7 +940,8 @@ std::string activeElitePackModifierDescription(const GameWorld& world) {
                     || event.encounterType == MapEncounterType::WardenCourt
                     || event.encounterType == MapEncounterType::FrozenReliquary
                     || event.encounterType == MapEncounterType::ArchivePurge
-                    || event.encounterType == MapEncounterType::ForgeCollapse));
+                    || event.encounterType == MapEncounterType::ForgeCollapse
+                    || event.encounterType == MapEncounterType::NecroticOssuary));
         if (isEliteEncounter && event.triggered && !event.completed) {
             activeEvent = &event;
             activeEventIndex = index;

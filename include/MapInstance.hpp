@@ -45,7 +45,8 @@ enum class MapEncounterType {
     FrozenReliquary,
     ArchivePurge,
     ForgeCollapse,
-    AetherConvergence
+    AetherConvergence,
+    NecroticOssuary
 };
 
 struct MapEncounterSkillDefinition {
@@ -94,8 +95,8 @@ struct MapEncounterDefinition {
 
 class MapEncounterLibrary {
 public:
-    static const std::array<MapEncounterDefinition, 10>& all() {
-        static const std::array<MapEncounterDefinition, 10> definitions = {{
+    static const std::array<MapEncounterDefinition, 11>& all() {
+        static const std::array<MapEncounterDefinition, 11> definitions = {{
             {
                 MapEncounterType::EnhancedCache,
                 "enhanced-cache",
@@ -339,6 +340,45 @@ public:
                         GroundHazardTarget::Player}
                 },
                 2
+            },
+            {
+                MapEncounterType::NecroticOssuary,
+                "necrotic-ossuary",
+                "Necrotic Ossuary",
+                "Break the marrow seal while gravebloom guardians flood the field",
+                136.0f,
+                0,
+                1,
+                4,
+                1.70f,
+                {"Marrow Bloom", 142.0f, 8.0f, 0.70f, 3,
+                    DamageType::Poison,
+                    {AilmentType::Poison, 3.0f, 0.35f},
+                    GroundHazardTarget::Player},
+                false,
+                5,
+                EnemyType::Warden,
+                EnemyType::Summoner,
+                {AffixTag::Poison, 1.95f, AffixTag::Survival, 1.30f},
+                5,
+                true,
+                DamageType::Poison,
+                {AilmentType::Poison, 3.0f, 0.35f},
+                {
+                    "Marrow Pulse",
+                    "The Warden marks the player before a poisonous bloom detonates",
+                    4.0f,
+                    0.65f,
+                    118.0f,
+                    5,
+                    DamageType::Poison,
+                    {AilmentType::Poison, 3.0f, 0.35f},
+                    {"Bloom Scar", 102.0f, 3.0f, 0.65f, 3,
+                        DamageType::Poison,
+                        {AilmentType::Poison, 3.0f, 0.35f},
+                        GroundHazardTarget::Player}
+                },
+                2
             }
         }};
         return definitions;
@@ -376,6 +416,10 @@ public:
 
         if (normalizedTemplate == 6) {
             return forType(MapEncounterType::AetherConvergence);
+        }
+
+        if (normalizedTemplate == 7) {
+            return forType(MapEncounterType::NecroticOssuary);
         }
 
         constexpr int LegacyEncounterCount = 6;
@@ -804,6 +848,44 @@ private:
         templates[6].encounter.volatileEliteModifierWeight = 45;
         templates[6].signatureLootBias.baseTheme = ItemBuildTheme::Mana;
         templates[6].signatureLootBias.baseThemeWeightMultiplier = 2.5f;
+        templates.push_back({
+            "Sable Necropolis",
+            "Dust, bone and venom",
+            {{30, 24, 28}, {76, 64, 68}, {128, 78, 72}, {92, 48, 62}, {52, 100, 72}},
+            {16, 20, 16, "Bone Wardens, gravebloom Summoners and venom elites", 12, 12, 24},
+            {
+                "Grave Spore",
+                "Poison blooms mark the field before bursting",
+                9.4f,
+                0.65f,
+                {"Grave Spore", 118.0f, 5.0f, 0.70f, 3,
+                    DamageType::Poison,
+                    {AilmentType::Poison, 3.0f, 0.35f}},
+                2,
+                MapHazardPattern::Target
+            },
+            7,
+            DamageType::Poison,
+            {AilmentType::Poison, 3.0f, 0.35f},
+            {AffixTag::Poison, 1.45f, AffixTag::Survival, 1.20f},
+            {
+                "Marrow Spiral",
+                "Poison rings close around the arena after a clear warning",
+                3.3f,
+                0.55f,
+                {"Marrow Spiral", 142.0f, 5.5f, 0.70f, 3,
+                    DamageType::Poison,
+                    {AilmentType::Poison, 3.0f, 0.35f}},
+                2,
+                MapHazardPattern::Ring,
+                154.0f
+            }
+        });
+        templates[7].encounter.hardenedEliteModifierWeight = 45;
+        templates[7].encounter.swiftEliteModifierWeight = 25;
+        templates[7].encounter.volatileEliteModifierWeight = 30;
+        templates[7].signatureLootBias.baseTheme = ItemBuildTheme::Survival;
+        templates[7].signatureLootBias.baseThemeWeightMultiplier = 2.4f;
         return templates;
     }
 };

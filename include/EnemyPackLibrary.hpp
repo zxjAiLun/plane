@@ -32,7 +32,7 @@ struct EnemyPackDefinition {
 
 class EnemyPackLibrary {
 public:
-    static constexpr int ThemeCount = 7;
+    static constexpr int ThemeCount = 8;
     static constexpr int PacksPerTheme = 3;
 
     static const std::array<EnemyPackDefinition, ThemeCount * PacksPerTheme>& all() {
@@ -435,6 +435,63 @@ public:
                 2,
                 {AffixTag::Damage, 1.80f, AffixTag::Survival, 1.25f},
                 "Damage / Mana weighted rewards | 2 guaranteed drops"
+            },
+            {
+                "sable-bone-garden",
+                "Bone Garden",
+                "Wardens anchor a venomous formation around gravebloom leaders",
+                {EnemyType::Warden, EnemyType::Normal, EnemyType::Normal,
+                 EnemyType::Summoner, EnemyType::Elite, EnemyType::Normal},
+                6,
+                {AffixTag::Poison, 1.45f, AffixTag::Survival, 1.20f},
+                1,
+                4,
+                "Marrow Gardener",
+                "A hardened warden cultivates poisonous ground around the pack",
+                {EliteModifier::Hardened, EliteModifier::Rejuvenating},
+                2.0f,
+                2,
+                2,
+                {AffixTag::Poison, 1.85f, AffixTag::Survival, 1.30f},
+                "Poison / Survival weighted | 2 guaranteed drops"
+            },
+            {
+                "sable-venom-choir",
+                "Venom Choir",
+                "Summoners and ranged scavengers spread poison through the ruins",
+                {EnemyType::Summoner, EnemyType::Ranged, EnemyType::Charger,
+                 EnemyType::Elite, EnemyType::Normal, EnemyType::Warden},
+                6,
+                {AffixTag::Poison, 1.50f, AffixTag::Projectile, 1.20f},
+                1,
+                3,
+                "Rot Cantor",
+                "A volatile cantor turns every summon into a poisonous detonation",
+                {EliteModifier::Volatile, EliteModifier::Swift},
+                2.0f,
+                1,
+                2,
+                {AffixTag::Poison, 1.90f, AffixTag::Projectile, 1.25f},
+                "Poison / Projectile weighted rewards | 1 guaranteed drop"
+            },
+            {
+                "sable-gravebloom",
+                "Gravebloom Procession",
+                "Elites and Chargers push through a damage-heavy toxic procession",
+                {EnemyType::Elite, EnemyType::Charger, EnemyType::Normal,
+                 EnemyType::Ranged, EnemyType::Normal, EnemyType::Summoner},
+                6,
+                {AffixTag::Poison, 1.45f, AffixTag::Area, 1.20f},
+                1,
+                0,
+                "Bloom Executor",
+                "An empowered captain accelerates the final spread of gravebloom spores",
+                {EliteModifier::Empowered, EliteModifier::Volatile},
+                2.0f,
+                2,
+                2,
+                {AffixTag::Poison, 1.80f, AffixTag::Area, 1.30f},
+                "Poison / Area weighted rewards | 2 guaranteed drops"
             }
         }};
         return packs;

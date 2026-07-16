@@ -20,7 +20,8 @@ enum class ItemBaseTheme {
     Frost,
     Archive,
     Obsidian,
-    Aether
+    Aether,
+    Sable
 };
 
 struct ItemBaseDefinition {
@@ -227,6 +228,16 @@ private:
                     0, 1.0f, 1.0f, 1.0f, 1.12f, 1.18f, 0.88f),
                     ItemBaseKind::BossRelic, ItemBaseTheme::Aether, 1,
                     ItemBuildTheme::Mana, 1},
+            {"boss.sable-venom", "Sovereign's Venom", EquipmentSlot::Weapon,
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.03f,
+                    0, 1.0f, 1.08f),
+                ItemBaseKind::BossRelic, ItemBaseTheme::Sable, 1,
+                ItemBuildTheme::Poison},
+            {"boss.gravebloom-heart", "Gravebloom Heart", EquipmentSlot::Amulet,
+                makeStats(6, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.06f,
+                    0, 1.0f, 1.12f),
+                ItemBaseKind::BossRelic, ItemBaseTheme::Sable, 1,
+                ItemBuildTheme::Poison, 1},
         };
     }
 };

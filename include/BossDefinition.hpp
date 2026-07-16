@@ -24,7 +24,8 @@ enum class BossLootTheme {
     Frost,
     Archive,
     Obsidian,
-    Aether
+    Aether,
+    Sable
 };
 
 struct BossSkillDefinition {
@@ -600,6 +601,128 @@ private:
         return definition;
     }
 
+    static BossDefinition sableBoss() {
+        const AilmentDefinition poison{
+            AilmentType::Poison, 3.0f, 0.35f
+        };
+
+        BossSkillDefinition marrowBurst = elementalSkill({
+            BossSkillType::CircularAoe,
+            "Marrow Burst",
+            148.0f,
+            4,
+            0.55f,
+            0.25f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Normal,
+            0,
+            elementalHazard(
+                {"Marrow Pool", 122.0f, 6.0f, 0.70f, 4},
+                DamageType::Poison,
+                poison
+            )
+        }, DamageType::Poison, poison);
+
+        BossSkillDefinition venomVolley = elementalSkill({
+            BossSkillType::Projectile,
+            "Venom Volley",
+            Config::BossProjectileRadius,
+            2,
+            0.0f,
+            0.0f,
+            450.0f,
+            5,
+            44.0f
+        }, DamageType::Poison, poison);
+
+        BossSkillDefinition gravebloomCall = elementalSkill({
+            BossSkillType::SummonAdds,
+            "Call Gravebloom",
+            118.0f,
+            0,
+            0.70f,
+            0.25f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Summoner,
+            2
+        }, DamageType::Poison, poison);
+
+        BossSkillDefinition ossuaryDash = elementalSkill({
+            BossSkillType::Dash,
+            "Ossuary Lunge",
+            56.0f,
+            3,
+            0.55f,
+            0.30f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Normal,
+            0,
+            {},
+            {360.0f, 670.0f}
+        }, DamageType::Poison, poison);
+
+        BossDefinition definition;
+        definition.name = "Gravebloom Sovereign";
+        definition.theme = "Dust, bone and venom";
+        definition.lootTheme = BossLootTheme::Sable;
+        definition.lootRewardDescription = "Unique relic: Poison damage and gravebloom reach";
+        definition.hpMultiplier = 28.0f;
+        definition.damageBonus = 2;
+        definition.dropMultiplier = 4.2f;
+        definition.skillInterval = 1.70f;
+        definition.guaranteedDrops = 2;
+        definition.enrageHealthRatio = 0.46f;
+        definition.enragedSkillIntervalMultiplier = 0.62f;
+        definition.enragedDamageMultiplier = 1.22f;
+        definition.patternDescription = "Marrow bursts and venom volleys surround the ossuary core";
+        definition.enragedPatternDescription = "Gravebloom summons spread poisonous zones through the arena";
+        definition.skills = {marrowBurst, venomVolley, gravebloomCall, ossuaryDash};
+        definition.normalSkillOrder = {0, 1, 0, 2, 3};
+        definition.enragedSkillOrder = {3, 0, 2, 1, 0};
+        definition.igniteResistance = 25;
+        definition.chillResistance = 25;
+        definition.lightningResistance = 25;
+        definition.fireResistance = 25;
+        definition.coldResistance = 25;
+        definition.shockResistance = 25;
+        definition.poisonResistance = 60;
+        definition.enrageTransitionDescription = "The grave opens: summoned blooms flood the arena";
+        definition.enrageSummonType = EnemyType::Summoner;
+        definition.enrageSummonCount = 2;
+        definition.enrageHazard = elementalHazard(
+            {"Sovereign's Rot", 152.0f, 8.0f, 0.65f, 8},
+            DamageType::Poison,
+            poison
+        );
+        definition.finalPhase = {
+            0.18f,
+            0.48f,
+            1.38f,
+            "The ossuary blooms: bursts, volleys and lunges overlap",
+            "The Sovereign tears open the marrow seal for its final cycle",
+            {0, 3, 2, 1, 0},
+            EnemyType::Summoner,
+            3,
+            {"Marrow Apocalypse", 174.0f, 9.0f, 0.60f, 10,
+                DamageType::Poison, poison}
+        };
+        definition.finalPhase.recurringHazard = {
+            3.4f,
+            0.55f,
+            {"Gravebloom Ring", 86.0f, 4.0f, 0.60f, 6,
+                DamageType::Poison, poison},
+            BossPhaseHazardPattern::Ring,
+            158.0f
+        };
+        return definition;
+    }
+
     static std::vector<BossDefinition> buildBosses() {
         auto bosses = std::vector<BossDefinition>{
             {
@@ -801,7 +924,8 @@ private:
             frostBoss(),
             drownedBoss(),
             obsidianBoss(),
-            aetherBoss()
+            aetherBoss(),
+            sableBoss()
         };
 
         bosses[0].finalPhase = {

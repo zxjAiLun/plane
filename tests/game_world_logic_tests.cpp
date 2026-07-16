@@ -3428,6 +3428,72 @@ void testCombinationMapEvents() {
         }
     }
 
+    {
+        GameWorld world(21011);
+        prepareCombinationFixture(world, path, 7, 0, 8, 0);
+        const MapEventInstance* event = combinationEvent(world);
+        expect(event != nullptr
+                && event->encounterType == MapEncounterType::NecroticOssuary,
+            "map level eight selects the Sable Necropolis Necrotic Ossuary encounter");
+        if (event != nullptr) {
+            const Vector2 position = event->position;
+            Input input;
+            expect(moveToMapEvent(world, input, position),
+                "player can reach the Necrotic Ossuary encounter");
+            const auto marrowHazard = std::find_if(
+                world.groundHazards().begin(),
+                world.groundHazards().end(),
+                [](const GroundHazard& hazard) {
+                    return hazard.definition().source == "Marrow Bloom";
+                }
+            );
+            const auto countEventEnemies = [&](EnemyType type) {
+                return std::count_if(
+                    world.enemies().begin(),
+                    world.enemies().end(),
+                    [type](const Enemy& enemy) {
+                        return enemy.mapEventIndex() == 3 && enemy.type() == type;
+                    }
+                );
+            };
+            expect(world.activeEliteEventEnemiesRemaining() == 5
+                    && countEventEnemies(EnemyType::Warden) == 1
+                    && countEventEnemies(EnemyType::Summoner) == 4,
+                "Necrotic Ossuary spawns its Warden and Summoner composition");
+            expect(marrowHazard != world.groundHazards().end()
+                    && marrowHazard->definition().damage
+                        > world.map().encounterDefinition().hazard.damage,
+                "Necrotic Ossuary hazard damage scales with its map level");
+
+            for (int cast = 0; cast < 8
+                && world.activeEliteEventEnemiesRemaining() > 0; ++cast) {
+                const Vector2 camera = world.cameraTopLeft();
+                input.handleMousePressed(
+                    sf::Mouse::Button::Right,
+                    {static_cast<int>(std::lround(position.x - camera.x)),
+                     static_cast<int>(std::lround(position.y - camera.y))}
+                );
+                world.update(0.05f, input);
+                resolvePendingSkillEffects(world, input);
+                for (int frame = 0; frame < 35; ++frame) {
+                    world.update(0.05f, input);
+                }
+            }
+            expect(world.activeEliteEventEnemiesRemaining() == 0
+                    && world.mapEventsCompleted() == 1,
+                "Necrotic Ossuary completes after its Poison encounter enemies die");
+            Input bossInput;
+            expect(moveToBoss(world, bossInput)
+                    && world.bossDefinition().name == "Gravebloom Sovereign",
+                "Sable Necropolis reaches its themed Boss after the encounter");
+            expect(defeatBossWithAreaSkill(world, bossInput)
+                    && world.state() == GameState::MapComplete
+                    && world.mapBossItemsDropped()
+                        >= world.bossDefinition().guaranteedDrops + 2,
+                "Gravebloom Sovereign completes the map with its bonus Boss drops");
+        }
+    }
+
     std::filesystem::remove(path);
 }
 

@@ -55,6 +55,12 @@ LootBias bossLootBias(BossLootTheme theme) {
             bias.baseThemeWeightMultiplier = 3.0f;
             return bias;
         }
+        case BossLootTheme::Sable: {
+            LootBias bias{AffixTag::Poison, 1.60f, AffixTag::Survival, 1.25f};
+            bias.baseTheme = ItemBuildTheme::Poison;
+            bias.baseThemeWeightMultiplier = 3.0f;
+            return bias;
+        }
     }
     return {};
 }
@@ -68,6 +74,7 @@ DamageType bossRewardDamageType(BossLootTheme theme) {
         case BossLootTheme::Archive: return DamageType::Cold;
         case BossLootTheme::Obsidian: return DamageType::Fire;
         case BossLootTheme::Aether: return DamageType::Lightning;
+        case BossLootTheme::Sable: return DamageType::Poison;
     }
     return DamageType::Physical;
 }
@@ -3591,6 +3598,7 @@ void GameWorld::updateMapEvents(float /*dt*/, Input& input) {
                     case MapEncounterType::FrozenReliquary:
                     case MapEncounterType::ArchivePurge:
                     case MapEncounterType::ForgeCollapse:
+                    case MapEncounterType::NecroticOssuary:
                         if (!event.triggered
                             && activeMapEventIndex_ >= 0
                             && mapEventEnemiesRemaining_ > 0) {
@@ -3742,6 +3750,7 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
         case MapEncounterType::FrozenReliquary:
         case MapEncounterType::ArchivePurge:
         case MapEncounterType::ForgeCollapse:
+        case MapEncounterType::NecroticOssuary:
             activeMapEventIndex_ = static_cast<int>(eventIndex);
             mapEventEnemiesRemaining_ = encounter.eliteCount + encounter.normalCount;
             spawnMapEventEnemies(
@@ -5845,7 +5854,8 @@ std::string GameWorld::bossRelicEffectSummary() const {
         ItemBaseTheme::Frost,
         ItemBaseTheme::Archive,
         ItemBaseTheme::Obsidian,
-        ItemBaseTheme::Aether
+        ItemBaseTheme::Aether,
+        ItemBaseTheme::Sable
     };
     std::string summary;
     for (const auto theme : themes) {

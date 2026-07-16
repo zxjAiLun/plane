@@ -312,6 +312,34 @@ public:
                         {AffixTag::Survival});
                 }
                 break;
+
+            case BossLootTheme::Sable:
+                if (normalizedVariant == 0) {
+                    item.name = "Sovereign's Venom";
+                    addBossAffix(item, "Sovereign rot", tier + 1,
+                        poisonDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.12f, 0.18f, 0.24f}[tier],
+                            item.implicitStats.poisonDamageMultiplier)),
+                        {AffixTag::Poison, AffixTag::Damage});
+                    addBossAffix(item, "Marrow reach", tier + 1,
+                        areaRadiusContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.areaRadiusMultiplier)),
+                        {AffixTag::Poison, AffixTag::Area});
+                } else {
+                    item.name = "Gravebloom Heart";
+                    addBossAffix(item, "Gravebloom rot", tier + 1,
+                        poisonDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.15f, 0.22f, 0.29f}[tier],
+                            item.implicitStats.poisonDamageMultiplier)),
+                        {AffixTag::Poison, AffixTag::Damage});
+                    addBossAffix(item, "Blooming impact", tier + 1,
+                        areaDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.16f, 0.22f}[tier],
+                            item.implicitStats.areaDamageMultiplier)),
+                        {AffixTag::Poison, AffixTag::Area});
+                }
+                break;
         }
 
         return item;
@@ -532,6 +560,7 @@ private:
             case BossLootTheme::Archive: return ItemBaseTheme::Archive;
             case BossLootTheme::Obsidian: return ItemBaseTheme::Obsidian;
             case BossLootTheme::Aether: return ItemBaseTheme::Aether;
+            case BossLootTheme::Sable: return ItemBaseTheme::Sable;
         }
         return ItemBaseTheme::None;
     }

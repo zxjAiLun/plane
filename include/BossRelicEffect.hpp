@@ -12,7 +12,8 @@ enum class BossRelicEffectType {
     Frostbite,
     ArchiveCurrent,
     ObsidianFurnace,
-    AetherReserve
+    AetherReserve,
+    SableRot
 };
 
 struct BossRelicEffectDefinition {
@@ -111,6 +112,12 @@ public:
             "Aether Reserve",
             "The relic grants maximum Mana, Mana recovery and reduced skill costs"
         };
+        static const BossRelicEffectDefinition sableRot{
+            ItemBaseTheme::Sable,
+            BossRelicEffectType::SableRot,
+            "Sable Rot",
+            "Poison skills gain damage and area reach from the gravebloom core"
+        };
 
         switch (theme) {
             case ItemBaseTheme::Brimstone: return moltenCore;
@@ -120,6 +127,7 @@ public:
             case ItemBaseTheme::Archive: return archiveCurrent;
             case ItemBaseTheme::Obsidian: return obsidianFurnace;
             case ItemBaseTheme::Aether: return aetherReserve;
+            case ItemBaseTheme::Sable: return sableRot;
             case ItemBaseTheme::None: break;
         }
         return none;
@@ -207,6 +215,12 @@ public:
                 "Null Crown",
                 "The crown sharply reduces skill costs and accelerates Mana recovery"
             };
+            static const BossRelicEffectDefinition gravebloomHeart{
+                ItemBaseTheme::Sable,
+                BossRelicEffectType::SableRot,
+                "Gravebloom Heart",
+                "Poison skills gain stronger damage and wider area reach"
+            };
 
             switch (base.theme) {
                 case ItemBaseTheme::Brimstone: return ashenBloom;
@@ -216,6 +230,7 @@ public:
                 case ItemBaseTheme::Archive: return drownedCompass;
                 case ItemBaseTheme::Obsidian: return blackglassHeart;
                 case ItemBaseTheme::Aether: return nullCrown;
+                case ItemBaseTheme::Sable: return gravebloomHeart;
                 case ItemBaseTheme::None: break;
             }
         }
