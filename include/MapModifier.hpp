@@ -8,6 +8,7 @@
 
 #include "DamageType.hpp"
 #include "LootBias.hpp"
+#include "MapInstance.hpp"
 #include "MapLayout.hpp"
 
 struct MapModifierEffect {
@@ -294,6 +295,17 @@ public:
         return nullptr;
     }
 
+    static const char* elementalChallengeIdFor(DamageType damageType) {
+        switch (damageType) {
+            case DamageType::Fire: return "cinder-ward";
+            case DamageType::Cold: return "frostbite";
+            case DamageType::Lightning: return "stormbound";
+            case DamageType::Poison: return "venomtide";
+            case DamageType::Physical: break;
+        }
+        return nullptr;
+    }
+
     static const std::array<MapModifierDefinition, 8>& mapItemAffixes() {
         static const std::array<MapModifierDefinition, 8> definitions = {{
             {
@@ -521,10 +533,23 @@ public:
             secondTemplate = (firstTemplate + 1) % MapLayoutLibrary::TemplateCount;
             thirdTemplate = (firstTemplate + 2) % MapLayoutLibrary::TemplateCount;
         }
+        const auto challengeForTemplate = [mapLevel](
+            int templateIndex,
+            const char* lowTierChallenge
+        ) {
+            if (mapLevel < 5) {
+                return lowTierChallenge;
+            }
+            return MapModifierLibrary::elementalChallengeIdFor(
+                MapTemplateLibrary::forIndex(templateIndex).signatureDamageType
+            );
+        };
         return {{
             {
                 MapModifierLibrary::compose(
-                    mapLevel, {"swift-hunt", "hardened-front"}, "cinder-ward"
+                    mapLevel,
+                    {"swift-hunt", "hardened-front"},
+                    challengeForTemplate(firstTemplate, "cinder-ward")
                 ),
                 "Event quantity and Survival affix bias",
                 "Recommended level " + std::to_string(mapLevel),
@@ -532,7 +557,9 @@ public:
             },
             {
                 MapModifierLibrary::compose(
-                    mapLevel, {"frenzied-march", "blood-tax"}, "stormbound"
+                    mapLevel,
+                    {"frenzied-march", "blood-tax"},
+                    challengeForTemplate(secondTemplate, "stormbound")
                 ),
                 "Damage bias, richer drops and Boss pressure",
                 "Recommended level " + std::to_string(mapLevel + 1),
@@ -541,9 +568,12 @@ public:
             {
                 MapModifierLibrary::compose(
                     mapLevel, {"gilded-cache", "elite-tide"},
-                    frostTier
-                        ? "frostbite"
-                        : (mapLevel >= 3 ? "venomtide" : "frostbite")
+                    challengeForTemplate(
+                        thirdTemplate,
+                        frostTier
+                            ? "frostbite"
+                            : (mapLevel >= 3 ? "venomtide" : "frostbite")
+                    )
                 ),
                 "Pickup/Area bias, high item quantity and Elite pressure",
                 "Recommended level " + std::to_string(mapLevel + 1),

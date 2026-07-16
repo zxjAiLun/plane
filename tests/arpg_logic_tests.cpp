@@ -2825,6 +2825,20 @@ void testMapOptionGeneration() {
             && options[1].templateIndex == 1
             && options[2].templateIndex == 2,
         "map options bind to distinct map templates 0/1/2");
+
+    bool highTierThemesAligned = true;
+    for (int mapLevel = 5; mapLevel <= 12; ++mapLevel) {
+        for (const auto& highTierOption : MapOptionLibrary::generateOptions(mapLevel)) {
+            const auto& templateDefinition = MapTemplateLibrary::forIndex(
+                highTierOption.templateIndex
+            );
+            highTierThemesAligned = highTierThemesAligned
+                && highTierOption.modifier.elementalChallengeType
+                    == templateDefinition.signatureDamageType;
+        }
+    }
+    expect(highTierThemesAligned,
+        "high-tier map options align elemental challenges with map themes");
 }
 
 void testMapItemsAndAtlas() {
