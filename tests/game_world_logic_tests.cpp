@@ -1161,8 +1161,15 @@ void testCombatFeedbackAndDeathClaim() {
 
     expect(!world.combatFeedback().empty(),
         "a real player area skill creates combat feedback on hit");
-    if (!world.combatFeedback().empty()) {
-        const auto& feedback = world.combatFeedback().back();
+    const auto feedbackIt = std::find_if(
+        world.combatFeedback().rbegin(),
+        world.combatFeedback().rend(),
+        [](const CombatFeedback& feedback) {
+            return feedback.type == CombatFeedbackType::Damage;
+        }
+    );
+    if (feedbackIt != world.combatFeedback().rend()) {
+        const auto& feedback = *feedbackIt;
         expect(feedback.damage > 0 && !feedback.source.empty()
                 && feedback.timeRemaining > 0.0f
                 && feedback.type == CombatFeedbackType::Damage,
@@ -1510,9 +1517,14 @@ void testIgniteFeedbackMatchesWorldDamage() {
 
     int igniteFeedbackDamage = 0;
     int groundHazardFeedbackDamage = 0;
+    bool igniteStatusObserved = false;
     for (const auto& feedback : world.combatFeedback()) {
         if (feedback.source == "Ignite") {
-            igniteFeedbackDamage += feedback.damage;
+            if (feedback.type == CombatFeedbackType::Status) {
+                igniteStatusObserved = true;
+            } else {
+                igniteFeedbackDamage += feedback.damage;
+            }
         } else if (feedback.source == "Meteor Burning Ground") {
             groundHazardFeedbackDamage += feedback.damage;
         }
@@ -1535,6 +1547,8 @@ void testIgniteFeedbackMatchesWorldDamage() {
 
     expect(igniteFeedbackDamage > 0,
         "real Ignite tick creates a distinct combat feedback source");
+    expect(igniteStatusObserved,
+        "real Ignite application creates typed status feedback");
     expect(igniteFeedbackDamage + groundHazardFeedbackDamage == enemyHpLoss,
         "damage-over-time feedback equals the actual Enemy HP loss");
     expect(enemiesKilledByTick > 0

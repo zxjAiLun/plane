@@ -3420,6 +3420,12 @@ void GameWorld::applySkillAilment(
                 ),
                 ailment.duration
             );
+            addCombatFeedback(
+                enemy.position(),
+                0,
+                "Ignite",
+                CombatFeedbackType::Status
+            );
             break;
         case AilmentType::Chill:
             enemy.applyChill(
@@ -3434,6 +3440,12 @@ void GameWorld::applySkillAilment(
                     ailment.chillPenetration
                 ),
                 ailment.duration
+            );
+            addCombatFeedback(
+                enemy.position(),
+                0,
+                "Chill",
+                CombatFeedbackType::Status
             );
             break;
         case AilmentType::Shock:

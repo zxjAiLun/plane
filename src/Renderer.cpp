@@ -2183,9 +2183,16 @@ void Renderer::drawCombatFeedback(const GameWorld& world) {
                 break;
             case CombatFeedbackType::Status:
                 text = feedback.source;
-                color = feedback.source == "Contagion"
-                    ? sf::Color(130, 235, 130, alpha)
-                    : sf::Color(205, 155, 255, alpha);
+                if (feedback.source == "Ignite") {
+                    color = sf::Color(255, 155, 90, alpha);
+                } else if (feedback.source == "Chill") {
+                    color = sf::Color(105, 225, 255, alpha);
+                } else if (feedback.source == "Poison"
+                    || feedback.source == "Contagion") {
+                    color = sf::Color(130, 235, 130, alpha);
+                } else {
+                    color = sf::Color(205, 155, 255, alpha);
+                }
                 break;
         }
         const Vector2 textPosition(feedback.position.x, feedback.position.y - 24.0f - rise);
