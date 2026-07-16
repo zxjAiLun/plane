@@ -580,6 +580,12 @@ std::string ailmentSummary(const AilmentDefinition& ailment) {
             return "Ignite " + formatFloat(ailment.duration, 1) + "s"
                 + (ailment.ignitePenetration > 0
                     ? " Pen " + std::to_string(ailment.ignitePenetration) + "%"
+                    : "")
+                + (ailment.igniteSpreadRadius > 0.0f
+                    ? " Spread " + std::to_string(static_cast<int>(ailment.igniteSpreadRadius))
+                        + " @" + std::to_string(static_cast<int>(
+                            ailment.igniteSpreadMultiplier * 100.0f
+                        )) + "%"
                     : "");
         case AilmentType::Chill:
             return "Chill " + formatFloat(ailment.duration, 1) + "s "
@@ -772,6 +778,7 @@ std::string rewardThemeLabel(const MapRewardDefinition& reward) {
         if (support != nullptr) {
             switch (support->kind) {
                 case SupportKind::Combustion: theme = DamageType::Fire; break;
+                case SupportKind::IgnitionSpread: theme = DamageType::Fire; break;
                 case SupportKind::DeepChill: theme = DamageType::Cold; break;
                 case SupportKind::Conductivity: theme = DamageType::Lightning; break;
                 case SupportKind::Toxicity:

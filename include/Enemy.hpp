@@ -43,6 +43,12 @@ public:
     int takeDamage(int damage);
     int heal(int amount);
     void applyIgnite(int damagePerTick, float duration);
+    void applyIgnite(
+        int damagePerTick,
+        float duration,
+        float spreadRadius,
+        float spreadMultiplier
+    );
     void applyChill(float speedMultiplier, float duration);
     void applyShock(float damageTakenMultiplier, float duration);
     void applyPoison(int damagePerTick, float duration);
@@ -82,10 +88,14 @@ public:
     bool isBleeding() const;
     int poisonStacks() const;
     int bleedStacks() const;
+    int igniteDamagePerTick() const;
     int poisonDamagePerTick() const;
     int bleedDamagePerTick() const;
+    float igniteTimeRemaining() const;
     float poisonTimeRemaining() const;
     float bleedTimeRemaining() const;
+    float igniteSpreadRadius() const;
+    float igniteSpreadMultiplier() const;
     float poisonSpreadRadius() const;
     float poisonSpreadMultiplier() const;
     float damageTakenMultiplier() const;
@@ -134,6 +144,8 @@ private:
     int igniteDamagePerTick_;
     float igniteTimer_;
     float igniteTickTimer_;
+    float igniteSpreadRadius_;
+    float igniteSpreadMultiplier_;
     float chillTimer_;
     float chillSpeedMultiplier_;
     float shockTimer_;

@@ -14,6 +14,7 @@ enum class SupportKind {
     Volley,
     Trailblazer,
     Combustion,
+    IgnitionSpread,
     DeepChill,
     Conductivity,
     Barrage,
@@ -59,6 +60,8 @@ struct SupportDefinition {
     int healOnHitBonus = 0;
     int bleedPenetration = 0;
     int physicalPenetration = 0;
+    float igniteSpreadRadius = 0.0f;
+    float igniteSpreadMultiplier = 0.0f;
 };
 
 inline constexpr std::size_t SupportLinkCount = 2;
@@ -75,6 +78,18 @@ public:
             {SupportKind::Volley, "Volley", "+2 projectiles, wider spread, -20% damage", 0.80f, 1.0f, 1.0f, 0, 2, 22.0f},
             {SupportKind::Trailblazer, "Trailblazer", "Dash impact: area damage at landing", 1.0f, 1.0f, 1.25f, 0, 0, 0.0f, 2, 90.0f, 0.30f},
             {SupportKind::Combustion, "Combustion", "-25% hit damage, +80% Ignite damage, +25% duration", 0.75f, 1.0f, 1.0f, 0, 0, 0.0f, 0, 0.0f, 0.0f, 1.80f, 1.25f},
+            [] {
+                SupportDefinition support;
+                support.kind = SupportKind::IgnitionSpread;
+                support.name = "Emberfall";
+                support.description = "-10% hit damage, +35% Ignite damage; Ignite spreads on death";
+                support.damageMultiplier = 0.90f;
+                support.ailmentDamageMultiplier = 1.35f;
+                support.ailmentDurationMultiplier = 1.10f;
+                support.igniteSpreadRadius = 100.0f;
+                support.igniteSpreadMultiplier = 0.50f;
+                return support;
+            }(),
             {SupportKind::DeepChill, "Deep Chill", "+50% Chill duration, stronger Chill, +20% penetration, +15% cooldown", 1.0f, 1.0f, 1.15f, 0, 0, 0.0f, 0, 0.0f, 0.0f, 1.0f, 1.50f, 1.40f, 0, 20},
             {SupportKind::Conductivity, "Conductivity", "+25% Shock effect, +20% Shock penetration, +20% duration", 1.0f, 1.0f, 1.0f, 0, 0, 0.0f, 0, 0.0f, 0.0f, 1.0f, 1.20f, 1.0f, 0, 0, 0, 1.25f, 20},
             {SupportKind::Barrage, "Barrage", "+1 projectile, wider spread, -12% damage", 0.88f, 1.0f, 1.0f, 0, 1, 12.0f},
@@ -267,6 +282,8 @@ public:
             case SupportKind::Trailblazer:
                 return skill.castType == SkillCastType::Dash;
             case SupportKind::Combustion:
+                return skill.ailment.type == AilmentType::Ignite;
+            case SupportKind::IgnitionSpread:
                 return skill.ailment.type == AilmentType::Ignite;
             case SupportKind::DeepChill:
                 return skill.ailment.type == AilmentType::Chill;

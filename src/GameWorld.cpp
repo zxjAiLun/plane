@@ -3579,8 +3579,8 @@ void GameWorld::applySkillAilment(
 
     switch (ailment.type) {
         case AilmentType::Ignite:
-            enemy.applyIgnite(
-                ailmentTickDamageAfterResistance(
+            {
+                const int tickDamage = ailmentTickDamageAfterResistance(
                     ailmentTickDamage(ailment, hitDamage),
                     std::clamp(
                         igniteResistance + eliteAilmentResistance
@@ -3589,9 +3589,17 @@ void GameWorld::applySkillAilment(
                         100
                     ),
                     ailment.ignitePenetration
-                ),
-                ailment.duration
-            );
+                );
+                if (tickDamage <= 0) {
+                    return;
+                }
+                enemy.applyIgnite(
+                    tickDamage,
+                    ailment.duration,
+                    ailment.igniteSpreadRadius,
+                    ailment.igniteSpreadMultiplier
+                );
+            }
             addCombatFeedback(
                 enemy.position(),
                 0,
@@ -5267,6 +5275,41 @@ void GameWorld::generateNextMapOptions() {
     mapDeviceOpen_ = false;
 }
 
+void GameWorld::spreadIgniteOnDeath(const Enemy& source) {
+    if (source.isBoss()
+        || source.igniteSpreadRadius() <= 0.0f
+        || source.igniteSpreadMultiplier() <= 0.0f
+        || source.igniteDamagePerTick() <= 0) {
+        return;
+    }
+
+    const int spreadDamage = std::max(1, static_cast<int>(std::ceil(
+        static_cast<float>(source.igniteDamagePerTick())
+            * source.igniteSpreadMultiplier()
+    )));
+    const float spreadDuration = std::max(0.5f, source.igniteTimeRemaining());
+    for (auto& target : enemies_) {
+        if (target.isDead() || target.id() == source.id() || target.isBoss()) {
+            continue;
+        }
+
+        const float distanceLimit = source.igniteSpreadRadius()
+            + source.radius() + target.radius();
+        if ((target.position() - source.position()).lengthSquared()
+                > distanceLimit * distanceLimit) {
+            continue;
+        }
+
+        target.applyIgnite(
+            spreadDamage,
+            spreadDuration,
+            source.igniteSpreadRadius(),
+            source.igniteSpreadMultiplier()
+        );
+        addCombatFeedback(target.position(), 0, "Emberfall", CombatFeedbackType::Status);
+    }
+}
+
 void GameWorld::spreadPoisonOnDeath(const Enemy& source) {
     if (source.isBoss()
         || source.poisonSpreadRadius() <= 0.0f
@@ -5365,6 +5408,7 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         return;
     }
 
+    spreadIgniteOnDeath(enemy);
     spreadPoisonOnDeath(enemy);
     burstBleedOnDeath(enemy);
 

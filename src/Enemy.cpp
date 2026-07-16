@@ -69,6 +69,8 @@ Enemy::Enemy(
     , igniteDamagePerTick_(0)
     , igniteTimer_(0.0f)
     , igniteTickTimer_(0.0f)
+    , igniteSpreadRadius_(0.0f)
+    , igniteSpreadMultiplier_(0.0f)
     , chillTimer_(0.0f)
     , chillSpeedMultiplier_(1.0f)
     , shockTimer_(0.0f)
@@ -182,6 +184,8 @@ AilmentTickResult Enemy::updateAilments(float dt) {
         if (igniteTimer_ <= 0.0f) {
             igniteDamagePerTick_ = 0;
             igniteTickTimer_ = 0.0f;
+            igniteSpreadRadius_ = 0.0f;
+            igniteSpreadMultiplier_ = 0.0f;
         }
     }
 
@@ -261,12 +265,25 @@ int Enemy::heal(int amount) {
 }
 
 void Enemy::applyIgnite(int damagePerTick, float duration) {
+    applyIgnite(damagePerTick, duration, 0.0f, 0.0f);
+}
+
+void Enemy::applyIgnite(
+    int damagePerTick,
+    float duration,
+    float spreadRadius,
+    float spreadMultiplier
+) {
     if (damagePerTick <= 0 || duration <= 0.0f) {
         return;
     }
 
     igniteDamagePerTick_ = std::max(igniteDamagePerTick_, damagePerTick);
     igniteTimer_ = std::max(igniteTimer_, duration);
+    igniteSpreadRadius_ = std::max(igniteSpreadRadius_, std::max(0.0f, spreadRadius));
+    igniteSpreadMultiplier_ = std::max(
+        igniteSpreadMultiplier_, std::max(0.0f, spreadMultiplier)
+    );
     igniteTickTimer_ = std::min(igniteTickTimer_, Config::AilmentTickInterval);
     if (igniteTickTimer_ <= 0.0f) {
         igniteTickTimer_ = Config::AilmentTickInterval;
@@ -397,10 +414,14 @@ bool Enemy::isPoisoned() const { return poisonTimer_ > 0.0f; }
 bool Enemy::isBleeding() const { return bleedTimer_ > 0.0f; }
 int Enemy::poisonStacks() const { return poisonStacks_; }
 int Enemy::bleedStacks() const { return bleedStacks_; }
+int Enemy::igniteDamagePerTick() const { return igniteDamagePerTick_; }
 int Enemy::poisonDamagePerTick() const { return poisonDamagePerTick_; }
 int Enemy::bleedDamagePerTick() const { return bleedDamagePerTick_; }
+float Enemy::igniteTimeRemaining() const { return igniteTimer_; }
 float Enemy::poisonTimeRemaining() const { return poisonTimer_; }
 float Enemy::bleedTimeRemaining() const { return bleedTimer_; }
+float Enemy::igniteSpreadRadius() const { return igniteSpreadRadius_; }
+float Enemy::igniteSpreadMultiplier() const { return igniteSpreadMultiplier_; }
 float Enemy::poisonSpreadRadius() const { return poisonSpreadRadius_; }
 float Enemy::poisonSpreadMultiplier() const { return poisonSpreadMultiplier_; }
 float Enemy::damageTakenMultiplier() const {

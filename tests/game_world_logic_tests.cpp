@@ -1985,6 +1985,94 @@ void testIgniteFeedbackMatchesWorldDamage() {
     std::filesystem::remove(path);
 }
 
+void testIgniteDeathSpreadWorldFlow() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_emberfall_world_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(18003);
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Emberfall fixture starts from a valid run save");
+    const std::size_t secondaryIndex = static_cast<std::size_t>(SkillSlot::Secondary);
+    data.unlockedSkills.insert("Flare");
+    data.unlockedSupports.insert("Emberfall");
+    data.skillLevels["Flare"] = 1;
+    data.supportLevels["Emberfall"] = 1;
+    data.skillBar.skills[secondaryIndex] = "Flare";
+    data.skillBar.supports[secondaryIndex] = {"Emberfall", ""};
+    data.player.hp = 1000;
+    data.player.upgradeStats.maxHp = 1000;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.mapLevel = 6;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Emberfall fixture restores Flare and its Support link");
+
+    Input input;
+    advanceIntoTheField(world, input);
+    auto sourceIt = std::find_if(
+        world.enemies().begin(), world.enemies().end(),
+        [](const Enemy& enemy) { return !enemy.isBoss(); }
+    );
+    auto targetIt = sourceIt == world.enemies().end()
+        ? world.enemies().end()
+        : std::find_if(
+            sourceIt + 1, world.enemies().end(),
+            [](const Enemy& enemy) { return !enemy.isBoss(); }
+        );
+    expect(sourceIt != world.enemies().end() && targetIt != world.enemies().end(),
+        "Emberfall fixture reaches two non-Boss enemies");
+    if (sourceIt == world.enemies().end() || targetIt == world.enemies().end()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    Enemy& source = const_cast<Enemy&>(*sourceIt);
+    Enemy& target = const_cast<Enemy&>(*targetIt);
+    const int sourceId = source.id();
+    const int targetId = target.id();
+    target.moveBy(
+        source.position() + Vector2(120.0f, 0.0f) - target.position(),
+        world.map()
+    );
+    const AilmentDefinition effectiveIgnite = world.effectiveSkillAilment(
+        world.skillBar().definition(SkillSlot::Secondary)
+    );
+    source.applyIgnite(
+        ailmentTickDamage(effectiveIgnite, 6),
+        effectiveIgnite.duration,
+        effectiveIgnite.igniteSpreadRadius,
+        effectiveIgnite.igniteSpreadMultiplier
+    );
+    expect(effectiveIgnite.igniteSpreadRadius == 100.0f
+            && effectiveIgnite.igniteSpreadMultiplier == 0.50f
+            && source.isIgnited()
+            && source.igniteSpreadRadius() == 100.0f,
+        "Emberfall effective Fire snapshot reaches the real Enemy before death");
+    source.kill();
+
+    world.update(0.05f, input);
+    const auto spreadTarget = std::find_if(
+        world.enemies().begin(), world.enemies().end(),
+        [targetId](const Enemy& enemy) { return enemy.id() == targetId; }
+    );
+    const bool spreadFeedback = std::any_of(
+        world.combatFeedback().begin(), world.combatFeedback().end(),
+        [](const CombatFeedback& feedback) {
+            return feedback.source == "Emberfall"
+                && feedback.type == CombatFeedbackType::Status;
+        }
+    );
+    expect(spreadTarget != world.enemies().end()
+            && spreadTarget->isIgnited()
+            && spreadTarget->igniteSpreadRadius() == 100.0f
+            && spreadFeedback,
+        "Ignite death spread applies to a nearby live enemy through GameWorld");
+
+    std::filesystem::remove(path);
+}
+
 void testBuildMathMatchesWorldHits() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_build_math_world_test.bin";
@@ -4592,6 +4680,7 @@ int main() {
     testGuardingPulseProtection();
     testManaWardProtection();
     testIgniteFeedbackMatchesWorldDamage();
+    testIgniteDeathSpreadWorldFlow();
     testBuildMathMatchesWorldHits();
     testExpandedSkillWorldHits();
     testBossRelicEffectsInWorld();

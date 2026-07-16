@@ -100,6 +100,13 @@ inline SupportDefinition supportAtLevel(const SupportDefinition& base, int level
     result.poisonSpreadMultiplier = improveMultiplier(
         result.poisonSpreadMultiplier, clampedLevel, Config::SupportGemAilmentStep
     );
+    result.igniteSpreadMultiplier = improveMultiplier(
+        result.igniteSpreadMultiplier, clampedLevel, Config::SupportGemAilmentStep
+    );
+    if (result.igniteSpreadRadius > 0.0f) {
+        result.igniteSpreadRadius *= 1.0f
+            + Config::SkillGemRadiusPerLevelMultiplier * static_cast<float>(levelDelta);
+    }
     result.healOnHitBonus += levelDelta * Config::SupportGemHealingStep;
     result.dashBaseDamage += levelDelta;
     if (result.dashRadius > 0.0f) {

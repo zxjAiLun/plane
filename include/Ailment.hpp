@@ -23,11 +23,13 @@ struct AilmentDefinition {
     float damageTakenMultiplier = 1.0f;
     int shockPenetration = 0;
     int poisonPenetration = 0;
-    // Poison supports may attach a death-spread payload without changing
-    // the base ailment fields used by older skill definitions.
+    // Ailment supports may attach a death-spread payload without changing
+    // the base fields used by older skill definitions.
     float poisonSpreadRadius = 0.0f;
     float poisonSpreadMultiplier = 0.0f;
     int bleedPenetration = 0;
+    float igniteSpreadRadius = 0.0f;
+    float igniteSpreadMultiplier = 0.0f;
 };
 
 struct AilmentTickResult {

@@ -718,6 +718,7 @@ void testCombatMathDamageRadiusPierce() {
     const SupportDefinition* volley = SupportLibrary::find("Volley");
     const SupportDefinition* trailblazer = SupportLibrary::find("Trailblazer");
     const SupportDefinition* combustion = SupportLibrary::find("Combustion");
+    const SupportDefinition* emberfall = SupportLibrary::find("Emberfall");
     const SupportDefinition* deepChill = SupportLibrary::find("Deep Chill");
     const SupportDefinition* contagion = SupportLibrary::find("Contagion");
     const SupportDefinition* barrage = SupportLibrary::find("Barrage");
@@ -730,7 +731,7 @@ void testCombatMathDamageRadiusPierce() {
     const SupportDefinition* venomFocus = SupportLibrary::find("Venom Focus");
     expect(pierce != nullptr && amplify != nullptr && quickcast != nullptr
             && volley != nullptr && trailblazer != nullptr
-            && combustion != nullptr && deepChill != nullptr
+            && combustion != nullptr && emberfall != nullptr && deepChill != nullptr
             && barrage != nullptr && concentration != nullptr
             && echo != nullptr && pinpoint != nullptr && contagion != nullptr
             && emberFocus != nullptr && glacialFocus != nullptr
@@ -919,10 +920,19 @@ void testCombatMathDamageRadiusPierce() {
 
     const AilmentDefinition baseIgnite = SkillLibrary::meteor().ailment;
     const AilmentDefinition combustionIgnite = skillAilment(SkillLibrary::meteor(), combustion);
+    const AilmentDefinition emberfallIgnite = skillAilment(
+        SkillLibrary::meteor(), emberfall
+    );
     expect(combustionIgnite.damageMultiplier > baseIgnite.damageMultiplier,
         "Combustion increases Ignite damage multiplier");
     expect(combustionIgnite.duration > baseIgnite.duration,
         "Combustion increases Ignite duration");
+    expect(emberfall != nullptr
+            && SupportLibrary::supportsSkill(*emberfall, SkillLibrary::meteor())
+            && emberfallIgnite.damageMultiplier > baseIgnite.damageMultiplier
+            && emberfallIgnite.igniteSpreadRadius == 100.0f
+            && std::abs(emberfallIgnite.igniteSpreadMultiplier - 0.50f) < 0.0001f,
+        "Emberfall attaches an Ignite death-spread payload");
     expect(skillDamage(SkillLibrary::meteor(), stats, combustion) < areaDmg,
         "Combustion applies its hit damage tradeoff");
 
@@ -1267,6 +1277,14 @@ void testSkillAilments() {
             && contagionEnemy.poisonSpreadRadius() == 120.0f
             && std::abs(contagionEnemy.poisonSpreadMultiplier() - 0.45f) < 0.0001f,
         "Poisoned enemies retain Contagion spread data for death handling");
+
+    Enemy emberfallEnemy({0.0f, 0.0f}, 50, 1);
+    emberfallEnemy.applyIgnite(6, 3.0f, 100.0f, 0.50f);
+    expect(emberfallEnemy.igniteDamagePerTick() == 6
+            && emberfallEnemy.igniteTimeRemaining() > 0.0f
+            && emberfallEnemy.igniteSpreadRadius() == 100.0f
+            && std::abs(emberfallEnemy.igniteSpreadMultiplier() - 0.50f) < 0.0001f,
+        "Ignited enemies retain Emberfall spread data for death handling");
 
     Enemy chillOnlyEnemy({0.0f, 0.0f}, 10, 1);
     chillOnlyEnemy.applyChill(0.55f, 2.0f);

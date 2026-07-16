@@ -417,6 +417,12 @@ inline AilmentDefinition skillAilment(
         switch (ailment.type) {
             case AilmentType::Ignite:
                 ailment.damageMultiplier *= support->ailmentDamageMultiplier;
+                ailment.igniteSpreadRadius = std::max(
+                    ailment.igniteSpreadRadius, support->igniteSpreadRadius
+                );
+                ailment.igniteSpreadMultiplier = std::max(
+                    ailment.igniteSpreadMultiplier, support->igniteSpreadMultiplier
+                );
                 break;
             case AilmentType::Chill:
                 ailment.speedMultiplier = std::clamp(

@@ -426,7 +426,8 @@ private:
 
         switch (theme) {
             case DamageType::Fire:
-                return support.kind == SupportKind::Combustion;
+                return support.kind == SupportKind::Combustion
+                    || support.kind == SupportKind::IgnitionSpread;
             case DamageType::Cold:
                 return support.kind == SupportKind::DeepChill;
             case DamageType::Lightning:
