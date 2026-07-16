@@ -32,7 +32,7 @@ struct SavedMapEvent {
 
 struct SaveData {
     static constexpr std::uint32_t Magic = 0x4D415247U;
-    static constexpr std::uint32_t Version = 17U;
+    static constexpr std::uint32_t Version = 18U;
 
     SavedRunState state = SavedRunState::Playing;
     std::uint64_t runSeed = 0;
@@ -65,6 +65,7 @@ struct SaveData {
     std::string lastRareLeaderRewardDescription;
     int fieldPacksCleared = 0;
     int lifeFlaskCharges = 0;
+    int manaFlaskCharges = Config::ManaFlaskMaxCharges;
 
     std::set<std::string> unlockedSkills;
     std::set<std::string> unlockedSupports;

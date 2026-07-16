@@ -17,6 +17,8 @@ namespace Config {
     constexpr float PlayerHitEffectDuration = 0.45f;
     constexpr int LifeFlaskMaxCharges = 3;
     constexpr int LifeFlaskHealAmount = 2;
+    constexpr int ManaFlaskMaxCharges = 3;
+    constexpr float ManaFlaskRestoreAmount = 35.0f;
 
     constexpr float ProjectileSpeed = 500.0f;
     constexpr float ProjectileRadius = 5.0f;

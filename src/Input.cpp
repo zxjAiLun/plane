@@ -6,6 +6,7 @@ void Input::update() {
     dash_ = false;
     nova_ = false;
     useLifeFlask_ = false;
+    useManaFlask_ = false;
     secondarySkill_ = false;
     pickup_ = false;
     passiveTreeToggle_ = false;
@@ -41,6 +42,7 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::Space: dash_ = true; break;
         case sf::Keyboard::Key::Q:     nova_ = true; quit_ = true; break;
         case sf::Keyboard::Key::G:     useLifeFlask_ = true; break;
+        case sf::Keyboard::Key::H:     useManaFlask_ = true; break;
         case sf::Keyboard::Key::F:     pickup_ = true; break;
         case sf::Keyboard::Key::P:     passiveTreeToggle_ = true; break;
         case sf::Keyboard::Key::K:     skillPanelToggle_ = true; break;
@@ -147,6 +149,7 @@ bool Input::primaryFireHeld() const { return primaryFireHeld_; }
 bool Input::dash() const { return dash_; }
 bool Input::nova() const { return nova_; }
 bool Input::useLifeFlask() const { return useLifeFlask_; }
+bool Input::useManaFlask() const { return useManaFlask_; }
 bool Input::secondarySkill() const { return secondarySkill_; }
 bool Input::pickup() const { return pickup_; }
 bool Input::passiveTreeToggle() const { return passiveTreeToggle_; }

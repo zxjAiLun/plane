@@ -24,6 +24,7 @@ public:
     bool dash() const;
     bool nova() const;
     bool useLifeFlask() const;
+    bool useManaFlask() const;
     bool secondarySkill() const;
     bool pickup() const;
     bool passiveTreeToggle() const;
@@ -57,6 +58,7 @@ private:
     bool dash_ = false;
     bool nova_ = false;
     bool useLifeFlask_ = false;
+    bool useManaFlask_ = false;
     bool secondarySkill_ = false;
     bool pickup_ = false;
     bool passiveTreeToggle_ = false;

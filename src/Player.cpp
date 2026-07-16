@@ -108,6 +108,16 @@ int Player::heal(int amount) {
     return hp_ - hpBefore;
 }
 
+float Player::restoreMana(float amount) {
+    if (amount <= 0.0f || isDead() || mana_ >= maxMana_) {
+        return 0.0f;
+    }
+
+    const float manaBefore = mana_;
+    mana_ = std::min(maxMana_, mana_ + amount);
+    return mana_ - manaBefore;
+}
+
 bool Player::canSpendMana(float amount) const {
     return amount <= 0.0f || mana_ >= amount;
 }

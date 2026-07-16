@@ -411,6 +411,17 @@ void testManaResourceAndSkillCastGates() {
     expect(player.spendMana(25.0f), "player can spend affordable Mana");
     expect(std::abs(player.mana() - 75.0f) < 0.0001f,
         "spending Mana subtracts exactly the requested amount");
+    expect(std::abs(player.restoreMana(20.0f) - 20.0f) < 0.0001f
+            && std::abs(player.mana() - 95.0f) < 0.0001f,
+        "Mana restoration adds the requested amount while below maximum");
+    expect(std::abs(player.restoreMana(20.0f) - 5.0f) < 0.0001f
+            && std::abs(player.mana() - player.maxMana()) < 0.0001f,
+        "Mana restoration clamps to maximum");
+    expect(std::abs(player.restoreMana(20.0f)) < 0.0001f,
+        "full Mana does not report a restoration amount");
+    player.spendMana(25.0f);
+    expect(std::abs(player.restoreMana(-1.0f)) < 0.0001f,
+        "negative Mana restoration is rejected");
     expect(!player.spendMana(100.0f), "insufficient Mana rejects the spend");
     expect(std::abs(player.mana() - 75.0f) < 0.0001f,
         "rejected Mana spend has no side effect");

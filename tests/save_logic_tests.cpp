@@ -113,6 +113,7 @@ SaveData sampleData() {
     data.droppedItems.push_back({{500.0f, 500.0f}, weapon});
     data.itemQuantityRewardMultiplier = 1.15f;
     data.forgeFragments = 7;
+    data.manaFlaskCharges = 2;
     data.fieldPacksCleared = 2;
     data.mapRareLeadersDefeated = 3;
     data.mapRareLeaderItemsDropped = 5;
@@ -214,6 +215,8 @@ void testFileValidation(const std::filesystem::path& path) {
         "round-trip preserves double-modifier elite statistics");
     expect(restored.mapDroppedItemsByRarity == data.mapDroppedItemsByRarity,
         "round-trip preserves map drop rarity statistics");
+    expect(restored.manaFlaskCharges == data.manaFlaskCharges,
+        "round-trip preserves Mana flask charges");
 
     std::vector<unsigned char> bytes = readBytes(path);
     expect(bytes.size() > 16, "save has a versioned header and payload");

@@ -1,5 +1,7 @@
 #include "SaveService.hpp"
 
+#include "Config.hpp"
+
 #include <algorithm>
 #include <cstring>
 #include <fstream>
@@ -832,6 +834,7 @@ void writeSaveData(Writer& writer, const SaveData& data) {
     writer.string(data.lastRareLeaderRewardDescription);
     writer.integer(data.fieldPacksCleared);
     writer.integer(data.lifeFlaskCharges);
+    writer.integer(data.manaFlaskCharges);
     writeSet(writer, data.unlockedSkills);
     writeSet(writer, data.unlockedSupports);
     writeLevelMap(writer, data.skillLevels);
@@ -878,6 +881,7 @@ bool readSaveData(
     bool hasItemRarityFields,
     bool hasPoisonFields,
     bool hasResourceFields,
+    bool hasManaFlaskFields,
     std::size_t passiveNodeCount,
     bool hasGemProgression,
     bool hasFieldPackProgress,
@@ -931,6 +935,7 @@ bool readSaveData(
     data.mapDoubleModifierItemsDropped = 0;
     data.lastRareLeaderName.clear();
     data.lastRareLeaderRewardDescription.clear();
+    data.manaFlaskCharges = Config::ManaFlaskMaxCharges;
     if (!reader.integer(data.selectedNextMapOption)
         || !reader.integer(data.selectedMapRewardOption)
         || !reader.boolean(data.nextMapOptionChosen)
@@ -958,6 +963,7 @@ bool readSaveData(
                 || !reader.string(data.lastRareLeaderRewardDescription)))
         || (hasFieldPackProgress && !reader.integer(data.fieldPacksCleared))
         || !reader.integer(data.lifeFlaskCharges)
+        || (hasManaFlaskFields && !reader.integer(data.manaFlaskCharges))
         || !readSet(reader, data.unlockedSkills)
         || !readSet(reader, data.unlockedSupports)
         || (hasGemProgression
@@ -1166,6 +1172,7 @@ bool SaveService::load(const std::filesystem::path& path,
             && version != 12U && version != 13U && version != 14U
             && version != 15U
             && version != 16U
+            && version != 17U
             && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");
@@ -1187,6 +1194,7 @@ bool SaveService::load(const std::filesystem::path& path,
             version >= 11U,
             version >= 5U,
             version >= 17U,
+            version >= 18U,
             version >= 6U ? PassiveTree::NodeCount : PassiveTree::LegacyNodeCount,
             version >= 7U,
             version >= 8U,

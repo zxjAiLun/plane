@@ -133,6 +133,10 @@ public:
     int lifeFlaskMaxCharges() const;
     std::string lifeFlaskStatusMessage() const;
     float lifeFlaskStatusTimeRemaining() const;
+    int manaFlaskCharges() const;
+    int manaFlaskMaxCharges() const;
+    std::string manaFlaskStatusMessage() const;
+    float manaFlaskStatusTimeRemaining() const;
     int playerHitDamage() const;
     std::string playerHitSource() const;
     float playerHitEffectProgress() const;
@@ -302,6 +306,8 @@ private:
     bool tryStartPlayerSkill(SkillSlot slot);
     void tryUseLifeFlask(Input& input);
     void restoreLifeFlaskCharges(int charges, const std::string& source);
+    void tryUseManaFlask(Input& input);
+    void restoreManaFlaskCharges(int charges, const std::string& source);
     void dealAreaDamage(
         const Vector2& center,
         float radius,
@@ -559,6 +565,9 @@ private:
     int lifeFlaskCharges_;
     std::string lifeFlaskStatusMessage_;
     float lifeFlaskStatusTimer_;
+    int manaFlaskCharges_;
+    std::string manaFlaskStatusMessage_;
+    float manaFlaskStatusTimer_;
     float inventoryFullTimer_ = 0.0f;
     int selectedInventoryIndex_ = -1;
     int selectedStashIndex_ = -1;

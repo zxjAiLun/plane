@@ -460,6 +460,9 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , lifeFlaskCharges_(Config::LifeFlaskMaxCharges)
     , lifeFlaskStatusMessage_()
     , lifeFlaskStatusTimer_(0.0f)
+    , manaFlaskCharges_(Config::ManaFlaskMaxCharges)
+    , manaFlaskStatusMessage_()
+    , manaFlaskStatusTimer_(0.0f)
     , inventoryFullTimer_(0.0f)
     , selectedInventoryIndex_(-1)
     , selectedStashIndex_(-1)
@@ -733,6 +736,7 @@ SaveData GameWorld::captureSaveData() const {
     data.lastRareLeaderRewardDescription = lastRareLeaderRewardDescription_;
     data.fieldPacksCleared = fieldPacksCleared_;
     data.lifeFlaskCharges = lifeFlaskCharges_;
+    data.manaFlaskCharges = manaFlaskCharges_;
     data.unlockedSkills = progression_.unlockedSkills;
     data.unlockedSupports = progression_.unlockedSupports;
     data.skillLevels = progression_.skillLevels;
@@ -818,7 +822,9 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
         || !validLevelMap(data.skillLevels, data.unlockedSkills)
         || !validLevelMap(data.supportLevels, data.unlockedSupports)
         || data.lifeFlaskCharges < 0
-        || data.lifeFlaskCharges > Config::LifeFlaskMaxCharges) {
+        || data.lifeFlaskCharges > Config::LifeFlaskMaxCharges
+        || data.manaFlaskCharges < 0
+        || data.manaFlaskCharges > Config::ManaFlaskMaxCharges) {
         return false;
     }
 
@@ -1055,6 +1061,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     lastRareLeaderRewardDescription_ = data.lastRareLeaderRewardDescription;
     fieldPacksCleared_ = std::min(data.fieldPacksCleared, Config::BossGateRequiredFieldPacks);
     lifeFlaskCharges_ = data.lifeFlaskCharges;
+    manaFlaskCharges_ = data.manaFlaskCharges;
     state_ = data.state == SavedRunState::MapComplete
         ? GameState::MapComplete
         : GameState::Playing;
@@ -1202,6 +1209,12 @@ void GameWorld::updatePlaying(float dt, Input& input) {
             lifeFlaskStatusMessage_.clear();
         }
     }
+    if (manaFlaskStatusTimer_ > 0.0f) {
+        manaFlaskStatusTimer_ = std::max(0.0f, manaFlaskStatusTimer_ - dt);
+        if (manaFlaskStatusTimer_ == 0.0f) {
+            manaFlaskStatusMessage_.clear();
+        }
+    }
     nearbyEventPrompt_.clear();
     mapEventInteractionConsumed_ = false;
 
@@ -1232,6 +1245,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
 
     if (!passiveTreeOpen_ && !skillPanelOpen_ && !craftingState_.open && !craftingContext) {
         tryUseLifeFlask(input);
+        tryUseManaFlask(input);
         trySelectInventoryItem(input);
         tryDropSelectedInventoryItem(input);
         trySalvageSelectedInventoryItem(input);
@@ -1394,6 +1408,9 @@ void GameWorld::reset(std::uint64_t runSeed) {
     lifeFlaskCharges_ = Config::LifeFlaskMaxCharges;
     lifeFlaskStatusMessage_.clear();
     lifeFlaskStatusTimer_ = 0.0f;
+    manaFlaskCharges_ = Config::ManaFlaskMaxCharges;
+    manaFlaskStatusMessage_.clear();
+    manaFlaskStatusTimer_ = 0.0f;
     inventoryFullTimer_ = 0.0f;
     selectedInventoryIndex_ = -1;
     selectedStashIndex_ = -1;
@@ -1551,6 +1568,9 @@ void GameWorld::startNextMap() {
     lifeFlaskCharges_ = Config::LifeFlaskMaxCharges;
     lifeFlaskStatusMessage_.clear();
     lifeFlaskStatusTimer_ = 0.0f;
+    manaFlaskCharges_ = Config::ManaFlaskMaxCharges;
+    manaFlaskStatusMessage_.clear();
+    manaFlaskStatusTimer_ = 0.0f;
     inventoryFullTimer_ = 0.0f;
     selectedInventoryIndex_ = -1;
     selectedStashIndex_ = -1;
@@ -3222,6 +3242,46 @@ void GameWorld::restoreLifeFlaskCharges(int charges, const std::string& source) 
     lifeFlaskStatusTimer_ = 1.5f;
 }
 
+void GameWorld::tryUseManaFlask(Input& input) {
+    if (!input.useManaFlask()) {
+        return;
+    }
+
+    if (manaFlaskCharges_ <= 0) {
+        manaFlaskStatusMessage_ = "Mana flask empty";
+        manaFlaskStatusTimer_ = 1.5f;
+        return;
+    }
+
+    const float restored = player_.restoreMana(Config::ManaFlaskRestoreAmount);
+    if (restored <= 0.0f) {
+        manaFlaskStatusMessage_ = "Mana already full";
+        manaFlaskStatusTimer_ = 1.5f;
+        return;
+    }
+
+    --manaFlaskCharges_;
+    manaFlaskStatusMessage_ = "Mana flask: +"
+        + std::to_string(static_cast<int>(std::ceil(restored))) + " Mana";
+    manaFlaskStatusTimer_ = 1.5f;
+}
+
+void GameWorld::restoreManaFlaskCharges(int charges, const std::string& source) {
+    const int previousCharges = manaFlaskCharges_;
+    manaFlaskCharges_ = refilledFlaskCharges(
+        manaFlaskCharges_, Config::ManaFlaskMaxCharges, charges
+    );
+
+    const int restoredCharges = manaFlaskCharges_ - previousCharges;
+    if (restoredCharges <= 0) {
+        return;
+    }
+
+    manaFlaskStatusMessage_ = source + ": Mana flask +"
+        + std::to_string(restoredCharges);
+    manaFlaskStatusTimer_ = 1.5f;
+}
+
 void GameWorld::dealAreaDamage(
     const Vector2& center,
     float radius,
@@ -3755,6 +3815,8 @@ void GameWorld::spawnMapEventEnemies(
 void GameWorld::awardForgeFragments(int amount) {
     if (amount > 0) {
         progression_.forgeFragments += amount;
+        restoreLifeFlaskCharges(1, "Event reward");
+        restoreManaFlaskCharges(1, "Event reward");
     }
 }
 
@@ -5025,6 +5087,10 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
             definition.flaskChargeAmount,
             enemy.isBoss() ? "Boss kill" : definition.name + " kill"
         );
+        restoreManaFlaskCharges(
+            definition.flaskChargeAmount,
+            enemy.isBoss() ? "Boss kill" : definition.name + " kill"
+        );
     }
 
     const float eliteDropMultiplier = enemy.isBoss()
@@ -5551,6 +5617,10 @@ int GameWorld::lifeFlaskCharges() const { return lifeFlaskCharges_; }
 int GameWorld::lifeFlaskMaxCharges() const { return Config::LifeFlaskMaxCharges; }
 std::string GameWorld::lifeFlaskStatusMessage() const { return lifeFlaskStatusMessage_; }
 float GameWorld::lifeFlaskStatusTimeRemaining() const { return lifeFlaskStatusTimer_; }
+int GameWorld::manaFlaskCharges() const { return manaFlaskCharges_; }
+int GameWorld::manaFlaskMaxCharges() const { return Config::ManaFlaskMaxCharges; }
+std::string GameWorld::manaFlaskStatusMessage() const { return manaFlaskStatusMessage_; }
+float GameWorld::manaFlaskStatusTimeRemaining() const { return manaFlaskStatusTimer_; }
 int GameWorld::playerHitDamage() const { return playerHitDamage_; }
 std::string GameWorld::playerHitSource() const { return playerHitSource_; }
 float GameWorld::playerHitEffectProgress() const {

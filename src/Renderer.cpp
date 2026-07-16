@@ -1049,6 +1049,16 @@ void Renderer::render(const GameWorld& world) {
         drawText(world.lifeFlaskStatusMessage(), {310.0f, 12.0f}, 14,
             flaskEmpty ? sf::Color(255, 120, 120) : sf::Color(180, 245, 200));
     }
+    const bool manaFlaskEmpty = world.manaFlaskCharges() <= 0;
+    drawText("Mana Flask H " + std::to_string(world.manaFlaskCharges()) + "/"
+        + std::to_string(world.manaFlaskMaxCharges()),
+        {455.0f, 12.0f}, 14,
+        manaFlaskEmpty ? sf::Color(255, 100, 100) : sf::Color(150, 210, 255));
+    if (!world.manaFlaskStatusMessage().empty()
+        && world.manaFlaskStatusTimeRemaining() > 0.0f) {
+        drawText(world.manaFlaskStatusMessage(), {610.0f, 12.0f}, 12,
+            manaFlaskEmpty ? sf::Color(255, 120, 120) : sf::Color(180, 225, 255));
+    }
     drawText("LV " + std::to_string(world.player().level())
         + "  EXP " + std::to_string(world.player().exp()) + "/" + std::to_string(world.player().expToNextLevel())
         + "  SP " + std::to_string(world.player().talentPoints())

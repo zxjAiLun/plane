@@ -40,6 +40,7 @@ public:
 
     int takeDamage(int damage);
     int heal(int amount);
+    float restoreMana(float amount);
     bool canSpendMana(float amount) const;
     bool spendMana(float amount);
     bool isDead() const;

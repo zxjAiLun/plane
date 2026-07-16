@@ -458,7 +458,7 @@ void testResourceStatsSaveLoad() {
     data.player.upgradeStats.skillCostMultiplier = 0.80f;
     data.player.mana = 75.0f;
     expect(SaveService::save(path, data, &error),
-        "resource fixture writes v17 resource stats");
+        "resource fixture writes v18 resource stats");
 
     GameWorld restored(7152);
     expect(restored.loadRun(path), "resource fixture loads into GameWorld");
@@ -2078,7 +2078,8 @@ void prepareCombinationFixture(
     const std::filesystem::path& path,
     int templateIndex,
     int layoutIndex = 0,
-    int mapLevel = 1
+    int mapLevel = 1,
+    int manaFlaskCharges = Config::ManaFlaskMaxCharges
 );
 
 void testBossCombatFlow() {
@@ -2580,6 +2581,53 @@ void testThemeEnemyElementalAttacks() {
     std::filesystem::remove(path);
 }
 
+void testManaFlaskFlow() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_mana_flask_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(22001);
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Mana flask fixture starts from a valid save");
+
+    data.player.mana = 5.0f;
+    data.manaFlaskCharges = Config::ManaFlaskMaxCharges;
+    data.state = SavedRunState::Playing;
+    data.mapRewardChosen = false;
+    data.nextMapOptionChosen = false;
+    data.selectedMapRewardOption = -1;
+    data.selectedNextMapOption = -1;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Mana flask fixture restores a low-Mana run");
+
+    const float manaBefore = world.player().mana();
+    const int chargesBefore = world.manaFlaskCharges();
+    Input input;
+    pressKey(world, input, sf::Keyboard::Key::H);
+    expect(world.player().mana() > manaBefore
+            && world.manaFlaskCharges() == chargesBefore - 1
+            && world.manaFlaskStatusMessage().find("Mana flask") != std::string::npos,
+        "H consumes one Mana flask charge and restores Mana");
+
+    expect(world.saveRun(path) && SaveService::load(path, data, &error)
+            && data.manaFlaskCharges == chargesBefore - 1
+            && data.player.mana > manaBefore,
+        "Mana flask charges and restored Mana survive a save round trip");
+
+    data.player.mana = Config::PlayerMaxMana;
+    data.manaFlaskCharges = 2;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Mana flask fixture restores a full-Mana state");
+    pressKey(world, input, sf::Keyboard::Key::H);
+    expect(world.manaFlaskCharges() == 2
+            && world.manaFlaskStatusMessage() == "Mana already full",
+        "full Mana does not consume a Mana flask charge");
+
+    std::filesystem::remove(path);
+}
+
 void testElitePackEventFlow() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_elite_pack_event_test.bin";
@@ -2598,6 +2646,7 @@ void testElitePackEventFlow() {
     data.player.upgradeStats.areaDamageMultiplier = 10.0f;
     data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
     data.player.mana = Config::PlayerMaxMana;
+    data.manaFlaskCharges = 0;
     data.state = SavedRunState::Playing;
     data.mapRewardChosen = false;
     data.nextMapOptionChosen = false;
@@ -2691,6 +2740,8 @@ void testElitePackEventFlow() {
             + Config::ElitePackForgeFragmentReward
             && world.eventStatusMessage().find("Forge Fragments") != std::string::npos,
         "ElitePack completion awards its configured forge fragments");
+    expect(world.manaFlaskCharges() > 0,
+        "ElitePack completion keeps Mana flask charges available");
 
     std::filesystem::remove(path);
 }
@@ -2744,7 +2795,8 @@ void prepareCombinationFixture(
     const std::filesystem::path& path,
     int templateIndex,
     int layoutIndex,
-    int mapLevel
+    int mapLevel,
+    int manaFlaskCharges
 ) {
     SaveData data;
     std::string error;
@@ -2768,6 +2820,7 @@ void prepareCombinationFixture(
     data.player.upgradeStats.areaDamageMultiplier = 20.0f;
     data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
     data.player.mana = Config::PlayerMaxMana;
+    data.manaFlaskCharges = manaFlaskCharges;
     SaveService::save(path, data, &error);
     world.loadRun(path);
 }
@@ -2790,7 +2843,7 @@ void testCombinationMapEvents() {
 
     {
         GameWorld world(21001);
-        prepareCombinationFixture(world, path, 0);
+        prepareCombinationFixture(world, path, 0, 0, 1, 0);
         const MapEventInstance* event = combinationEvent(world);
         expect(event != nullptr
                 && event->encounterType == MapEncounterType::EnhancedCache,
@@ -2810,6 +2863,8 @@ void testCombinationMapEvents() {
                     && world.eventStatusMessage().find("Forge Fragments")
                         != std::string::npos,
                 "Enhanced Cache awards its configured forge fragments");
+            expect(world.manaFlaskCharges() == 1,
+                "Enhanced Cache restores one Mana flask charge");
             const int dropsAfterOpen = world.mapItemsDropped();
             pressKey(world, input, sf::Keyboard::Key::F);
             expect(world.mapItemsDropped() == dropsAfterOpen,
@@ -3446,6 +3501,7 @@ int main() {
     testThemedBossPhaseHazards();
     testElementalEnemyProjectileFlow();
     testThemeEnemyElementalAttacks();
+    testManaFlaskFlow();
     testElitePackEventFlow();
     testCombinationMapEvents();
     testStormRelicAreaChain();
