@@ -471,6 +471,8 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , hoveredPassiveNode_(-1)
     , nearbyEventPrompt_()
     , shrineBuffTimer_(0.0f)
+    , guardBuffTimer_(0.0f)
+    , guardBuffDamageMultiplier_(1.0f)
     , lifeFlaskCharges_(Config::LifeFlaskMaxCharges)
     , lifeFlaskStatusMessage_()
     , lifeFlaskStatusTimer_(0.0f)
@@ -1138,6 +1140,8 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     dashImpactDuration_ = 0.0f;
     dashImpactRadius_ = 0.0f;
     shrineBuffTimer_ = 0.0f;
+    guardBuffTimer_ = 0.0f;
+    guardBuffDamageMultiplier_ = 1.0f;
     passiveTreeOpen_ = false;
     skillPanelOpen_ = false;
     selectedSupportLink_ = 0;
@@ -1214,6 +1218,10 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     playerHitEffectTimer_ = std::max(0.0f, playerHitEffectTimer_ - dt);
     skillFailureFeedbackTimer_ = std::max(0.0f, skillFailureFeedbackTimer_ - dt);
     shrineBuffTimer_ = std::max(0.0f, shrineBuffTimer_ - dt);
+    guardBuffTimer_ = std::max(0.0f, guardBuffTimer_ - dt);
+    if (guardBuffTimer_ == 0.0f) {
+        guardBuffDamageMultiplier_ = 1.0f;
+    }
     updateGroundHazards(dt);
     updatePendingSkillEffects(dt);
     updateAmbientThreat(dt);
@@ -1419,6 +1427,8 @@ void GameWorld::reset(std::uint64_t runSeed) {
     hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
+    guardBuffTimer_ = 0.0f;
+    guardBuffDamageMultiplier_ = 1.0f;
     lifeFlaskCharges_ = Config::LifeFlaskMaxCharges;
     lifeFlaskStatusMessage_.clear();
     lifeFlaskStatusTimer_ = 0.0f;
@@ -1579,6 +1589,8 @@ void GameWorld::startNextMap() {
     hoveredPassiveNode_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
+    guardBuffTimer_ = 0.0f;
+    guardBuffDamageMultiplier_ = 1.0f;
     lifeFlaskCharges_ = Config::LifeFlaskMaxCharges;
     lifeFlaskStatusMessage_.clear();
     lifeFlaskStatusTimer_ = 0.0f;
@@ -3063,6 +3075,25 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
 
     const auto& skill = skillBar_.definition(SkillSlot::Utility);
     const AilmentDefinition ailment = ailmentForPlayerSkill(skill);
+    const bool defensiveSkill = skill.selfDamageTakenMultiplier < 1.0f;
+    if (defensiveSkill) {
+        guardBuffTimer_ = std::max(0.0f, skill.effectDuration);
+        guardBuffDamageMultiplier_ = std::clamp(
+            skill.selfDamageTakenMultiplier, 0.05f, 1.0f
+        );
+        addCombatFeedback(
+            player_.position(),
+            0,
+            skill.name + ": "
+                + std::to_string(static_cast<int>(guardBuffDamageMultiplier_ * 100.0f))
+                + "% damage taken",
+            CombatFeedbackType::Status
+        );
+        novaEffectTimer_ = skill.effectDuration;
+        if (skill.baseDamage <= 0) {
+            return;
+        }
+    }
     const int repeatCount = skillRepeatCount(
         skill, skillBar_.supportDefinitionsFor(skill)
     );
@@ -3092,7 +3123,8 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
     }
 
     for (int repeat = 0; repeat < repeatCount; ++repeat) {
-        const int hitCount = skill.healOnHit > 0
+        const int healOnHit = healOnHitForPlayerSkill(skill);
+        const int hitCount = healOnHit > 0
             ? countEnemiesInArea(player_.position(), radiusForPlayerSkill(skill))
             : 0;
         dealAreaDamage(
@@ -3103,8 +3135,8 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
             skill.name,
             skill.damageType
         );
-        if (hitCount > 0 && skill.healOnHit > 0) {
-            const int healed = player_.heal(hitCount * skill.healOnHit);
+        if (hitCount > 0 && healOnHit > 0) {
+            const int healed = player_.heal(hitCount * healOnHit);
             if (healed > 0) {
                 addCombatFeedback(
                     player_.position(),
@@ -4070,6 +4102,10 @@ float GameWorld::radiusForPlayerSkill(const SkillDefinition& skill) const {
     return skillRadius(skill, player_.stats(), skillBar_.supportDefinitionsFor(skill));
 }
 
+int GameWorld::healOnHitForPlayerSkill(const SkillDefinition& skill) const {
+    return skillHealOnHit(skill, skillBar_.supportDefinitionsFor(skill));
+}
+
 int GameWorld::pierceCountForPlayerSkill(const SkillDefinition& skill) const {
     return skillPierceCount(skillBar_.supportDefinitionsFor(skill));
 }
@@ -4406,8 +4442,8 @@ void GameWorld::tryAssignSkill(Input& input) {
     const auto& skills = SkillLibrary::all();
     int skillIndex = input.numberChoice() - 1;
     const int functionChoice = input.functionChoice();
-    if (skillIndex < 0 && functionChoice >= 7 && functionChoice <= 14) {
-        // Number keys cover the first ten entries. F7-F14 extend the panel
+    if (skillIndex < 0 && functionChoice >= 7 && functionChoice <= 15) {
+        // Number keys cover the first ten entries. F7-F15 extend the panel
         // to later skills without colliding with the support link controls.
         skillIndex = functionChoice + 3;
     }
@@ -5326,6 +5362,9 @@ void GameWorld::damagePlayer(
     }
 
     Stats effectiveStats = player_.stats();
+    if (guardBuffTimer_ > 0.0f) {
+        effectiveStats.incomingDamageMultiplier *= guardBuffDamageMultiplier_;
+    }
     effectiveStats.fireResistance += mapElementalResistanceAdjustment(
         mapModifier_, DamageType::Fire, false
     );
@@ -6028,6 +6067,10 @@ std::string GameWorld::lastRareLeaderRewardDescription() const {
 }
 std::string GameWorld::nearbyEventPrompt() const { return nearbyEventPrompt_; }
 float GameWorld::shrineBuffTimeRemaining() const { return shrineBuffTimer_; }
+float GameWorld::guardBuffTimeRemaining() const { return guardBuffTimer_; }
+float GameWorld::guardBuffDamageTakenMultiplier() const {
+    return guardBuffTimer_ > 0.0f ? guardBuffDamageMultiplier_ : 1.0f;
+}
 float GameWorld::inventoryFullPromptTimeRemaining() const { return inventoryFullTimer_; }
 std::string GameWorld::eventStatusMessage() const { return eventStatusMessage_; }
 float GameWorld::eventStatusTimeRemaining() const { return eventStatusTimer_; }

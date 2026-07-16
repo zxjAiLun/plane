@@ -1476,8 +1476,11 @@ void testSiphonPulseRecovery() {
     data.player.mana = Config::PlayerMaxMana;
     data.fieldPacksCleared = Config::BossGateRequiredFieldPacks;
     data.unlockedSkills.insert("Siphon Pulse");
+    data.unlockedSupports.insert("Vitality");
     data.skillLevels["Siphon Pulse"] = 1;
+    data.supportLevels["Vitality"] = 1;
     data.skillBar.skills[utilityIndex] = "Siphon Pulse";
+    data.skillBar.supports[utilityIndex][0] = "Vitality";
     data.state = SavedRunState::Playing;
     expect(SaveService::save(path, data, &error) && world.loadRun(path),
         "Siphon Pulse fixture restores the unlocked Utility skill");
@@ -1506,9 +1509,106 @@ void testSiphonPulseRecovery() {
                     && feedback.source.rfind("Siphon Pulse +", 0) == 0;
             }
         );
-        expect(world.player().hp() > hpBefore && recoveryFeedback,
-            "Siphon Pulse heals after hitting an enemy and exposes recovery feedback");
+        expect(world.player().hp() >= hpBefore + 3 && recoveryFeedback,
+            "Siphon Pulse and Vitality restore the enhanced hit recovery amount");
     }
+
+    std::filesystem::remove(path);
+}
+
+void testGuardingPulseProtection() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_guarding_pulse_protection_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(17605);
+    SaveData data;
+    std::string error;
+    const auto utilityIndex = static_cast<std::size_t>(SkillSlot::Utility);
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Guarding Pulse fixture starts from a valid run save");
+
+    data.player.hp = 1000;
+    data.player.upgradeStats.maxHp = 1000;
+    data.player.upgradeStats.moveSpeedMultiplier = 8.0f;
+    data.player.upgradeStats.incomingDamageMultiplier = 2.0f;
+    data.player.mana = Config::PlayerMaxMana;
+    data.fieldPacksCleared = Config::BossGateRequiredFieldPacks;
+    data.unlockedSkills.insert("Guarding Pulse");
+    data.skillLevels["Guarding Pulse"] = 1;
+    data.skillBar.skills[utilityIndex] = "Guarding Pulse";
+    data.state = SavedRunState::Playing;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Guarding Pulse fixture restores the defensive Utility skill");
+
+    Input input;
+    expect(moveToBoss(world, input),
+        "Guarding Pulse fixture reaches the Boss Arena through real movement");
+    if (!world.map().bossTriggered()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const auto liveBoss = std::find_if(
+        world.enemies().begin(),
+        world.enemies().end(),
+        [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+    );
+    if (liveBoss == world.enemies().end()) {
+        expect(false, "Guarding Pulse fixture keeps a live Boss for mitigation");
+        std::filesystem::remove(path);
+        return;
+    }
+    const_cast<Player&>(world.player()).setPosition(liveBoss->position());
+    for (int frame = 0; frame < 20 && world.playerHitDamage() == 0; ++frame) {
+        world.update(0.05f, input);
+    }
+    const int unguardedDamage = world.playerHitDamage();
+    const_cast<Player&>(world.player()).setPosition(world.map().playerStart());
+    for (int frame = 0; frame < 30; ++frame) {
+        world.update(0.05f, input);
+    }
+
+    const auto liveBossAfterWait = std::find_if(
+        world.enemies().begin(),
+        world.enemies().end(),
+        [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+    );
+    if (liveBossAfterWait == world.enemies().end()) {
+        expect(false, "Guarding Pulse fixture keeps the Boss alive after cooldown");
+        std::filesystem::remove(path);
+        return;
+    }
+    const_cast<Player&>(world.player()).setPosition(liveBossAfterWait->position());
+    const std::size_t guardedFeedbackStart = world.combatFeedback().size();
+    input.handleKeyPressed(sf::Keyboard::Key::Q);
+    world.update(0.05f, input);
+    input.handleKeyReleased(sf::Keyboard::Key::Q);
+    const float guardTime = world.guardBuffTimeRemaining();
+    const float guardMultiplier = world.guardBuffDamageTakenMultiplier();
+    int guardedDamage = 0;
+    for (std::size_t index = guardedFeedbackStart;
+        index < world.combatFeedback().size(); ++index) {
+        const auto& feedback = world.combatFeedback()[index];
+        if (feedback.type == CombatFeedbackType::PlayerHit) {
+            guardedDamage = feedback.damage;
+            break;
+        }
+    }
+    const bool guardFeedback = std::any_of(
+        world.combatFeedback().begin(),
+        world.combatFeedback().end(),
+        [](const CombatFeedback& feedback) {
+            return feedback.type == CombatFeedbackType::Status
+                && feedback.source.find("Guarding Pulse:") == 0;
+        }
+    );
+    expect(guardTime > 0.0f && guardMultiplier < 1.0f && guardFeedback,
+        "Guarding Pulse activates a timed mitigation state with feedback");
+    expect(unguardedDamage > 0 && guardedDamage > 0 && guardedDamage < unguardedDamage,
+        "Guarding Pulse reduces real Boss contact damage ("
+            + std::to_string(unguardedDamage) + " -> "
+            + std::to_string(guardedDamage) + ")");
 
     std::filesystem::remove(path);
 }
@@ -1808,6 +1908,7 @@ void testExpandedSkillWorldHits() {
             && !world.isSkillUnlocked("Stormfield")
             && !world.isSkillUnlocked("Blight Ring")
             && !world.isSkillUnlocked("Siphon Pulse")
+            && !world.isSkillUnlocked("Guarding Pulse")
             && !world.isSupportUnlocked("Barrage")
             && !world.isSupportUnlocked("Concentration"),
         "expanded skills and Supports start locked");
@@ -1829,6 +1930,7 @@ void testExpandedSkillWorldHits() {
     data.unlockedSkills.insert("Stormfield");
     data.unlockedSkills.insert("Blight Ring");
     data.unlockedSkills.insert("Siphon Pulse");
+    data.unlockedSkills.insert("Guarding Pulse");
     data.unlockedSupports.insert("Barrage");
     data.unlockedSupports.insert("Concentration");
     data.unlockedSupports.insert("Echo");
@@ -2028,6 +2130,10 @@ void testExpandedSkillWorldHits() {
     world.update(0.05f, input);
     expect(world.skillBar().definition(SkillSlot::Utility).name == "Siphon Pulse",
         "Skill Panel F14 assigns the appended recovery skill entry");
+    input.handleKeyPressed(sf::Keyboard::Key::F15);
+    world.update(0.05f, input);
+    expect(world.skillBar().definition(SkillSlot::Utility).name == "Guarding Pulse",
+        "Skill Panel F15 assigns the appended defensive skill entry");
     input.handleKeyPressed(sf::Keyboard::Key::F12);
     world.update(0.05f, input);
     expect(world.skillBar().definition(SkillSlot::Utility).name == "Blight Ring",
@@ -3685,6 +3791,7 @@ int main() {
     testUtilitySkillDelivery();
     testPulseShockFlow();
     testSiphonPulseRecovery();
+    testGuardingPulseProtection();
     testIgniteFeedbackMatchesWorldDamage();
     testBuildMathMatchesWorldHits();
     testExpandedSkillWorldHits();

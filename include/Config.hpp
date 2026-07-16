@@ -118,6 +118,11 @@ namespace Config {
     constexpr float SiphonPulseManaCost = 11.0f;
     constexpr float SiphonPulseEffectDuration = 0.30f;
     constexpr int SiphonPulseHealOnHit = 2;
+    constexpr float GuardingPulseRadius = 110.0f;
+    constexpr float GuardingPulseCooldown = 4.0f;
+    constexpr float GuardingPulseManaCost = 15.0f;
+    constexpr float GuardingPulseEffectDuration = 3.0f;
+    constexpr float GuardingPulseDamageTakenMultiplier = 0.50f;
 
     constexpr float EnemySpeed = 120.0f;
     constexpr float EnemyRadius = 20.0f;
@@ -166,6 +171,7 @@ namespace Config {
     constexpr float SupportGemCooldownStep = 0.03f;
     constexpr float SupportGemAilmentStep = 0.06f;
     constexpr float SupportGemManaCostStep = 0.04f;
+    constexpr int SupportGemHealingStep = 1;
     constexpr float CombatFeedbackDuration = 0.8f;
     constexpr int MaxCombatFeedback = 32;
 

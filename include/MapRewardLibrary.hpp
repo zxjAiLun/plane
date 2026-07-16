@@ -53,6 +53,12 @@ public:
             reward.description += "  Heal " + std::to_string(skill.healOnHit)
                 + " HP per enemy hit";
         }
+        if (skill.selfDamageTakenMultiplier < 1.0f) {
+            reward.description += "  Take "
+                + std::to_string(static_cast<int>(skill.selfDamageTakenMultiplier * 100.0f))
+                + "% damage for " + std::to_string(static_cast<int>(skill.effectDuration))
+                + "s";
+        }
         return reward;
     }
 

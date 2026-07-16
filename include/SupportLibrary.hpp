@@ -23,7 +23,8 @@ enum class SupportKind {
     Toxicity,
     Contagion,
     ArcaneEfficiency,
-    ElementalFocus
+    ElementalFocus,
+    Vitality
 };
 
 struct SupportDefinition {
@@ -53,6 +54,7 @@ struct SupportDefinition {
     float manaCostMultiplier = 1.0f;
     DamageType requiredDamageType = DamageType::Physical;
     float elementalDamageMultiplier = 1.0f;
+    int healOnHitBonus = 0;
 };
 
 inline constexpr std::size_t SupportLinkCount = 2;
@@ -202,6 +204,15 @@ public:
                 support.damageMultiplier = 0.88f;
                 return support;
             }(),
+            [] {
+                SupportDefinition support;
+                support.kind = SupportKind::Vitality;
+                support.name = "Vitality";
+                support.description = "+1 HP per hit for recovery skills, -15% damage";
+                support.damageMultiplier = 0.85f;
+                support.healOnHitBonus = 1;
+                return support;
+            }(),
         };
         return supports;
     }
@@ -252,6 +263,8 @@ public:
                 return skill.castType != SkillCastType::Dash;
             case SupportKind::ElementalFocus:
                 return skill.damageType == support.requiredDamageType;
+            case SupportKind::Vitality:
+                return skill.healOnHit > 0;
         }
 
         return false;

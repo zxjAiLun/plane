@@ -177,6 +177,26 @@ inline int skillDamage(
     return skillDamage(skill, stats, SupportList{support, nullptr}, shrineMultiplier);
 }
 
+inline int skillHealOnHit(
+    const SkillDefinition& skill,
+    const SupportList& supports
+) {
+    int healing = skill.healOnHit;
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            healing += support->healOnHitBonus;
+        }
+    }
+    return std::max(0, healing);
+}
+
+inline int skillHealOnHit(
+    const SkillDefinition& skill,
+    const SupportDefinition* support
+) {
+    return skillHealOnHit(skill, SupportList{support, nullptr});
+}
+
 inline float skillRadius(
     const SkillDefinition& skill,
     const Stats& stats,

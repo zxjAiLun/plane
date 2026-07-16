@@ -230,6 +230,8 @@ public:
     int focusedDroppedItemIndex() const;
     std::string pickupPrompt() const;
     float shrineBuffTimeRemaining() const;
+    float guardBuffTimeRemaining() const;
+    float guardBuffDamageTakenMultiplier() const;
     const Vector2& ambientHazardWarningPosition() const;
     const std::vector<Vector2>& ambientHazardWarningPositions() const;
     float ambientHazardWarningProgress() const;
@@ -355,6 +357,7 @@ private:
     void applySkillProgression();
     const MapEncounterDefinition* completedBossRewardEncounter() const;
     float radiusForPlayerSkill(const SkillDefinition& skill) const;
+    int healOnHitForPlayerSkill(const SkillDefinition& skill) const;
     int pierceCountForPlayerSkill(const SkillDefinition& skill) const;
     int projectileCountForPlayerSkill(const SkillDefinition& skill) const;
     float spreadAngleForPlayerSkill(const SkillDefinition& skill) const;
@@ -559,6 +562,8 @@ private:
     int hoveredPassiveNode_;
     std::string nearbyEventPrompt_;
     float shrineBuffTimer_;
+    float guardBuffTimer_ = 0.0f;
+    float guardBuffDamageMultiplier_ = 1.0f;
     Vector2 ambientHazardWarningPosition_;
     std::vector<Vector2> ambientHazardWarningPositions_;
     float ambientHazardTimer_ = 0.0f;

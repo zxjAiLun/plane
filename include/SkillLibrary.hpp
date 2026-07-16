@@ -398,6 +398,24 @@ public:
         };
     }
 
+    static SkillDefinition guardingPulse() {
+        SkillDefinition skill = {
+            SkillSlot::Utility,
+            SkillCastType::SelfCenteredArea,
+            "Guarding Pulse",
+            Config::GuardingPulseCooldown,
+            Config::GuardingPulseRadius,
+            0,
+            Config::GuardingPulseEffectDuration,
+            1,
+            0.0f,
+            {},
+            Config::GuardingPulseManaCost
+        };
+        skill.selfDamageTakenMultiplier = Config::GuardingPulseDamageTakenMultiplier;
+        return skill;
+    }
+
 private:
     static std::vector<SkillDefinition> buildSkills() {
         return {
@@ -418,7 +436,8 @@ private:
             stormfield(),
             blightRing(),
             dash(),
-            siphonPulse()
+            siphonPulse(),
+            guardingPulse()
         };
     }
 };

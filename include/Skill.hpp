@@ -46,4 +46,5 @@ struct SkillDefinition {
     int repeatCount = 1;
     float repeatInterval = 0.0f;
     int healOnHit = 0;
+    float selfDamageTakenMultiplier = 1.0f;
 };

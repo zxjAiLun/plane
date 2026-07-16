@@ -553,10 +553,12 @@ std::string ailmentSummary(const AilmentDefinition& ailment) {
 }
 
 std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& stats, const SupportList& supports) {
+    const int actualDamage = skill.baseDamage <= 0
+        ? 0 : effectiveSkillDamage(skill, stats, supports);
     std::string summary = "Base " + std::to_string(skill.baseDamage)
         + "/" + std::to_string(static_cast<int>(skill.radius))
         + "/" + formatFloat(skill.cooldown, 2)
-        + "  Actual " + std::to_string(effectiveSkillDamage(skill, stats, supports))
+        + "  Actual " + std::to_string(actualDamage)
         + "/" + std::to_string(static_cast<int>(effectiveSkillRadius(skill, stats, supports)))
         + "/" + formatFloat(effectiveSkillCooldown(skill, stats, supports), 2)
         + "  Mana " + formatFloat(skillManaCost(skill, stats, supports), 1)
@@ -579,8 +581,14 @@ std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& sta
         summary += "  Leaves " + skill.groundHazard.source
             + " " + formatFloat(skill.groundHazard.duration, 1) + "s";
     }
-    if (skill.healOnHit > 0) {
-        summary += "  Heal " + std::to_string(skill.healOnHit) + "/hit";
+    const int healOnHit = skillHealOnHit(skill, supports);
+    if (healOnHit > 0) {
+        summary += "  Heal " + std::to_string(healOnHit) + "/hit";
+    }
+    if (skill.selfDamageTakenMultiplier < 1.0f) {
+        summary += "  Guard "
+            + std::to_string(static_cast<int>(skill.selfDamageTakenMultiplier * 100.0f))
+            + "%/" + formatFloat(skill.effectDuration, 1) + "s";
     }
     return summary;
 }
@@ -704,6 +712,7 @@ std::string rewardThemeLabel(const MapRewardDefinition& reward) {
                 case SupportKind::Echo:
                 case SupportKind::Pinpoint:
                 case SupportKind::ArcaneEfficiency:
+                case SupportKind::Vitality:
                     break;
                 case SupportKind::ElementalFocus:
                     theme = support->requiredDamageType;
@@ -1234,6 +1243,16 @@ void Renderer::render(const GameWorld& world) {
             + "%  "
             + std::to_string(static_cast<int>(world.shrineBuffTimeRemaining() + 0.99f)) + "s",
             {16.0f, hudY}, 14, sf::Color(100, 240, 240));
+        hudY += 18.0f;
+    }
+    if (world.guardBuffTimeRemaining() > 0.0f) {
+        drawText("Guarding Pulse Damage Taken "
+            + std::to_string(static_cast<int>(
+                world.guardBuffDamageTakenMultiplier() * 100.0f
+            )) + "%  "
+            + std::to_string(static_cast<int>(world.guardBuffTimeRemaining() + 0.99f))
+            + "s",
+            {16.0f, hudY}, 14, sf::Color(180, 220, 255));
         hudY += 18.0f;
     }
     drawText(truncateText("Build: " + world.passiveBuildSummary()
@@ -2690,7 +2709,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
 
     drawBox({center.x, center.y}, {760.0f, 560.0f}, sf::Color(24, 30, 40));
     drawCenteredText("Skill Panel", {center.x, center.y - 248.0f}, 24, sf::Color::White);
-    drawCenteredText("1-0 / F7-F14 assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
+    drawCenteredText("1-0 / F7-F15 assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
         {center.x, center.y - 220.0f}, 14, sf::Color(210, 230, 255));
 
     const SkillSlot slots[] = {
@@ -2731,7 +2750,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         const std::string state = equipped ? "Equipped" : unlocked ? "Available" : "Locked";
         const std::string marker = equipped ? "> " : "  ";
         const float columnX = i % 2 == 0 ? leftColumn : rightColumn;
-        const float rowY = skillsY + 22.0f + static_cast<float>(i / 2) * 27.0f;
+        const float rowY = skillsY + 22.0f + static_cast<float>(i / 2) * 24.0f;
         drawText(marker + skillChoiceLabel(i) + ". " + skill.name
                 + " Lv" + std::to_string(world.skillLevel(skill.name))
                 + " [" + state + "]",

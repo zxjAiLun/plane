@@ -498,7 +498,7 @@ void testManaResourceAndSkillCastGates() {
         "resource Stats combine multiplicatively");
 
     const auto& skills = SkillLibrary::all();
-    expect(skills.size() == 18, "skill library exposes the elemental build skill set");
+    expect(skills.size() == 19, "skill library exposes the elemental build skill set");
     const auto& primary = SkillLibrary::spreadShot();
     const auto& secondary = SkillLibrary::meteor();
     const auto& utility = SkillLibrary::pulse();
@@ -512,6 +512,7 @@ void testManaResourceAndSkillCastGates() {
     const auto& stormfield = SkillLibrary::stormfield();
     const auto& blightRing = SkillLibrary::blightRing();
     const auto& siphonPulse = SkillLibrary::siphonPulse();
+    const auto& guardingPulse = SkillLibrary::guardingPulse();
     expect(primary.manaCost > 0.0f && primary.manaCost < secondary.manaCost,
         "Primary has a lower Mana cost than Meteor");
     expect(secondary.manaCost > 0.0f && utility.manaCost > 0.0f,
@@ -568,6 +569,26 @@ void testManaResourceAndSkillCastGates() {
             && siphonPulse.healOnHit == Config::SiphonPulseHealOnHit
             && siphonPulse.healOnHit > 0,
         "Siphon Pulse defines a Poison area skill with hit-based recovery");
+    expect(guardingPulse.slot == SkillSlot::Utility
+            && guardingPulse.castType == SkillCastType::SelfCenteredArea
+            && guardingPulse.baseDamage == 0
+            && guardingPulse.selfDamageTakenMultiplier
+                == Config::GuardingPulseDamageTakenMultiplier
+            && guardingPulse.effectDuration == Config::GuardingPulseEffectDuration,
+        "Guarding Pulse defines a temporary defensive Utility skill");
+    const auto* vitality = SupportLibrary::find("Vitality");
+    expect(vitality != nullptr
+            && SupportLibrary::supportsSkill(*vitality, siphonPulse)
+            && !SupportLibrary::supportsSkill(*vitality, guardingPulse),
+        "Vitality only supports skills with hit-based recovery");
+    if (vitality != nullptr) {
+        const int baseRecovery = skillHealOnHit(siphonPulse, nullptr);
+        const int supportedRecovery = skillHealOnHit(siphonPulse, vitality);
+        const auto leveledVitality = SkillProgression::supportAtLevel(*vitality, 3);
+        expect(supportedRecovery == baseRecovery + vitality->healOnHitBonus
+                && skillHealOnHit(siphonPulse, &leveledVitality) > supportedRecovery,
+            "Vitality adds recovery and scales with Support gem level");
+    }
     expect(std::abs(SkillLibrary::flare().manaCost - Config::FlareManaCost) < 0.0001f,
         "Flare exposes its configured Mana cost");
     expect(std::abs(SkillLibrary::meteor().manaCost - Config::MeteorManaCost) < 0.0001f,
@@ -3494,6 +3515,12 @@ void testMapRewardGeneration() {
             && siphonReward.description.find("Heal 2 HP per enemy hit")
                 != std::string::npos,
         "Siphon Pulse reward preview exposes its recovery effect");
+    const auto guardingReward = MapRewardLibrary::skillUnlockReward(
+        SkillLibrary::guardingPulse()
+    );
+    expect(guardingReward.description.find("Take 50% damage for 3s")
+                != std::string::npos,
+        "Guarding Pulse reward preview exposes its mitigation effect");
 
     RandomService earlySupportRandom(8);
     const auto earlySupportRewards = MapRewardLibrary::generateOptions(
