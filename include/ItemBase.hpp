@@ -21,7 +21,8 @@ enum class ItemBaseTheme {
     Archive,
     Obsidian,
     Aether,
-    Sable
+    Sable,
+    Bloodletting
 };
 
 struct ItemBaseDefinition {
@@ -88,7 +89,9 @@ private:
         float coldDamageMultiplier = 1.0f,
         float maxManaMultiplier = 1.0f,
         float manaRegenMultiplier = 1.0f,
-        float skillCostMultiplier = 1.0f
+        float skillCostMultiplier = 1.0f,
+        float physicalDamageMultiplier = 1.0f,
+        float bleedDamageMultiplier = 1.0f
     ) {
         Stats stats;
         stats.maxHp = maxHp;
@@ -106,6 +109,8 @@ private:
         stats.maxManaMultiplier = maxManaMultiplier;
         stats.manaRegenMultiplier = manaRegenMultiplier;
         stats.skillCostMultiplier = skillCostMultiplier;
+        stats.physicalDamageMultiplier = physicalDamageMultiplier;
+        stats.bleedDamageMultiplier = bleedDamageMultiplier;
         return stats;
     }
 
@@ -238,6 +243,18 @@ private:
                     0, 1.0f, 1.12f),
                 ItemBaseKind::BossRelic, ItemBaseTheme::Sable, 1,
                 ItemBuildTheme::Poison, 1},
+            {"boss.gorebound-cleaver", "Gorebound Cleaver", EquipmentSlot::Weapon,
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                    0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                    1.08f, 1.06f),
+                ItemBaseKind::BossRelic, ItemBaseTheme::Bloodletting, 1,
+                ItemBuildTheme::Physical},
+            {"boss.hemorrhage-signet", "Hemorrhage Signet", EquipmentSlot::Ring,
+                makeStats(4, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                    0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                    1.04f, 1.10f),
+                ItemBaseKind::BossRelic, ItemBaseTheme::Bloodletting, 1,
+                ItemBuildTheme::Physical, 1},
         };
     }
 };

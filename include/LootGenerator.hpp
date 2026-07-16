@@ -340,6 +340,33 @@ public:
                         {AffixTag::Poison, AffixTag::Area});
                 }
                 break;
+            case BossLootTheme::Bloodletting:
+                if (normalizedVariant == 0) {
+                    item.name = "Gorebound Cleaver";
+                    addBossAffix(item, "Executioner's edge", tier + 1,
+                        physicalDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.12f, 0.18f, 0.24f}[tier],
+                            item.implicitStats.physicalDamageMultiplier)),
+                        {AffixTag::Physical, AffixTag::Damage});
+                    addBossAffix(item, "Open wounds", tier + 1,
+                        bleedDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.16f, 0.22f}[tier],
+                            item.implicitStats.bleedDamageMultiplier)),
+                        {AffixTag::Bleed, AffixTag::Damage});
+                } else {
+                    item.name = "Hemorrhage Signet";
+                    addBossAffix(item, "Blood price", tier + 1,
+                        bleedDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.14f, 0.21f, 0.28f}[tier],
+                            item.implicitStats.bleedDamageMultiplier)),
+                        {AffixTag::Bleed, AffixTag::Damage});
+                    addBossAffix(item, "Deep execution", tier + 1,
+                        physicalDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.08f, 0.14f, 0.20f}[tier],
+                            item.implicitStats.physicalDamageMultiplier)),
+                        {AffixTag::Physical, AffixTag::Damage});
+                }
+                break;
         }
 
         return item;
@@ -561,6 +588,7 @@ private:
             case BossLootTheme::Obsidian: return ItemBaseTheme::Obsidian;
             case BossLootTheme::Aether: return ItemBaseTheme::Aether;
             case BossLootTheme::Sable: return ItemBaseTheme::Sable;
+            case BossLootTheme::Bloodletting: return ItemBaseTheme::Bloodletting;
         }
         return ItemBaseTheme::None;
     }
@@ -584,6 +612,7 @@ private:
             case ItemBuildTheme::Cold: return AffixTag::Cold;
             case ItemBuildTheme::Lightning: return AffixTag::Lightning;
             case ItemBuildTheme::Poison: return AffixTag::Poison;
+            case ItemBuildTheme::Physical: return AffixTag::Physical;
             case ItemBuildTheme::General: break;
         }
         return AffixTag::None;
@@ -698,6 +727,18 @@ private:
     static Stats poisonDamageContribution(float multiplier) {
         Stats stats;
         stats.poisonDamageMultiplier = multiplier;
+        return stats;
+    }
+
+    static Stats physicalDamageContribution(float multiplier) {
+        Stats stats;
+        stats.physicalDamageMultiplier = multiplier;
+        return stats;
+    }
+
+    static Stats bleedDamageContribution(float multiplier) {
+        Stats stats;
+        stats.bleedDamageMultiplier = multiplier;
         return stats;
     }
 

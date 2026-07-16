@@ -198,6 +198,7 @@ ItemBaseTheme bossRelicTheme(BossLootTheme theme) {
         case BossLootTheme::Obsidian: return ItemBaseTheme::Obsidian;
         case BossLootTheme::Aether: return ItemBaseTheme::Aether;
         case BossLootTheme::Sable: return ItemBaseTheme::Sable;
+        case BossLootTheme::Bloodletting: return ItemBaseTheme::Bloodletting;
     }
     return ItemBaseTheme::None;
 }
@@ -3102,12 +3103,16 @@ void Renderer::drawBossHealth(const GameWorld& world) {
             : sf::Color(230, 210, 175));
     detailY += 17.0f;
 
-    drawText("Fire Res " + std::to_string(world.bossDefinition().fireResistance)
-        + "%  Cold Res " + std::to_string(world.bossDefinition().coldResistance)
-        + "%  Light Res " + std::to_string(world.bossDefinition().lightningResistance)
-        + "%  Poison Res " + std::to_string(world.bossDefinition().poisonResistance)
-        + "%  Bleed Res " + std::to_string(world.bossDefinition().bleedResistance)
-        + "%  Shock Res " + std::to_string(world.bossDefinition().shockResistance) + "%",
+    drawText("Res F " + std::to_string(world.bossDefinition().fireResistance)
+        + "  C " + std::to_string(world.bossDefinition().coldResistance)
+        + "  L " + std::to_string(world.bossDefinition().lightningResistance),
+        {position.x, detailY}, 11, sf::Color(220, 195, 175));
+    detailY += 16.0f;
+
+    drawText("Res P " + std::to_string(world.bossDefinition().poisonResistance)
+        + "  B " + std::to_string(world.bossDefinition().bleedResistance)
+        + "  S " + std::to_string(world.bossDefinition().shockResistance)
+        + "  Phys " + std::to_string(world.bossDefinition().physicalResistance),
         {position.x, detailY}, 11, sf::Color(220, 195, 175));
     detailY += 16.0f;
 

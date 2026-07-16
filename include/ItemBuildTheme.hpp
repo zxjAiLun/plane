@@ -10,7 +10,8 @@ enum class ItemBuildTheme {
     Cold,
     Lightning,
     Poison,
-    Mana
+    Mana,
+    Physical
 };
 
 inline const char* itemBuildThemeName(ItemBuildTheme theme) {
@@ -25,6 +26,7 @@ inline const char* itemBuildThemeName(ItemBuildTheme theme) {
         case ItemBuildTheme::Lightning: return "Lightning";
         case ItemBuildTheme::Poison: return "Poison";
         case ItemBuildTheme::Mana: return "Mana";
+        case ItemBuildTheme::Physical: return "Physical";
     }
     return "Unknown";
 }

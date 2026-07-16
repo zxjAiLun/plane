@@ -25,7 +25,8 @@ enum class BossLootTheme {
     Archive,
     Obsidian,
     Aether,
-    Sable
+    Sable,
+    Bloodletting
 };
 
 struct BossSkillDefinition {
@@ -730,6 +731,127 @@ private:
         return definition;
     }
 
+    static BossDefinition bloodlettingBoss() {
+        const AilmentDefinition bleed{
+            AilmentType::Bleed, 3.0f, 0.20f, 1.0f, 0, 0
+        };
+
+        BossSkillDefinition hemorrhageSweep = elementalSkill({
+            BossSkillType::CircularAoe,
+            "Hemorrhage Sweep",
+            152.0f,
+            4,
+            0.55f,
+            0.25f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Normal,
+            0,
+            {
+                "Hemorrhage Pool", 128.0f, 6.0f, 0.70f, 5,
+                DamageType::Physical, bleed
+            }
+        }, DamageType::Physical, bleed);
+
+        BossSkillDefinition rendingHook = elementalSkill({
+            BossSkillType::Projectile,
+            "Rending Hook",
+            Config::BossProjectileRadius,
+            3,
+            0.0f,
+            0.0f,
+            460.0f,
+            3,
+            32.0f
+        }, DamageType::Physical, bleed);
+
+        BossSkillDefinition bloodhounds = elementalSkill({
+            BossSkillType::SummonAdds,
+            "Call Bloodhounds",
+            125.0f,
+            0,
+            0.70f,
+            0.25f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Charger,
+            2
+        }, DamageType::Physical, bleed);
+
+        BossSkillDefinition goreRush = elementalSkill({
+            BossSkillType::Dash,
+            "Gore Rush",
+            58.0f,
+            4,
+            0.55f,
+            0.30f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Normal,
+            0,
+            {},
+            {380.0f, 700.0f}
+        }, DamageType::Physical, bleed);
+
+        BossDefinition definition;
+        definition.name = "Gorebound Executioner";
+        definition.theme = "Blood, iron and open wounds";
+        definition.lootTheme = BossLootTheme::Bloodletting;
+        definition.lootRewardDescription = "Unique relic: Physical damage and stronger Bleed";
+        definition.hpMultiplier = 29.0f;
+        definition.damageBonus = 3;
+        definition.dropMultiplier = 4.4f;
+        definition.skillInterval = 1.65f;
+        definition.guaranteedDrops = 2;
+        definition.enrageHealthRatio = 0.48f;
+        definition.enragedSkillIntervalMultiplier = 0.60f;
+        definition.enragedDamageMultiplier = 1.24f;
+        definition.patternDescription = "Hemorrhage pools and rending hooks force constant movement";
+        definition.enragedPatternDescription = "Bloodhounds rush the arena while every hit threatens Bleed";
+        definition.skills = {hemorrhageSweep, rendingHook, bloodhounds, goreRush};
+        definition.normalSkillOrder = {0, 1, 0, 2, 3};
+        definition.enragedSkillOrder = {3, 0, 2, 1, 0};
+        definition.igniteResistance = 25;
+        definition.chillResistance = 25;
+        definition.lightningResistance = 25;
+        definition.fireResistance = 25;
+        definition.coldResistance = 25;
+        definition.shockResistance = 25;
+        definition.poisonResistance = 25;
+        definition.bleedResistance = 65;
+        definition.physicalResistance = 35;
+        definition.enrageTransitionDescription = "The executioner breaks the chain: bloodhounds flood the arena";
+        definition.enrageSummonType = EnemyType::Charger;
+        definition.enrageSummonCount = 2;
+        definition.enrageHazard = elementalHazard(
+            {"Blood Tide", 158.0f, 8.0f, 0.65f, 8}, DamageType::Physical, bleed
+        );
+        definition.finalPhase = {
+            0.18f,
+            0.46f,
+            1.40f,
+            "The pit opens: pools, hooks and bloodhounds overlap",
+            "The Executioner tears free for its final cycle",
+            {0, 3, 2, 1, 0},
+            EnemyType::Charger,
+            3,
+            {"Final Hemorrhage", 178.0f, 9.0f, 0.60f, 10,
+                DamageType::Physical, bleed}
+        };
+        definition.finalPhase.recurringHazard = {
+            3.2f,
+            0.55f,
+            {"Blood Ring", 90.0f, 4.0f, 0.60f, 6,
+                DamageType::Physical, bleed},
+            BossPhaseHazardPattern::Ring,
+            162.0f
+        };
+        return definition;
+    }
+
     static std::vector<BossDefinition> buildBosses() {
         auto bosses = std::vector<BossDefinition>{
             {
@@ -932,7 +1054,8 @@ private:
             drownedBoss(),
             obsidianBoss(),
             aetherBoss(),
-            sableBoss()
+            sableBoss(),
+            bloodlettingBoss()
         };
 
         bosses[0].bleedResistance = 25;

@@ -61,6 +61,12 @@ LootBias bossLootBias(BossLootTheme theme) {
             bias.baseThemeWeightMultiplier = 3.0f;
             return bias;
         }
+        case BossLootTheme::Bloodletting: {
+            LootBias bias{AffixTag::Physical, 1.60f, AffixTag::Bleed, 1.35f};
+            bias.baseTheme = ItemBuildTheme::Physical;
+            bias.baseThemeWeightMultiplier = 3.0f;
+            return bias;
+        }
     }
     return {};
 }
@@ -75,8 +81,16 @@ DamageType bossRewardDamageType(BossLootTheme theme) {
         case BossLootTheme::Obsidian: return DamageType::Fire;
         case BossLootTheme::Aether: return DamageType::Lightning;
         case BossLootTheme::Sable: return DamageType::Poison;
+        case BossLootTheme::Bloodletting: return DamageType::Physical;
     }
     return DamageType::Physical;
+}
+
+const BossDefinition& bossDefinitionForMap(const MapInstance& map) {
+    const int encounterBossIndex = map.encounterDefinition().bossDefinitionIndex;
+    return BossLibrary::forIndex(encounterBossIndex >= 0
+        ? encounterBossIndex
+        : map.definition().bossDefinitionIndex);
 }
 
 void mergeLootBias(LootBias& target, const LootBias& extra) {
@@ -449,7 +463,7 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , bossSkillIndex_(0)
     , bossEnraged_(false)
     , bossFinalPhase_(false)
-    , bossDefinition_(&BossLibrary::forIndex(map_.definition().bossDefinitionIndex))
+    , bossDefinition_(&bossDefinitionForMap(map_))
     , playerHitCooldown_(0.0f)
     , mapLevel_(1)
     , currentWave_(0)
@@ -1070,7 +1084,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     mapModifier_ = MapItemLibrary::modifierFor(currentMapOption_);
     mapModifier_.itemQuantityMultiplier *= progression_.itemQuantityRewardMultiplier;
     applyAtlasBonuses();
-    bossDefinition_ = &BossLibrary::forIndex(map_.definition().bossDefinitionIndex);
+    bossDefinition_ = &bossDefinitionForMap(map_);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
     resetAmbientThreat();
@@ -1362,7 +1376,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     random_.reseed(runSeed_);
     player_ = Player();
     map_ = MapInstance(1, 0);
-    bossDefinition_ = &BossLibrary::forIndex(map_.definition().bossDefinitionIndex);
+    bossDefinition_ = &bossDefinitionForMap(map_);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
     resetAmbientThreat();
@@ -1535,7 +1549,7 @@ void GameWorld::startNextMap() {
         currentMapOption_.templateIndex,
         mapToEnter.layoutIndex
     );
-    bossDefinition_ = &BossLibrary::forIndex(map_.definition().bossDefinitionIndex);
+    bossDefinition_ = &bossDefinitionForMap(map_);
     player_.setBounds(map_.size());
     player_.setPosition(map_.playerStart());
     resetAmbientThreat();
@@ -4274,6 +4288,13 @@ AilmentDefinition GameWorld::ailmentForPlayerSkill(const SkillDefinition& skill)
         const auto& effect = bossRelicEffectForTheme(ItemBaseTheme::Obsidian);
         ailment.damageMultiplier *= effect.igniteDamageMultiplier;
         ailment.duration *= effect.igniteDurationMultiplier;
+    }
+    if (skill.damageType == DamageType::Physical
+        && ailment.type == AilmentType::Bleed
+        && hasBossRelicTheme(ItemBaseTheme::Bloodletting)) {
+        const auto& effect = bossRelicEffectForTheme(ItemBaseTheme::Bloodletting);
+        ailment.damageMultiplier *= effect.bleedDamageMultiplier;
+        ailment.duration *= effect.bleedDurationMultiplier;
     }
     return ailment;
 }

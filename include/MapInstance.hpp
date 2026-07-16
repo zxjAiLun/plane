@@ -92,6 +92,7 @@ struct MapEncounterDefinition {
     AilmentDefinition enemyAilment;
     MapEncounterSkillDefinition leaderSkill;
     int bossDropBonus = 0;
+    int bossDefinitionIndex = -1;
 };
 
 class MapEncounterLibrary {
@@ -418,7 +419,8 @@ public:
                         {AilmentType::Bleed, 2.5f, 0.20f},
                         GroundHazardTarget::Player}
                 },
-                2
+                2,
+                8
             }
         }};
         return definitions;

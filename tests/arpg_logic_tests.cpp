@@ -1958,7 +1958,7 @@ void testItemBaseTypes() {
             > unweightedManaAffixes * weightedManaAffixBases,
         "selected Mana bases softly prefer Mana affixes");
 
-    const std::array<std::pair<BossLootTheme, std::string>, 8> bossThemes{{
+    const std::array<std::pair<BossLootTheme, std::string>, 9> bossThemes{{
         {BossLootTheme::Brimstone, "boss.brimstone-brand"},
         {BossLootTheme::Storm, "boss.storm-signet"},
         {BossLootTheme::Brood, "boss.brood-talisman"},
@@ -1967,6 +1967,7 @@ void testItemBaseTypes() {
         {BossLootTheme::Obsidian, "boss.obsidian-crown"},
         {BossLootTheme::Aether, "boss.aether-orb"},
         {BossLootTheme::Sable, "boss.sable-venom"},
+        {BossLootTheme::Bloodletting, "boss.gorebound-cleaver"},
     }};
     for (const auto& [theme, expectedBaseId] : bossThemes) {
         const Item item = generator.generateBossReward(5, theme);
@@ -1990,7 +1991,7 @@ void testItemBaseTypes() {
             && LootGenerator::bossRelicVariantForMapLevel(9) == 0,
         "Boss relic variants rotate once per four-map boss cycle");
 
-    const std::array<std::tuple<BossLootTheme, ItemBaseTheme, std::string>, 8> alternateBossThemes{{
+    const std::array<std::tuple<BossLootTheme, ItemBaseTheme, std::string>, 9> alternateBossThemes{{
         {BossLootTheme::Brimstone, ItemBaseTheme::Brimstone, "boss.ashen-crucible"},
         {BossLootTheme::Storm, ItemBaseTheme::Storm, "boss.tempest-bow"},
         {BossLootTheme::Brood, ItemBaseTheme::Brood, "boss.broodscale-band"},
@@ -1999,6 +2000,7 @@ void testItemBaseTypes() {
         {BossLootTheme::Obsidian, ItemBaseTheme::Obsidian, "boss.blackglass-heart"},
         {BossLootTheme::Aether, ItemBaseTheme::Aether, "boss.null-crown"},
         {BossLootTheme::Sable, ItemBaseTheme::Sable, "boss.gravebloom-heart"},
+        {BossLootTheme::Bloodletting, ItemBaseTheme::Bloodletting, "boss.hemorrhage-signet"},
     }};
     for (const auto& [theme, expectedTheme, expectedBaseId] : alternateBossThemes) {
         const Item item = generator.generateBossReward(5, theme, 1);
@@ -2029,6 +2031,7 @@ void testItemBaseTypes() {
     const Item obsidian = generator.generateBossReward(5, BossLootTheme::Obsidian);
     const Item aether = generator.generateBossReward(5, BossLootTheme::Aether);
     const Item sable = generator.generateBossReward(5, BossLootTheme::Sable);
+    const Item bloodletting = generator.generateBossReward(5, BossLootTheme::Bloodletting);
     expect(std::abs(brimstone.stats.damageMultiplier - 1.27f) < 0.0001f
             && std::abs(brimstone.stats.areaDamageMultiplier - 1.14f) < 0.0001f,
         "Brimstone relic preserves its level-scaled combat bonuses");
@@ -2058,6 +2061,11 @@ void testItemBaseTypes() {
     expect(sable.stats.poisonDamageMultiplier > sable.implicitStats.poisonDamageMultiplier
             && sable.stats.areaRadiusMultiplier > sable.implicitStats.areaRadiusMultiplier,
         "Sable relic adds real Poison and Area reach bonuses");
+    expect(bloodletting.stats.physicalDamageMultiplier
+                > bloodletting.implicitStats.physicalDamageMultiplier
+            && bloodletting.stats.bleedDamageMultiplier
+                > bloodletting.implicitStats.bleedDamageMultiplier,
+        "Bloodletting relic adds real Physical and Bleed bonuses");
 }
 
 void testBossRelicEffects() {
@@ -2071,6 +2079,7 @@ void testBossRelicEffects() {
     const auto& obsidian = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Obsidian);
     const auto& aether = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Aether);
     const auto& sable = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Sable);
+    const auto& bloodletting = BossRelicEffectLibrary::forTheme(ItemBaseTheme::Bloodletting);
     const auto& none = BossRelicEffectLibrary::forTheme(ItemBaseTheme::None);
 
     expect(molten.type == BossRelicEffectType::MoltenCore
@@ -2109,6 +2118,10 @@ void testBossRelicEffects() {
             && !sable.name.empty()
             && !sable.description.empty(),
         "Sable relic defines its Poison gravebloom effect");
+    expect(bloodletting.type == BossRelicEffectType::BloodPrice
+            && bloodletting.bleedDamageMultiplier > 1.0f
+            && bloodletting.bleedDurationMultiplier > 1.0f,
+        "Bloodletting relic defines its stronger Bleed effect");
 
     const auto* ashenBase = ItemBaseLibrary::find("boss.ashen-crucible");
     const auto* tempestBase = ItemBaseLibrary::find("boss.tempest-bow");
@@ -2760,6 +2773,27 @@ void testBossSummonDefinitions() {
     expect(finalOrderSummonsRanged,
         "Brood final phase order keeps ranged brood pressure");
 
+    const auto executionerIt = std::find_if(
+        bosses.begin(), bosses.end(),
+        [](const BossDefinition& boss) {
+            return boss.name == "Gorebound Executioner";
+        }
+    );
+    expect(executionerIt != bosses.end()
+            && executionerIt->lootTheme == BossLootTheme::Bloodletting
+            && executionerIt->physicalResistance == 35
+            && executionerIt->bleedResistance == 65,
+        "Gorebound Executioner defines the physical Bleed boss profile");
+    if (executionerIt != bosses.end()) {
+        expect(std::any_of(
+                executionerIt->skills.begin(), executionerIt->skills.end(),
+                [](const BossSkillDefinition& skill) {
+                    return skill.damageType == DamageType::Physical
+                        && skill.ailment.type == AilmentType::Bleed;
+                }),
+            "Gorebound Executioner skills apply Physical Bleed pressure");
+    }
+
     expect(availableBossSummonCount(4, 0, 10) == 4,
         "summon count is unchanged below the population cap");
     expect(availableBossSummonCount(4, 8, 10) == 2,
@@ -2823,8 +2857,8 @@ void testGroundHazardLifecycle() {
             configuredHazards += skill.groundHazard.isValid() ? 1 : 0;
         }
     }
-    expect(configuredHazards == 6,
-        "elemental Boss skills define the current ground hazard set");
+    expect(configuredHazards == 7,
+        "Boss skills define the current ground hazard set");
 }
 
 // --- Boss mobility skills ---

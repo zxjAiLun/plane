@@ -13,7 +13,8 @@ enum class BossRelicEffectType {
     ArchiveCurrent,
     ObsidianFurnace,
     AetherReserve,
-    SableRot
+    SableRot,
+    BloodPrice
 };
 
 struct BossRelicEffectDefinition {
@@ -30,6 +31,8 @@ struct BossRelicEffectDefinition {
     float poisonSpreadMultiplier = 0.0f;
     float chillSpeedMultiplier = 1.0f;
     float chillDurationMultiplier = 1.0f;
+    float bleedDamageMultiplier = 1.0f;
+    float bleedDurationMultiplier = 1.0f;
 };
 
 class BossRelicEffectLibrary {
@@ -118,6 +121,23 @@ public:
             "Sable Rot",
             "Poison skills gain damage and area reach from the gravebloom core"
         };
+        static const BossRelicEffectDefinition bloodPrice{
+            ItemBaseTheme::Bloodletting,
+            BossRelicEffectType::BloodPrice,
+            "Blood Price",
+            "Physical skills deal 25% more Bleed damage and Bleed lasts 20% longer",
+            1.0f,
+            1.0f,
+            0,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            1.0f,
+            1.0f,
+            1.25f,
+            1.20f
+        };
 
         switch (theme) {
             case ItemBaseTheme::Brimstone: return moltenCore;
@@ -128,6 +148,7 @@ public:
             case ItemBaseTheme::Obsidian: return obsidianFurnace;
             case ItemBaseTheme::Aether: return aetherReserve;
             case ItemBaseTheme::Sable: return sableRot;
+            case ItemBaseTheme::Bloodletting: return bloodPrice;
             case ItemBaseTheme::None: break;
         }
         return none;
@@ -221,6 +242,23 @@ public:
                 "Gravebloom Heart",
                 "Poison skills gain stronger damage and wider area reach"
             };
+            static const BossRelicEffectDefinition hemorrhageSignet{
+                ItemBaseTheme::Bloodletting,
+                BossRelicEffectType::BloodPrice,
+                "Hemorrhage Signet",
+                "Physical skills deal 40% more Bleed damage and Bleed lasts 30% longer",
+                1.0f,
+                1.0f,
+                0,
+                0.0f,
+                1.0f,
+                0.0f,
+                0.0f,
+                1.0f,
+                1.0f,
+                1.40f,
+                1.30f
+            };
 
             switch (base.theme) {
                 case ItemBaseTheme::Brimstone: return ashenBloom;
@@ -231,6 +269,7 @@ public:
                 case ItemBaseTheme::Obsidian: return blackglassHeart;
                 case ItemBaseTheme::Aether: return nullCrown;
                 case ItemBaseTheme::Sable: return gravebloomHeart;
+                case ItemBaseTheme::Bloodletting: return hemorrhageSignet;
                 case ItemBaseTheme::None: break;
             }
         }

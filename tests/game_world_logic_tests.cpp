@@ -1016,8 +1016,13 @@ void testBossSpawnUsesMapScaling() {
         data.player.mana = Config::PlayerMaxMana;
         expect(SaveService::save(path, data, &error) && world.loadRun(path),
             "Boss scaling fixture loads map " + std::to_string(mapLevel));
-        expect(world.bossDefinition().name
-                == BossLibrary::forIndex(mapOption.templateIndex).name,
+        const MapInstance expectedMap(
+            mapLevel, mapOption.templateIndex, data.mapLayoutIndex
+        );
+        const int expectedBossIndex = expectedMap.encounterDefinition().bossDefinitionIndex >= 0
+            ? expectedMap.encounterDefinition().bossDefinitionIndex
+            : mapOption.templateIndex;
+        expect(world.bossDefinition().name == BossLibrary::forIndex(expectedBossIndex).name,
             "runtime Boss follows the selected map theme on map "
                 + std::to_string(mapLevel));
 
@@ -3428,6 +3433,9 @@ void testCombinationMapEvents() {
         expect(event != nullptr
                 && event->encounterType == MapEncounterType::BloodlettingPit,
             "map level three Ashen variant uses the Bloodletting Pit encounter");
+        expect(world.bossDefinition().name == "Gorebound Executioner"
+                && world.bossDefinition().physicalResistance == 35,
+            "Bloodletting Pit routes the map Boss to the Gorebound Executioner");
         if (event != nullptr) {
             const Vector2 position = event->position;
             Input input;
