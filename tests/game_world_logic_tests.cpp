@@ -216,6 +216,9 @@ bool statsEqual(const Stats& first, const Stats& second) {
         && std::abs(first.areaDamageMultiplier - second.areaDamageMultiplier) < 0.0001f
         && std::abs(first.areaRadiusMultiplier - second.areaRadiusMultiplier) < 0.0001f
         && std::abs(first.poisonDamageMultiplier - second.poisonDamageMultiplier) < 0.0001f
+        && std::abs(first.maxManaMultiplier - second.maxManaMultiplier) < 0.0001f
+        && std::abs(first.manaRegenMultiplier - second.manaRegenMultiplier) < 0.0001f
+        && std::abs(first.skillCostMultiplier - second.skillCostMultiplier) < 0.0001f
         && first.armor == second.armor
         && first.projectileCountBonus == second.projectileCountBonus
         && std::abs(first.lifeFlaskEffectMultiplier - second.lifeFlaskEffectMultiplier) < 0.0001f
@@ -437,6 +440,33 @@ void testSaveLoadRoundTrip() {
         "load clears transient enemies and returns to safe Playing state");
     expect((original.player().position() - original.map().playerStart()).lengthSquared() < 0.01f,
         "load places the player at the map start");
+
+    std::filesystem::remove(path);
+}
+
+void testResourceStatsSaveLoad() {
+    const auto path = std::filesystem::temp_directory_path() / "plane_fight_resource_save_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld source(7151);
+    SaveData data;
+    std::string error;
+    expect(source.saveRun(path) && SaveService::load(path, data, &error),
+        "resource fixture starts from a valid save");
+    data.player.upgradeStats.maxManaMultiplier = 1.50f;
+    data.player.upgradeStats.manaRegenMultiplier = 1.25f;
+    data.player.upgradeStats.skillCostMultiplier = 0.80f;
+    data.player.mana = 75.0f;
+    expect(SaveService::save(path, data, &error),
+        "resource fixture writes v17 resource stats");
+
+    GameWorld restored(7152);
+    expect(restored.loadRun(path), "resource fixture loads into GameWorld");
+    expect(std::abs(restored.player().maxMana() - 150.0f) < 0.0001f
+            && std::abs(restored.player().manaRegenPerSecond() - 10.0f) < 0.0001f
+            && std::abs(restored.player().mana() - 75.0f) < 0.0001f
+            && std::abs(restored.player().stats().skillCostMultiplier - 0.80f) < 0.0001f,
+        "loaded resource stats affect Mana pool, regeneration, and skill cost");
 
     std::filesystem::remove(path);
 }
@@ -1220,6 +1250,7 @@ void testDelayedSkillEffects() {
         static_cast<int>(std::lround(target.y - camera.y))
     );
 
+    const float manaBeforeCast = world.player().mana();
     input.handleMousePressed(sf::Mouse::Button::Right, screenTarget);
     world.update(0.05f, input);
     expect(world.pendingSkillEffects().size() == 1
@@ -1228,6 +1259,13 @@ void testDelayedSkillEffects() {
             && world.pendingSkillEffects().front().groundHazard.source
                 == "Meteor Burning Ground",
         "Meteor queues a named pending impact instead of resolving immediately");
+    expect(std::abs(manaBeforeCast - world.player().mana()
+            - skillManaCost(
+                SkillLibrary::meteor(),
+                world.player().stats(),
+                world.skillBar().supportDefinitionsFor(SkillLibrary::meteor())
+            )) < 0.0001f,
+        "real Meteor cast consumes the unified effective Mana cost");
     input.handleMouseReleased(sf::Mouse::Button::Right, screenTarget);
 
     for (int frame = 0; frame < 11; ++frame) {
@@ -3381,6 +3419,7 @@ int main() {
     expect(first.runSeed() == 4401, "explicit reset restores a requested run seed");
 
     testSaveLoadRoundTrip();
+    testResourceStatsSaveLoad();
     testCorruptLoadDoesNotMutate();
     testMapCompleteLoad();
     testPauseContextsAndFreeze();

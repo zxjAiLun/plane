@@ -23,6 +23,9 @@ struct Stats {
     // Keep new fields at the end so existing aggregate initializers remain valid.
     float poisonDamageMultiplier = 1.0f;
     int poisonResistance = 0;
+    float maxManaMultiplier = 1.0f;
+    float manaRegenMultiplier = 1.0f;
+    float skillCostMultiplier = 1.0f;
 };
 
 inline Stats combineStats(const Stats& base, const Stats& bonus) {
@@ -48,5 +51,8 @@ inline Stats combineStats(const Stats& base, const Stats& bonus) {
         base.lightningResistance + bonus.lightningResistance,
         base.poisonDamageMultiplier * bonus.poisonDamageMultiplier,
         base.poisonResistance + bonus.poisonResistance,
+        base.maxManaMultiplier * bonus.maxManaMultiplier,
+        base.manaRegenMultiplier * bonus.manaRegenMultiplier,
+        base.skillCostMultiplier * bonus.skillCostMultiplier,
     };
 }

@@ -651,6 +651,10 @@ private:
             {"of Expansion", false, EquipmentSlot::Amulet, AffixStat::AreaRadiusMultiplier, {0.03f, 0.06f, 0.09f}},
             {"Toxic", true, EquipmentSlot::Amulet, AffixStat::PoisonDamageMultiplier, {0.05f, 0.08f, 0.11f}},
             {"of Antidotes", false, EquipmentSlot::Amulet, AffixStat::PoisonResistance, {4.0f, 8.0f, 12.0f}},
+            {"Arcane", true, EquipmentSlot::Ring, AffixStat::MaxManaMultiplier, {0.08f, 0.14f, 0.20f}},
+            {"of Meditation", false, EquipmentSlot::Ring, AffixStat::ManaRegenMultiplier, {0.10f, 0.18f, 0.26f}},
+            {"Arcane", true, EquipmentSlot::Amulet, AffixStat::MaxManaMultiplier, {0.10f, 0.16f, 0.22f}},
+            {"of Meditation", false, EquipmentSlot::Amulet, AffixStat::ManaRegenMultiplier, {0.12f, 0.20f, 0.28f}},
         };
 
         for (auto& affix : pool) {
@@ -667,6 +671,9 @@ private:
     static std::vector<AffixTag> tagsForStat(AffixStat stat) {
         switch (stat) {
             case AffixStat::MaxHp:
+                return {AffixTag::Survival};
+            case AffixStat::MaxManaMultiplier:
+            case AffixStat::ManaRegenMultiplier:
                 return {AffixTag::Survival};
             case AffixStat::DamageMultiplier:
                 return {AffixTag::Damage};
@@ -704,6 +711,8 @@ private:
         int weight = 100;
         switch (affix.stat) {
             case AffixStat::MaxHp: weight = 110; break;
+            case AffixStat::MaxManaMultiplier:
+            case AffixStat::ManaRegenMultiplier: weight = 90; break;
             case AffixStat::DamageMultiplier: weight = 100; break;
             case AffixStat::AttackSpeedMultiplier: weight = 95; break;
             case AffixStat::MoveSpeedMultiplier: weight = 90; break;
@@ -913,6 +922,15 @@ private:
             case AffixStat::PoisonResistance:
                 stats.poisonResistance += static_cast<int>(value);
                 break;
+            case AffixStat::MaxManaMultiplier:
+                stats.maxManaMultiplier += value;
+                break;
+            case AffixStat::ManaRegenMultiplier:
+                stats.manaRegenMultiplier += value;
+                break;
+            case AffixStat::SkillCostMultiplier:
+                stats.skillCostMultiplier += value;
+                break;
         }
         return stats;
     }
@@ -995,6 +1013,18 @@ private:
                     std::max(current.poisonResistance + 1,
                         static_cast<int>(std::ceil(current.poisonResistance * improvementMultiplier))));
                 break;
+            case AffixStat::MaxManaMultiplier:
+                improved.maxManaMultiplier = std::min(cap.maxManaMultiplier,
+                    1.0f + (current.maxManaMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::ManaRegenMultiplier:
+                improved.manaRegenMultiplier = std::min(cap.manaRegenMultiplier,
+                    1.0f + (current.manaRegenMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::SkillCostMultiplier:
+                improved.skillCostMultiplier = std::max(cap.skillCostMultiplier,
+                    1.0f + (current.skillCostMultiplier - 1.0f) * improvementMultiplier);
+                break;
             case AffixStat::None:
                 break;
         }
@@ -1022,7 +1052,10 @@ private:
             && left.coldResistance == right.coldResistance
             && left.lightningResistance == right.lightningResistance
             && std::abs(left.poisonDamageMultiplier - right.poisonDamageMultiplier) < 0.0001f
-            && left.poisonResistance == right.poisonResistance;
+            && left.poisonResistance == right.poisonResistance
+            && std::abs(left.maxManaMultiplier - right.maxManaMultiplier) < 0.0001f
+            && std::abs(left.manaRegenMultiplier - right.manaRegenMultiplier) < 0.0001f
+            && std::abs(left.skillCostMultiplier - right.skillCostMultiplier) < 0.0001f;
     }
 
     static void refreshGeneratedName(Item& item) {

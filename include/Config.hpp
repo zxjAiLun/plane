@@ -130,6 +130,7 @@ namespace Config {
     constexpr float SupportGemRadiusStep = 0.04f;
     constexpr float SupportGemCooldownStep = 0.03f;
     constexpr float SupportGemAilmentStep = 0.06f;
+    constexpr float SupportGemManaCostStep = 0.04f;
     constexpr float CombatFeedbackDuration = 0.8f;
     constexpr int MaxCombatFeedback = 32;
 

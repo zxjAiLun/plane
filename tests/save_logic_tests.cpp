@@ -94,6 +94,9 @@ SaveData sampleData() {
     data.player.upgradeStats.coldDamageMultiplier = 1.08f;
     data.player.upgradeStats.lightningDamageMultiplier = 1.16f;
     data.player.upgradeStats.poisonDamageMultiplier = 1.22f;
+    data.player.upgradeStats.maxManaMultiplier = 1.35f;
+    data.player.upgradeStats.manaRegenMultiplier = 1.20f;
+    data.player.upgradeStats.skillCostMultiplier = 0.88f;
     data.player.upgradeStats.fireResistance = 18;
     data.player.upgradeStats.coldResistance = 24;
     data.player.upgradeStats.lightningResistance = 12;
@@ -176,6 +179,9 @@ void testFileValidation(const std::filesystem::path& path) {
             && std::abs(restored.player.upgradeStats.coldDamageMultiplier - 1.08f) < 0.0001f
             && std::abs(restored.player.upgradeStats.lightningDamageMultiplier - 1.16f) < 0.0001f
             && std::abs(restored.player.upgradeStats.poisonDamageMultiplier - 1.22f) < 0.0001f
+            && std::abs(restored.player.upgradeStats.maxManaMultiplier - 1.35f) < 0.0001f
+            && std::abs(restored.player.upgradeStats.manaRegenMultiplier - 1.20f) < 0.0001f
+            && std::abs(restored.player.upgradeStats.skillCostMultiplier - 0.88f) < 0.0001f
             && restored.player.upgradeStats.fireResistance == 18
             && restored.player.upgradeStats.coldResistance == 24
             && restored.player.upgradeStats.lightningResistance == 12

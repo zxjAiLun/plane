@@ -339,7 +339,7 @@ bool Player::restoreState(const PlayerSaveState& state, const Vector2& bounds) {
     if (!std::isfinite(state.position.x) || !std::isfinite(state.position.y)
         || state.level < 1 || state.exp < 0 || state.expToNextLevel < 1
         || state.talentPoints < 0 || state.hp < 0
-        || !std::isfinite(state.mana) || state.mana < 0.0f || state.mana > maxMana_
+        || !std::isfinite(state.mana) || state.mana < 0.0f
         || !validPositiveMultiplier(state.upgradeStats.moveSpeedMultiplier)
         || !validPositiveMultiplier(state.upgradeStats.damageMultiplier)
         || !validPositiveMultiplier(state.upgradeStats.attackSpeedMultiplier)
@@ -354,6 +354,9 @@ bool Player::restoreState(const PlayerSaveState& state, const Vector2& bounds) {
         || !validPositiveMultiplier(state.upgradeStats.coldDamageMultiplier)
         || !validPositiveMultiplier(state.upgradeStats.lightningDamageMultiplier)
         || !validPositiveMultiplier(state.upgradeStats.poisonDamageMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.maxManaMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.manaRegenMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.skillCostMultiplier)
         || !validResistance(state.upgradeStats.fireResistance)
         || !validResistance(state.upgradeStats.coldResistance)
         || !validResistance(state.upgradeStats.lightningResistance)
@@ -375,8 +378,11 @@ bool Player::restoreState(const PlayerSaveState& state, const Vector2& bounds) {
     restored.exp_ = state.exp;
     restored.expToNextLevel_ = state.expToNextLevel;
     restored.talentPoints_ = state.talentPoints;
-    restored.mana_ = std::clamp(state.mana, 0.0f, restored.maxMana_);
     restored.recalculateStats();
+    if (state.mana > restored.maxMana_) {
+        return false;
+    }
+    restored.mana_ = std::clamp(state.mana, 0.0f, restored.maxMana_);
     if (state.hp > restored.maxHp_) {
         return false;
     }
@@ -390,6 +396,9 @@ void Player::recalculateStats() {
     stats_ = combineStats(upgradeStats_, passiveTree_.combinedStats());
     stats_ = combineStats(stats_, equipment_.combinedStats());
     maxHp_ = Config::PlayerHp + stats_.maxHp;
+    maxMana_ = Config::PlayerMaxMana * stats_.maxManaMultiplier;
+    manaRegenPerSecond_ = Config::PlayerManaRegenPerSecond * stats_.manaRegenMultiplier;
+    mana_ = std::clamp(mana_, 0.0f, maxMana_);
     if (hp_ > maxHp_) {
         hp_ = maxHp_;
     }

@@ -18,5 +18,8 @@ enum class AffixStat {
     ColdResistance,
     LightningResistance,
     PoisonDamageMultiplier,
-    PoisonResistance
+    PoisonResistance,
+    MaxManaMultiplier,
+    ManaRegenMultiplier,
+    SkillCostMultiplier
 };

@@ -50,7 +50,7 @@ sf::Color damageTypeColor(DamageType type) {
 }
 
 int multiplierPercent(float multiplier) {
-    return static_cast<int>((multiplier - 1.0f) * 100.0f + 0.5f);
+    return static_cast<int>(std::lround((multiplier - 1.0f) * 100.0f));
 }
 
 std::string statsSummary(const Stats& stats) {
@@ -73,6 +73,15 @@ std::string statsSummary(const Stats& stats) {
     }
     if (stats.pickupRangeMultiplier != 1.0f) {
         summary += multiplierText(stats.pickupRangeMultiplier) + " PICKUP ";
+    }
+    if (stats.maxManaMultiplier != 1.0f) {
+        summary += multiplierText(stats.maxManaMultiplier) + " MAX MANA ";
+    }
+    if (stats.manaRegenMultiplier != 1.0f) {
+        summary += multiplierText(stats.manaRegenMultiplier) + " MANA REGEN ";
+    }
+    if (stats.skillCostMultiplier != 1.0f) {
+        summary += multiplierText(stats.skillCostMultiplier) + " COST ";
     }
     if (stats.projectileDamageMultiplier != 1.0f) {
         summary += multiplierText(stats.projectileDamageMultiplier) + " PDMG ";
@@ -220,6 +229,9 @@ Stats statsDelta(const Stats& next, const Stats& current) {
         next.lightningResistance - current.lightningResistance,
         next.poisonDamageMultiplier / current.poisonDamageMultiplier,
         next.poisonResistance - current.poisonResistance,
+        next.maxManaMultiplier / current.maxManaMultiplier,
+        next.manaRegenMultiplier / current.manaRegenMultiplier,
+        next.skillCostMultiplier / current.skillCostMultiplier,
     };
 }
 
@@ -243,6 +255,18 @@ std::string statsDeltaSummary(const Stats& delta) {
     if (delta.pickupRangeMultiplier != 1.0f) {
         const int value = multiplierPercent(delta.pickupRangeMultiplier);
         summary += (value > 0 ? "+" : "") + std::to_string(value) + "% PICKUP ";
+    }
+    if (delta.maxManaMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.maxManaMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% MAX MANA ";
+    }
+    if (delta.manaRegenMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.manaRegenMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% MANA REGEN ";
+    }
+    if (delta.skillCostMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.skillCostMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% COST ";
     }
     if (delta.projectileDamageMultiplier != 1.0f) {
         const int value = multiplierPercent(delta.projectileDamageMultiplier);
@@ -316,6 +340,9 @@ sf::Color deltaColor(const Stats& delta) {
         || delta.attackSpeedMultiplier > 1.0f
         || delta.moveSpeedMultiplier > 1.0f
         || delta.pickupRangeMultiplier > 1.0f
+        || delta.maxManaMultiplier > 1.0f
+        || delta.manaRegenMultiplier > 1.0f
+        || delta.skillCostMultiplier < 1.0f
         || delta.projectileDamageMultiplier > 1.0f
         || delta.areaDamageMultiplier > 1.0f
         || delta.areaRadiusMultiplier > 1.0f
@@ -337,6 +364,9 @@ sf::Color deltaColor(const Stats& delta) {
         || delta.attackSpeedMultiplier < 1.0f
         || delta.moveSpeedMultiplier < 1.0f
         || delta.pickupRangeMultiplier < 1.0f
+        || delta.maxManaMultiplier < 1.0f
+        || delta.manaRegenMultiplier < 1.0f
+        || delta.skillCostMultiplier > 1.0f
         || delta.projectileDamageMultiplier < 1.0f
         || delta.areaDamageMultiplier < 1.0f
         || delta.areaRadiusMultiplier < 1.0f
@@ -518,7 +548,7 @@ std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& sta
         + "  Actual " + std::to_string(effectiveSkillDamage(skill, stats, supports))
         + "/" + std::to_string(static_cast<int>(effectiveSkillRadius(skill, stats, supports)))
         + "/" + formatFloat(effectiveSkillCooldown(skill, stats, supports), 2)
-        + "  Mana " + formatFloat(skill.manaCost, 0)
+        + "  Mana " + formatFloat(skillManaCost(skill, stats, supports), 1)
         + "  " + damageTypeName(skill.damageType);
     if (skill.castType == SkillCastType::Projectile) {
         summary += "  Proj " + std::to_string(skillProjectileCount(skill, supports, stats));
@@ -659,6 +689,7 @@ std::string rewardThemeLabel(const MapRewardDefinition& reward) {
                 case SupportKind::Concentration:
                 case SupportKind::Echo:
                 case SupportKind::Pinpoint:
+                case SupportKind::ArcaneEfficiency:
                     break;
             }
         }
@@ -1022,7 +1053,8 @@ void Renderer::render(const GameWorld& world) {
         + "  EXP " + std::to_string(world.player().exp()) + "/" + std::to_string(world.player().expToNextLevel())
         + "  SP " + std::to_string(world.player().talentPoints())
         + "  MANA " + std::to_string(static_cast<int>(std::ceil(world.player().mana())))
-        + "/" + std::to_string(static_cast<int>(std::ceil(world.player().maxMana()))),
+        + "/" + std::to_string(static_cast<int>(std::ceil(world.player().maxMana())))
+        + " +" + formatFloat(world.player().manaRegenPerSecond(), 1) + "/s",
         {16.0f, 36.0f}, 18, sf::Color::White);
     drawText("TIME " + std::to_string(static_cast<int>(world.survivalTime()))
         + "  SCORE " + std::to_string(world.score()),
@@ -2202,7 +2234,11 @@ void Renderer::drawSkillBar(const GameWorld& world) {
         drawText(std::string(keys[i]) + " " + skill.name + " "
             + "Lv" + std::to_string(world.skillLevel(skill.name)) + " "
             + std::to_string(static_cast<int>(progress * 100.0f)) + "%"
-            + " M" + formatFloat(skill.manaCost, 0),
+            + " M" + formatFloat(skillManaCost(
+                skill,
+                world.player().stats(),
+                world.skillBar().supportDefinitionsFor(skill)
+            ), 1),
             {x, y}, 13, color);
         x += 150.0f;
     }

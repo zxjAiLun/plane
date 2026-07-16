@@ -171,9 +171,17 @@ void writeStats(Writer& writer, const Stats& stats) {
     writer.integer(stats.lightningResistance);
     writer.real(stats.poisonDamageMultiplier);
     writer.integer(stats.poisonResistance);
+    writer.real(stats.maxManaMultiplier);
+    writer.real(stats.manaRegenMultiplier);
+    writer.real(stats.skillCostMultiplier);
 }
 
-bool readStats(Reader& reader, Stats& stats, bool hasPoisonFields) {
+bool readStats(
+    Reader& reader,
+    Stats& stats,
+    bool hasPoisonFields,
+    bool hasResourceFields
+) {
     if (!(reader.integer(stats.maxHp)
         && reader.real(stats.moveSpeedMultiplier)
         && reader.real(stats.damageMultiplier)
@@ -199,11 +207,21 @@ bool readStats(Reader& reader, Stats& stats, bool hasPoisonFields) {
     if (!hasPoisonFields) {
         stats.poisonDamageMultiplier = 1.0f;
         stats.poisonResistance = 0;
+    } else if (!reader.real(stats.poisonDamageMultiplier)
+        || !reader.integer(stats.poisonResistance)) {
+        return false;
+    }
+
+    if (!hasResourceFields) {
+        stats.maxManaMultiplier = 1.0f;
+        stats.manaRegenMultiplier = 1.0f;
+        stats.skillCostMultiplier = 1.0f;
         return true;
     }
 
-    return reader.real(stats.poisonDamageMultiplier)
-        && reader.integer(stats.poisonResistance);
+    return reader.real(stats.maxManaMultiplier)
+        && reader.real(stats.manaRegenMultiplier)
+        && reader.real(stats.skillCostMultiplier);
 }
 
 void writeVector2(Writer& writer, const Vector2& position) {
@@ -239,7 +257,12 @@ void writeItem(Writer& writer, const Item& item) {
     writeStats(writer, item.implicitStats);
 }
 
-bool readItem(Reader& reader, Item& item, bool hasPoisonFields) {
+bool readItem(
+    Reader& reader,
+    Item& item,
+    bool hasPoisonFields,
+    bool hasResourceFields
+) {
     int slot = 0;
     int rarity = 0;
     std::uint32_t affixCount = 0;
@@ -248,7 +271,7 @@ bool readItem(Reader& reader, Item& item, bool hasPoisonFields) {
         || !reader.integer(rarity)
         || !validEnumValue(slot, 0, static_cast<int>(EquipmentSlot::Count) - 1)
         || !validEnumValue(rarity, 0, static_cast<int>(Rarity::Unique))
-        || !readStats(reader, item.stats, hasPoisonFields)
+        || !readStats(reader, item.stats, hasPoisonFields, hasResourceFields)
         || !reader.integer(item.itemLevel)
         || item.itemLevel < 1
         || !reader.integer(affixCount)
@@ -267,7 +290,7 @@ bool readItem(Reader& reader, Item& item, bool hasPoisonFields) {
         if (!reader.string(affix.name)
             || !reader.integer(affix.tier)
             || affix.tier < 1
-            || !readStats(reader, affix.stats, hasPoisonFields)
+            || !readStats(reader, affix.stats, hasPoisonFields, hasResourceFields)
             || !reader.integer(tagCount)
             || tagCount > MaxVectorLength) {
             return false;
@@ -284,7 +307,7 @@ bool readItem(Reader& reader, Item& item, bool hasPoisonFields) {
         }
         if (!reader.string(affix.id)
             || !reader.integer(stat)
-            || !validEnumValue(stat, 0, static_cast<int>(AffixStat::PoisonResistance))
+            || !validEnumValue(stat, 0, static_cast<int>(AffixStat::SkillCostMultiplier))
             || !reader.boolean(affix.isPrefix)) {
             return false;
         }
@@ -294,7 +317,7 @@ bool readItem(Reader& reader, Item& item, bool hasPoisonFields) {
 
     return reader.string(item.baseId)
         && reader.string(item.baseName)
-        && readStats(reader, item.implicitStats, hasPoisonFields);
+        && readStats(reader, item.implicitStats, hasPoisonFields, hasResourceFields);
 }
 
 void writePlayerState(Writer& writer, const PlayerSaveState& state) {
@@ -321,6 +344,7 @@ bool readPlayerState(
     Reader& reader,
     PlayerSaveState& state,
     bool hasPoisonFields,
+    bool hasResourceFields,
     std::size_t passiveNodeCount
 ) {
     if (!readVector2(reader, state.position)
@@ -330,7 +354,7 @@ bool readPlayerState(
         || !reader.integer(state.exp)
         || !reader.integer(state.expToNextLevel)
         || !reader.integer(state.talentPoints)
-        || !readStats(reader, state.upgradeStats, hasPoisonFields)) {
+        || !readStats(reader, state.upgradeStats, hasPoisonFields, hasResourceFields)) {
         return false;
     }
     state.allocatedPassiveNodes.fill(false);
@@ -350,7 +374,7 @@ bool readPlayerState(
         item.reset();
         if (present) {
             item.emplace();
-            if (!readItem(reader, *item, hasPoisonFields)) {
+            if (!readItem(reader, *item, hasPoisonFields, hasResourceFields)) {
                 return false;
             }
         }
@@ -853,6 +877,7 @@ bool readSaveData(
     bool hasElementalChallengeFields,
     bool hasItemRarityFields,
     bool hasPoisonFields,
+    bool hasResourceFields,
     std::size_t passiveNodeCount,
     bool hasGemProgression,
     bool hasFieldPackProgress,
@@ -940,7 +965,9 @@ bool readSaveData(
                 || !readLevelMap(reader, data.supportLevels)))
         || !reader.real(data.itemQuantityRewardMultiplier)
         || !reader.integer(data.forgeFragments)
-        || !readPlayerState(reader, data.player, hasPoisonFields, passiveNodeCount)
+        || !readPlayerState(
+            reader, data.player, hasPoisonFields, hasResourceFields, passiveNodeCount
+        )
         || !readSkillBarState(reader, data.skillBar)) {
         return false;
     }
@@ -958,7 +985,7 @@ bool readSaveData(
     data.inventory.reserve(count);
     for (std::uint32_t index = 0; index < count; ++index) {
         Item item;
-        if (!readItem(reader, item, hasPoisonFields)) {
+        if (!readItem(reader, item, hasPoisonFields, hasResourceFields)) {
             return false;
         }
         data.inventory.push_back(std::move(item));
@@ -970,7 +997,7 @@ bool readSaveData(
     data.stash.reserve(count);
     for (std::uint32_t index = 0; index < count; ++index) {
         Item item;
-        if (!readItem(reader, item, hasPoisonFields)) {
+        if (!readItem(reader, item, hasPoisonFields, hasResourceFields)) {
             return false;
         }
         data.stash.push_back(std::move(item));
@@ -1011,7 +1038,7 @@ bool readSaveData(
     for (std::uint32_t index = 0; index < count; ++index) {
         SavedDroppedItem dropped;
         if (!readVector2(reader, dropped.position)
-            || !readItem(reader, dropped.item, hasPoisonFields)) {
+            || !readItem(reader, dropped.item, hasPoisonFields, hasResourceFields)) {
             return false;
         }
         data.droppedItems.push_back(std::move(dropped));
@@ -1138,6 +1165,7 @@ bool SaveService::load(const std::filesystem::path& path,
             && version != 9U && version != 10U && version != 11U
             && version != 12U && version != 13U && version != 14U
             && version != 15U
+            && version != 16U
             && version != SaveData::Version)
         || payloadLength != file.remaining()) {
         setError(error, "invalid save header");
@@ -1158,6 +1186,7 @@ bool SaveService::load(const std::filesystem::path& path,
             version >= 4U,
             version >= 11U,
             version >= 5U,
+            version >= 17U,
             version >= 6U ? PassiveTree::NodeCount : PassiveTree::LegacyNodeCount,
             version >= 7U,
             version >= 8U,

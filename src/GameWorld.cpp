@@ -144,6 +144,9 @@ bool validStatsForRestore(const Stats& stats) {
         && positiveFinite(stats.coldDamageMultiplier)
         && positiveFinite(stats.lightningDamageMultiplier)
         && positiveFinite(stats.poisonDamageMultiplier)
+        && positiveFinite(stats.maxManaMultiplier)
+        && positiveFinite(stats.manaRegenMultiplier)
+        && positiveFinite(stats.skillCostMultiplier)
         && validResistance(stats.fireResistance)
         && validResistance(stats.coldResistance)
         && validResistance(stats.lightningResistance)
@@ -171,6 +174,9 @@ bool statsMatchForRestore(const Stats& left, const Stats& right) {
         && close(left.coldDamageMultiplier, right.coldDamageMultiplier)
         && close(left.lightningDamageMultiplier, right.lightningDamageMultiplier)
         && close(left.poisonDamageMultiplier, right.poisonDamageMultiplier)
+        && close(left.maxManaMultiplier, right.maxManaMultiplier)
+        && close(left.manaRegenMultiplier, right.manaRegenMultiplier)
+        && close(left.skillCostMultiplier, right.skillCostMultiplier)
         && left.fireResistance == right.fireResistance
         && left.coldResistance == right.coldResistance
         && left.lightningResistance == right.lightningResistance
@@ -211,7 +217,7 @@ bool validItemForRestore(const Item& item) {
     for (const auto& affix : item.affixes) {
         if (affix.tier < 1
             || static_cast<int>(affix.stat) < 0
-            || static_cast<int>(affix.stat) > static_cast<int>(AffixStat::PoisonResistance)
+            || static_cast<int>(affix.stat) > static_cast<int>(AffixStat::SkillCostMultiplier)
             || !validStatsForRestore(affix.stats)) {
             return false;
         }
@@ -3100,19 +3106,21 @@ void GameWorld::tryCastPrimarySkill(Input& input) {
 
 bool GameWorld::tryStartPlayerSkill(SkillSlot slot) {
     const auto& skill = skillBar_.definition(slot);
+    const auto supports = skillBar_.supportDefinitionsFor(skill);
+    const float manaCost = skillManaCost(skill, player_.stats(), supports);
     if (!skillBar_.canCast(slot)) {
         addSkillRejectedFeedback("Skill cooling down: " + skill.name);
         return false;
     }
 
-    if (!player_.canSpendMana(skill.manaCost)) {
+    if (!player_.canSpendMana(manaCost)) {
         addSkillRejectedFeedback("Not enough Mana: " + skill.name);
         return false;
     }
 
     // SkillBar has no Player dependency. Keep resource ownership in Player,
     // but consume both gates here so insufficient Mana cannot start cooldown.
-    if (!player_.spendMana(skill.manaCost)) {
+    if (!player_.spendMana(manaCost)) {
         addSkillRejectedFeedback("Not enough Mana: " + skill.name);
         return false;
     }

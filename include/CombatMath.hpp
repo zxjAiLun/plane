@@ -223,6 +223,28 @@ inline float skillCooldown(
     return cooldown;
 }
 
+inline float skillManaCost(
+    const SkillDefinition& skill,
+    const Stats& stats,
+    const SupportList& supports
+) {
+    float cost = skill.manaCost * stats.skillCostMultiplier;
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            cost *= support->manaCostMultiplier;
+        }
+    }
+    return std::max(0.0f, cost);
+}
+
+inline float skillManaCost(
+    const SkillDefinition& skill,
+    const Stats& stats,
+    const SupportDefinition* support
+) {
+    return skillManaCost(skill, stats, SupportList{support, nullptr});
+}
+
 inline float skillCooldown(
     const SkillDefinition& skill,
     const Stats& stats,

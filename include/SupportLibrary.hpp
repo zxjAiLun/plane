@@ -21,7 +21,8 @@ enum class SupportKind {
     Echo,
     Pinpoint,
     Toxicity,
-    Contagion
+    Contagion,
+    ArcaneEfficiency
 };
 
 struct SupportDefinition {
@@ -48,6 +49,7 @@ struct SupportDefinition {
     int poisonPenetration = 0;
     float poisonSpreadRadius = 0.0f;
     float poisonSpreadMultiplier = 0.0f;
+    float manaCostMultiplier = 1.0f;
 };
 
 inline constexpr std::size_t SupportLinkCount = 2;
@@ -147,6 +149,16 @@ public:
                 120.0f,
                 0.45f
             },
+            [] {
+                SupportDefinition support;
+                support.kind = SupportKind::ArcaneEfficiency;
+                support.name = "Arcane Efficiency";
+                support.description = "-25% Mana cost, +10% cooldown, -10% damage";
+                support.damageMultiplier = 0.90f;
+                support.cooldownMultiplier = 1.10f;
+                support.manaCostMultiplier = 0.75f;
+                return support;
+            }(),
         };
         return supports;
     }
@@ -193,6 +205,8 @@ public:
                     || skill.castType == SkillCastType::MouseTargetedArea;
             case SupportKind::Pinpoint:
                 return skill.castType == SkillCastType::Projectile;
+            case SupportKind::ArcaneEfficiency:
+                return skill.castType != SkillCastType::Dash;
         }
 
         return false;

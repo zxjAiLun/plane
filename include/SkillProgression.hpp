@@ -72,6 +72,9 @@ inline SupportDefinition supportAtLevel(const SupportDefinition& base, int level
     result.cooldownMultiplier = reduceMultiplier(
         result.cooldownMultiplier, clampedLevel, Config::SupportGemCooldownStep
     );
+    result.manaCostMultiplier = reduceMultiplier(
+        result.manaCostMultiplier, clampedLevel, Config::SupportGemManaCostStep
+    );
     result.ailmentDamageMultiplier = improveMultiplier(
         result.ailmentDamageMultiplier, clampedLevel, Config::SupportGemAilmentStep
     );

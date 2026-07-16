@@ -149,7 +149,10 @@ bool statsEqual(const Stats& lhs, const Stats& rhs) {
         && std::abs(lhs.itemQuantityMultiplier - rhs.itemQuantityMultiplier) < 0.0001f
         && std::abs(lhs.incomingDamageMultiplier - rhs.incomingDamageMultiplier) < 0.0001f
         && std::abs(lhs.poisonDamageMultiplier - rhs.poisonDamageMultiplier) < 0.0001f
-        && lhs.poisonResistance == rhs.poisonResistance;
+        && lhs.poisonResistance == rhs.poisonResistance
+        && std::abs(lhs.maxManaMultiplier - rhs.maxManaMultiplier) < 0.0001f
+        && std::abs(lhs.manaRegenMultiplier - rhs.manaRegenMultiplier) < 0.0001f
+        && std::abs(lhs.skillCostMultiplier - rhs.skillCostMultiplier) < 0.0001f;
 }
 
 void section(const std::string& title) {
@@ -425,6 +428,16 @@ void testManaResourceAndSkillCastGates() {
     expect(std::abs(player.mana() - player.maxMana()) < 0.0001f,
         "Mana regeneration clamps at max Mana");
 
+    Stats resourceStats;
+    resourceStats.maxManaMultiplier = 1.50f;
+    resourceStats.manaRegenMultiplier = 1.25f;
+    resourceStats.skillCostMultiplier = 0.80f;
+    const Stats combinedResourceStats = combineStats(Stats{}, resourceStats);
+    expect(std::abs(combinedResourceStats.maxManaMultiplier - 1.50f) < 0.0001f
+            && std::abs(combinedResourceStats.manaRegenMultiplier - 1.25f) < 0.0001f
+            && std::abs(combinedResourceStats.skillCostMultiplier - 0.80f) < 0.0001f,
+        "resource Stats combine multiplicatively");
+
     const auto& skills = SkillLibrary::all();
     expect(skills.size() == 13, "skill library exposes all thirteen Mana-aware skills");
     const auto& primary = SkillLibrary::spreadShot();
@@ -440,6 +453,21 @@ void testManaResourceAndSkillCastGates() {
     expect(secondary.manaCost > 0.0f && utility.manaCost > 0.0f,
         "Secondary and Utility skills have positive Mana costs");
     expect(movement.manaCost == 0.0f, "Dash has zero Mana cost");
+    const auto* arcaneEfficiency = SupportLibrary::find("Arcane Efficiency");
+    expect(arcaneEfficiency != nullptr
+            && SupportLibrary::supportsSkill(*arcaneEfficiency, secondary)
+            && !SupportLibrary::supportsSkill(*arcaneEfficiency, movement),
+        "Arcane Efficiency supports active skills but not Dash");
+    if (arcaneEfficiency != nullptr) {
+        const float baseCost = skillManaCost(secondary, resourceStats, nullptr);
+        const float supportedCost = skillManaCost(secondary, resourceStats, arcaneEfficiency);
+        expect(supportedCost < baseCost
+                && skillCooldown(secondary, resourceStats, arcaneEfficiency) > secondary.cooldown,
+            "Arcane Efficiency trades lower Mana cost for higher cooldown");
+        const auto leveled = SkillProgression::supportAtLevel(*arcaneEfficiency, 5);
+        expect(leveled.manaCostMultiplier < arcaneEfficiency->manaCostMultiplier,
+            "support gem levels reduce Arcane Efficiency Mana cost");
+    }
     expect(std::abs(arcBolt.manaCost - 2.0f) < 0.0001f
             && std::abs(shockwave.manaCost - 6.0f) < 0.0001f,
         "Arc Bolt and Shockwave expose their fixed Mana costs");
@@ -1781,6 +1809,8 @@ void testAffixTagsAndWeights() {
         };
         switch (affix.stat) {
             case AffixStat::MaxHp:
+            case AffixStat::MaxManaMultiplier:
+            case AffixStat::ManaRegenMultiplier:
                 expect(hasTag(AffixTag::Survival), affix.name + " maps MaxHp to Survival");
                 break;
             case AffixStat::DamageMultiplier:
@@ -1855,6 +1885,32 @@ void testAffixTagsAndWeights() {
     );
     expect(projectileIt != affixes.end() && armorIt != affixes.end(),
         "bias test finds projectile and armor affixes");
+
+    const auto maxManaIt = std::find_if(
+        affixes.begin(), affixes.end(),
+        [](const AffixDefinition& affix) {
+            return affix.stat == AffixStat::MaxManaMultiplier;
+        }
+    );
+    const auto manaRegenIt = std::find_if(
+        affixes.begin(), affixes.end(),
+        [](const AffixDefinition& affix) {
+            return affix.stat == AffixStat::ManaRegenMultiplier;
+        }
+    );
+    expect(maxManaIt != affixes.end() && manaRegenIt != affixes.end(),
+        "affix library exposes Max Mana and Mana Regen definitions");
+    if (maxManaIt != affixes.end() && manaRegenIt != affixes.end()) {
+        const Stats maxManaContribution = LootGenerator::contributionFor(
+            maxManaIt->id, 5, 3
+        );
+        const Stats manaRegenContribution = LootGenerator::contributionFor(
+            manaRegenIt->id, 5, 3
+        );
+        expect(maxManaContribution.maxManaMultiplier > 1.0f
+                && manaRegenContribution.manaRegenMultiplier > 1.0f,
+            "resource affixes produce real resource contributions");
+    }
     if (projectileIt != affixes.end() && armorIt != affixes.end()) {
         const LootBias projectileBias{AffixTag::Projectile, 1.5f, AffixTag::None, 1.0f};
         const LootBias noBias{};
