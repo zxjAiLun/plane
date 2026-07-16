@@ -27,6 +27,7 @@ enum class ItemBuildTheme {
     Area,
     Survival,
     Loot,
+    Mana,
     Fire,
     Cold,
     Lightning,
@@ -40,6 +41,7 @@ inline const char* itemBuildThemeName(ItemBuildTheme theme) {
         case ItemBuildTheme::Area: return "Area";
         case ItemBuildTheme::Survival: return "Survival";
         case ItemBuildTheme::Loot: return "Loot";
+        case ItemBuildTheme::Mana: return "Mana";
         case ItemBuildTheme::Fire: return "Fire";
         case ItemBuildTheme::Cold: return "Cold";
         case ItemBuildTheme::Lightning: return "Lightning";
@@ -109,7 +111,10 @@ private:
         int armor = 0,
         float itemQuantityMultiplier = 1.0f,
         float poisonDamageMultiplier = 1.0f,
-        float coldDamageMultiplier = 1.0f
+        float coldDamageMultiplier = 1.0f,
+        float maxManaMultiplier = 1.0f,
+        float manaRegenMultiplier = 1.0f,
+        float skillCostMultiplier = 1.0f
     ) {
         Stats stats;
         stats.maxHp = maxHp;
@@ -124,6 +129,9 @@ private:
         stats.itemQuantityMultiplier = itemQuantityMultiplier;
         stats.poisonDamageMultiplier = poisonDamageMultiplier;
         stats.coldDamageMultiplier = coldDamageMultiplier;
+        stats.maxManaMultiplier = maxManaMultiplier;
+        stats.manaRegenMultiplier = manaRegenMultiplier;
+        stats.skillCostMultiplier = skillCostMultiplier;
         return stats;
     }
 
@@ -139,6 +147,10 @@ private:
             {"weapon.warhammer", "Warhammer", EquipmentSlot::Weapon,
                 makeStats(0, 1.0f, 1.0f, 0.96f, 1.0f, 1.0f, 1.06f), ItemBaseKind::Normal, ItemBaseTheme::None, 3,
                     ItemBuildTheme::Area},
+            {"weapon.aether-staff", "Aether Staff", EquipmentSlot::Weapon,
+                makeStats(0, 1.0f, 0.98f, 0.94f, 1.0f, 1.0f, 1.0f, 1.0f,
+                    0, 1.0f, 1.0f, 1.0f, 1.10f, 1.08f, 0.96f),
+                ItemBaseKind::Normal, ItemBaseTheme::None, 3, ItemBuildTheme::Mana},
 
             // Armor bases: trade life, armor and movement.
             {"armor.iron-vest", "Iron Vest", EquipmentSlot::Armor,
@@ -150,6 +162,10 @@ private:
             {"armor.windweave", "Windweave", EquipmentSlot::Armor,
                 makeStats(2, 1.05f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1, 1.05f),
                     ItemBaseKind::Normal, ItemBaseTheme::None, 2, ItemBuildTheme::Loot},
+            {"armor.sageweave", "Sageweave", EquipmentSlot::Armor,
+                makeStats(3, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1,
+                    1.0f, 1.0f, 1.0f, 1.12f, 1.15f),
+                ItemBaseKind::Normal, ItemBaseTheme::None, 3, ItemBuildTheme::Mana},
 
             // Ring bases: general damage, attack speed or pickup range.
             {"ring.cinder-band", "Cinder Band", EquipmentSlot::Ring,
@@ -161,6 +177,10 @@ private:
             {"ring.scavenger-loop", "Scavenger Loop", EquipmentSlot::Ring,
                 makeStats(0, 1.0f, 1.0f, 1.0f, 1.12f), ItemBaseKind::Normal, ItemBaseTheme::None, 3,
                     ItemBuildTheme::Loot},
+            {"ring.aether-loop", "Aether Loop", EquipmentSlot::Ring,
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                    0, 1.0f, 1.0f, 1.0f, 1.15f, 1.10f, 0.95f),
+                ItemBaseKind::Normal, ItemBaseTheme::None, 3, ItemBuildTheme::Mana},
 
             // Amulet bases: life, area damage or area radius.
             {"amulet.ironheart-pendant", "Ironheart Pendant", EquipmentSlot::Amulet,
@@ -172,6 +192,10 @@ private:
             {"amulet.wide-eyed-talisman", "Wide-Eyed Talisman", EquipmentSlot::Amulet,
                 makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.08f), ItemBaseKind::Normal, ItemBaseTheme::None, 3,
                     ItemBuildTheme::Area},
+            {"amulet.sage-codex", "Sage Codex", EquipmentSlot::Amulet,
+                makeStats(0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                    0, 1.0f, 1.0f, 1.0f, 1.20f, 1.12f, 0.92f),
+                ItemBaseKind::Normal, ItemBaseTheme::None, 4, ItemBuildTheme::Mana},
 
             // Boss relic bases keep a stable theme identity while their affix
             // contributions continue to scale with item level.

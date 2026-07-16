@@ -1552,6 +1552,10 @@ void testItemBaseTypes() {
     const auto* hunterBow = ItemBaseLibrary::find("weapon.hunter-bow");
     const auto* warhammer = ItemBaseLibrary::find("weapon.warhammer");
     const auto* windweave = ItemBaseLibrary::find("armor.windweave");
+    const auto* aetherStaff = ItemBaseLibrary::find("weapon.aether-staff");
+    const auto* sageweave = ItemBaseLibrary::find("armor.sageweave");
+    const auto* aetherLoop = ItemBaseLibrary::find("ring.aether-loop");
+    const auto* sageCodex = ItemBaseLibrary::find("amulet.sage-codex");
     const auto* brimstoneBase = ItemBaseLibrary::find("boss.brimstone-brand");
     const auto* stormBase = ItemBaseLibrary::find("boss.storm-signet");
     const auto* broodBase = ItemBaseLibrary::find("boss.brood-talisman");
@@ -1565,6 +1569,18 @@ void testItemBaseTypes() {
     expect(windweave != nullptr && windweave->buildTheme == ItemBuildTheme::Loot
             && windweave->implicitStats.itemQuantityMultiplier > 1.0f,
         "Loot Item Base theme carries item quantity implicit scaling");
+    expect(aetherStaff != nullptr && aetherStaff->buildTheme == ItemBuildTheme::Mana
+            && aetherStaff->implicitStats.maxManaMultiplier > 1.0f
+            && aetherStaff->implicitStats.skillCostMultiplier < 1.0f,
+        "Mana weapon Base trades damage and attack speed for lower skill cost");
+    expect(sageweave != nullptr && sageweave->buildTheme == ItemBuildTheme::Mana
+            && sageweave->implicitStats.maxManaMultiplier > 1.0f
+            && sageweave->implicitStats.manaRegenMultiplier > 1.0f,
+        "Mana armor Base supplies maximum Mana and regeneration");
+    expect(aetherLoop != nullptr && sageCodex != nullptr
+            && aetherLoop->implicitStats.maxManaMultiplier > 1.0f
+            && sageCodex->implicitStats.skillCostMultiplier < aetherLoop->implicitStats.skillCostMultiplier,
+        "Mana ring and amulet Bases offer different resource tradeoffs");
     expect(brimstoneBase != nullptr && brimstoneBase->buildTheme == ItemBuildTheme::Fire,
         "Brimstone relic Base is tagged for a Fire build");
     expect(stormBase != nullptr && stormBase->buildTheme == ItemBuildTheme::Lightning,
