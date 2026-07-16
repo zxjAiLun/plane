@@ -103,18 +103,23 @@ LootBias mapDropLootBias(
 ) {
     LootBias result = modifier.lootBias();
     const LootBias& themeBias = mapTemplate.signatureLootBias;
-    if (themeBias.primaryTag == AffixTag::None) {
+    if (themeBias.primaryTag == AffixTag::None
+        && themeBias.baseTheme == ItemBuildTheme::General) {
         return result;
     }
 
-    if (result.primaryTag == themeBias.primaryTag) {
+    if (themeBias.primaryTag != AffixTag::None
+        && result.primaryTag == themeBias.primaryTag) {
         result.primaryWeightMultiplier *= themeBias.primaryWeightMultiplier;
-    } else if (result.secondaryTag == themeBias.primaryTag) {
+    } else if (themeBias.primaryTag != AffixTag::None
+        && result.secondaryTag == themeBias.primaryTag) {
         result.secondaryWeightMultiplier *= themeBias.primaryWeightMultiplier;
-    } else if (result.primaryTag == AffixTag::None) {
+    } else if (themeBias.primaryTag != AffixTag::None
+        && result.primaryTag == AffixTag::None) {
         result.primaryTag = themeBias.primaryTag;
         result.primaryWeightMultiplier = themeBias.primaryWeightMultiplier;
-    } else {
+    } else if (themeBias.primaryTag != AffixTag::None
+        && result.secondaryTag == AffixTag::None) {
         result.secondaryTag = themeBias.primaryTag;
         result.secondaryWeightMultiplier = themeBias.primaryWeightMultiplier;
     }

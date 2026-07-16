@@ -1647,6 +1647,38 @@ void testItemBaseTypes() {
     expect(weightedManaBases > unweightedManaBases,
         "loot base bias increases the real frequency of its build theme");
 
+    const auto hasManaAffix = [](const Item& item) {
+        return std::any_of(item.affixes.begin(), item.affixes.end(), [](const ItemAffix& affix) {
+            return affix.stats.maxManaMultiplier > 1.0f
+                || affix.stats.manaRegenMultiplier > 1.0f;
+        });
+    };
+    RandomService unweightedManaAffixRandom(8012);
+    RandomService weightedManaAffixRandom(8012);
+    int unweightedManaAffixBases = 0;
+    int weightedManaAffixBases = 0;
+    int unweightedManaAffixes = 0;
+    int weightedManaAffixes = 0;
+    for (int roll = 0; roll < 512; ++roll) {
+        const Item unweighted = generator.generate(3, unweightedManaAffixRandom);
+        const Item weighted = generator.generate(3, weightedManaAffixRandom, 1.0f, manaBaseBias);
+        const auto* unweightedBase = ItemBaseLibrary::find(unweighted.baseId);
+        const auto* weightedBase = ItemBaseLibrary::find(weighted.baseId);
+        if (unweightedBase != nullptr && unweightedBase->buildTheme == ItemBuildTheme::Mana) {
+            ++unweightedManaAffixBases;
+            unweightedManaAffixes += hasManaAffix(unweighted);
+        }
+        if (weightedBase != nullptr && weightedBase->buildTheme == ItemBuildTheme::Mana) {
+            ++weightedManaAffixBases;
+            weightedManaAffixes += hasManaAffix(weighted);
+        }
+    }
+    expect(weightedManaAffixBases > 0 && unweightedManaAffixBases > 0,
+        "Mana theme regression has comparable generated base samples");
+    expect(weightedManaAffixes * unweightedManaAffixBases
+            > unweightedManaAffixes * weightedManaAffixBases,
+        "selected Mana bases softly prefer Mana affixes");
+
     const std::array<std::pair<BossLootTheme, std::string>, 6> bossThemes{{
         {BossLootTheme::Brimstone, "boss.brimstone-brand"},
         {BossLootTheme::Storm, "boss.storm-signet"},

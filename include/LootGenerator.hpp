@@ -49,7 +49,9 @@ public:
         item.itemLevel = monsterLevel;
         item.slot = randomSlot(random);
         item.rarity = randomRarity(monsterLevel, random, rarityMultiplier);
-        applyBase(item, randomBaseFor(item.slot, random, bias));
+        const ItemBaseDefinition& base = randomBaseFor(item.slot, random, bias);
+        applyBase(item, base);
+        const LootBias affixBias = withBaseThemeAffixBias(bias, base.buildTheme);
 
         const int affixCount = affixCountFor(item.rarity);
         const int tier = tierForLevel(monsterLevel) + 1;
@@ -59,7 +61,7 @@ public:
         std::set<AffixStat> usedStats;
         for (int i = 0; i < affixCount; ++i) {
             const AffixDefinition& affix = randomAffixFor(
-                item.slot, usedIndices, usedStats, bias, random
+                item.slot, usedIndices, usedStats, affixBias, random
             );
             const Stats contribution = affixStatsFor(affix, monsterLevel);
             item.stats = combineStats(item.stats, contribution);
@@ -495,6 +497,47 @@ private:
         item.slot = base.slot;
         item.implicitStats = base.implicitStats;
         item.stats = item.implicitStats;
+    }
+
+    static AffixTag affixTagForBuildTheme(ItemBuildTheme theme) {
+        switch (theme) {
+            case ItemBuildTheme::Projectile: return AffixTag::Projectile;
+            case ItemBuildTheme::Area: return AffixTag::Area;
+            case ItemBuildTheme::Survival:
+            case ItemBuildTheme::Mana: return AffixTag::Survival;
+            case ItemBuildTheme::Loot: return AffixTag::Pickup;
+            case ItemBuildTheme::Fire: return AffixTag::Fire;
+            case ItemBuildTheme::Cold: return AffixTag::Cold;
+            case ItemBuildTheme::Lightning: return AffixTag::Lightning;
+            case ItemBuildTheme::Poison: return AffixTag::Poison;
+            case ItemBuildTheme::General: break;
+        }
+        return AffixTag::None;
+    }
+
+    static LootBias withBaseThemeAffixBias(
+        const LootBias& bias,
+        ItemBuildTheme theme
+    ) {
+        LootBias result = bias;
+        const AffixTag tag = affixTagForBuildTheme(theme);
+        constexpr float baseThemeAffixWeightMultiplier = 1.35f;
+        if (tag == AffixTag::None) {
+            return result;
+        }
+
+        if (result.primaryTag == tag) {
+            result.primaryWeightMultiplier *= baseThemeAffixWeightMultiplier;
+        } else if (result.secondaryTag == tag) {
+            result.secondaryWeightMultiplier *= baseThemeAffixWeightMultiplier;
+        } else if (result.primaryTag == AffixTag::None) {
+            result.primaryTag = tag;
+            result.primaryWeightMultiplier = baseThemeAffixWeightMultiplier;
+        } else if (result.secondaryTag == AffixTag::None) {
+            result.secondaryTag = tag;
+            result.secondaryWeightMultiplier = baseThemeAffixWeightMultiplier;
+        }
+        return result;
     }
 
     static const ItemBaseDefinition& randomBaseFor(
