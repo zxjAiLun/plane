@@ -469,6 +469,7 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , selectedSupportLink_(0)
     , craftingState_()
     , hoveredPassiveNode_(-1)
+    , hoveredSkillIndex_(-1)
     , nearbyEventPrompt_()
     , shrineBuffTimer_(0.0f)
     , guardBuffTimer_(0.0f)
@@ -672,6 +673,7 @@ void GameWorld::handleEscape() {
 
     if (skillPanelOpen_) {
         skillPanelOpen_ = false;
+        hoveredSkillIndex_ = -1;
         return;
     }
 
@@ -1153,6 +1155,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     selectedSupportLink_ = 0;
     craftingState_ = CraftingState();
     hoveredPassiveNode_ = -1;
+    hoveredSkillIndex_ = -1;
     nearbyEventPrompt_.clear();
     inventoryFullTimer_ = 0.0f;
     selectedInventoryIndex_ = -1;
@@ -1175,6 +1178,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
         passiveTreeOpen_ = !passiveTreeOpen_;
         if (passiveTreeOpen_) {
             skillPanelOpen_ = false;
+            hoveredSkillIndex_ = -1;
         }
     }
 
@@ -1183,6 +1187,9 @@ void GameWorld::updatePlaying(float dt, Input& input) {
         if (skillPanelOpen_) {
             passiveTreeOpen_ = false;
             hoveredPassiveNode_ = -1;
+        }
+        if (!skillPanelOpen_) {
+            hoveredSkillIndex_ = -1;
         }
         selectedSupportLink_ = 0;
     }
@@ -1256,14 +1263,17 @@ void GameWorld::updatePlaying(float dt, Input& input) {
             tryCraftSelectedItem(input);
         }
     } else if (passiveTreeOpen_) {
+        hoveredSkillIndex_ = -1;
         updatePassiveTreeHover(input);
         trySpendPassivePoint(input);
     } else if (skillPanelOpen_) {
         hoveredPassiveNode_ = -1;
+        updateSkillPanelHover(input);
         tryAssignSkill(input);
         tryCycleSkillSupport(input);
     } else {
         hoveredPassiveNode_ = -1;
+        hoveredSkillIndex_ = -1;
         tryCastMovementSkill(input);
         tryCastUtilitySkill(input);
         tryCastSecondarySkill(input);
@@ -1436,6 +1446,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     selectedSupportLink_ = 0;
     craftingState_ = CraftingState();
     hoveredPassiveNode_ = -1;
+    hoveredSkillIndex_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
     guardBuffTimer_ = 0.0f;
@@ -1601,6 +1612,7 @@ void GameWorld::startNextMap() {
     selectedSupportLink_ = 0;
     craftingState_ = CraftingState();
     hoveredPassiveNode_ = -1;
+    hoveredSkillIndex_ = -1;
     nearbyEventPrompt_.clear();
     shrineBuffTimer_ = 0.0f;
     guardBuffTimer_ = 0.0f;
@@ -4466,6 +4478,45 @@ void GameWorld::updatePassiveTreeHover(const Input& input) {
     hoveredPassiveNode_ = player_.passiveTree().nodeAtPosition(treePosition, 19.0f);
 }
 
+void GameWorld::updateSkillPanelHover(const Input& input) {
+    hoveredSkillIndex_ = -1;
+    const auto& skills = SkillLibrary::all();
+    const float centerX = static_cast<float>(Config::WindowWidth) / 2.0f;
+    const float centerY = static_cast<float>(Config::WindowHeight) / 2.0f;
+    const float leftColumn = centerX - 350.0f;
+    const float rightColumn = centerX + 20.0f;
+    const float skillsY = centerY - 132.0f;
+    const float rowHeight = 24.0f;
+    const float firstRowY = skillsY + 22.0f;
+    const float mouseX = static_cast<float>(input.mousePosition().x);
+    const float mouseY = static_cast<float>(input.mousePosition().y);
+
+    int column = -1;
+    if (mouseX >= leftColumn - 8.0f && mouseX < rightColumn - 12.0f) {
+        column = 0;
+    } else if (mouseX >= rightColumn - 8.0f && mouseX < centerX + 350.0f) {
+        column = 1;
+    }
+    if (column < 0 || mouseY < firstRowY - 2.0f) {
+        return;
+    }
+
+    const int row = static_cast<int>(
+        std::floor((mouseY - (firstRowY - 2.0f)) / rowHeight)
+    );
+    if (row < 0) {
+        return;
+    }
+
+    const int index = row * 2 + column;
+    if (index >= 0 && static_cast<std::size_t>(index) < skills.size()) {
+        const float rowY = firstRowY + static_cast<float>(row) * rowHeight;
+        if (mouseY <= rowY + 28.0f) {
+            hoveredSkillIndex_ = index;
+        }
+    }
+}
+
 void GameWorld::tryAssignSkill(Input& input) {
     if (!skillPanelOpen_) {
         return;
@@ -4474,8 +4525,8 @@ void GameWorld::tryAssignSkill(Input& input) {
     const auto& skills = SkillLibrary::all();
     int skillIndex = input.numberChoice() - 1;
     const int functionChoice = input.functionChoice();
-    if (input.skillPanelAlternateChoice()) {
-        skillIndex = static_cast<int>(skills.size()) - 1;
+    if (input.leftMousePressed() && hoveredSkillIndex_ >= 0) {
+        skillIndex = hoveredSkillIndex_;
     }
     if (skillIndex < 0 && functionChoice >= 7 && functionChoice <= 15) {
         // Number keys cover the first ten entries. F7-F15 extend the panel
@@ -4805,6 +4856,7 @@ void GameWorld::tryToggleCraftingPanel(Input& input) {
     passiveTreeOpen_ = false;
     skillPanelOpen_ = false;
     hoveredPassiveNode_ = -1;
+    hoveredSkillIndex_ = -1;
     craftingState_ = CraftingState();
     craftingState_.open = true;
 }
@@ -5958,6 +6010,7 @@ Vector2 GameWorld::cameraTopLeft() const {
 }
 bool GameWorld::passiveTreeOpen() const { return passiveTreeOpen_; }
 bool GameWorld::skillPanelOpen() const { return skillPanelOpen_; }
+int GameWorld::hoveredSkillIndex() const { return hoveredSkillIndex_; }
 int GameWorld::selectedSupportLink() const { return selectedSupportLink_; }
 int GameWorld::hoveredPassiveNode() const { return hoveredPassiveNode_; }
 std::string GameWorld::passiveBuildSummary() const {

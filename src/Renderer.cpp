@@ -453,6 +453,9 @@ std::string skillChoiceLabel(std::size_t index) {
     if (index == 9) {
         return "0";
     }
+    if (index >= 19) {
+        return "Mouse";
+    }
     return "F" + std::to_string(index - 3);
 }
 
@@ -2722,7 +2725,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
 
     drawBox({center.x, center.y}, {760.0f, 560.0f}, sf::Color(24, 30, 40));
     drawCenteredText("Skill Panel", {center.x, center.y - 248.0f}, 24, sf::Color::White);
-    drawCenteredText("1-0 / F7-F15 / Y assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
+    drawCenteredText("1-0 / F7-F15 / Click assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
         {center.x, center.y - 220.0f}, 14, sf::Color(210, 230, 255));
 
     const SkillSlot slots[] = {
@@ -2757,11 +2760,13 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         );
         const bool equipped = world.skillBar().definition(skill.slot).name == skill.name;
         const bool unlocked = world.isSkillUnlocked(skill.name);
-        const sf::Color color = !unlocked ? sf::Color(130, 135, 145)
+        const bool hovered = world.hoveredSkillIndex() == static_cast<int>(i);
+        const sf::Color color = !unlocked ? (hovered ? sf::Color(190, 175, 130) : sf::Color(130, 135, 145))
+            : hovered ? sf::Color(255, 225, 135)
             : equipped ? sf::Color(135, 245, 155)
             : sf::Color(220, 230, 240);
         const std::string state = equipped ? "Equipped" : unlocked ? "Available" : "Locked";
-        const std::string marker = equipped ? "> " : "  ";
+        const std::string marker = equipped ? "> " : hovered ? "* " : "  ";
         const float columnX = i % 2 == 0 ? leftColumn : rightColumn;
         const float rowY = skillsY + 22.0f + static_cast<float>(i / 2) * 24.0f;
         drawText(marker + skillChoiceLabel(i) + ". " + skill.name

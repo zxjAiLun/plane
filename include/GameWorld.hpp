@@ -186,6 +186,7 @@ public:
     Vector2 cameraTopLeft() const;
     bool passiveTreeOpen() const;
     bool skillPanelOpen() const;
+    int hoveredSkillIndex() const;
     int selectedSupportLink() const;
     int hoveredPassiveNode() const;
     std::string passiveBuildSummary() const;
@@ -376,6 +377,7 @@ private:
     void tryPickupDroppedItem(Input& input);
     void trySpendPassivePoint(Input& input);
     void updatePassiveTreeHover(const Input& input);
+    void updateSkillPanelHover(const Input& input);
     void tryAssignSkill(Input& input);
     void tryCycleSkillSupport(Input& input);
     void tryEquipInventoryItem(Input& input);
@@ -563,6 +565,7 @@ private:
     int selectedSupportLink_;
     CraftingState craftingState_;
     int hoveredPassiveNode_;
+    int hoveredSkillIndex_ = -1;
     std::string nearbyEventPrompt_;
     float shrineBuffTimer_;
     float guardBuffTimer_ = 0.0f;

@@ -2233,10 +2233,18 @@ void testExpandedSkillWorldHits() {
     world.update(0.05f, input);
     expect(world.skillBar().definition(SkillSlot::Utility).name == "Guarding Pulse",
         "Skill Panel F15 assigns the appended defensive skill entry");
-    input.handleKeyPressed(sf::Keyboard::Key::Y);
+    input.handleMouseMoved({430, 410});
     world.update(0.05f, input);
+    expect(world.hoveredSkillIndex() == 19,
+        "Skill Panel mouse hover selects the final skill entry");
+    const std::size_t projectilesBeforeSkillClick = world.projectiles().size();
+    input.handleMousePressed(sf::Mouse::Button::Left, {430, 410});
+    world.update(0.05f, input);
+    input.handleMouseReleased(sf::Mouse::Button::Left, {430, 410});
+    expect(world.projectiles().size() == projectilesBeforeSkillClick,
+        "Skill Panel mouse click does not fire the primary skill");
     expect(world.skillBar().definition(SkillSlot::Utility).name == "Mana Ward",
-        "Skill Panel Y assigns the final skill entry when F16 is unavailable");
+        "Skill Panel mouse click assigns the final skill entry");
     input.handleKeyPressed(sf::Keyboard::Key::F12);
     world.update(0.05f, input);
     expect(world.skillBar().definition(SkillSlot::Utility).name == "Blight Ring",

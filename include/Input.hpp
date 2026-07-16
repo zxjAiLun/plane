@@ -29,7 +29,6 @@ public:
     bool pickup() const;
     bool passiveTreeToggle() const;
     bool skillPanelToggle() const;
-    bool skillPanelAlternateChoice() const;
     bool nextMap() const;
     bool restart() const;
     bool quit() const;
@@ -64,7 +63,6 @@ private:
     bool pickup_ = false;
     bool passiveTreeToggle_ = false;
     bool skillPanelToggle_ = false;
-    bool skillPanelAlternateChoice_ = false;
     bool nextMap_ = false;
     bool restart_ = false;
     bool quit_ = false;
