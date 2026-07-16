@@ -33,6 +33,8 @@ struct BossRelicEffectDefinition {
     float chillDurationMultiplier = 1.0f;
     float bleedDamageMultiplier = 1.0f;
     float bleedDurationMultiplier = 1.0f;
+    float bleedBurstRadius = 0.0f;
+    float bleedBurstDamageMultiplier = 0.0f;
 };
 
 class BossRelicEffectLibrary {
@@ -125,7 +127,7 @@ public:
             ItemBaseTheme::Bloodletting,
             BossRelicEffectType::BloodPrice,
             "Blood Price",
-            "Physical skills deal 25% more Bleed damage and Bleed lasts 20% longer",
+            "Physical skills deal 25% more Bleed damage; Bleeding enemies burst on death",
             1.0f,
             1.0f,
             0,
@@ -136,7 +138,9 @@ public:
             1.0f,
             1.0f,
             1.25f,
-            1.20f
+            1.20f,
+            110.0f,
+            0.45f
         };
 
         switch (theme) {
@@ -246,7 +250,7 @@ public:
                 ItemBaseTheme::Bloodletting,
                 BossRelicEffectType::BloodPrice,
                 "Hemorrhage Signet",
-                "Physical skills deal 40% more Bleed damage and Bleed lasts 30% longer",
+                "Physical skills deal 40% more Bleed damage; Bleeding enemies burst wider on death",
                 1.0f,
                 1.0f,
                 0,
@@ -257,7 +261,9 @@ public:
                 1.0f,
                 1.0f,
                 1.40f,
-                1.30f
+                1.30f,
+                140.0f,
+                0.65f
             };
 
             switch (base.theme) {

@@ -405,6 +405,7 @@ private:
     void rewardEnemyKill(Enemy& enemy);
     void noteFieldPackEnemyDefeated(const Enemy& enemy);
     void spreadPoisonOnDeath(const Enemy& source);
+    void burstBleedOnDeath(const Enemy& source);
     void damagePlayer(
         int damage,
         const std::string& source,

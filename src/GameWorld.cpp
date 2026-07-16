@@ -5295,6 +5295,52 @@ void GameWorld::spreadPoisonOnDeath(const Enemy& source) {
     }
 }
 
+void GameWorld::burstBleedOnDeath(const Enemy& source) {
+    if (source.isBoss()
+        || !source.isBleeding()
+        || source.bleedDamagePerTick() <= 0
+        || !hasBossRelicTheme(ItemBaseTheme::Bloodletting)) {
+        return;
+    }
+
+    const auto& effect = bossRelicEffectForTheme(ItemBaseTheme::Bloodletting);
+    if (effect.bleedBurstRadius <= 0.0f
+        || effect.bleedBurstDamageMultiplier <= 0.0f) {
+        return;
+    }
+
+    const int burstDamage = std::max(1, static_cast<int>(std::ceil(
+        static_cast<float>(source.bleedDamagePerTick())
+            * effect.bleedBurstDamageMultiplier
+    )));
+    volatileExplosionCenter_ = source.position();
+    volatileExplosionRadius_ = effect.bleedBurstRadius;
+    volatileExplosionTimer_ = Config::VolatileExplosionEffectDuration;
+
+    for (auto& target : enemies_) {
+        if (target.isDead() || target.isBoss() || target.id() == source.id()) {
+            continue;
+        }
+
+        const float distanceLimit = effect.bleedBurstRadius
+            + source.radius() + target.radius();
+        if ((target.position() - source.position()).lengthSquared()
+                > distanceLimit * distanceLimit) {
+            continue;
+        }
+
+        const int dealtDamage = target.takeDamage(damageToEnemy(
+            target, burstDamage, DamageType::Physical
+        ));
+        if (dealtDamage > 0) {
+            addCombatFeedback(
+                target.position(), dealtDamage, effect.name,
+                CombatFeedbackType::Damage
+            );
+        }
+    }
+}
+
 void GameWorld::initializeRunProgression() {
     progression_ = RunProgression();
     progression_.unlockedSkills.insert(SkillLibrary::spreadShot().name);
@@ -5312,6 +5358,7 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
     }
 
     spreadPoisonOnDeath(enemy);
+    burstBleedOnDeath(enemy);
 
     const auto& definition = EnemyLibrary::forType(enemy.type());
     const MapEncounterDefinition* completedEncounter = enemy.isBoss()
@@ -6149,7 +6196,8 @@ std::string GameWorld::bossRelicEffectSummary() const {
         ItemBaseTheme::Archive,
         ItemBaseTheme::Obsidian,
         ItemBaseTheme::Aether,
-        ItemBaseTheme::Sable
+        ItemBaseTheme::Sable,
+        ItemBaseTheme::Bloodletting
     };
     std::string summary;
     for (const auto theme : themes) {

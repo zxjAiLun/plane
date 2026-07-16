@@ -2171,8 +2171,10 @@ void testBossRelicEffects() {
         "Sable relic defines its Poison gravebloom effect");
     expect(bloodletting.type == BossRelicEffectType::BloodPrice
             && bloodletting.bleedDamageMultiplier > 1.0f
-            && bloodletting.bleedDurationMultiplier > 1.0f,
-        "Bloodletting relic defines its stronger Bleed effect");
+            && bloodletting.bleedDurationMultiplier > 1.0f
+            && bloodletting.bleedBurstRadius > 0.0f
+            && bloodletting.bleedBurstDamageMultiplier > 0.0f,
+        "Bloodletting relic defines its stronger Bleed and death-burst effect");
 
     const auto* ashenBase = ItemBaseLibrary::find("boss.ashen-crucible");
     const auto* tempestBase = ItemBaseLibrary::find("boss.tempest-bow");
@@ -2180,6 +2182,7 @@ void testBossRelicEffects() {
     const auto* winterheartBase = ItemBaseLibrary::find("boss.winterheart-pendant");
     const auto* drownedCompassBase = ItemBaseLibrary::find("boss.drowned-compass");
     const auto* blackglassHeartBase = ItemBaseLibrary::find("boss.blackglass-heart");
+    const auto* hemorrhageSignetBase = ItemBaseLibrary::find("boss.hemorrhage-signet");
     const auto& ashen = ashenBase == nullptr
         ? none : BossRelicEffectLibrary::forBase(*ashenBase);
     const auto& tempest = tempestBase == nullptr
@@ -2192,6 +2195,8 @@ void testBossRelicEffects() {
         ? none : BossRelicEffectLibrary::forBase(*drownedCompassBase);
     const auto& blackglassHeart = blackglassHeartBase == nullptr
         ? none : BossRelicEffectLibrary::forBase(*blackglassHeartBase);
+    const auto& hemorrhageSignet = hemorrhageSignetBase == nullptr
+        ? none : BossRelicEffectLibrary::forBase(*hemorrhageSignetBase);
     expect(ashenBase != nullptr
             && ashen.name == "Ashen Bloom"
             && ashen.igniteDamageMultiplier > molten.igniteDamageMultiplier,
@@ -2221,6 +2226,12 @@ void testBossRelicEffects() {
             && blackglassHeart.igniteDamageMultiplier > obsidian.igniteDamageMultiplier
             && blackglassHeart.igniteDurationMultiplier > obsidian.igniteDurationMultiplier,
         "Blackglass Heart selects its stronger Obsidian Furnace effect");
+    expect(hemorrhageSignetBase != nullptr
+            && hemorrhageSignet.name == "Hemorrhage Signet"
+            && hemorrhageSignet.bleedBurstRadius > bloodletting.bleedBurstRadius
+            && hemorrhageSignet.bleedBurstDamageMultiplier
+                > bloodletting.bleedBurstDamageMultiplier,
+        "Hemorrhage Signet selects its stronger Bleed death-burst effect");
     expect(none.type == BossRelicEffectType::None && none.name.empty(),
         "non-relic themes have no Boss relic effect");
 }

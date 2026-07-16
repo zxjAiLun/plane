@@ -4107,6 +4107,94 @@ void testStormRelicAreaChain() {
     std::filesystem::remove(path);
 }
 
+void testBloodPriceBleedBurst() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_blood_price_burst_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(21010);
+    prepareCombinationFixture(world, path, 0, 2, 3, 0);
+    SaveData data;
+    std::string error;
+    expect(SaveService::load(path, data, &error),
+        "Blood Price fixture starts from a valid map encounter save");
+    data.player.equipment[static_cast<std::size_t>(EquipmentSlot::Weapon)] =
+        makeBaseItem("boss.gorebound-cleaver");
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Blood Price fixture equips the Bloodletting relic");
+    expect(world.bossRelicEffectSummary().find("Blood Price") != std::string::npos,
+        "Blood Price appears in the active relic summary");
+
+    const auto eventIt = std::find_if(
+        world.map().events().begin(), world.map().events().end(),
+        [](const MapEventInstance& event) {
+            return event.type == MapEventType::Combination
+                && event.encounterType == MapEncounterType::BloodlettingPit;
+        }
+    );
+    expect(eventIt != world.map().events().end(),
+        "Blood Price fixture finds the Bloodletting Pit encounter");
+    if (eventIt == world.map().events().end()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const std::size_t eventIndex = static_cast<std::size_t>(
+        std::distance(world.map().events().begin(), eventIt)
+    );
+    Input input;
+    expect(moveToMapEvent(world, input, eventIt->position),
+        "Blood Price fixture reaches the Bloodletting Pit encounter");
+
+    auto sourceIt = std::find_if(
+        world.enemies().begin(), world.enemies().end(),
+        [eventIndex](const Enemy& enemy) {
+            return !enemy.isDead()
+                && enemy.mapEventIndex() == static_cast<int>(eventIndex);
+        }
+    );
+    auto targetIt = sourceIt == world.enemies().end()
+        ? world.enemies().end()
+        : std::find_if(
+            sourceIt + 1, world.enemies().end(),
+            [eventIndex](const Enemy& enemy) {
+                return !enemy.isDead()
+                    && enemy.mapEventIndex() == static_cast<int>(eventIndex);
+            }
+        );
+    expect(sourceIt != world.enemies().end()
+            && targetIt != world.enemies().end(),
+        "Blood Price fixture exposes two live encounter enemies");
+    if (sourceIt == world.enemies().end() || targetIt == world.enemies().end()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const int targetId = targetIt->id();
+    const int targetHpBefore = targetIt->hp();
+    const_cast<Enemy&>(*sourceIt).applyBleed(1, 3.0f);
+    const_cast<Enemy&>(*sourceIt).kill();
+    world.update(0.05f, input);
+
+    const auto updatedTarget = std::find_if(
+        world.enemies().begin(), world.enemies().end(),
+        [targetId](const Enemy& enemy) { return enemy.id() == targetId; }
+    );
+    const bool burstFeedback = std::any_of(
+        world.combatFeedback().begin(), world.combatFeedback().end(),
+        [](const CombatFeedback& feedback) {
+            return feedback.source == "Blood Price"
+                && feedback.type == CombatFeedbackType::Damage;
+        }
+    );
+    expect(updatedTarget != world.enemies().end()
+            && updatedTarget->hp() < targetHpBefore
+            && burstFeedback,
+        "Blood Price bursts Bleeding enemies onto nearby targets");
+
+    std::filesystem::remove(path);
+}
+
 } // namespace
 
 int main() {
@@ -4183,6 +4271,7 @@ int main() {
     testElitePackEventFlow();
     testCombinationMapEvents();
     testStormRelicAreaChain();
+    testBloodPriceBleedBurst();
 
     std::cout << "Passed: " << (checks - failures)
         << "  Failed: " << failures << '\n';
