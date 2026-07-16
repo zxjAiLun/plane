@@ -903,6 +903,7 @@ sf::Color mapEventColor(const MapEventInstance& event) {
                 case MapEncounterType::ArchivePurge: return sf::Color(95, 205, 235);
                 case MapEncounterType::ForgeCollapse: return sf::Color(245, 125, 55);
                 case MapEncounterType::NecroticOssuary: return sf::Color(185, 105, 145);
+                case MapEncounterType::IronheartTrial: return sf::Color(235, 190, 85);
                 case MapEncounterType::None: break;
             }
             break;
@@ -1029,7 +1030,8 @@ std::string activeElitePackModifierDescription(const GameWorld& world) {
                     || event.encounterType == MapEncounterType::FrozenReliquary
                     || event.encounterType == MapEncounterType::ArchivePurge
                     || event.encounterType == MapEncounterType::ForgeCollapse
-                    || event.encounterType == MapEncounterType::NecroticOssuary));
+                    || event.encounterType == MapEncounterType::NecroticOssuary
+                    || event.encounterType == MapEncounterType::IronheartTrial));
         if (isEliteEncounter && event.triggered && !event.completed) {
             activeEvent = &event;
             activeEventIndex = index;

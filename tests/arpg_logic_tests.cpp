@@ -2856,6 +2856,36 @@ void testBossSummonDefinitions() {
             "Gorebound Executioner skills apply Physical Bleed pressure");
     }
 
+    const auto ironheartIt = std::find_if(
+        bosses.begin(), bosses.end(),
+        [](const BossDefinition& boss) {
+            return boss.name == "Ironheart Warden";
+        }
+    );
+    expect(ironheartIt != bosses.end()
+            && ironheartIt->lootTheme == BossLootTheme::Bloodletting
+            && ironheartIt->physicalResistance == 45
+            && ironheartIt->bleedResistance == 75
+            && ironheartIt->guaranteedDrops == 3,
+        "Ironheart Warden defines the high-tier Physical Bleed boss profile");
+    if (ironheartIt != bosses.end()) {
+        const auto summonIt = std::find_if(
+            ironheartIt->skills.begin(), ironheartIt->skills.end(),
+            [](const BossSkillDefinition& skill) {
+                return skill.name == "Summon Ironbound";
+            }
+        );
+        expect(summonIt != ironheartIt->skills.end()
+                && summonIt->summonType == EnemyType::Warden
+                && summonIt->summonCount == 2,
+            "Ironheart Warden summons Warden adds in its normal pattern");
+        expect(ironheartIt->finalPhase.recurringHazard.pattern
+                == BossPhaseHazardPattern::Ring
+                && ironheartIt->finalPhase.recurringHazard.hazard.ailment.type
+                    == AilmentType::Bleed,
+            "Ironheart Warden final phase seals the arena with a Bleed ring");
+    }
+
     expect(availableBossSummonCount(4, 0, 10) == 4,
         "summon count is unchanged below the population cap");
     expect(availableBossSummonCount(4, 8, 10) == 2,
@@ -2919,7 +2949,7 @@ void testGroundHazardLifecycle() {
             configuredHazards += skill.groundHazard.isValid() ? 1 : 0;
         }
     }
-    expect(configuredHazards == 7,
+    expect(configuredHazards == 8,
         "Boss skills define the current ground hazard set");
 }
 
@@ -3370,8 +3400,15 @@ void testMapEncounterDefinitions() {
             return encounter.type == MapEncounterType::BloodlettingPit;
         }
     );
-    expect(encounters.size() == 12,
-        "map encounter library contains twelve data-driven encounter definitions");
+    const auto ironheartIt = std::find_if(
+        encounters.begin(),
+        encounters.end(),
+        [](const MapEncounterDefinition& encounter) {
+            return encounter.type == MapEncounterType::IronheartTrial;
+        }
+    );
+    expect(encounters.size() == 13,
+        "map encounter library contains thirteen data-driven encounter definitions");
     expect(std::all_of(
                 encounters.begin(), encounters.end(),
                 [](const MapEncounterDefinition& encounter) {
@@ -3501,6 +3538,21 @@ void testMapEncounterDefinitions() {
             && bloodlettingIt->leaderSkill.ailment.type == AilmentType::Bleed
             && bloodlettingIt->bossDropBonus == 2,
         "Bloodletting Pit defines its Physical hazard, Bleed screen, and build reward bias");
+    expect(ironheartIt != encounters.end()
+            && ironheartIt->eliteCount == 2
+            && ironheartIt->normalCount == 3
+            && ironheartIt->primaryEnemyType == EnemyType::Elite
+            && ironheartIt->secondaryEnemyType == EnemyType::Charger
+            && ironheartIt->completionDropCount == 5
+            && ironheartIt->rewardLootBias.primaryTag == AffixTag::Physical
+            && ironheartIt->rewardLootBias.secondaryTag == AffixTag::Bleed
+            && ironheartIt->hazard.damageType == DamageType::Physical
+            && ironheartIt->hazard.ailment.type == AilmentType::Bleed
+            && ironheartIt->leaderSkill.isValid()
+            && ironheartIt->leaderSkill.ailment.type == AilmentType::Bleed
+            && ironheartIt->bossDropBonus == 3
+            && ironheartIt->bossDefinitionIndex == 9,
+        "Ironheart Trial defines its high-tier Physical/Bleed encounter data");
 }
 
 // --- Map layout variants ---
@@ -3602,6 +3654,10 @@ void testMapLayoutVariants() {
     expect(MapInstance(3, 0, 2).encounterDefinition().type
             == MapEncounterType::BloodlettingPit,
         "Ashen Causeway variant exposes the Bloodletting Pit encounter");
+    expect(MapInstance(9, 0, 2).encounterDefinition().type
+            == MapEncounterType::IronheartTrial
+            && MapInstance(9, 0, 2).encounterDefinition().bossDefinitionIndex == 9,
+        "high-tier Ashen Causeway variant exposes the Ironheart Trial encounter");
     expect(MapTemplateLibrary::forIndex(0).ambientEffect.isValid()
             && MapTemplateLibrary::forIndex(0).ambientEffect.hazard.damageType == DamageType::Fire
             && MapTemplateLibrary::forIndex(1).ambientEffect.hazard.damageType == DamageType::Lightning

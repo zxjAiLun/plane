@@ -852,6 +852,79 @@ private:
         return definition;
     }
 
+    static BossDefinition ironheartBoss() {
+        BossDefinition definition = bloodlettingBoss();
+        definition.name = "Ironheart Warden";
+        definition.theme = "Chains, measured wounds and a sealed heart";
+        definition.hpMultiplier = 38.0f;
+        definition.damageBonus = 4;
+        definition.dropMultiplier = 5.0f;
+        definition.skillInterval = 1.55f;
+        definition.guaranteedDrops = 3;
+        definition.enrageHealthRatio = 0.50f;
+        definition.enragedSkillIntervalMultiplier = 0.56f;
+        definition.enragedDamageMultiplier = 1.30f;
+        definition.patternDescription = "Iron Rends and Chain Spears divide the arena into kill zones";
+        definition.enragedPatternDescription = "Ironbound Wardens close the cage while every wound deepens";
+
+        definition.skills[0].name = "Iron Rend";
+        definition.skills[0].radius = 172.0f;
+        definition.skills[0].damage = 5;
+        definition.skills[0].telegraphDuration = 0.60f;
+        definition.skills[0].groundHazard = {
+            "Iron Rupture", 138.0f, 5.0f, 0.65f, 6,
+            DamageType::Physical, definition.skills[0].ailment
+        };
+        definition.skills[1].name = "Chain Spear";
+        definition.skills[1].damage = 4;
+        definition.skills[1].projectileSpeed = 520.0f;
+        definition.skills[1].projectileCount = 5;
+        definition.skills[1].spreadAngle = 44.0f;
+        definition.skills[2].name = "Summon Ironbound";
+        definition.skills[2].radius = 145.0f;
+        definition.skills[2].telegraphDuration = 0.65f;
+        definition.skills[2].summonType = EnemyType::Warden;
+        definition.skills[2].summonCount = 2;
+        definition.skills[3].name = "Crushing March";
+        definition.skills[3].damage = 5;
+        definition.skills[3].telegraphDuration = 0.45f;
+        definition.skills[3].dash = {420.0f, 760.0f};
+
+        definition.normalSkillOrder = {0, 1, 3, 2, 0};
+        definition.enragedSkillOrder = {3, 0, 2, 1, 3};
+        definition.bleedResistance = 75;
+        definition.physicalResistance = 45;
+        definition.enrageTransitionDescription = "The sealed heart cracks: Ironbound Wardens lock the arena";
+        definition.enrageSummonType = EnemyType::Warden;
+        definition.enrageSummonCount = 2;
+        definition.enrageHazard = elementalHazard(
+            {"Iron Blood", 170.0f, 9.0f, 0.60f, 9},
+            DamageType::Physical,
+            definition.skills[0].ailment
+        );
+        definition.finalPhase = {
+            0.20f,
+            0.44f,
+            1.48f,
+            "The heart is exposed: rends, spears and charges overlap",
+            "The Warden tears open its iron core for one final cycle",
+            {0, 3, 2, 1, 0},
+            EnemyType::Warden,
+            3,
+            {"Final Ironfall", 188.0f, 10.0f, 0.55f, 11,
+                DamageType::Physical, definition.skills[0].ailment}
+        };
+        definition.finalPhase.recurringHazard = {
+            3.0f,
+            0.50f,
+            {"Iron Blood Ring", 100.0f, 5.0f, 0.60f, 7,
+                DamageType::Physical, definition.skills[0].ailment},
+            BossPhaseHazardPattern::Ring,
+            176.0f
+        };
+        return definition;
+    }
+
     static std::vector<BossDefinition> buildBosses() {
         auto bosses = std::vector<BossDefinition>{
             {
@@ -1055,7 +1128,8 @@ private:
             obsidianBoss(),
             aetherBoss(),
             sableBoss(),
-            bloodlettingBoss()
+            bloodlettingBoss(),
+            ironheartBoss()
         };
 
         bosses[0].bleedResistance = 25;

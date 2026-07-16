@@ -47,7 +47,8 @@ enum class MapEncounterType {
     ForgeCollapse,
     AetherConvergence,
     NecroticOssuary,
-    BloodlettingPit
+    BloodlettingPit,
+    IronheartTrial
 };
 
 struct MapEncounterSkillDefinition {
@@ -97,8 +98,8 @@ struct MapEncounterDefinition {
 
 class MapEncounterLibrary {
 public:
-    static const std::array<MapEncounterDefinition, 12>& all() {
-        static const std::array<MapEncounterDefinition, 12> definitions = {{
+    static const std::array<MapEncounterDefinition, 13>& all() {
+        static const std::array<MapEncounterDefinition, 13> definitions = {{
             {
                 MapEncounterType::EnhancedCache,
                 "enhanced-cache",
@@ -421,6 +422,46 @@ public:
                 },
                 2,
                 8
+            },
+            {
+                MapEncounterType::IronheartTrial,
+                "ironheart-trial",
+                "Ironheart Trial",
+                "Break the iron cage while chained Wardens turn Bleed into a death sentence",
+                146.0f,
+                0,
+                2,
+                3,
+                2.0f,
+                {"Ironblood Seal", 148.0f, 8.0f, 0.65f, 3,
+                    DamageType::Physical,
+                    {AilmentType::Bleed, 3.0f, 0.25f},
+                    GroundHazardTarget::Player},
+                false,
+                5,
+                EnemyType::Elite,
+                EnemyType::Charger,
+                {AffixTag::Physical, 2.10f, AffixTag::Bleed, 1.50f},
+                6,
+                true,
+                DamageType::Physical,
+                {AilmentType::Bleed, 3.0f, 0.25f},
+                {
+                    "Chain Verdict",
+                    "The Ironbound Warden marks the player before a Bleed verdict detonates",
+                    3.8f,
+                    0.60f,
+                    124.0f,
+                    6,
+                    DamageType::Physical,
+                    {AilmentType::Bleed, 3.0f, 0.25f},
+                    {"Verdict Scar", 108.0f, 3.0f, 0.60f, 4,
+                        DamageType::Physical,
+                        {AilmentType::Bleed, 3.0f, 0.25f},
+                        GroundHazardTarget::Player}
+                },
+                3,
+                9
             }
         }};
         return definitions;
@@ -465,7 +506,9 @@ public:
         }
 
         if (normalizedTemplate == 0 && mapLevel >= 3 && layoutIndex == 2) {
-            return forType(MapEncounterType::BloodlettingPit);
+            return forType(mapLevel >= 9
+                ? MapEncounterType::IronheartTrial
+                : MapEncounterType::BloodlettingPit);
         }
 
         constexpr int LegacyEncounterCount = 6;

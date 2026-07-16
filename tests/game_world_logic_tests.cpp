@@ -4041,6 +4041,74 @@ void testCombinationMapEvents() {
         }
     }
 
+    {
+        GameWorld world(21012);
+        prepareCombinationFixture(world, path, 0, 2, 9, 0);
+        const auto eventIt = std::find_if(
+            world.map().events().begin(), world.map().events().end(),
+            [](const MapEventInstance& event) {
+                return event.type == MapEventType::Combination
+                    && event.encounterType == MapEncounterType::IronheartTrial;
+            }
+        );
+        expect(eventIt != world.map().events().end(),
+            "map level nine exposes the Ironheart Trial encounter");
+        if (eventIt != world.map().events().end()) {
+            const std::size_t eventIndex = static_cast<std::size_t>(
+                std::distance(world.map().events().begin(), eventIt)
+            );
+            const Vector2 position = eventIt->position;
+            Input input;
+            expect(moveToMapEvent(world, input, position),
+                "player can reach the Ironheart Trial encounter");
+
+            const auto ownedEnemyCount = [&](EnemyType type) {
+                return std::count_if(
+                    world.enemies().begin(), world.enemies().end(),
+                    [eventIndex, type](const Enemy& enemy) {
+                        return enemy.mapEventIndex() == static_cast<int>(eventIndex)
+                            && enemy.type() == type;
+                    }
+                );
+            };
+            const auto ironbloodIt = std::find_if(
+                world.groundHazards().begin(), world.groundHazards().end(),
+                [](const GroundHazard& hazard) {
+                    return hazard.definition().source == "Ironblood Seal";
+                }
+            );
+            expect(world.activeEliteEventEnemiesRemaining() == 5
+                    && ownedEnemyCount(EnemyType::Elite) == 2
+                    && ownedEnemyCount(EnemyType::Charger) == 3
+                    && ironbloodIt != world.groundHazards().end(),
+                "Ironheart Trial spawns its Physical/Bleed pack and seal hazard");
+
+            for (int cast = 0; cast < 10
+                && world.activeEliteEventEnemiesRemaining() > 0; ++cast) {
+                const Vector2 camera = world.cameraTopLeft();
+                input.handleMousePressed(
+                    sf::Mouse::Button::Right,
+                    {static_cast<int>(std::lround(position.x - camera.x)),
+                     static_cast<int>(std::lround(position.y - camera.y))}
+                );
+                world.update(0.05f, input);
+                resolvePendingSkillEffects(world, input);
+                for (int frame = 0; frame < 35; ++frame) {
+                    world.update(0.05f, input);
+                }
+            }
+            expect(world.activeEliteEventEnemiesRemaining() == 0
+                    && world.mapEventsCompleted() == 1,
+                "Ironheart Trial completes after its owned enemies die");
+
+            Input bossInput;
+            expect(moveToBoss(world, bossInput)
+                    && world.bossDefinition().name == "Ironheart Warden"
+                    && world.bossDefinition().guaranteedDrops == 3,
+                "Ironheart Trial routes to the Ironheart Warden Boss");
+        }
+    }
+
     std::filesystem::remove(path);
 }
 
