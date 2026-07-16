@@ -71,12 +71,12 @@ public:
         nodes_[8] = {"Expanded Impact", "+10% area radius", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.10f}, 7, false, {-260.0f, -150.0f}, PassiveBranch::Area, PassiveNodeSize::Small};
         nodes_[9] = {"Concentrated Impact", "+35% area damage, -25% area radius", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.35f, 0.75f}, 8, false, {-318.0f, -184.0f}, PassiveBranch::Area, PassiveNodeSize::Notable, PassiveKeystone::ConcentratedImpact};
 
-        // Survival branch (10-14)
-        nodes_[10] = {"Vigour", "+5 max HP", Stats{5, 1.0f, 1.0f, 1.0f, 1.0f}, -1, false, {-70.0f, 42.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
-        nodes_[11] = {"Stone Skin", "+1 armor", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1}, 10, false, {-135.0f, 78.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
-        nodes_[12] = {"Iron Heart", "+6 max HP and +1 armor", Stats{6, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1}, 11, false, {-200.0f, 115.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
-        nodes_[13] = {"Wind Runner", "+8% move speed", Stats{0, 1.08f, 1.0f, 1.0f, 1.0f}, 12, false, {-260.0f, 150.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
-        nodes_[14] = {"Second Wind", "+50% life flask healing", Stats{0, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0, 0, 1.5f}, 13, false, {-318.0f, 184.0f}, PassiveBranch::Survival, PassiveNodeSize::Notable, PassiveKeystone::SecondWind};
+        // Survival branch (10-14): life, mitigation, and a deliberate Mana sustain route.
+        nodes_[10] = {"Vigour", "+5 max HP", survivalStats(5), -1, false, {-70.0f, 42.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
+        nodes_[11] = {"Arcane Guard", "+1 armor, +8% max Mana", survivalStats(0, 1, 1.0f, 1.08f), 10, false, {-135.0f, 78.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
+        nodes_[12] = {"Iron Heart", "+6 max HP, +1 armor, +5% max Mana", survivalStats(6, 1, 1.0f, 1.05f), 11, false, {-200.0f, 115.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
+        nodes_[13] = {"Meditative Stride", "+8% move speed, +12% Mana regen", survivalStats(0, 0, 1.08f, 1.0f, 1.12f), 12, false, {-260.0f, 150.0f}, PassiveBranch::Survival, PassiveNodeSize::Small};
+        nodes_[14] = {"Second Wind", "+50% life flask healing, +20% Mana regen, -8% skill costs", survivalStats(0, 0, 1.0f, 1.0f, 1.20f, 1.50f, 0.92f), 13, false, {-318.0f, 184.0f}, PassiveBranch::Survival, PassiveNodeSize::Notable, PassiveKeystone::SecondWind};
 
         // Loot branch (15-19)
         nodes_[15] = {"Scavenger", "+15% pickup range", Stats{0, 1.0f, 1.0f, 1.0f, 1.15f}, -1, false, {70.0f, 42.0f}, PassiveBranch::Loot, PassiveNodeSize::Small};
@@ -202,6 +202,26 @@ public:
     }
 
 private:
+    static Stats survivalStats(
+        int maxHp = 0,
+        int armor = 0,
+        float moveSpeedMultiplier = 1.0f,
+        float maxManaMultiplier = 1.0f,
+        float manaRegenMultiplier = 1.0f,
+        float lifeFlaskEffectMultiplier = 1.0f,
+        float skillCostMultiplier = 1.0f
+    ) {
+        Stats stats;
+        stats.maxHp = maxHp;
+        stats.armor = armor;
+        stats.moveSpeedMultiplier = moveSpeedMultiplier;
+        stats.maxManaMultiplier = maxManaMultiplier;
+        stats.manaRegenMultiplier = manaRegenMultiplier;
+        stats.lifeFlaskEffectMultiplier = lifeFlaskEffectMultiplier;
+        stats.skillCostMultiplier = skillCostMultiplier;
+        return stats;
+    }
+
     static Stats poisonStats(float poisonDamageMultiplier, int poisonResistance = 0) {
         Stats stats;
         stats.poisonDamageMultiplier = poisonDamageMultiplier;

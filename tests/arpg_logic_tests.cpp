@@ -267,6 +267,10 @@ void testPassiveKeystones() {
     const Stats survivalStats = survival.combinedStats();
     expect(std::abs(survivalStats.lifeFlaskEffectMultiplier - 1.5f) < 0.0001f,
         "Second Wind increases life flask healing by 50 percent");
+    expect(survivalStats.maxManaMultiplier > 1.0f
+            && survivalStats.manaRegenMultiplier > 1.0f
+            && survivalStats.skillCostMultiplier < 1.0f,
+        "Survival branch supports a lower-cost Mana sustain build");
     expect(lifeFlaskHealAmount(Config::LifeFlaskHealAmount, survivalStats)
             > lifeFlaskHealAmount(Config::LifeFlaskHealAmount, Stats{}),
         "Second Wind changes the actual life flask heal amount");
