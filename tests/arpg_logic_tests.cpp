@@ -2220,6 +2220,10 @@ void testBossSummonDefinitions() {
                 && !boss.finalPhase.skillOrder.empty()
                 && boss.finalPhase.hazard.isValid(),
             boss.name + " defines a data-driven final phase");
+        expect(boss.finalPhase.recurringHazard.isValid()
+                || (boss.name != "Tidebound Archivist"
+                    && boss.name != "Obsidian Tyrant"),
+            boss.name + " defines a recurring final-phase hazard when themed");
         expect(std::all_of(
                 boss.finalPhase.skillOrder.begin(),
                 boss.finalPhase.skillOrder.end(),
@@ -2228,6 +2232,33 @@ void testBossSummonDefinitions() {
                 }),
             boss.name + " final phase skill order references valid skills");
     }
+
+    const auto archiveIt = std::find_if(
+        bosses.begin(), bosses.end(),
+        [](const BossDefinition& boss) {
+            return boss.name == "Tidebound Archivist";
+        }
+    );
+    expect(archiveIt != bosses.end()
+            && archiveIt->finalPhase.recurringHazard.pattern
+                == BossPhaseHazardPattern::Target
+            && archiveIt->finalPhase.recurringHazard.hazard.damageType
+                == DamageType::Cold,
+        "Tidebound Archivist final phase targets a Cold hazard at the player");
+
+    const auto obsidianIt = std::find_if(
+        bosses.begin(), bosses.end(),
+        [](const BossDefinition& boss) {
+            return boss.name == "Obsidian Tyrant";
+        }
+    );
+    expect(obsidianIt != bosses.end()
+            && obsidianIt->finalPhase.recurringHazard.pattern
+                == BossPhaseHazardPattern::Ring
+            && obsidianIt->finalPhase.recurringHazard.patternRadius > 0.0f
+            && obsidianIt->finalPhase.recurringHazard.hazard.damageType
+                == DamageType::Fire,
+        "Obsidian Tyrant final phase surrounds the player with Fire hazards");
 
     const auto broodIt = std::find_if(
         bosses.begin(), bosses.end(),

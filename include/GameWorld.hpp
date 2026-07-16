@@ -149,6 +149,10 @@ public:
     float bossAoeRadius() const;
     float bossAoeTelegraphProgress() const;
     float bossAoeEffectProgress() const;
+    const std::vector<Vector2>& bossPhaseHazardWarningPositions() const;
+    float bossPhaseHazardRadius() const;
+    float bossPhaseHazardTelegraphProgress() const;
+    DamageType bossPhaseHazardDamageType() const;
     const Vector2& bossDashStart() const;
     const Vector2& bossDashTarget() const;
     float bossDashTelegraphProgress() const;
@@ -255,6 +259,7 @@ private:
     void updatePendingSkillEffects(float dt);
     void updateAmbientThreat(float dt);
     void updateBossSkills(float dt);
+    void updateBossPhaseHazard(float dt);
     void updateBossDash(float dt, Enemy& boss);
     void triggerBossEnrage(Enemy& boss);
     void triggerBossFinalPhase(Enemy& boss);
@@ -271,6 +276,7 @@ private:
     int enemyAttackDamage(const Enemy& enemy) const;
     void resetRareLeaderEffects();
     void resetMapEncounterSkill();
+    void resetBossPhaseHazard();
     void applyAtlasBonuses();
     void trySpendAtlasPoint(Input& input);
     int damageToEnemy(
@@ -468,6 +474,12 @@ private:
     Vector2 bossAoeCenter_;
     float bossAoeTelegraphTimer_;
     float bossAoeEffectTimer_;
+    std::vector<Vector2> bossPhaseHazardWarningPositions_;
+    float bossPhaseHazardTimer_ = 0.0f;
+    float bossPhaseHazardTelegraphTimer_ = 0.0f;
+    float bossPhaseHazardTelegraphDuration_ = 0.0f;
+    GroundHazardDefinition bossPhaseHazard_;
+    bool bossPhaseHazardStarted_ = false;
     Vector2 volatileExplosionCenter_;
     float volatileExplosionTimer_ = 0.0f;
     float volatileExplosionRadius_ = 0.0f;

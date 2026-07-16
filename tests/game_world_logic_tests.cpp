@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -2034,6 +2035,14 @@ void testBossRelicEffectsInWorld() {
     std::filesystem::remove(path);
 }
 
+void prepareCombinationFixture(
+    GameWorld& world,
+    const std::filesystem::path& path,
+    int templateIndex,
+    int layoutIndex = 0,
+    int mapLevel = 1
+);
+
 void testBossCombatFlow() {
     const auto path = std::filesystem::temp_directory_path() / "plane_fight_boss_combat_test.bin";
     std::filesystem::remove(path);
@@ -2261,6 +2270,117 @@ void testBossCombatFlow() {
         "Brimstone Boss reward path leads with a Fire build option");
 
     std::filesystem::remove(path);
+}
+
+void testThemedBossPhaseHazards() {
+    struct HazardCase {
+        int mapLevel;
+        int templateIndex;
+        std::string source;
+        DamageType damageType;
+        int expectedImpactCount;
+        std::string label;
+    };
+
+    const std::array<HazardCase, 2> cases{{
+        {5, 4, "Archive Undertow", DamageType::Cold, 1, "Archive"},
+        {6, 5, "Molten Ring", DamageType::Fire, 4, "Obsidian"}
+    }};
+
+    for (const auto& hazardCase : cases) {
+        const auto path = std::filesystem::temp_directory_path()
+            / ("plane_fight_" + hazardCase.label + "_boss_phase_hazard_test.bin");
+        std::filesystem::remove(path);
+
+        GameWorld world(23000 + static_cast<std::uint64_t>(hazardCase.mapLevel));
+        prepareCombinationFixture(
+            world, path, hazardCase.templateIndex, 0, hazardCase.mapLevel
+        );
+
+        SaveData data;
+        std::string error;
+        expect(SaveService::load(path, data, &error),
+            hazardCase.label + " Boss hazard fixture reloads its map state");
+        data.player.upgradeStats.damageMultiplier = 1.0f;
+        data.player.upgradeStats.projectileDamageMultiplier = 1.0f;
+        data.player.upgradeStats.areaDamageMultiplier = 1.0f;
+        data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+        expect(SaveService::save(path, data, &error) && world.loadRun(path),
+            hazardCase.label + " Boss hazard fixture applies controlled damage");
+
+        Input input;
+        expect(moveToBoss(world, input),
+            hazardCase.label + " themed Boss can be reached through the real map");
+
+        bool finalPhaseObserved = false;
+        if (world.map().bossTriggered()) {
+            for (int cast = 0; cast < 100
+                && world.state() == GameState::Playing
+                && !finalPhaseObserved; ++cast) {
+                const auto bossIt = std::find_if(
+                    world.enemies().begin(), world.enemies().end(),
+                    [](const Enemy& enemy) {
+                        return enemy.isBoss() && !enemy.isDead();
+                    }
+                );
+                if (bossIt == world.enemies().end()) {
+                    world.update(0.05f, input);
+                    continue;
+                }
+
+                input.handleMousePressed(
+                    sf::Mouse::Button::Right,
+                    worldToScreen(world, bossIt->position())
+                );
+                world.update(0.05f, input);
+                resolvePendingSkillEffects(world, input);
+                world.update(1.5f, input);
+                finalPhaseObserved = world.bossPhase() >= 2;
+            }
+        }
+
+        bool telegraphObserved = false;
+        bool warningPatternObserved = false;
+        bool impactObserved = false;
+        if (finalPhaseObserved) {
+            for (int frame = 0; frame < 150
+                && world.state() == GameState::Playing; ++frame) {
+                world.update(0.05f, input);
+                telegraphObserved = telegraphObserved
+                    || world.bossPhaseHazardTelegraphProgress() > 0.0f;
+                warningPatternObserved = warningPatternObserved
+                    || (world.bossPhaseHazardWarningPositions().size()
+                        == static_cast<std::size_t>(hazardCase.expectedImpactCount)
+                        && world.bossPhaseHazardDamageType()
+                            == hazardCase.damageType);
+                if (telegraphObserved) {
+                    impactObserved = impactObserved || std::any_of(
+                        world.groundHazards().begin(),
+                        world.groundHazards().end(),
+                        [&hazardCase](const GroundHazard& hazard) {
+                            return hazard.definition().source == hazardCase.source
+                                && hazard.definition().damageType
+                                    == hazardCase.damageType;
+                        }
+                    );
+                }
+                if (impactObserved) {
+                    break;
+                }
+            }
+        }
+
+        expect(finalPhaseObserved,
+            hazardCase.label + " Boss enters its final phase");
+        expect(telegraphObserved,
+            hazardCase.label + " Boss shows the recurring hazard telegraph");
+        expect(warningPatternObserved,
+            hazardCase.label + " Boss exposes its configured warning pattern");
+        expect(impactObserved,
+            hazardCase.label + " Boss leaves its scaled elemental ground hazard");
+
+        std::filesystem::remove(path);
+    }
 }
 
 void testElementalEnemyProjectileFlow() {
@@ -2581,8 +2701,8 @@ void prepareCombinationFixture(
     GameWorld& world,
     const std::filesystem::path& path,
     int templateIndex,
-    int layoutIndex = 0,
-    int mapLevel = 1
+    int layoutIndex,
+    int mapLevel
 ) {
     SaveData data;
     std::string error;
@@ -3280,6 +3400,7 @@ int main() {
     testExpandedSkillWorldHits();
     testBossRelicEffectsInWorld();
     testBossCombatFlow();
+    testThemedBossPhaseHazards();
     testElementalEnemyProjectileFlow();
     testThemeEnemyElementalAttacks();
     testElitePackEventFlow();

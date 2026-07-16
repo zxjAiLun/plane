@@ -993,6 +993,7 @@ void Renderer::render(const GameWorld& world) {
     drawSecondarySkillEffect(world);
     drawDashImpactEffect(world);
     drawBossAoeEffect(world);
+    drawBossPhaseHazardEffect(world);
     drawRareLeaderEffect(world);
     drawMapEncounterSkillEffect(world);
     drawBossDashEffect(world);
@@ -1701,6 +1702,34 @@ void Renderer::drawBossAoeEffect(const GameWorld& world) {
     shape.setOrigin({radius, radius});
     shape.setPosition(worldToScreen(world, world.bossAoeCenter()));
     window_.draw(shape);
+}
+
+void Renderer::drawBossPhaseHazardEffect(const GameWorld& world) {
+    const float progress = world.bossPhaseHazardTelegraphProgress();
+    if (progress <= 0.0f) {
+        return;
+    }
+
+    const float radius = world.bossPhaseHazardRadius();
+    const sf::Color elementColor = damageTypeColor(
+        world.bossPhaseHazardDamageType()
+    );
+    const auto alpha = static_cast<std::uint8_t>(
+        65.0f + 160.0f * (1.0f - progress)
+    );
+    for (const Vector2& position : world.bossPhaseHazardWarningPositions()) {
+        sf::CircleShape shape(radius);
+        shape.setFillColor(sf::Color(
+            elementColor.r, elementColor.g, elementColor.b, alpha / 4
+        ));
+        shape.setOutlineColor(sf::Color(
+            elementColor.r, elementColor.g, elementColor.b, alpha
+        ));
+        shape.setOutlineThickness(4.0f);
+        shape.setOrigin({radius, radius});
+        shape.setPosition(worldToScreen(world, position));
+        window_.draw(shape);
+    }
 }
 
 void Renderer::drawRareLeaderEffect(const GameWorld& world) {

@@ -44,6 +44,29 @@ struct BossSkillDefinition {
     AilmentDefinition ailment;
 };
 
+enum class BossPhaseHazardPattern {
+    Target,
+    Ring,
+    Cross
+};
+
+struct BossPhaseHazardDefinition {
+    float interval = 0.0f;
+    float telegraphDuration = 0.0f;
+    GroundHazardDefinition hazard;
+    BossPhaseHazardPattern pattern = BossPhaseHazardPattern::Target;
+    float patternRadius = 0.0f;
+
+    bool isValid() const {
+        const bool validPattern = pattern == BossPhaseHazardPattern::Target
+            || patternRadius > 0.0f;
+        return interval > 0.0f
+            && telegraphDuration > 0.0f
+            && hazard.isValid()
+            && validPattern;
+    }
+};
+
 struct BossPhaseDefinition {
     float healthRatio = 0.0f;
     float skillIntervalMultiplier = 1.0f;
@@ -54,6 +77,7 @@ struct BossPhaseDefinition {
     EnemyType summonType = EnemyType::Normal;
     int summonCount = 0;
     GroundHazardDefinition hazard;
+    BossPhaseHazardDefinition recurringHazard;
 
     bool isValid() const {
         return healthRatio > 0.0f
@@ -340,6 +364,14 @@ private:
             {"Deep Undertow", 165.0f, 7.0f, 0.65f, 8,
                 DamageType::Cold, chill}
         };
+        definition.finalPhase.recurringHazard = {
+            4.2f,
+            0.70f,
+            {"Archive Undertow", 118.0f, 3.2f, 0.65f, 4,
+                DamageType::Cold, chill},
+            BossPhaseHazardPattern::Target,
+            0.0f
+        };
         return definition;
     }
 
@@ -439,6 +471,14 @@ private:
             3,
             {"Melted Reliquary", 170.0f, 8.0f, 0.60f, 9,
                 DamageType::Fire, ignite}
+        };
+        definition.finalPhase.recurringHazard = {
+            3.6f,
+            0.55f,
+            {"Molten Ring", 82.0f, 3.0f, 0.60f, 5,
+                DamageType::Fire, ignite},
+            BossPhaseHazardPattern::Ring,
+            155.0f
         };
         return definition;
     }

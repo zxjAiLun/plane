@@ -1043,6 +1043,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     volatileExplosionRadius_ = 0.0f;
     resetRareLeaderEffects();
     resetMapEncounterSkill();
+    resetBossPhaseHazard();
     bossAoeSkill_ = BossSkillDefinition();
     bossSkillTimer_ = bossDefinition_->skillInterval;
     bossSkillIndex_ = 0;
@@ -1188,6 +1189,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     updateRareLeaderEffects(dt);
     updateMapEncounterSkill(dt);
     updateBossSkills(dt);
+    updateBossPhaseHazard(dt);
     updateBossProjectiles(dt);
     updateEnemyProjectiles(dt);
     spawner_.setSpawnInterval(currentSpawnInterval());
@@ -1290,6 +1292,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     volatileExplosionRadius_ = 0.0f;
     resetRareLeaderEffects();
     resetMapEncounterSkill();
+    resetBossPhaseHazard();
     bossAoeSkill_ = BossSkillDefinition();
     resetBossDash();
     bossSkillTimer_ = bossDefinition_->skillInterval;
@@ -1414,6 +1417,7 @@ void GameWorld::startNextMap() {
     volatileExplosionRadius_ = 0.0f;
     resetRareLeaderEffects();
     resetMapEncounterSkill();
+    resetBossPhaseHazard();
     bossAoeSkill_ = BossSkillDefinition();
     resetBossDash();
     bossSkillTimer_ = bossDefinition_->skillInterval;
@@ -2216,6 +2220,94 @@ void GameWorld::resetMapEncounterSkill() {
     mapEventSkillAilment_ = {};
     mapEventSkillGroundHazard_ = {};
     mapEventSkillName_.clear();
+}
+
+void GameWorld::resetBossPhaseHazard() {
+    bossPhaseHazardWarningPositions_.clear();
+    bossPhaseHazardTimer_ = 0.0f;
+    bossPhaseHazardTelegraphTimer_ = 0.0f;
+    bossPhaseHazardTelegraphDuration_ = 0.0f;
+    bossPhaseHazard_ = {};
+    bossPhaseHazardStarted_ = false;
+}
+
+void GameWorld::updateBossPhaseHazard(float dt) {
+    if (dt <= 0.0f
+        || !map_.bossTriggered()
+        || map_.bossDefeated()
+        || !bossFinalPhase_
+        || bossDefinition_ == nullptr
+        || !bossDefinition_->finalPhase.recurringHazard.isValid()) {
+        resetBossPhaseHazard();
+        return;
+    }
+
+    const auto& definition = bossDefinition_->finalPhase.recurringHazard;
+    if (!bossPhaseHazardStarted_) {
+        bossPhaseHazardStarted_ = true;
+        bossPhaseHazardTimer_ = definition.interval * 0.5f;
+        return;
+    }
+
+    if (bossPhaseHazardTelegraphTimer_ > 0.0f) {
+        const float before = bossPhaseHazardTelegraphTimer_;
+        bossPhaseHazardTelegraphTimer_ = std::max(
+            0.0f, bossPhaseHazardTelegraphTimer_ - dt
+        );
+        if (before > 0.0f && bossPhaseHazardTelegraphTimer_ == 0.0f) {
+            for (const Vector2& position : bossPhaseHazardWarningPositions_) {
+                groundHazards_.emplace_back(position, bossPhaseHazard_);
+            }
+            bossPhaseHazardWarningPositions_.clear();
+            bossPhaseHazardTimer_ = definition.interval;
+        }
+        return;
+    }
+
+    bossPhaseHazardTimer_ = std::max(0.0f, bossPhaseHazardTimer_ - dt);
+    if (bossPhaseHazardTimer_ > 0.0f) {
+        return;
+    }
+
+    bossPhaseHazard_ = definition.hazard;
+    bossPhaseHazard_.damage = bossSkillDamage(definition.hazard.damage);
+    bossPhaseHazardTelegraphDuration_ = definition.telegraphDuration;
+    bossPhaseHazardTelegraphTimer_ = definition.telegraphDuration;
+    const Vector2 center = player_.position();
+    bossPhaseHazardWarningPositions_.clear();
+
+    switch (definition.pattern) {
+        case BossPhaseHazardPattern::Target:
+            bossPhaseHazardWarningPositions_.push_back(center);
+            break;
+        case BossPhaseHazardPattern::Ring:
+        case BossPhaseHazardPattern::Cross: {
+            constexpr float twoPi = 6.28318531f;
+            constexpr float diagonalOffset = 0.78539816f;
+            constexpr int positionCount = 4;
+            for (int index = 0; index < positionCount; ++index) {
+                const float angle = (definition.pattern == BossPhaseHazardPattern::Ring
+                        ? diagonalOffset : 0.0f)
+                    + twoPi * static_cast<float>(index)
+                    / static_cast<float>(positionCount);
+                const Vector2 offset(
+                    std::cos(angle) * definition.patternRadius,
+                    std::sin(angle) * definition.patternRadius
+                );
+                bossPhaseHazardWarningPositions_.push_back(
+                    map_.resolveMovement(center, definition.hazard.radius, offset)
+                );
+            }
+            break;
+        }
+    }
+
+    addCombatFeedback(
+        center,
+        0,
+        "Boss casting: " + definition.hazard.source,
+        CombatFeedbackType::Telegraph
+    );
 }
 
 void GameWorld::updateMapEncounterSkill(float dt) {
@@ -3436,6 +3528,7 @@ void GameWorld::triggerElitePackEvent(std::size_t eventIndex) {
     activeFieldPackRewardDrops_ = 0;
     resetRareLeaderEffects();
     resetMapEncounterSkill();
+    resetBossPhaseHazard();
     spawner_.reset();
     activeMapEventIndex_ = static_cast<int>(eventIndex);
     mapEventEnemiesRemaining_ = 5;
@@ -3480,6 +3573,7 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
     activeFieldPackRewardDrops_ = 0;
     resetRareLeaderEffects();
     resetMapEncounterSkill();
+    resetBossPhaseHazard();
     spawner_.reset();
     switch (encounter.type) {
         case MapEncounterType::EnhancedCache: {
@@ -4846,6 +4940,7 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
         resetBossDash();
         bossEnraged_ = false;
         bossFinalPhase_ = false;
+        resetBossPhaseHazard();
         eventStatusMessage_ = "Boss defeated: " + bossDefinition_->name;
         if (firstAtlasCompletion) {
             eventStatusMessage_ += " | Atlas +1";
@@ -5355,6 +5450,7 @@ void GameWorld::triggerBossIfNeeded() {
     volatileExplosionRadius_ = 0.0f;
     resetRareLeaderEffects();
     resetMapEncounterSkill();
+    resetBossPhaseHazard();
     bossAoeSkill_ = BossSkillDefinition();
     resetBossDash();
     bossSkillTimer_ = bossDefinition_->skillInterval * 0.5f;
@@ -5456,6 +5552,18 @@ float GameWorld::bossAoeEffectProgress() const {
     return bossAoeSkill_.effectDuration > 0.0f
         ? bossAoeEffectTimer_ / bossAoeSkill_.effectDuration
         : 0.0f;
+}
+const std::vector<Vector2>& GameWorld::bossPhaseHazardWarningPositions() const {
+    return bossPhaseHazardWarningPositions_;
+}
+float GameWorld::bossPhaseHazardRadius() const { return bossPhaseHazard_.radius; }
+float GameWorld::bossPhaseHazardTelegraphProgress() const {
+    return bossPhaseHazardTelegraphDuration_ > 0.0f
+        ? bossPhaseHazardTelegraphTimer_ / bossPhaseHazardTelegraphDuration_
+        : 0.0f;
+}
+DamageType GameWorld::bossPhaseHazardDamageType() const {
+    return bossPhaseHazard_.damageType;
 }
 const Vector2& GameWorld::bossDashStart() const { return bossDashState_.start(); }
 const Vector2& GameWorld::bossDashTarget() const { return bossDashState_.target(); }
@@ -5726,11 +5834,16 @@ std::string GameWorld::bossSkillWarning() const {
     if (bossDashState_.isTelegraphing() && !bossDashSkill_.name.empty()) {
         return bossSkillWarningText(bossDashSkill_);
     }
-    if (bossAoeTelegraphTimer_ <= 0.0f || bossAoeSkill_.name.empty()) {
-        return "";
+    if (bossAoeTelegraphTimer_ > 0.0f && !bossAoeSkill_.name.empty()) {
+        return bossSkillWarningText(bossAoeSkill_);
     }
 
-    return bossSkillWarningText(bossAoeSkill_);
+    if (bossPhaseHazardTelegraphTimer_ > 0.0f
+        && !bossPhaseHazard_.source.empty()) {
+        return "Boss casting: " + bossPhaseHazard_.source;
+    }
+
+    return "";
 }
 bool GameWorld::bossEnraged() const { return bossEnraged_; }
 int GameWorld::bossPhase() const {

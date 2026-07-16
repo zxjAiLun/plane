@@ -22,6 +22,7 @@ private:
     void drawSecondarySkillEffect(const GameWorld& world);
     void drawDashImpactEffect(const GameWorld& world);
     void drawBossAoeEffect(const GameWorld& world);
+    void drawBossPhaseHazardEffect(const GameWorld& world);
     void drawRareLeaderEffect(const GameWorld& world);
     void drawMapEncounterSkillEffect(const GameWorld& world);
     void drawBossDashEffect(const GameWorld& world);
