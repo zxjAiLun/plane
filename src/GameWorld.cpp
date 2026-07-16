@@ -208,13 +208,18 @@ bool validStatsForRestore(const Stats& stats) {
         && positiveFinite(stats.coldDamageMultiplier)
         && positiveFinite(stats.lightningDamageMultiplier)
         && positiveFinite(stats.poisonDamageMultiplier)
+        && positiveFinite(stats.physicalDamageMultiplier)
+        && positiveFinite(stats.bleedDamageMultiplier)
+        && positiveFinite(stats.bleedDurationMultiplier)
         && positiveFinite(stats.maxManaMultiplier)
         && positiveFinite(stats.manaRegenMultiplier)
         && positiveFinite(stats.skillCostMultiplier)
         && validResistance(stats.fireResistance)
         && validResistance(stats.coldResistance)
         && validResistance(stats.lightningResistance)
-        && validResistance(stats.poisonResistance);
+        && validResistance(stats.poisonResistance)
+        && validResistance(stats.bleedResistance)
+        && validResistance(stats.bleedPenetration);
 }
 
 bool statsMatchForRestore(const Stats& left, const Stats& right) {
@@ -238,13 +243,18 @@ bool statsMatchForRestore(const Stats& left, const Stats& right) {
         && close(left.coldDamageMultiplier, right.coldDamageMultiplier)
         && close(left.lightningDamageMultiplier, right.lightningDamageMultiplier)
         && close(left.poisonDamageMultiplier, right.poisonDamageMultiplier)
+        && close(left.physicalDamageMultiplier, right.physicalDamageMultiplier)
+        && close(left.bleedDamageMultiplier, right.bleedDamageMultiplier)
+        && close(left.bleedDurationMultiplier, right.bleedDurationMultiplier)
         && close(left.maxManaMultiplier, right.maxManaMultiplier)
         && close(left.manaRegenMultiplier, right.manaRegenMultiplier)
         && close(left.skillCostMultiplier, right.skillCostMultiplier)
         && left.fireResistance == right.fireResistance
         && left.coldResistance == right.coldResistance
         && left.lightningResistance == right.lightningResistance
-        && left.poisonResistance == right.poisonResistance;
+        && left.poisonResistance == right.poisonResistance
+        && left.bleedPenetration == right.bleedPenetration
+        && left.bleedResistance == right.bleedResistance;
 }
 
 int mapElementalResistanceAdjustment(
@@ -281,13 +291,13 @@ bool validItemForRestore(const Item& item) {
     for (const auto& affix : item.affixes) {
         if (affix.tier < 1
             || static_cast<int>(affix.stat) < 0
-            || static_cast<int>(affix.stat) > static_cast<int>(AffixStat::SkillCostMultiplier)
+            || static_cast<int>(affix.stat) > static_cast<int>(AffixStat::BleedResistance)
             || !validStatsForRestore(affix.stats)) {
             return false;
         }
         for (const auto tag : affix.tags) {
             if (static_cast<int>(tag) < 0
-                || static_cast<int>(tag) > static_cast<int>(AffixTag::Poison)) {
+                || static_cast<int>(tag) > static_cast<int>(AffixTag::Bleed)) {
                 return false;
             }
         }
@@ -1217,6 +1227,13 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     if (playerPoisonDamage > 0) {
         addCombatFeedback(
             player_.position(), playerPoisonDamage, "Poison",
+            CombatFeedbackType::PlayerHit
+        );
+    }
+    const int playerBleedDamage = playerAilmentTick.damageFor(AilmentType::Bleed);
+    if (playerBleedDamage > 0) {
+        addCombatFeedback(
+            player_.position(), playerBleedDamage, "Bleed",
             CombatFeedbackType::PlayerHit
         );
     }
@@ -5623,10 +5640,19 @@ void GameWorld::applyPlayerAilment(
             break;
         }
         case AilmentType::Bleed:
-            // Current enemy definitions do not inflict Bleed on the player;
-            // keep the incoming path explicit until physical enemy ailments
-            // are added as a separate content pass.
-            return;
+            {
+                const int tickDamage = ailmentTickDamageAfterResistance(
+                    ailmentTickDamage(ailment, hitDamage),
+                    std::clamp(effectiveStats.bleedResistance, 0, 100),
+                    ailment.bleedPenetration
+                );
+                if (tickDamage <= 0) {
+                    return;
+                }
+                player_.applyBleed(tickDamage, ailment.duration);
+                applied = true;
+            }
+            break;
         case AilmentType::None:
         case AilmentType::Count:
             return;

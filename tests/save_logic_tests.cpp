@@ -94,6 +94,11 @@ SaveData sampleData() {
     data.player.upgradeStats.coldDamageMultiplier = 1.08f;
     data.player.upgradeStats.lightningDamageMultiplier = 1.16f;
     data.player.upgradeStats.poisonDamageMultiplier = 1.22f;
+    data.player.upgradeStats.physicalDamageMultiplier = 1.27f;
+    data.player.upgradeStats.bleedDamageMultiplier = 1.31f;
+    data.player.upgradeStats.bleedDurationMultiplier = 1.42f;
+    data.player.upgradeStats.bleedPenetration = 17;
+    data.player.upgradeStats.bleedResistance = 23;
     data.player.upgradeStats.maxManaMultiplier = 1.35f;
     data.player.upgradeStats.manaRegenMultiplier = 1.20f;
     data.player.upgradeStats.skillCostMultiplier = 0.88f;
@@ -180,6 +185,9 @@ void testFileValidation(const std::filesystem::path& path) {
             && std::abs(restored.player.upgradeStats.coldDamageMultiplier - 1.08f) < 0.0001f
             && std::abs(restored.player.upgradeStats.lightningDamageMultiplier - 1.16f) < 0.0001f
             && std::abs(restored.player.upgradeStats.poisonDamageMultiplier - 1.22f) < 0.0001f
+            && std::abs(restored.player.upgradeStats.physicalDamageMultiplier - 1.27f) < 0.0001f
+            && std::abs(restored.player.upgradeStats.bleedDamageMultiplier - 1.31f) < 0.0001f
+            && std::abs(restored.player.upgradeStats.bleedDurationMultiplier - 1.42f) < 0.0001f
             && std::abs(restored.player.upgradeStats.maxManaMultiplier - 1.35f) < 0.0001f
             && std::abs(restored.player.upgradeStats.manaRegenMultiplier - 1.20f) < 0.0001f
             && std::abs(restored.player.upgradeStats.skillCostMultiplier - 0.88f) < 0.0001f
@@ -187,6 +195,8 @@ void testFileValidation(const std::filesystem::path& path) {
             && restored.player.upgradeStats.coldResistance == 24
             && restored.player.upgradeStats.lightningResistance == 12
             && restored.player.upgradeStats.poisonResistance == 19
+            && restored.player.upgradeStats.bleedPenetration == 17
+            && restored.player.upgradeStats.bleedResistance == 23
             && restored.skillBar.skills[0] == "Arc Bolt"
             && restored.skillBar.skills[2] == "Shockwave"
             && restored.skillBar.supports[0][0] == "Pierce"

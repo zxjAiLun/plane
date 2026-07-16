@@ -165,7 +165,12 @@ bool statsEqual(const Stats& lhs, const Stats& rhs) {
         && std::abs(lhs.chillDurationMultiplier - rhs.chillDurationMultiplier) < 0.0001f
         && std::abs(lhs.shockMagnitudeMultiplier - rhs.shockMagnitudeMultiplier) < 0.0001f
         && std::abs(lhs.shockDurationMultiplier - rhs.shockDurationMultiplier) < 0.0001f
-        && std::abs(lhs.poisonDurationMultiplier - rhs.poisonDurationMultiplier) < 0.0001f;
+        && std::abs(lhs.poisonDurationMultiplier - rhs.poisonDurationMultiplier) < 0.0001f
+        && std::abs(lhs.physicalDamageMultiplier - rhs.physicalDamageMultiplier) < 0.0001f
+        && std::abs(lhs.bleedDamageMultiplier - rhs.bleedDamageMultiplier) < 0.0001f
+        && std::abs(lhs.bleedDurationMultiplier - rhs.bleedDurationMultiplier) < 0.0001f
+        && lhs.bleedPenetration == rhs.bleedPenetration
+        && lhs.bleedResistance == rhs.bleedResistance;
 }
 
 void section(const std::string& title) {
@@ -1067,6 +1072,11 @@ void testSkillAilments() {
     expect(skillDamage(toxicBurst, poisonStats, nullptr)
             > skillDamage(toxicBurst, Stats{}, nullptr),
         "Poison specialization increases Poison skill damage");
+    Stats physicalStats;
+    physicalStats.physicalDamageMultiplier = 1.50f;
+    expect(skillDamage(SkillLibrary::rendingVolley(), physicalStats, nullptr)
+            > skillDamage(SkillLibrary::rendingVolley(), Stats{}, nullptr),
+        "Physical specialization increases Physical skill damage");
 
     Stats ailmentStats;
     ailmentStats.igniteDamageMultiplier = 1.25f;
@@ -1076,6 +1086,9 @@ void testSkillAilments() {
     ailmentStats.shockMagnitudeMultiplier = 1.25f;
     ailmentStats.shockDurationMultiplier = 1.35f;
     ailmentStats.poisonDurationMultiplier = 1.50f;
+    ailmentStats.bleedDamageMultiplier = 1.40f;
+    ailmentStats.bleedDurationMultiplier = 1.60f;
+    ailmentStats.bleedPenetration = 18;
     const AilmentDefinition scaledIgnite = scaleAilmentWithStats(
         meteor.ailment, ailmentStats
     );
@@ -1088,6 +1101,9 @@ void testSkillAilments() {
     const AilmentDefinition scaledPoison = scaleAilmentWithStats(
         toxicBurst.ailment, ailmentStats
     );
+    const AilmentDefinition scaledBleed = scaleAilmentWithStats(
+        SkillLibrary::rendingVolley().ailment, ailmentStats
+    );
     expect(scaledIgnite.damageMultiplier > meteor.ailment.damageMultiplier
             && scaledIgnite.duration > meteor.ailment.duration
             && scaledChill.speedMultiplier < frostBomb.ailment.speedMultiplier
@@ -1095,7 +1111,12 @@ void testSkillAilments() {
             && scaledShock.damageTakenMultiplier
                 > SkillLibrary::pulse().ailment.damageTakenMultiplier
             && scaledShock.duration > SkillLibrary::pulse().ailment.duration
-            && scaledPoison.duration > toxicBurst.ailment.duration,
+            && scaledPoison.duration > toxicBurst.ailment.duration
+            && scaledBleed.damageMultiplier
+                > SkillLibrary::rendingVolley().ailment.damageMultiplier
+            && scaledBleed.duration > SkillLibrary::rendingVolley().ailment.duration
+            && scaledBleed.bleedPenetration
+                == SkillLibrary::rendingVolley().ailment.bleedPenetration + 18,
         "elemental ailment stats scale damage, magnitude, and duration");
 
     Enemy enemy({0.0f, 0.0f}, 10, 1);
@@ -1266,6 +1287,23 @@ void testPlayerAilments() {
     poisoned.updateAilments(2.0f);
     expect(!poisoned.isPoisoned() && !poisoned.hasAilment(),
         "Player Poison expires with the other transient ailments");
+
+    Player bleeding;
+    bleeding.applyBleed(2, 2.0f);
+    bleeding.applyBleed(3, 2.0f);
+    const int hpBeforeBleed = bleeding.hp();
+    const AilmentTickResult playerBleedTick = bleeding.updateAilments(
+        Config::AilmentTickInterval
+    );
+    expect(bleeding.hasAilment()
+            && bleeding.isBleeding()
+            && bleeding.bleedStacks() == 2
+            && playerBleedTick.damageFor(AilmentType::Bleed) == 5
+            && bleeding.hp() == hpBeforeBleed - 5,
+        "Player Bleed applies stacked DoT and reports its damage type");
+    bleeding.updateAilments(2.0f);
+    expect(!bleeding.isBleeding() && !bleeding.hasAilment(),
+        "Player Bleed expires with the other transient ailments");
 
     Player restored;
     restored.applyIgnite(1, 2.0f);
@@ -2156,6 +2194,10 @@ void testAffixTagsAndWeights() {
                 expect(hasTag(AffixTag::Projectile) && hasTag(AffixTag::Damage),
                     affix.name + " maps projectile damage to Projectile and Damage");
                 break;
+            case AffixStat::PhysicalDamageMultiplier:
+                expect(hasTag(AffixTag::Physical) && hasTag(AffixTag::Damage),
+                    affix.name + " maps physical damage to Physical and Damage");
+                break;
             case AffixStat::AreaDamageMultiplier:
             case AffixStat::AreaRadiusMultiplier:
                 expect(hasTag(AffixTag::Area), affix.name + " maps area scaling to Area");
@@ -2163,6 +2205,12 @@ void testAffixTagsAndWeights() {
             case AffixStat::PoisonDamageMultiplier:
                 expect(hasTag(AffixTag::Poison) && hasTag(AffixTag::Damage),
                     affix.name + " maps Poison damage to Poison and Damage");
+                break;
+            case AffixStat::BleedDamageMultiplier:
+            case AffixStat::BleedDurationMultiplier:
+            case AffixStat::BleedPenetration:
+                expect(hasTag(AffixTag::Bleed) && hasTag(AffixTag::Damage),
+                    affix.name + " maps Bleed scaling to Bleed and Damage");
                 break;
             case AffixStat::FireDamageMultiplier:
                 expect(hasTag(AffixTag::Fire) && hasTag(AffixTag::Damage),
@@ -2179,6 +2227,10 @@ void testAffixTagsAndWeights() {
             case AffixStat::PoisonResistance:
                 expect(hasTag(AffixTag::Survival),
                     affix.name + " maps Poison resistance to Survival");
+                break;
+            case AffixStat::BleedResistance:
+                expect(hasTag(AffixTag::Bleed) && hasTag(AffixTag::Survival),
+                    affix.name + " maps Bleed resistance to Bleed and Survival");
                 break;
             case AffixStat::Armor:
                 expect(hasTag(AffixTag::Armor) && hasTag(AffixTag::Survival),
@@ -2240,11 +2292,15 @@ void testAffixTagsAndWeights() {
             && hasElementalSlotCoverage(EquipmentSlot::Ring, AffixStat::ColdDamageMultiplier)
             && hasElementalSlotCoverage(EquipmentSlot::Ring, AffixStat::LightningDamageMultiplier)
             && hasElementalSlotCoverage(EquipmentSlot::Ring, AffixStat::PoisonDamageMultiplier)
+            && hasElementalSlotCoverage(EquipmentSlot::Ring, AffixStat::PhysicalDamageMultiplier)
+            && hasElementalSlotCoverage(EquipmentSlot::Ring, AffixStat::BleedDamageMultiplier)
             && hasElementalSlotCoverage(EquipmentSlot::Amulet, AffixStat::FireDamageMultiplier)
             && hasElementalSlotCoverage(EquipmentSlot::Amulet, AffixStat::ColdDamageMultiplier)
             && hasElementalSlotCoverage(EquipmentSlot::Amulet, AffixStat::LightningDamageMultiplier)
-            && hasElementalSlotCoverage(EquipmentSlot::Amulet, AffixStat::PoisonDamageMultiplier),
-        "Ring and Amulet affix pools cover all four elemental damage types");
+            && hasElementalSlotCoverage(EquipmentSlot::Amulet, AffixStat::PoisonDamageMultiplier)
+            && hasElementalSlotCoverage(EquipmentSlot::Amulet, AffixStat::PhysicalDamageMultiplier)
+            && hasElementalSlotCoverage(EquipmentSlot::Amulet, AffixStat::BleedDamageMultiplier),
+        "Ring and Amulet affix pools cover elemental and Physical/Bleed damage types");
     if (maxManaIt != affixes.end() && manaRegenIt != affixes.end()) {
         const Stats maxManaContribution = LootGenerator::contributionFor(
             maxManaIt->id, 5, 3

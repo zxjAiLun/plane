@@ -33,6 +33,11 @@ struct Stats {
     float shockMagnitudeMultiplier = 1.0f;
     float shockDurationMultiplier = 1.0f;
     float poisonDurationMultiplier = 1.0f;
+    float physicalDamageMultiplier = 1.0f;
+    float bleedDamageMultiplier = 1.0f;
+    float bleedDurationMultiplier = 1.0f;
+    int bleedPenetration = 0;
+    int bleedResistance = 0;
 };
 
 inline Stats combineStats(const Stats& base, const Stats& bonus) {
@@ -68,5 +73,10 @@ inline Stats combineStats(const Stats& base, const Stats& bonus) {
         base.shockMagnitudeMultiplier * bonus.shockMagnitudeMultiplier,
         base.shockDurationMultiplier * bonus.shockDurationMultiplier,
         base.poisonDurationMultiplier * bonus.poisonDurationMultiplier,
+        base.physicalDamageMultiplier * bonus.physicalDamageMultiplier,
+        base.bleedDamageMultiplier * bonus.bleedDamageMultiplier,
+        base.bleedDurationMultiplier * bonus.bleedDurationMultiplier,
+        base.bleedPenetration + bonus.bleedPenetration,
+        base.bleedResistance + bonus.bleedResistance,
     };
 }

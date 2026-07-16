@@ -83,6 +83,10 @@ void Player::clearAilments() {
     poisonStacks_ = 0;
     poisonTimer_ = 0.0f;
     poisonTickTimer_ = 0.0f;
+    bleedDamagePerTick_ = 0;
+    bleedStacks_ = 0;
+    bleedTimer_ = 0.0f;
+    bleedTickTimer_ = 0.0f;
 }
 
 int Player::takeDamage(int damage) {
@@ -184,6 +188,26 @@ AilmentTickResult Player::updateAilments(float dt) {
         }
     }
 
+    if (bleedTimer_ > 0.0f) {
+        const float activeTime = std::min(elapsed, bleedTimer_);
+        bleedTimer_ = std::max(0.0f, bleedTimer_ - elapsed);
+        bleedTickTimer_ -= activeTime;
+        while (bleedTickTimer_ <= 0.0f && bleedTimer_ > 0.0f && !isDead()) {
+            const int dealtDamage = takeDamage(bleedDamagePerTick_);
+            result.record(AilmentType::Bleed, dealtDamage);
+            result.killed = isDead();
+            bleedTickTimer_ += Config::AilmentTickInterval;
+            if (result.killed) {
+                break;
+            }
+        }
+        if (bleedTimer_ <= 0.0f) {
+            bleedDamagePerTick_ = 0;
+            bleedStacks_ = 0;
+            bleedTickTimer_ = 0.0f;
+        }
+    }
+
     chillTimer_ = std::max(0.0f, chillTimer_ - elapsed);
     if (chillTimer_ <= 0.0f) {
         chillSpeedMultiplier_ = 1.0f;
@@ -243,6 +267,22 @@ void Player::applyPoison(int damagePerTick, float duration) {
     poisonTickTimer_ = std::min(poisonTickTimer_, Config::AilmentTickInterval);
     if (poisonTickTimer_ <= 0.0f) {
         poisonTickTimer_ = Config::AilmentTickInterval;
+    }
+}
+
+void Player::applyBleed(int damagePerTick, float duration) {
+    if (damagePerTick <= 0 || duration <= 0.0f) {
+        return;
+    }
+
+    if (bleedStacks_ < Config::MaxBleedStacks) {
+        ++bleedStacks_;
+        bleedDamagePerTick_ += damagePerTick;
+    }
+    bleedTimer_ = std::max(bleedTimer_, duration);
+    bleedTickTimer_ = std::min(bleedTickTimer_, Config::AilmentTickInterval);
+    if (bleedTickTimer_ <= 0.0f) {
+        bleedTickTimer_ = Config::AilmentTickInterval;
     }
 }
 
@@ -364,13 +404,18 @@ bool Player::restoreState(const PlayerSaveState& state, const Vector2& bounds) {
         || !validPositiveMultiplier(state.upgradeStats.coldDamageMultiplier)
         || !validPositiveMultiplier(state.upgradeStats.lightningDamageMultiplier)
         || !validPositiveMultiplier(state.upgradeStats.poisonDamageMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.physicalDamageMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.bleedDamageMultiplier)
+        || !validPositiveMultiplier(state.upgradeStats.bleedDurationMultiplier)
         || !validPositiveMultiplier(state.upgradeStats.maxManaMultiplier)
         || !validPositiveMultiplier(state.upgradeStats.manaRegenMultiplier)
         || !validPositiveMultiplier(state.upgradeStats.skillCostMultiplier)
         || !validResistance(state.upgradeStats.fireResistance)
         || !validResistance(state.upgradeStats.coldResistance)
         || !validResistance(state.upgradeStats.lightningResistance)
-        || !validResistance(state.upgradeStats.poisonResistance)) {
+        || !validResistance(state.upgradeStats.poisonResistance)
+        || !validResistance(state.upgradeStats.bleedPenetration)
+        || !validResistance(state.upgradeStats.bleedResistance)) {
         return false;
     }
 
@@ -423,14 +468,17 @@ bool Player::isIgnited() const { return igniteTimer_ > 0.0f; }
 bool Player::isChilled() const { return chillTimer_ > 0.0f; }
 bool Player::isShocked() const { return shockTimer_ > 0.0f; }
 bool Player::hasAilment() const {
-    return isIgnited() || isChilled() || isShocked() || isPoisoned();
+    return isIgnited() || isChilled() || isShocked() || isPoisoned() || isBleeding();
 }
 bool Player::isPoisoned() const { return poisonTimer_ > 0.0f; }
+bool Player::isBleeding() const { return bleedTimer_ > 0.0f; }
 int Player::poisonStacks() const { return poisonStacks_; }
+int Player::bleedStacks() const { return bleedStacks_; }
 float Player::chillTimeRemaining() const { return chillTimer_; }
 float Player::shockTimeRemaining() const { return shockTimer_; }
 float Player::igniteTimeRemaining() const { return igniteTimer_; }
 float Player::poisonTimeRemaining() const { return poisonTimer_; }
+float Player::bleedTimeRemaining() const { return bleedTimer_; }
 float Player::chillSpeedMultiplier() const { return chillSpeedMultiplier_; }
 float Player::damageTakenMultiplier() const { return shockDamageTakenMultiplier_; }
 int Player::hp() const { return hp_; }

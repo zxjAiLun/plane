@@ -153,6 +153,7 @@ inline int skillDamage(
             damage *= stats.poisonDamageMultiplier;
             break;
         case DamageType::Physical:
+            damage *= stats.physicalDamageMultiplier;
             break;
     }
 
@@ -475,6 +476,9 @@ inline AilmentDefinition scaleAilmentWithStats(
             result.duration *= stats.poisonDurationMultiplier;
             break;
         case AilmentType::Bleed:
+            result.damageMultiplier *= stats.bleedDamageMultiplier;
+            result.duration *= stats.bleedDurationMultiplier;
+            result.bleedPenetration += stats.bleedPenetration;
             break;
         case AilmentType::None:
         case AilmentType::Count:

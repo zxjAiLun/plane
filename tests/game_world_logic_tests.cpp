@@ -216,6 +216,9 @@ bool statsEqual(const Stats& first, const Stats& second) {
         && std::abs(first.areaDamageMultiplier - second.areaDamageMultiplier) < 0.0001f
         && std::abs(first.areaRadiusMultiplier - second.areaRadiusMultiplier) < 0.0001f
         && std::abs(first.poisonDamageMultiplier - second.poisonDamageMultiplier) < 0.0001f
+        && std::abs(first.physicalDamageMultiplier - second.physicalDamageMultiplier) < 0.0001f
+        && std::abs(first.bleedDamageMultiplier - second.bleedDamageMultiplier) < 0.0001f
+        && std::abs(first.bleedDurationMultiplier - second.bleedDurationMultiplier) < 0.0001f
         && std::abs(first.maxManaMultiplier - second.maxManaMultiplier) < 0.0001f
         && std::abs(first.manaRegenMultiplier - second.manaRegenMultiplier) < 0.0001f
         && std::abs(first.skillCostMultiplier - second.skillCostMultiplier) < 0.0001f
@@ -224,7 +227,9 @@ bool statsEqual(const Stats& first, const Stats& second) {
         && std::abs(first.lifeFlaskEffectMultiplier - second.lifeFlaskEffectMultiplier) < 0.0001f
         && std::abs(first.itemQuantityMultiplier - second.itemQuantityMultiplier) < 0.0001f
         && std::abs(first.incomingDamageMultiplier - second.incomingDamageMultiplier) < 0.0001f
-        && first.poisonResistance == second.poisonResistance;
+        && first.poisonResistance == second.poisonResistance
+        && first.bleedPenetration == second.bleedPenetration
+        && first.bleedResistance == second.bleedResistance;
 }
 
 void testPauseContextsAndFreeze() {

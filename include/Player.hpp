@@ -49,6 +49,7 @@ public:
     void applyChill(float speedMultiplier, float duration);
     void applyShock(float damageTakenMultiplier, float duration);
     void applyPoison(int damagePerTick, float duration);
+    void applyBleed(int damagePerTick, float duration);
 
     void gainExp(int amount);
     void applyUpgrade(UpgradeType type);
@@ -68,11 +69,14 @@ public:
     bool isShocked() const;
     bool hasAilment() const;
     bool isPoisoned() const;
+    bool isBleeding() const;
     int poisonStacks() const;
+    int bleedStacks() const;
     float chillTimeRemaining() const;
     float shockTimeRemaining() const;
     float igniteTimeRemaining() const;
     float poisonTimeRemaining() const;
+    float bleedTimeRemaining() const;
     float chillSpeedMultiplier() const;
     float damageTakenMultiplier() const;
     int hp() const;
@@ -122,4 +126,8 @@ private:
     int poisonStacks_ = 0;
     float poisonTimer_ = 0.0f;
     float poisonTickTimer_ = 0.0f;
+    int bleedDamagePerTick_ = 0;
+    int bleedStacks_ = 0;
+    float bleedTimer_ = 0.0f;
+    float bleedTickTimer_ = 0.0f;
 };

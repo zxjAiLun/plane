@@ -176,13 +176,26 @@ void writeStats(Writer& writer, const Stats& stats) {
     writer.real(stats.maxManaMultiplier);
     writer.real(stats.manaRegenMultiplier);
     writer.real(stats.skillCostMultiplier);
+    writer.real(stats.igniteDamageMultiplier);
+    writer.real(stats.igniteDurationMultiplier);
+    writer.real(stats.chillMagnitudeMultiplier);
+    writer.real(stats.chillDurationMultiplier);
+    writer.real(stats.shockMagnitudeMultiplier);
+    writer.real(stats.shockDurationMultiplier);
+    writer.real(stats.poisonDurationMultiplier);
+    writer.real(stats.physicalDamageMultiplier);
+    writer.real(stats.bleedDamageMultiplier);
+    writer.real(stats.bleedDurationMultiplier);
+    writer.integer(stats.bleedPenetration);
+    writer.integer(stats.bleedResistance);
 }
 
 bool readStats(
     Reader& reader,
     Stats& stats,
     bool hasPoisonFields,
-    bool hasResourceFields
+    bool hasResourceFields,
+    bool hasAdvancedAilmentFields
 ) {
     if (!(reader.integer(stats.maxHp)
         && reader.real(stats.moveSpeedMultiplier)
@@ -218,12 +231,40 @@ bool readStats(
         stats.maxManaMultiplier = 1.0f;
         stats.manaRegenMultiplier = 1.0f;
         stats.skillCostMultiplier = 1.0f;
+    } else if (!reader.real(stats.maxManaMultiplier)
+        || !reader.real(stats.manaRegenMultiplier)
+        || !reader.real(stats.skillCostMultiplier)) {
+        return false;
+    }
+
+    if (!hasAdvancedAilmentFields) {
+        stats.igniteDamageMultiplier = 1.0f;
+        stats.igniteDurationMultiplier = 1.0f;
+        stats.chillMagnitudeMultiplier = 1.0f;
+        stats.chillDurationMultiplier = 1.0f;
+        stats.shockMagnitudeMultiplier = 1.0f;
+        stats.shockDurationMultiplier = 1.0f;
+        stats.poisonDurationMultiplier = 1.0f;
+        stats.physicalDamageMultiplier = 1.0f;
+        stats.bleedDamageMultiplier = 1.0f;
+        stats.bleedDurationMultiplier = 1.0f;
+        stats.bleedPenetration = 0;
+        stats.bleedResistance = 0;
         return true;
     }
 
-    return reader.real(stats.maxManaMultiplier)
-        && reader.real(stats.manaRegenMultiplier)
-        && reader.real(stats.skillCostMultiplier);
+    return reader.real(stats.igniteDamageMultiplier)
+        && reader.real(stats.igniteDurationMultiplier)
+        && reader.real(stats.chillMagnitudeMultiplier)
+        && reader.real(stats.chillDurationMultiplier)
+        && reader.real(stats.shockMagnitudeMultiplier)
+        && reader.real(stats.shockDurationMultiplier)
+        && reader.real(stats.poisonDurationMultiplier)
+        && reader.real(stats.physicalDamageMultiplier)
+        && reader.real(stats.bleedDamageMultiplier)
+        && reader.real(stats.bleedDurationMultiplier)
+        && reader.integer(stats.bleedPenetration)
+        && reader.integer(stats.bleedResistance);
 }
 
 void writeVector2(Writer& writer, const Vector2& position) {
@@ -263,7 +304,8 @@ bool readItem(
     Reader& reader,
     Item& item,
     bool hasPoisonFields,
-    bool hasResourceFields
+    bool hasResourceFields,
+    bool hasAdvancedAilmentFields
 ) {
     int slot = 0;
     int rarity = 0;
@@ -273,7 +315,9 @@ bool readItem(
         || !reader.integer(rarity)
         || !validEnumValue(slot, 0, static_cast<int>(EquipmentSlot::Count) - 1)
         || !validEnumValue(rarity, 0, static_cast<int>(Rarity::Unique))
-        || !readStats(reader, item.stats, hasPoisonFields, hasResourceFields)
+        || !readStats(
+            reader, item.stats, hasPoisonFields, hasResourceFields, hasAdvancedAilmentFields
+        )
         || !reader.integer(item.itemLevel)
         || item.itemLevel < 1
         || !reader.integer(affixCount)
@@ -292,7 +336,10 @@ bool readItem(
         if (!reader.string(affix.name)
             || !reader.integer(affix.tier)
             || affix.tier < 1
-            || !readStats(reader, affix.stats, hasPoisonFields, hasResourceFields)
+            || !readStats(
+                reader, affix.stats, hasPoisonFields, hasResourceFields,
+                hasAdvancedAilmentFields
+            )
             || !reader.integer(tagCount)
             || tagCount > MaxVectorLength) {
             return false;
@@ -302,14 +349,14 @@ bool readItem(
         for (std::uint32_t tagIndex = 0; tagIndex < tagCount; ++tagIndex) {
             int tag = 0;
             if (!reader.integer(tag)
-                || !validEnumValue(tag, 0, static_cast<int>(AffixTag::Poison))) {
+            || !validEnumValue(tag, 0, static_cast<int>(AffixTag::Bleed))) {
                 return false;
             }
             affix.tags.push_back(static_cast<AffixTag>(tag));
         }
         if (!reader.string(affix.id)
             || !reader.integer(stat)
-            || !validEnumValue(stat, 0, static_cast<int>(AffixStat::SkillCostMultiplier))
+            || !validEnumValue(stat, 0, static_cast<int>(AffixStat::BleedResistance))
             || !reader.boolean(affix.isPrefix)) {
             return false;
         }
@@ -319,7 +366,10 @@ bool readItem(
 
     return reader.string(item.baseId)
         && reader.string(item.baseName)
-        && readStats(reader, item.implicitStats, hasPoisonFields, hasResourceFields);
+        && readStats(
+            reader, item.implicitStats, hasPoisonFields, hasResourceFields,
+            hasAdvancedAilmentFields
+        );
 }
 
 void writePlayerState(Writer& writer, const PlayerSaveState& state) {
@@ -347,6 +397,7 @@ bool readPlayerState(
     PlayerSaveState& state,
     bool hasPoisonFields,
     bool hasResourceFields,
+    bool hasAdvancedAilmentFields,
     std::size_t passiveNodeCount
 ) {
     if (!readVector2(reader, state.position)
@@ -356,7 +407,10 @@ bool readPlayerState(
         || !reader.integer(state.exp)
         || !reader.integer(state.expToNextLevel)
         || !reader.integer(state.talentPoints)
-        || !readStats(reader, state.upgradeStats, hasPoisonFields, hasResourceFields)) {
+        || !readStats(
+            reader, state.upgradeStats, hasPoisonFields, hasResourceFields,
+            hasAdvancedAilmentFields
+        )) {
         return false;
     }
     state.allocatedPassiveNodes.fill(false);
@@ -376,7 +430,10 @@ bool readPlayerState(
         item.reset();
         if (present) {
             item.emplace();
-            if (!readItem(reader, *item, hasPoisonFields, hasResourceFields)) {
+            if (!readItem(
+                    reader, *item, hasPoisonFields, hasResourceFields,
+                    hasAdvancedAilmentFields
+                )) {
                 return false;
             }
         }
@@ -465,8 +522,8 @@ bool readModifierEffect(
         || !reader.real(effect.secondaryLootBiasWeightMultiplier)) {
         return false;
     }
-    if (!validEnumValue(primaryTag, 0, static_cast<int>(AffixTag::Poison))
-        || !validEnumValue(secondaryTag, 0, static_cast<int>(AffixTag::Poison))) {
+    if (!validEnumValue(primaryTag, 0, static_cast<int>(AffixTag::Bleed))
+        || !validEnumValue(secondaryTag, 0, static_cast<int>(AffixTag::Bleed))) {
         return false;
     }
     effect.primaryLootBiasTag = static_cast<AffixTag>(primaryTag);
@@ -564,8 +621,8 @@ bool readModifier(
         || !reader.real(modifier.secondaryLootBiasWeightMultiplier)) {
         return false;
     }
-    if (!validEnumValue(lootTag, 0, static_cast<int>(AffixTag::Poison))
-        || !validEnumValue(secondaryTag, 0, static_cast<int>(AffixTag::Poison))) {
+    if (!validEnumValue(lootTag, 0, static_cast<int>(AffixTag::Bleed))
+        || !validEnumValue(secondaryTag, 0, static_cast<int>(AffixTag::Bleed))) {
         return false;
     }
 
@@ -881,6 +938,7 @@ bool readSaveData(
     bool hasItemRarityFields,
     bool hasPoisonFields,
     bool hasResourceFields,
+    bool hasAdvancedAilmentFields,
     bool hasManaFlaskFields,
     std::size_t passiveNodeCount,
     bool hasGemProgression,
@@ -972,7 +1030,8 @@ bool readSaveData(
         || !reader.real(data.itemQuantityRewardMultiplier)
         || !reader.integer(data.forgeFragments)
         || !readPlayerState(
-            reader, data.player, hasPoisonFields, hasResourceFields, passiveNodeCount
+            reader, data.player, hasPoisonFields, hasResourceFields,
+            hasAdvancedAilmentFields, passiveNodeCount
         )
         || !readSkillBarState(reader, data.skillBar)) {
         return false;
@@ -991,7 +1050,10 @@ bool readSaveData(
     data.inventory.reserve(count);
     for (std::uint32_t index = 0; index < count; ++index) {
         Item item;
-        if (!readItem(reader, item, hasPoisonFields, hasResourceFields)) {
+        if (!readItem(
+                reader, item, hasPoisonFields, hasResourceFields,
+                hasAdvancedAilmentFields
+            )) {
             return false;
         }
         data.inventory.push_back(std::move(item));
@@ -1003,7 +1065,10 @@ bool readSaveData(
     data.stash.reserve(count);
     for (std::uint32_t index = 0; index < count; ++index) {
         Item item;
-        if (!readItem(reader, item, hasPoisonFields, hasResourceFields)) {
+        if (!readItem(
+                reader, item, hasPoisonFields, hasResourceFields,
+                hasAdvancedAilmentFields
+            )) {
             return false;
         }
         data.stash.push_back(std::move(item));
@@ -1044,7 +1109,10 @@ bool readSaveData(
     for (std::uint32_t index = 0; index < count; ++index) {
         SavedDroppedItem dropped;
         if (!readVector2(reader, dropped.position)
-            || !readItem(reader, dropped.item, hasPoisonFields, hasResourceFields)) {
+            || !readItem(
+                reader, dropped.item, hasPoisonFields, hasResourceFields,
+                hasAdvancedAilmentFields
+            )) {
             return false;
         }
         data.droppedItems.push_back(std::move(dropped));
@@ -1195,6 +1263,7 @@ bool SaveService::load(const std::filesystem::path& path,
             version >= 11U,
             version >= 5U,
             version >= 17U,
+            version >= 20U,
             version >= 18U,
             version >= 19U
                 ? PassiveTree::NodeCount

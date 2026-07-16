@@ -755,6 +755,10 @@ private:
             {"of Frostbite", false, EquipmentSlot::Weapon, AffixStat::ColdDamageMultiplier, {0.04f, 0.07f, 0.10f}},
             {"Stormcharged", true, EquipmentSlot::Weapon, AffixStat::LightningDamageMultiplier, {0.04f, 0.07f, 0.10f}},
             {"Venomforged", true, EquipmentSlot::Weapon, AffixStat::PoisonDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"Jagged", true, EquipmentSlot::Weapon, AffixStat::PhysicalDamageMultiplier, {0.05f, 0.09f, 0.13f}},
+            {"of Hemorrhage", false, EquipmentSlot::Weapon, AffixStat::BleedDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"Deepcut", true, EquipmentSlot::Weapon, AffixStat::BleedPenetration, {4.0f, 8.0f, 12.0f}},
+            {"of Long Wounds", false, EquipmentSlot::Weapon, AffixStat::BleedDurationMultiplier, {0.04f, 0.07f, 0.10f}},
 
             // Armor
             {"Sturdy", true, EquipmentSlot::Armor, AffixStat::MaxHp, {4.0f, 8.0f, 12.0f}},
@@ -769,6 +773,7 @@ private:
             {"Frostguard", true, EquipmentSlot::Armor, AffixStat::ColdResistance, {4.0f, 8.0f, 12.0f}},
             {"Stormguard", true, EquipmentSlot::Armor, AffixStat::LightningResistance, {4.0f, 8.0f, 12.0f}},
             {"Venomguard", true, EquipmentSlot::Armor, AffixStat::PoisonResistance, {4.0f, 8.0f, 12.0f}},
+            {"Bloodguard", true, EquipmentSlot::Armor, AffixStat::BleedResistance, {4.0f, 8.0f, 12.0f}},
 
             // Ring
             {"Glinting", true, EquipmentSlot::Ring, AffixStat::DamageMultiplier, {0.05f, 0.09f, 0.13f}},
@@ -816,6 +821,10 @@ private:
             {"of Sparks", false, EquipmentSlot::Ring, AffixStat::LightningDamageMultiplier, {0.02f, 0.05f, 0.08f}},
             {"Venomous", true, EquipmentSlot::Ring, AffixStat::PoisonDamageMultiplier, {0.03f, 0.06f, 0.09f}},
             {"of Toxins", false, EquipmentSlot::Ring, AffixStat::PoisonDamageMultiplier, {0.02f, 0.05f, 0.08f}},
+            {"Jagged", true, EquipmentSlot::Ring, AffixStat::PhysicalDamageMultiplier, {0.03f, 0.06f, 0.09f}},
+            {"of Hemorrhage", false, EquipmentSlot::Ring, AffixStat::BleedDamageMultiplier, {0.02f, 0.05f, 0.08f}},
+            {"Deepcut", true, EquipmentSlot::Ring, AffixStat::BleedPenetration, {3.0f, 6.0f, 9.0f}},
+            {"of Long Wounds", false, EquipmentSlot::Ring, AffixStat::BleedDurationMultiplier, {0.03f, 0.06f, 0.09f}},
             {"Emberheart", true, EquipmentSlot::Amulet, AffixStat::FireDamageMultiplier, {0.04f, 0.07f, 0.10f}},
             {"of Embers", false, EquipmentSlot::Amulet, AffixStat::FireDamageMultiplier, {0.03f, 0.06f, 0.09f}},
             {"Rimeheart", true, EquipmentSlot::Amulet, AffixStat::ColdDamageMultiplier, {0.04f, 0.07f, 0.10f}},
@@ -824,6 +833,10 @@ private:
             {"of Storms", false, EquipmentSlot::Amulet, AffixStat::LightningDamageMultiplier, {0.03f, 0.06f, 0.09f}},
             {"Venomheart", true, EquipmentSlot::Amulet, AffixStat::PoisonDamageMultiplier, {0.04f, 0.07f, 0.10f}},
             {"of Toxins", false, EquipmentSlot::Amulet, AffixStat::PoisonDamageMultiplier, {0.03f, 0.06f, 0.09f}},
+            {"Jagged", true, EquipmentSlot::Amulet, AffixStat::PhysicalDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"of Hemorrhage", false, EquipmentSlot::Amulet, AffixStat::BleedDamageMultiplier, {0.03f, 0.06f, 0.09f}},
+            {"Deepcut", true, EquipmentSlot::Amulet, AffixStat::BleedPenetration, {3.0f, 6.0f, 9.0f}},
+            {"of Long Wounds", false, EquipmentSlot::Amulet, AffixStat::BleedDurationMultiplier, {0.03f, 0.06f, 0.09f}},
         };
 
         for (auto& affix : pool) {
@@ -867,11 +880,19 @@ private:
                 return {AffixTag::Lightning, AffixTag::Damage};
             case AffixStat::PoisonDamageMultiplier:
                 return {AffixTag::Poison, AffixTag::Damage};
+            case AffixStat::PhysicalDamageMultiplier:
+                return {AffixTag::Physical, AffixTag::Damage};
+            case AffixStat::BleedDamageMultiplier:
+            case AffixStat::BleedDurationMultiplier:
+            case AffixStat::BleedPenetration:
+                return {AffixTag::Bleed, AffixTag::Damage};
             case AffixStat::FireResistance:
             case AffixStat::ColdResistance:
             case AffixStat::LightningResistance:
             case AffixStat::PoisonResistance:
                 return {AffixTag::Survival};
+            case AffixStat::BleedResistance:
+                return {AffixTag::Bleed, AffixTag::Survival};
         }
         return {AffixTag::None};
     }
@@ -893,11 +914,16 @@ private:
             case AffixStat::FireDamageMultiplier:
             case AffixStat::ColdDamageMultiplier:
             case AffixStat::LightningDamageMultiplier:
-            case AffixStat::PoisonDamageMultiplier: weight = 85; break;
+            case AffixStat::PoisonDamageMultiplier:
+            case AffixStat::PhysicalDamageMultiplier:
+            case AffixStat::BleedDamageMultiplier:
+            case AffixStat::BleedDurationMultiplier:
+            case AffixStat::BleedPenetration: weight = 85; break;
             case AffixStat::FireResistance:
             case AffixStat::ColdResistance:
             case AffixStat::LightningResistance:
-            case AffixStat::PoisonResistance: weight = 100; break;
+            case AffixStat::PoisonResistance:
+            case AffixStat::BleedResistance: weight = 100; break;
         }
         return affix.isPrefix ? weight + 10 : weight;
     }
@@ -1091,6 +1117,21 @@ private:
             case AffixStat::PoisonResistance:
                 stats.poisonResistance += static_cast<int>(value);
                 break;
+            case AffixStat::PhysicalDamageMultiplier:
+                stats.physicalDamageMultiplier += value;
+                break;
+            case AffixStat::BleedDamageMultiplier:
+                stats.bleedDamageMultiplier += value;
+                break;
+            case AffixStat::BleedDurationMultiplier:
+                stats.bleedDurationMultiplier += value;
+                break;
+            case AffixStat::BleedPenetration:
+                stats.bleedPenetration += static_cast<int>(value);
+                break;
+            case AffixStat::BleedResistance:
+                stats.bleedResistance += static_cast<int>(value);
+                break;
             case AffixStat::MaxManaMultiplier:
                 stats.maxManaMultiplier += value;
                 break;
@@ -1182,6 +1223,27 @@ private:
                     std::max(current.poisonResistance + 1,
                         static_cast<int>(std::ceil(current.poisonResistance * improvementMultiplier))));
                 break;
+            case AffixStat::PhysicalDamageMultiplier:
+                improved.physicalDamageMultiplier = std::min(cap.physicalDamageMultiplier,
+                    1.0f + (current.physicalDamageMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::BleedDamageMultiplier:
+                improved.bleedDamageMultiplier = std::min(cap.bleedDamageMultiplier,
+                    1.0f + (current.bleedDamageMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::BleedDurationMultiplier:
+                improved.bleedDurationMultiplier = std::min(cap.bleedDurationMultiplier,
+                    1.0f + (current.bleedDurationMultiplier - 1.0f) * improvementMultiplier);
+                break;
+            case AffixStat::BleedPenetration:
+                improved.bleedPenetration = std::min(cap.bleedPenetration,
+                    current.bleedPenetration + 1);
+                break;
+            case AffixStat::BleedResistance:
+                improved.bleedResistance = std::min(cap.bleedResistance,
+                    std::max(current.bleedResistance + 1,
+                        static_cast<int>(std::ceil(current.bleedResistance * improvementMultiplier))));
+                break;
             case AffixStat::MaxManaMultiplier:
                 improved.maxManaMultiplier = std::min(cap.maxManaMultiplier,
                     1.0f + (current.maxManaMultiplier - 1.0f) * improvementMultiplier);
@@ -1224,7 +1286,12 @@ private:
             && left.poisonResistance == right.poisonResistance
             && std::abs(left.maxManaMultiplier - right.maxManaMultiplier) < 0.0001f
             && std::abs(left.manaRegenMultiplier - right.manaRegenMultiplier) < 0.0001f
-            && std::abs(left.skillCostMultiplier - right.skillCostMultiplier) < 0.0001f;
+            && std::abs(left.skillCostMultiplier - right.skillCostMultiplier) < 0.0001f
+            && std::abs(left.physicalDamageMultiplier - right.physicalDamageMultiplier) < 0.0001f
+            && std::abs(left.bleedDamageMultiplier - right.bleedDamageMultiplier) < 0.0001f
+            && std::abs(left.bleedDurationMultiplier - right.bleedDurationMultiplier) < 0.0001f
+            && left.bleedPenetration == right.bleedPenetration
+            && left.bleedResistance == right.bleedResistance;
     }
 
     static void refreshGeneratedName(Item& item) {

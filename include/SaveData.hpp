@@ -32,7 +32,7 @@ struct SavedMapEvent {
 
 struct SaveData {
     static constexpr std::uint32_t Magic = 0x4D415247U;
-    static constexpr std::uint32_t Version = 19U;
+    static constexpr std::uint32_t Version = 20U;
 
     SavedRunState state = SavedRunState::Playing;
     std::uint64_t runSeed = 0;

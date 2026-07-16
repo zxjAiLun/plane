@@ -116,6 +116,18 @@ std::string statsSummary(const Stats& stats) {
     if (stats.poisonDamageMultiplier != 1.0f) {
         summary += multiplierText(stats.poisonDamageMultiplier) + " POISON DMG ";
     }
+    if (stats.physicalDamageMultiplier != 1.0f) {
+        summary += multiplierText(stats.physicalDamageMultiplier) + " PHYS DMG ";
+    }
+    if (stats.bleedDamageMultiplier != 1.0f) {
+        summary += multiplierText(stats.bleedDamageMultiplier) + " BLEED DMG ";
+    }
+    if (stats.bleedDurationMultiplier != 1.0f) {
+        summary += multiplierText(stats.bleedDurationMultiplier) + " BLEED DUR ";
+    }
+    if (stats.bleedPenetration > 0) {
+        summary += std::to_string(stats.bleedPenetration) + "% BLEED PEN ";
+    }
     if (stats.armor > 0) {
         summary += "+" + std::to_string(stats.armor) + " ARM ";
     }
@@ -130,6 +142,9 @@ std::string statsSummary(const Stats& stats) {
     }
     if (stats.poisonResistance > 0) {
         summary += std::to_string(stats.poisonResistance) + "% POISON RES ";
+    }
+    if (stats.bleedResistance > 0) {
+        summary += std::to_string(stats.bleedResistance) + "% BLEED RES ";
     }
     return summary;
 }
@@ -234,6 +249,18 @@ Stats statsDelta(const Stats& next, const Stats& current) {
         next.maxManaMultiplier / current.maxManaMultiplier,
         next.manaRegenMultiplier / current.manaRegenMultiplier,
         next.skillCostMultiplier / current.skillCostMultiplier,
+        next.igniteDamageMultiplier / current.igniteDamageMultiplier,
+        next.igniteDurationMultiplier / current.igniteDurationMultiplier,
+        next.chillMagnitudeMultiplier / current.chillMagnitudeMultiplier,
+        next.chillDurationMultiplier / current.chillDurationMultiplier,
+        next.shockMagnitudeMultiplier / current.shockMagnitudeMultiplier,
+        next.shockDurationMultiplier / current.shockDurationMultiplier,
+        next.poisonDurationMultiplier / current.poisonDurationMultiplier,
+        next.physicalDamageMultiplier / current.physicalDamageMultiplier,
+        next.bleedDamageMultiplier / current.bleedDamageMultiplier,
+        next.bleedDurationMultiplier / current.bleedDurationMultiplier,
+        next.bleedPenetration - current.bleedPenetration,
+        next.bleedResistance - current.bleedResistance,
     };
 }
 
@@ -317,6 +344,22 @@ std::string statsDeltaSummary(const Stats& delta) {
         const int value = multiplierPercent(delta.poisonDamageMultiplier);
         summary += (value > 0 ? "+" : "") + std::to_string(value) + "% POISON DMG ";
     }
+    if (delta.physicalDamageMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.physicalDamageMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% PHYS DMG ";
+    }
+    if (delta.bleedDamageMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.bleedDamageMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% BLEED DMG ";
+    }
+    if (delta.bleedDurationMultiplier != 1.0f) {
+        const int value = multiplierPercent(delta.bleedDurationMultiplier);
+        summary += (value > 0 ? "+" : "") + std::to_string(value) + "% BLEED DUR ";
+    }
+    if (delta.bleedPenetration != 0) {
+        summary += (delta.bleedPenetration > 0 ? "+" : "")
+            + std::to_string(delta.bleedPenetration) + " BLEED PEN ";
+    }
     if (delta.fireResistance != 0) {
         summary += (delta.fireResistance > 0 ? "+" : "")
             + std::to_string(delta.fireResistance) + " FIRE RES ";
@@ -332,6 +375,10 @@ std::string statsDeltaSummary(const Stats& delta) {
     if (delta.poisonResistance != 0) {
         summary += (delta.poisonResistance > 0 ? "+" : "")
             + std::to_string(delta.poisonResistance) + " POISON RES ";
+    }
+    if (delta.bleedResistance != 0) {
+        summary += (delta.bleedResistance > 0 ? "+" : "")
+            + std::to_string(delta.bleedResistance) + " BLEED RES ";
     }
     return summary.empty() ? "No stat change" : summary;
 }
@@ -357,6 +404,11 @@ sf::Color deltaColor(const Stats& delta) {
         || delta.coldDamageMultiplier > 1.0f
         || delta.lightningDamageMultiplier > 1.0f
         || delta.poisonDamageMultiplier > 1.0f
+        || delta.physicalDamageMultiplier > 1.0f
+        || delta.bleedDamageMultiplier > 1.0f
+        || delta.bleedDurationMultiplier > 1.0f
+        || delta.bleedPenetration > 0
+        || delta.bleedResistance > 0
         || delta.fireResistance > 0
         || delta.coldResistance > 0
         || delta.lightningResistance > 0
@@ -381,6 +433,11 @@ sf::Color deltaColor(const Stats& delta) {
         || delta.coldDamageMultiplier < 1.0f
         || delta.lightningDamageMultiplier < 1.0f
         || delta.poisonDamageMultiplier < 1.0f
+        || delta.physicalDamageMultiplier < 1.0f
+        || delta.bleedDamageMultiplier < 1.0f
+        || delta.bleedDurationMultiplier < 1.0f
+        || delta.bleedPenetration < 0
+        || delta.bleedResistance < 0
         || delta.fireResistance < 0
         || delta.coldResistance < 0
         || delta.lightningResistance < 0
@@ -1285,6 +1342,7 @@ void Renderer::render(const GameWorld& world) {
     drawText(truncateText("DMG +" + std::to_string(multiplierPercent(stats.damageMultiplier))
         + "%  AS +" + std::to_string(multiplierPercent(stats.attackSpeedMultiplier))
         + "%  MS +" + std::to_string(multiplierPercent(stats.moveSpeedMultiplier))
+        + "%  PHY +" + std::to_string(multiplierPercent(stats.physicalDamageMultiplier))
         + "%  PDMG +" + std::to_string(multiplierPercent(stats.projectileDamageMultiplier))
         + "%  ADMG +" + std::to_string(multiplierPercent(stats.areaDamageMultiplier))
         + "%  AREA +" + std::to_string(multiplierPercent(stats.areaRadiusMultiplier))
@@ -1294,7 +1352,7 @@ void Renderer::render(const GameWorld& world) {
         const int value = multiplierPercent(multiplier);
         return (value >= 0 ? "+" : "") + std::to_string(value) + "%";
     };
-    const std::string ailmentBuildLine = "AIL I "
+    std::string ailmentBuildLine = "AIL I "
         + ailmentPercent(stats.igniteDamageMultiplier) + "/"
         + ailmentPercent(stats.igniteDurationMultiplier)
         + "  C " + ailmentPercent(stats.chillMagnitudeMultiplier) + "/"
@@ -1302,6 +1360,9 @@ void Renderer::render(const GameWorld& world) {
         + "  S " + ailmentPercent(stats.shockMagnitudeMultiplier) + "/"
         + ailmentPercent(stats.shockDurationMultiplier)
         + "  P dur " + ailmentPercent(stats.poisonDurationMultiplier);
+    ailmentBuildLine += std::string("  B ") + ailmentPercent(stats.bleedDamageMultiplier)
+        + "/" + ailmentPercent(stats.bleedDurationMultiplier)
+        + " Pen " + std::to_string(stats.bleedPenetration);
     drawText(truncateText(ailmentBuildLine, 58),
         {16.0f, 102.0f}, 12, sf::Color(255, 210, 170));
     std::string elementalLine = "ELEM F/C/L/P DMG "
@@ -1337,6 +1398,10 @@ void Renderer::render(const GameWorld& world) {
     if (world.player().isPoisoned()) {
         ailmentLine += "Poison x" + std::to_string(world.player().poisonStacks())
             + " " + formatFloat(world.player().poisonTimeRemaining(), 1) + "s";
+    }
+    if (world.player().isBleeding()) {
+        ailmentLine += "Bleed x" + std::to_string(world.player().bleedStacks())
+            + " " + formatFloat(world.player().bleedTimeRemaining(), 1) + "s";
     }
     if (!ailmentLine.empty()) {
         drawText(truncateText("Status " + ailmentLine, 64),
@@ -1713,6 +1778,16 @@ void Renderer::drawPlayer(const GameWorld& world) {
         sf::CircleShape ring(radius);
         ring.setFillColor(sf::Color::Transparent);
         ring.setOutlineColor(sf::Color(105, 220, 105, 220));
+        ring.setOutlineThickness(3.0f);
+        ring.setOrigin({radius, radius});
+        ring.setPosition(screenPosition);
+        window_.draw(ring);
+    }
+    if (player.isBleeding()) {
+        const float radius = player.radius() + 24.0f;
+        sf::CircleShape ring(radius);
+        ring.setFillColor(sf::Color::Transparent);
+        ring.setOutlineColor(sf::Color(235, 90, 90, 220));
         ring.setOutlineThickness(3.0f);
         ring.setOrigin({radius, radius});
         ring.setPosition(screenPosition);
