@@ -113,6 +113,7 @@ inline SupportDefinition supportAtLevel(const SupportDefinition& base, int level
     result.chillPenetration += levelDelta / 2;
     result.shockPenetration += levelDelta / 2;
     result.poisonPenetration += levelDelta / 2;
+    result.bleedPenetration += levelDelta / 2;
     return result;
 }
 

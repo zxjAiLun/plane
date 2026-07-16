@@ -79,6 +79,10 @@ Enemy::Enemy(
     , poisonTickTimer_(0.0f)
     , poisonSpreadRadius_(0.0f)
     , poisonSpreadMultiplier_(0.0f)
+    , bleedDamagePerTick_(0)
+    , bleedStacks_(0)
+    , bleedTimer_(0.0f)
+    , bleedTickTimer_(0.0f)
     , killRewardClaimed_(false) {
 }
 
@@ -203,6 +207,26 @@ AilmentTickResult Enemy::updateAilments(float dt) {
         }
     }
 
+    if (bleedTimer_ > 0.0f) {
+        const float activeTime = std::min(elapsed, bleedTimer_);
+        bleedTimer_ = std::max(0.0f, bleedTimer_ - elapsed);
+        bleedTickTimer_ -= activeTime;
+        while (bleedTickTimer_ <= 0.0f && bleedTimer_ > 0.0f && !isDead()) {
+            const int dealtDamage = takeDamage(bleedDamagePerTick_);
+            result.record(AilmentType::Bleed, dealtDamage);
+            result.killed = isDead();
+            bleedTickTimer_ += Config::AilmentTickInterval;
+            if (result.killed) {
+                break;
+            }
+        }
+        if (bleedTimer_ <= 0.0f) {
+            bleedDamagePerTick_ = 0;
+            bleedStacks_ = 0;
+            bleedTickTimer_ = 0.0f;
+        }
+    }
+
     chillTimer_ = std::max(0.0f, chillTimer_ - elapsed);
     if (chillTimer_ <= 0.0f) {
         chillSpeedMultiplier_ = 1.0f;
@@ -299,6 +323,26 @@ void Enemy::applyPoison(
     }
 }
 
+void Enemy::applyBleed(int damagePerTick, float duration) {
+    applyBleed(damagePerTick, duration, Config::MaxBleedStacks);
+}
+
+void Enemy::applyBleed(int damagePerTick, float duration, int maxStacks) {
+    if (damagePerTick <= 0 || duration <= 0.0f) {
+        return;
+    }
+
+    if (bleedStacks_ < std::max(1, maxStacks)) {
+        ++bleedStacks_;
+        bleedDamagePerTick_ += damagePerTick;
+    }
+    bleedTimer_ = std::max(bleedTimer_, duration);
+    bleedTickTimer_ = std::min(bleedTickTimer_, Config::AilmentTickInterval);
+    if (bleedTickTimer_ <= 0.0f) {
+        bleedTickTimer_ = Config::AilmentTickInterval;
+    }
+}
+
 void Enemy::kill() {
     hp_ = 0;
 }
@@ -350,9 +394,13 @@ bool Enemy::isIgnited() const { return igniteTimer_ > 0.0f; }
 bool Enemy::isChilled() const { return chillTimer_ > 0.0f; }
 bool Enemy::isShocked() const { return shockTimer_ > 0.0f; }
 bool Enemy::isPoisoned() const { return poisonTimer_ > 0.0f; }
+bool Enemy::isBleeding() const { return bleedTimer_ > 0.0f; }
 int Enemy::poisonStacks() const { return poisonStacks_; }
+int Enemy::bleedStacks() const { return bleedStacks_; }
 int Enemy::poisonDamagePerTick() const { return poisonDamagePerTick_; }
+int Enemy::bleedDamagePerTick() const { return bleedDamagePerTick_; }
 float Enemy::poisonTimeRemaining() const { return poisonTimer_; }
+float Enemy::bleedTimeRemaining() const { return bleedTimer_; }
 float Enemy::poisonSpreadRadius() const { return poisonSpreadRadius_; }
 float Enemy::poisonSpreadMultiplier() const { return poisonSpreadMultiplier_; }
 float Enemy::damageTakenMultiplier() const {

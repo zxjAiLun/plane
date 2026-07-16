@@ -24,7 +24,8 @@ enum class SupportKind {
     Contagion,
     ArcaneEfficiency,
     ElementalFocus,
-    Vitality
+    Vitality,
+    Bloodletting
 };
 
 struct SupportDefinition {
@@ -55,6 +56,7 @@ struct SupportDefinition {
     DamageType requiredDamageType = DamageType::Physical;
     float elementalDamageMultiplier = 1.0f;
     int healOnHitBonus = 0;
+    int bleedPenetration = 0;
 };
 
 inline constexpr std::size_t SupportLinkCount = 2;
@@ -213,6 +215,17 @@ public:
                 support.healOnHitBonus = 1;
                 return support;
             }(),
+            [] {
+                SupportDefinition support;
+                support.kind = SupportKind::Bloodletting;
+                support.name = "Bloodletting";
+                support.description = "+70% Bleed damage, +25% duration, +20% Bleed penetration, -15% hit damage";
+                support.damageMultiplier = 0.85f;
+                support.ailmentDamageMultiplier = 1.70f;
+                support.ailmentDurationMultiplier = 1.25f;
+                support.bleedPenetration = 20;
+                return support;
+            }(),
         };
         return supports;
     }
@@ -265,6 +278,9 @@ public:
                 return skill.damageType == support.requiredDamageType;
             case SupportKind::Vitality:
                 return skill.healOnHit > 0;
+            case SupportKind::Bloodletting:
+                return skill.damageType == DamageType::Physical
+                    && skill.ailment.type == AilmentType::Bleed;
         }
 
         return false;

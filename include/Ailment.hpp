@@ -9,6 +9,7 @@ enum class AilmentType {
     Chill,
     Shock,
     Poison,
+    Bleed,
     Count
 };
 
@@ -26,6 +27,7 @@ struct AilmentDefinition {
     // the base ailment fields used by older skill definitions.
     float poisonSpreadRadius = 0.0f;
     float poisonSpreadMultiplier = 0.0f;
+    int bleedPenetration = 0;
 };
 
 struct AilmentTickResult {

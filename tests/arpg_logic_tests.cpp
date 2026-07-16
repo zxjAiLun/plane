@@ -498,7 +498,7 @@ void testManaResourceAndSkillCastGates() {
         "resource Stats combine multiplicatively");
 
     const auto& skills = SkillLibrary::all();
-    expect(skills.size() == 20, "skill library exposes the elemental build skill set");
+    expect(skills.size() == 21, "skill library exposes the elemental build skill set");
     const auto& primary = SkillLibrary::spreadShot();
     const auto& secondary = SkillLibrary::meteor();
     const auto& utility = SkillLibrary::pulse();
@@ -514,6 +514,7 @@ void testManaResourceAndSkillCastGates() {
     const auto& siphonPulse = SkillLibrary::siphonPulse();
     const auto& guardingPulse = SkillLibrary::guardingPulse();
     const auto& manaWard = SkillLibrary::manaWard();
+    const auto& rendingVolley = SkillLibrary::rendingVolley();
     expect(primary.manaCost > 0.0f && primary.manaCost < secondary.manaCost,
         "Primary has a lower Mana cost than Meteor");
     expect(secondary.manaCost > 0.0f && utility.manaCost > 0.0f,
@@ -583,6 +584,14 @@ void testManaResourceAndSkillCastGates() {
             && manaWard.wardManaRatio == Config::ManaWardManaRatio
             && manaWard.manaCost == Config::ManaWardManaCost,
         "Mana Ward defines a Mana-powered defensive Utility skill");
+    const auto* bloodletting = SupportLibrary::find("Bloodletting");
+    expect(rendingVolley.slot == SkillSlot::Primary
+            && rendingVolley.damageType == DamageType::Physical
+            && rendingVolley.projectileCount == Config::RendingVolleyProjectileCount
+            && rendingVolley.ailment.type == AilmentType::Bleed
+            && bloodletting != nullptr
+            && SupportLibrary::supportsSkill(*bloodletting, rendingVolley),
+        "Rending Volley and Bloodletting define the physical Bleed path");
     const auto* vitality = SupportLibrary::find("Vitality");
     expect(vitality != nullptr
             && SupportLibrary::supportsSkill(*vitality, siphonPulse)
@@ -1043,6 +1052,16 @@ void testSkillAilments() {
             && contagionPoison.poisonSpreadRadius == 120.0f
             && std::abs(contagionPoison.poisonSpreadMultiplier - 0.45f) < 0.0001f,
         "Contagion attaches a Poison death-spread payload");
+    const auto* bloodletting = SupportLibrary::find("Bloodletting");
+    const AilmentDefinition bloodlettingBleed = skillAilment(
+        SkillLibrary::rendingVolley(), bloodletting
+    );
+    expect(bloodletting != nullptr
+            && bloodlettingBleed.type == AilmentType::Bleed
+            && bloodlettingBleed.damageMultiplier
+                > SkillLibrary::rendingVolley().ailment.damageMultiplier
+            && bloodlettingBleed.bleedPenetration == 20,
+        "Bloodletting increases Bleed damage and penetration");
     Stats poisonStats;
     poisonStats.poisonDamageMultiplier = 1.50f;
     expect(skillDamage(toxicBurst, poisonStats, nullptr)
@@ -1146,6 +1165,26 @@ void testSkillAilments() {
     poisonedEnemy.updateAilments(2.0f);
     expect(!poisonedEnemy.isPoisoned() && poisonedEnemy.poisonStacks() == 0,
         "Poison expires and clears its stack state");
+
+    Enemy bleedingEnemy({0.0f, 0.0f}, 50, 1);
+    bleedingEnemy.applyBleed(2, 2.0f);
+    bleedingEnemy.applyBleed(3, 2.0f);
+    for (int stack = 2; stack < Config::MaxBleedStacks; ++stack) {
+        bleedingEnemy.applyBleed(4, 2.0f);
+    }
+    bleedingEnemy.applyBleed(100, 2.0f);
+    const AilmentTickResult bleedTick = bleedingEnemy.updateAilments(
+        Config::AilmentTickInterval
+    );
+    expect(bleedingEnemy.isBleeding()
+            && bleedingEnemy.bleedStacks() == Config::MaxBleedStacks
+            && bleedTick.type == AilmentType::Bleed
+            && bleedTick.damageFor(AilmentType::Bleed) == 17
+            && bleedingEnemy.hp() == 33,
+        "Bleed stacks cap at five applications and deal combined DoT");
+    bleedingEnemy.updateAilments(2.0f);
+    expect(!bleedingEnemy.isBleeding() && bleedingEnemy.bleedStacks() == 0,
+        "Bleed expires and clears its stack state");
 
     Enemy contagionEnemy({0.0f, 0.0f}, 50, 1);
     contagionEnemy.applyPoison(6, 3.0f, Config::MaxPoisonStacks, 120.0f, 0.45f);
@@ -1292,13 +1331,17 @@ void testAilmentResistances() {
     expect(bosses[2].poisonResistance == 45
             && damageAfterResistance(100, DamageType::Poison, 0, 0, 0, 45) == 55,
         "Brood exposes Poison resistance and mitigates Poison damage");
+    expect(bosses[0].bleedResistance > 0
+            && bosses[2].bleedResistance > bosses[0].bleedResistance,
+        "Bosses expose distinct Bleed resistance profiles");
     expect(bosses[3].name == "Frostbound Warden"
             && bosses[3].chillResistance == 45
             && bosses[3].coldResistance == 50,
         "Frostbound Warden exposes a Cold-heavy resistance profile");
     for (const auto& boss : bosses) {
         expect(boss.igniteResistance >= 0 && boss.igniteResistance <= 100
-                && boss.chillResistance >= 0 && boss.chillResistance <= 100,
+                && boss.chillResistance >= 0 && boss.chillResistance <= 100
+                && boss.bleedResistance >= 0 && boss.bleedResistance <= 100,
             boss.name + " has clamped boss ailment resistance data");
     }
 
@@ -1319,6 +1362,12 @@ void testAilmentResistances() {
         "Ignite penetration restores part of the resisted damage");
     expect(ailmentTickDamageAfterResistance(10, 100, 0) == 0,
         "full Ignite resistance prevents positive damage over time");
+    expect(ailmentTickDamageAfterResistance(
+            ailmentTickDamage(SkillLibrary::rendingVolley().ailment, 4),
+                50,
+                20
+            ) == 1,
+        "Bleed tick damage uses the same resistance and penetration path");
 
     expect(std::abs(damageTakenMultiplierAfterResistance(1.20f, 0, 0) - 1.20f) < 0.0001f
             && std::abs(damageTakenMultiplierAfterResistance(1.20f, 50, 0) - 1.10f) < 0.0001f

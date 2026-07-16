@@ -53,6 +53,8 @@ public:
         float spreadRadius,
         float spreadMultiplier
     );
+    void applyBleed(int damagePerTick, float duration);
+    void applyBleed(int damagePerTick, float duration, int maxStacks);
     void kill();
     bool isDead() const;
     bool claimKillReward();
@@ -77,9 +79,13 @@ public:
     bool isChilled() const;
     bool isShocked() const;
     bool isPoisoned() const;
+    bool isBleeding() const;
     int poisonStacks() const;
+    int bleedStacks() const;
     int poisonDamagePerTick() const;
+    int bleedDamagePerTick() const;
     float poisonTimeRemaining() const;
+    float bleedTimeRemaining() const;
     float poisonSpreadRadius() const;
     float poisonSpreadMultiplier() const;
     float damageTakenMultiplier() const;
@@ -138,6 +144,10 @@ private:
     float poisonTickTimer_;
     float poisonSpreadRadius_;
     float poisonSpreadMultiplier_;
+    int bleedDamagePerTick_;
+    int bleedStacks_;
+    float bleedTimer_;
+    float bleedTickTimer_;
     bool killRewardClaimed_;
 
     inline static int nextId_ = 1;

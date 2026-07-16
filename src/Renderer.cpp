@@ -547,6 +547,12 @@ std::string ailmentSummary(const AilmentDefinition& ailment) {
                             ailment.poisonSpreadMultiplier * 100.0f
                         )) + "%"
                     : "");
+        case AilmentType::Bleed:
+            return "Bleed " + formatFloat(ailment.duration, 1) + "s "
+                + std::to_string(static_cast<int>(ailment.damageMultiplier * 100.0f)) + "% DoT"
+                + (ailment.bleedPenetration > 0
+                    ? " Pen " + std::to_string(ailment.bleedPenetration) + "%"
+                    : "");
         case AilmentType::None:
         case AilmentType::Count:
             return "";
@@ -721,6 +727,7 @@ std::string rewardThemeLabel(const MapRewardDefinition& reward) {
                 case SupportKind::Pinpoint:
                 case SupportKind::ArcaneEfficiency:
                 case SupportKind::Vitality:
+                case SupportKind::Bloodletting:
                     break;
                 case SupportKind::ElementalFocus:
                     theme = support->requiredDamageType;
@@ -1980,6 +1987,8 @@ void Renderer::drawProjectiles(const GameWorld& world) {
             color = sf::Color(105, 225, 255);
         } else if (projectile.ailment().type == AilmentType::Poison) {
             color = sf::Color(105, 220, 105);
+        } else if (projectile.ailment().type == AilmentType::Bleed) {
+            color = sf::Color(235, 90, 90);
         }
         shape.setFillColor(color);
         shape.setOrigin({projectile.radius(), projectile.radius()});
@@ -2184,6 +2193,20 @@ void Renderer::drawEnemies(const GameWorld& world) {
             ring.setPosition(screenPosition);
             window_.draw(ring);
         }
+        if (enemy.isBleeding()) {
+            const float ringRadius = enemy.radius()
+                + (enemy.isPoisoned() ? 21.0f
+                    : enemy.isShocked() ? 17.0f
+                    : enemy.isChilled() ? 13.0f
+                    : enemy.isIgnited() ? 9.0f : 5.0f);
+            sf::CircleShape ring(ringRadius);
+            ring.setFillColor(sf::Color::Transparent);
+            ring.setOutlineColor(sf::Color(235, 90, 90, 235));
+            ring.setOutlineThickness(2.5f);
+            ring.setOrigin({ringRadius, ringRadius});
+            ring.setPosition(screenPosition);
+            window_.draw(ring);
+        }
 
         if (definition.outlineThickness > 0.0f) {
             std::string label = enemyDisplayLabel(world, enemy);
@@ -2231,6 +2254,8 @@ void Renderer::drawCombatFeedback(const GameWorld& world) {
                     ? sf::Color(255, 155, 90, alpha)
                     : feedback.source == "Poison"
                         ? sf::Color(120, 225, 120, alpha)
+                        : feedback.source == "Bleed"
+                            ? sf::Color(235, 90, 90, alpha)
                         : sf::Color(255, 235, 150, alpha);
                 break;
             case CombatFeedbackType::PlayerHit:
@@ -2254,6 +2279,8 @@ void Renderer::drawCombatFeedback(const GameWorld& world) {
                 } else if (feedback.source == "Poison"
                     || feedback.source == "Contagion") {
                     color = sf::Color(130, 235, 130, alpha);
+                } else if (feedback.source == "Bleed") {
+                    color = sf::Color(235, 90, 90, alpha);
                 } else {
                     color = sf::Color(205, 155, 255, alpha);
                 }
@@ -3004,6 +3031,7 @@ void Renderer::drawBossHealth(const GameWorld& world) {
         + "%  Cold Res " + std::to_string(world.bossDefinition().coldResistance)
         + "%  Light Res " + std::to_string(world.bossDefinition().lightningResistance)
         + "%  Poison Res " + std::to_string(world.bossDefinition().poisonResistance)
+        + "%  Bleed Res " + std::to_string(world.bossDefinition().bleedResistance)
         + "%  Shock Res " + std::to_string(world.bossDefinition().shockResistance) + "%",
         {position.x, detailY}, 11, sf::Color(220, 195, 175));
     detailY += 16.0f;

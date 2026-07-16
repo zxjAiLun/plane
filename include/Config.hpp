@@ -118,6 +118,13 @@ namespace Config {
     constexpr float SiphonPulseManaCost = 11.0f;
     constexpr float SiphonPulseEffectDuration = 0.30f;
     constexpr int SiphonPulseHealOnHit = 2;
+    constexpr float RendingVolleyCooldown = 0.80f;
+    constexpr int RendingVolleyDamage = 3;
+    constexpr int RendingVolleyProjectileCount = 3;
+    constexpr float RendingVolleySpreadAngle = 26.0f;
+    constexpr float RendingVolleyManaCost = 6.0f;
+    constexpr float RendingVolleyBleedDuration = 3.0f;
+    constexpr float RendingVolleyBleedDamageMultiplier = 0.30f;
     constexpr float GuardingPulseRadius = 110.0f;
     constexpr float GuardingPulseCooldown = 4.0f;
     constexpr float GuardingPulseManaCost = 15.0f;
@@ -161,6 +168,7 @@ namespace Config {
     constexpr float EliteDoubleModifierDropMultiplier = 1.15f;
     constexpr float AilmentTickInterval = 1.0f;
     constexpr int MaxPoisonStacks = 5;
+    constexpr int MaxBleedStacks = 5;
     constexpr float ShrineBuffDuration = 20.0f;
     constexpr int ShrineDamageBonusPercent = 35;
     constexpr int LootCacheForgeFragmentReward = 1;

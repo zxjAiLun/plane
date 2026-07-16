@@ -1458,6 +1458,97 @@ void testPulseShockFlow() {
     std::filesystem::remove(path);
 }
 
+void testRendingVolleyBleedFlow() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_rending_volley_bleed_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(17605);
+    SaveData data;
+    std::string error;
+    const auto primaryIndex = static_cast<std::size_t>(SkillSlot::Primary);
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Rending Volley fixture starts from a valid run save");
+
+    data.unlockedSkills.insert("Rending Volley");
+    data.unlockedSupports.insert("Bloodletting");
+    data.skillBar.skills[primaryIndex] = "Rending Volley";
+    data.skillBar.supports[primaryIndex] = {"Bloodletting", ""};
+    data.player.hp = 10000;
+    data.player.upgradeStats.maxHp = 10000;
+    data.player.upgradeStats.moveSpeedMultiplier = 8.0f;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.player.mana = Config::PlayerMaxMana;
+    data.fieldPacksCleared = Config::BossGateRequiredFieldPacks;
+    data.state = SavedRunState::Playing;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Rending Volley fixture restores the active skill and Support");
+
+    Input input;
+    expect(moveToBoss(world, input),
+        "Rending Volley fixture reaches the Boss through the real map path");
+    if (!world.map().bossTriggered()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const auto worldToScreen = [&world](const Vector2& position) {
+        const Vector2 camera = world.cameraTopLeft();
+        return sf::Vector2i(
+            static_cast<int>(std::lround(position.x - camera.x)),
+            static_cast<int>(std::lround(position.y - camera.y))
+        );
+    };
+    auto findBoss = [&world]() {
+        return std::find_if(
+            world.enemies().begin(), world.enemies().end(),
+            [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+        );
+    };
+
+    auto boss = findBoss();
+    expect(boss != world.enemies().end(),
+        "Rending Volley fixture exposes a live Boss");
+    if (boss == world.enemies().end()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const sf::Vector2i bossScreen = worldToScreen(boss->position());
+    input.handleMousePressed(sf::Mouse::Button::Left, bossScreen);
+    bool bleedObserved = false;
+    bool bleedFeedbackObserved = false;
+    for (int frame = 0; frame < 80; ++frame) {
+        world.update(0.05f, input);
+        boss = findBoss();
+        bleedObserved = bleedObserved
+            || (boss != world.enemies().end() && boss->isBleeding());
+        bleedFeedbackObserved = bleedFeedbackObserved || std::any_of(
+            world.combatFeedback().begin(),
+            world.combatFeedback().end(),
+            [](const CombatFeedback& feedback) {
+                return feedback.source == "Bleed"
+                    && feedback.type == CombatFeedbackType::Status;
+            }
+        );
+        if (bleedObserved && bleedFeedbackObserved) {
+            break;
+        }
+    }
+    input.handleMouseReleased(sf::Mouse::Button::Left, bossScreen);
+    expect(bleedObserved && bleedFeedbackObserved,
+        "Rending Volley applies Bleed and emits typed status feedback");
+
+    boss = findBoss();
+    const int hpBeforeBleedTick = boss == world.enemies().end() ? 0 : boss->hp();
+    world.update(Config::AilmentTickInterval, input);
+    boss = findBoss();
+    expect(boss != world.enemies().end() && boss->hp() < hpBeforeBleedTick,
+        "Bleed deals damage through the real GameWorld tick path");
+
+    std::filesystem::remove(path);
+}
+
 void testSiphonPulseRecovery() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_siphon_pulse_recovery_test.bin";
@@ -3901,6 +3992,7 @@ int main() {
     testDelayedSkillEffects();
     testUtilitySkillDelivery();
     testPulseShockFlow();
+    testRendingVolleyBleedFlow();
     testSiphonPulseRecovery();
     testGuardingPulseProtection();
     testManaWardProtection();

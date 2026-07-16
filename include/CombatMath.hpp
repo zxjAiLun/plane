@@ -395,6 +395,7 @@ inline AilmentDefinition skillAilment(
         ailment.chillPenetration += support->chillPenetration;
         ailment.shockPenetration += support->shockPenetration;
         ailment.poisonPenetration += support->poisonPenetration;
+        ailment.bleedPenetration += support->bleedPenetration;
         switch (ailment.type) {
             case AilmentType::Ignite:
                 ailment.damageMultiplier *= support->ailmentDamageMultiplier;
@@ -422,6 +423,9 @@ inline AilmentDefinition skillAilment(
                 ailment.poisonSpreadMultiplier = std::max(
                     ailment.poisonSpreadMultiplier, support->poisonSpreadMultiplier
                 );
+                break;
+            case AilmentType::Bleed:
+                ailment.damageMultiplier *= support->ailmentDamageMultiplier;
                 break;
             case AilmentType::None:
             case AilmentType::Count:
@@ -470,6 +474,8 @@ inline AilmentDefinition scaleAilmentWithStats(
         case AilmentType::Poison:
             result.duration *= stats.poisonDurationMultiplier;
             break;
+        case AilmentType::Bleed:
+            break;
         case AilmentType::None:
         case AilmentType::Count:
             break;
@@ -478,7 +484,9 @@ inline AilmentDefinition scaleAilmentWithStats(
 }
 
 inline int ailmentTickDamage(const AilmentDefinition& ailment, int hitDamage) {
-    if ((ailment.type != AilmentType::Ignite && ailment.type != AilmentType::Poison)
+    if ((ailment.type != AilmentType::Ignite
+        && ailment.type != AilmentType::Poison
+        && ailment.type != AilmentType::Bleed)
         || ailment.damageMultiplier <= 0.0f || hitDamage <= 0) {
         return 0;
     }

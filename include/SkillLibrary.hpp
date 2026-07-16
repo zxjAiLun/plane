@@ -434,6 +434,25 @@ public:
         return skill;
     }
 
+    static SkillDefinition rendingVolley() {
+        SkillDefinition skill = {
+            SkillSlot::Primary,
+            SkillCastType::Projectile,
+            "Rending Volley",
+            Config::RendingVolleyCooldown,
+            0.0f,
+            Config::RendingVolleyDamage,
+            0.0f,
+            Config::RendingVolleyProjectileCount,
+            Config::RendingVolleySpreadAngle,
+            {AilmentType::Bleed, Config::RendingVolleyBleedDuration,
+                Config::RendingVolleyBleedDamageMultiplier},
+            Config::RendingVolleyManaCost
+        };
+        skill.damageType = DamageType::Physical;
+        return skill;
+    }
+
 private:
     static std::vector<SkillDefinition> buildSkills() {
         return {
@@ -456,7 +475,8 @@ private:
             dash(),
             siphonPulse(),
             guardingPulse(),
-            manaWard()
+            manaWard(),
+            rendingVolley()
         };
     }
 };

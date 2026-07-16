@@ -119,6 +119,7 @@ struct BossDefinition {
     int shockResistance = 0;
     int poisonResistance = 0;
     BossPhaseDefinition finalPhase;
+    int bleedResistance = 0;
 
     const BossSkillDefinition& skillForCast(std::size_t castIndex, bool enraged) const {
         return skillForCast(castIndex, enraged ? 1 : 0);
@@ -234,6 +235,7 @@ private:
         definition.coldResistance = 50;
         definition.shockResistance = 35;
         definition.poisonResistance = 30;
+        definition.bleedResistance = 35;
         definition.finalPhase = {
             0.20f,
             0.55f,
@@ -362,6 +364,7 @@ private:
         definition.coldResistance = 55;
         definition.shockResistance = 35;
         definition.poisonResistance = 30;
+        definition.bleedResistance = 35;
         definition.finalPhase = {
             0.20f,
             0.52f,
@@ -470,6 +473,7 @@ private:
         definition.coldResistance = 25;
         definition.shockResistance = 30;
         definition.poisonResistance = 30;
+        definition.bleedResistance = 40;
         definition.finalPhase = {
             0.18f,
             0.50f,
@@ -570,6 +574,7 @@ private:
         definition.coldResistance = 30;
         definition.shockResistance = 55;
         definition.poisonResistance = 35;
+        definition.bleedResistance = 40;
         definition.enrageTransitionDescription = "The lens fractures: charged casters join the null field";
         definition.enrageSummonType = EnemyType::Ranged;
         definition.enrageSummonCount = 2;
@@ -692,6 +697,7 @@ private:
         definition.coldResistance = 25;
         definition.shockResistance = 25;
         definition.poisonResistance = 60;
+        definition.bleedResistance = 55;
         definition.enrageTransitionDescription = "The grave opens: summoned blooms flood the arena";
         definition.enrageSummonType = EnemyType::Summoner;
         definition.enrageSummonCount = 2;
@@ -927,6 +933,10 @@ private:
             aetherBoss(),
             sableBoss()
         };
+
+        bosses[0].bleedResistance = 25;
+        bosses[1].bleedResistance = 20;
+        bosses[2].bleedResistance = 45;
 
         bosses[0].finalPhase = {
             0.25f,

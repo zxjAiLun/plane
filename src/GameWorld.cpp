@@ -167,6 +167,7 @@ const char* ailmentTypeName(AilmentType type) {
         case AilmentType::Chill: return "Chill";
         case AilmentType::Shock: return "Shock";
         case AilmentType::Poison: return "Poison";
+        case AilmentType::Bleed: return "Bleed";
         case AilmentType::None: break;
         case AilmentType::Count: break;
     }
@@ -1656,6 +1657,10 @@ void GameWorld::updateObjects(float dt) {
         const int poisonDamage = ailmentTick.damageFor(AilmentType::Poison);
         if (poisonDamage > 0) {
             addCombatFeedback(enemy.position(), poisonDamage, "Poison");
+        }
+        const int bleedDamage = ailmentTick.damageFor(AilmentType::Bleed);
+        if (bleedDamage > 0) {
+            addCombatFeedback(enemy.position(), bleedDamage, "Bleed");
         }
         if (enemy.isDead()) {
             rewardEnemyKill(enemy);
@@ -3513,12 +3518,14 @@ void GameWorld::applySkillAilment(
     int chillResistance = enemyDefinition.chillResistance;
     int shockResistance = enemyDefinition.shockResistance;
     int poisonResistance = enemyDefinition.poisonResistance;
+    int bleedResistance = enemyDefinition.bleedResistance;
     const int eliteAilmentResistance = enemy.ailmentResistanceBonus();
     if (enemy.isBoss()) {
         igniteResistance = bossDefinition_->igniteResistance;
         chillResistance = bossDefinition_->chillResistance;
         shockResistance = bossDefinition_->shockResistance;
         poisonResistance = bossDefinition_->poisonResistance;
+        bleedResistance = bossDefinition_->bleedResistance;
     }
 
     switch (ailment.type) {
@@ -3612,6 +3619,34 @@ void GameWorld::applySkillAilment(
                 enemy.position(),
                 0,
                 "Poison",
+                CombatFeedbackType::Status
+            );
+            break;
+        case AilmentType::Bleed:
+            {
+                const int tickDamage = ailmentTickDamageAfterResistance(
+                    ailmentTickDamage(ailment, hitDamage),
+                    std::clamp(
+                        bleedResistance + eliteAilmentResistance
+                            + mapModifier_.ailmentResistanceBonus,
+                        0,
+                        100
+                    ),
+                    ailment.bleedPenetration
+                );
+                if (tickDamage <= 0) {
+                    return;
+                }
+                enemy.applyBleed(
+                    tickDamage,
+                    ailment.duration,
+                    Config::MaxBleedStacks
+                );
+            }
+            addCombatFeedback(
+                enemy.position(),
+                0,
+                "Bleed",
                 CombatFeedbackType::Status
             );
             break;
@@ -5587,6 +5622,11 @@ void GameWorld::applyPlayerAilment(
             applied = true;
             break;
         }
+        case AilmentType::Bleed:
+            // Current enemy definitions do not inflict Bleed on the player;
+            // keep the incoming path explicit until physical enemy ailments
+            // are added as a separate content pass.
+            return;
         case AilmentType::None:
         case AilmentType::Count:
             return;

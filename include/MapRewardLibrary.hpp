@@ -65,6 +65,12 @@ public:
                 + "% of Max Mana for " + std::to_string(static_cast<int>(skill.effectDuration))
                 + "s";
         }
+        if (skill.ailment.type == AilmentType::Bleed) {
+            reward.description += "  Bleed "
+                + std::to_string(static_cast<int>(skill.ailment.damageMultiplier * 100.0f))
+                + "% hit damage for " + std::to_string(static_cast<int>(skill.ailment.duration))
+                + "s";
+        }
         return reward;
     }
 
@@ -425,7 +431,7 @@ private:
                 return support.kind == SupportKind::Toxicity
                     || support.kind == SupportKind::Contagion;
             case DamageType::Physical:
-                return false;
+                return support.kind == SupportKind::Bloodletting;
         }
         return false;
     }

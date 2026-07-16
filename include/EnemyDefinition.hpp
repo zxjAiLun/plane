@@ -59,6 +59,7 @@ struct EnemyDefinition {
     AilmentDefinition contactAilment;
     AilmentDefinition projectileAilment;
     int poisonResistance = 0;
+    int bleedResistance = 0;
 };
 
 class EnemyLibrary {
@@ -125,6 +126,7 @@ public:
                 DamageType::Lightning,
                 {},
                 {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.15f},
+                10,
                 10
             },
             {
@@ -161,7 +163,8 @@ public:
                 DamageType::Physical,
                 {AilmentType::Ignite, 2.5f, 0.20f},
                 {},
-                20
+                20,
+                15
             },
             {
                 EnemyType::Boss,
@@ -218,6 +221,7 @@ public:
                 DamageType::Physical,
                 {AilmentType::Ignite, 3.0f, 0.20f},
                 {},
+                15,
                 15
             },
             {
@@ -254,7 +258,8 @@ public:
                 DamageType::Physical,
                 {AilmentType::Chill, 2.0f, 0.0f, 0.65f},
                 {},
-                25
+                25,
+                30
             },
             {
                 EnemyType::Summoner,
@@ -290,6 +295,7 @@ public:
                 DamageType::Physical,
                 {},
                 {},
+                20,
                 20
             },
         }};
