@@ -453,6 +453,25 @@ public:
         return skill;
     }
 
+    static SkillDefinition crimsonSweep() {
+        SkillDefinition skill = {
+            SkillSlot::Utility,
+            SkillCastType::SelfCenteredArea,
+            "Crimson Sweep",
+            Config::CrimsonSweepCooldown,
+            Config::CrimsonSweepRadius,
+            Config::CrimsonSweepDamage,
+            Config::CrimsonSweepEffectDuration,
+            1,
+            0.0f,
+            {AilmentType::Bleed, Config::CrimsonSweepBleedDuration,
+                Config::CrimsonSweepBleedDamageMultiplier},
+            Config::CrimsonSweepManaCost
+        };
+        skill.damageType = DamageType::Physical;
+        return skill;
+    }
+
 private:
     static std::vector<SkillDefinition> buildSkills() {
         return {
@@ -476,7 +495,8 @@ private:
             siphonPulse(),
             guardingPulse(),
             manaWard(),
-            rendingVolley()
+            rendingVolley(),
+            crimsonSweep()
         };
     }
 };

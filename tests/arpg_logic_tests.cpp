@@ -517,7 +517,7 @@ void testManaResourceAndSkillCastGates() {
         "resource Stats combine multiplicatively");
 
     const auto& skills = SkillLibrary::all();
-    expect(skills.size() == 21, "skill library exposes the elemental build skill set");
+    expect(skills.size() == 22, "skill library exposes the complete build skill set");
     const auto& primary = SkillLibrary::spreadShot();
     const auto& secondary = SkillLibrary::meteor();
     const auto& utility = SkillLibrary::pulse();
@@ -534,6 +534,7 @@ void testManaResourceAndSkillCastGates() {
     const auto& guardingPulse = SkillLibrary::guardingPulse();
     const auto& manaWard = SkillLibrary::manaWard();
     const auto& rendingVolley = SkillLibrary::rendingVolley();
+    const auto& crimsonSweep = SkillLibrary::crimsonSweep();
     expect(primary.manaCost > 0.0f && primary.manaCost < secondary.manaCost,
         "Primary has a lower Mana cost than Meteor");
     expect(secondary.manaCost > 0.0f && utility.manaCost > 0.0f,
@@ -613,6 +614,15 @@ void testManaResourceAndSkillCastGates() {
             && bloodletting->physicalPenetration == 20
             && SupportLibrary::supportsSkill(*bloodletting, rendingVolley),
         "Rending Volley and Bloodletting define the physical Bleed path");
+    expect(crimsonSweep.slot == SkillSlot::Utility
+            && crimsonSweep.castType == SkillCastType::SelfCenteredArea
+            && crimsonSweep.damageType == DamageType::Physical
+            && crimsonSweep.baseDamage == Config::CrimsonSweepDamage
+            && crimsonSweep.radius == Config::CrimsonSweepRadius
+            && crimsonSweep.ailment.type == AilmentType::Bleed
+            && bloodletting != nullptr
+            && SupportLibrary::supportsSkill(*bloodletting, crimsonSweep),
+        "Crimson Sweep defines a close-range Physical Bleed alternative");
     expect(rupture != nullptr
             && rupture->ailmentDamageMultiplier > 1.0f
             && rupture->ailmentDurationMultiplier > 1.0f
@@ -1054,6 +1064,7 @@ void testSkillAilments() {
     const SkillDefinition meteor = SkillLibrary::meteor();
     const SkillDefinition frostBomb = SkillLibrary::frostBomb();
     const SkillDefinition toxicBurst = SkillLibrary::toxicBurst();
+    const SkillDefinition crimsonSweep = SkillLibrary::crimsonSweep();
     const auto* toxicity = SupportLibrary::find("Toxicity");
     const auto* contagion = SupportLibrary::find("Contagion");
     expect(flare.ailment.type == AilmentType::Ignite, "Flare applies Ignite");
@@ -1102,6 +1113,13 @@ void testSkillAilments() {
             && ruptureBleed.duration > SkillLibrary::rendingVolley().ailment.duration
             && ruptureBleed.bleedPenetration == 10,
         "Rupture scales Bleed damage, duration, and penetration");
+    const AilmentDefinition crimsonSweepBleed = skillAilment(
+        crimsonSweep, SupportLibrary::find("Rupture")
+    );
+    expect(crimsonSweepBleed.type == AilmentType::Bleed
+            && crimsonSweepBleed.duration > crimsonSweep.ailment.duration
+            && crimsonSweepBleed.damageMultiplier > crimsonSweep.ailment.damageMultiplier,
+        "Rupture supports the close-range Physical Bleed skill");
     Stats poisonStats;
     poisonStats.poisonDamageMultiplier = 1.50f;
     expect(skillDamage(toxicBurst, poisonStats, nullptr)
@@ -3788,6 +3806,7 @@ void testMapRewardGeneration() {
 
     std::set<std::string> physicalBuildSkills = unlockedSkills;
     physicalBuildSkills.insert(SkillLibrary::rendingVolley().name);
+    physicalBuildSkills.insert(SkillLibrary::crimsonSweep().name);
     RandomService physicalSupportRandom(15);
     const auto physicalRewards = MapRewardLibrary::generateOptions(
         physicalBuildSkills,
@@ -3802,6 +3821,20 @@ void testMapRewardGeneration() {
             && (physicalRewards[0].supportName == "Bloodletting"
                 || physicalRewards[0].supportName == "Rupture"),
         "Bloodletting-themed rewards lead with a Physical Bleed support");
+
+    RandomService physicalSkillRandom(16);
+    const auto physicalSkillRewards = MapRewardLibrary::generateOptions(
+        unlockedSkills,
+        unlockedSupports,
+        std::map<std::string, int>{},
+        std::map<std::string, int>{},
+        1,
+        DamageType::Physical,
+        physicalSkillRandom
+    );
+    expect(physicalSkillRewards[0].type == MapRewardType::UnlockSkill
+            && physicalSkillRewards[0].skillName == SkillLibrary::crimsonSweep().name,
+        "Physical-themed rewards lead with the Physical Bleed skill unlock");
 
     std::set<std::string> allSkills;
     for (const auto& skill : SkillLibrary::all()) {

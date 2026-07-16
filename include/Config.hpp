@@ -125,6 +125,13 @@ namespace Config {
     constexpr float RendingVolleyManaCost = 6.0f;
     constexpr float RendingVolleyBleedDuration = 3.0f;
     constexpr float RendingVolleyBleedDamageMultiplier = 0.30f;
+    constexpr float CrimsonSweepRadius = 125.0f;
+    constexpr int CrimsonSweepDamage = 4;
+    constexpr float CrimsonSweepCooldown = 1.45f;
+    constexpr float CrimsonSweepManaCost = 10.0f;
+    constexpr float CrimsonSweepEffectDuration = 0.35f;
+    constexpr float CrimsonSweepBleedDuration = 2.8f;
+    constexpr float CrimsonSweepBleedDamageMultiplier = 0.28f;
     constexpr float GuardingPulseRadius = 110.0f;
     constexpr float GuardingPulseCooldown = 4.0f;
     constexpr float GuardingPulseManaCost = 15.0f;

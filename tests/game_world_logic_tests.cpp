@@ -1559,6 +1559,80 @@ void testRendingVolleyBleedFlow() {
     std::filesystem::remove(path);
 }
 
+void testCrimsonSweepBleedFlow() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_crimson_sweep_bleed_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(17606);
+    SaveData data;
+    std::string error;
+    const auto utilityIndex = static_cast<std::size_t>(SkillSlot::Utility);
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Crimson Sweep fixture starts from a valid run save");
+
+    data.unlockedSkills.insert("Crimson Sweep");
+    data.unlockedSupports.insert("Rupture");
+    data.skillBar.skills[utilityIndex] = "Crimson Sweep";
+    data.skillBar.supports[utilityIndex] = {"Rupture", ""};
+    data.player.hp = 10000;
+    data.player.upgradeStats.maxHp = 10000;
+    data.player.upgradeStats.moveSpeedMultiplier = 8.0f;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.player.mana = Config::PlayerMaxMana;
+    data.fieldPacksCleared = Config::BossGateRequiredFieldPacks;
+    data.state = SavedRunState::Playing;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Crimson Sweep fixture restores the active skill and Support");
+
+    Input input;
+    expect(moveToBoss(world, input),
+        "Crimson Sweep fixture reaches the Boss through the real map path");
+    if (!world.map().bossTriggered()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    auto findBoss = [&world]() {
+        return std::find_if(
+            world.enemies().begin(), world.enemies().end(),
+            [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+        );
+    };
+    auto boss = findBoss();
+    expect(boss != world.enemies().end(),
+        "Crimson Sweep fixture exposes a live Boss");
+    if (boss == world.enemies().end()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const auto& sweep = world.skillBar().definition(SkillSlot::Utility);
+    expect(sweep.name == "Crimson Sweep"
+            && sweep.castType == SkillCastType::SelfCenteredArea
+            && world.skillBar().support(SkillSlot::Utility) != nullptr
+            && world.skillBar().support(SkillSlot::Utility)->name == "Rupture",
+        "Crimson Sweep is equipped in Utility with Rupture");
+
+    input.handleKeyPressed(sf::Keyboard::Key::Q);
+    world.update(0.05f, input);
+    input.handleKeyReleased(sf::Keyboard::Key::Q);
+
+    bool bleedObserved = false;
+    bool damageObserved = false;
+    for (const auto& feedback : world.combatFeedback()) {
+        damageObserved = damageObserved
+            || (feedback.source == "Crimson Sweep"
+                && feedback.type == CombatFeedbackType::Damage);
+    }
+    boss = findBoss();
+    bleedObserved = boss != world.enemies().end() && boss->isBleeding();
+    expect(damageObserved && bleedObserved,
+        "Crimson Sweep deals area damage and applies Bleed through GameWorld");
+
+    std::filesystem::remove(path);
+}
+
 void testSiphonPulseRecovery() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_siphon_pulse_recovery_test.bin";
@@ -4093,6 +4167,7 @@ int main() {
     testUtilitySkillDelivery();
     testPulseShockFlow();
     testRendingVolleyBleedFlow();
+    testCrimsonSweepBleedFlow();
     testSiphonPulseRecovery();
     testGuardingPulseProtection();
     testManaWardProtection();
