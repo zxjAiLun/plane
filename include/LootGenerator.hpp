@@ -49,7 +49,7 @@ public:
         item.itemLevel = monsterLevel;
         item.slot = randomSlot(random);
         item.rarity = randomRarity(monsterLevel, random, rarityMultiplier);
-        applyBase(item, randomBaseFor(item.slot, random));
+        applyBase(item, randomBaseFor(item.slot, random, bias));
 
         const int affixCount = affixCountFor(item.rarity);
         const int tier = tierForLevel(monsterLevel) + 1;
@@ -497,7 +497,11 @@ private:
         item.stats = item.implicitStats;
     }
 
-    static const ItemBaseDefinition& randomBaseFor(EquipmentSlot slot, RandomService& random) {
+    static const ItemBaseDefinition& randomBaseFor(
+        EquipmentSlot slot,
+        RandomService& random,
+        const LootBias& bias
+    ) {
         std::vector<const ItemBaseDefinition*> matching;
         for (const auto& base : ItemBaseLibrary::all()) {
             if (base.kind == ItemBaseKind::Normal && base.slot == slot) {
@@ -508,7 +512,18 @@ private:
         if (matching.empty()) {
             return ItemBaseLibrary::all().front();
         }
-        return *matching[random.nextIndex(matching.size())];
+
+        std::vector<int> weights;
+        weights.reserve(matching.size());
+        for (const auto* base : matching) {
+            const bool themed = bias.baseTheme != ItemBuildTheme::General
+                && base->buildTheme == bias.baseTheme;
+            const float multiplier = themed
+                ? std::max(0.0f, bias.baseThemeWeightMultiplier)
+                : 1.0f;
+            weights.push_back(std::max(1, static_cast<int>(std::ceil(100.0f * multiplier))));
+        }
+        return *matching[random.weightedChoiceIndex(weights)];
     }
 
     static float relativeMultiplier(float target, float base) {

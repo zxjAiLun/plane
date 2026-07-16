@@ -1627,6 +1627,26 @@ void testItemBaseTypes() {
     expect(lowLevelCanDropHigherRequirementBase,
         "low-level maps can drop higher-requirement bases for meaningful upgrades");
 
+    LootBias manaBaseBias;
+    manaBaseBias.baseTheme = ItemBuildTheme::Mana;
+    manaBaseBias.baseThemeWeightMultiplier = 4.0f;
+    RandomService unweightedBaseRandom(8011);
+    RandomService manaBaseRandom(8011);
+    int unweightedManaBases = 0;
+    int weightedManaBases = 0;
+    for (int roll = 0; roll < 128; ++roll) {
+        const Item unweighted = generator.generate(3, unweightedBaseRandom);
+        const Item weighted = generator.generate(3, manaBaseRandom, 1.0f, manaBaseBias);
+        const auto* unweightedBase = ItemBaseLibrary::find(unweighted.baseId);
+        const auto* weightedBase = ItemBaseLibrary::find(weighted.baseId);
+        unweightedManaBases += unweightedBase != nullptr
+            && unweightedBase->buildTheme == ItemBuildTheme::Mana;
+        weightedManaBases += weightedBase != nullptr
+            && weightedBase->buildTheme == ItemBuildTheme::Mana;
+    }
+    expect(weightedManaBases > unweightedManaBases,
+        "loot base bias increases the real frequency of its build theme");
+
     const std::array<std::pair<BossLootTheme, std::string>, 6> bossThemes{{
         {BossLootTheme::Brimstone, "boss.brimstone-brand"},
         {BossLootTheme::Storm, "boss.storm-signet"},
@@ -2991,6 +3011,9 @@ void testMapLayoutVariants() {
             && MapTemplateLibrary::forIndex(1).signatureLootBias.primaryTag == AffixTag::Lightning
             && MapTemplateLibrary::forIndex(2).signatureLootBias.primaryTag == AffixTag::Poison
             && MapTemplateLibrary::forIndex(3).signatureLootBias.primaryTag == AffixTag::Cold
+            && MapTemplateLibrary::forIndex(0).signatureLootBias.baseTheme == ItemBuildTheme::Area
+            && MapTemplateLibrary::forIndex(1).signatureLootBias.baseTheme == ItemBuildTheme::Projectile
+            && MapTemplateLibrary::forIndex(3).signatureLootBias.baseTheme == ItemBuildTheme::Area
             && MapTemplateLibrary::forIndex(0).bossArenaEffect.isValid()
             && MapTemplateLibrary::forIndex(1).bossArenaEffect.isValid()
             && MapTemplateLibrary::forIndex(2).bossArenaEffect.isValid()

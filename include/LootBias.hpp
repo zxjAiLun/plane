@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ItemBuildTheme.hpp"
+
 enum class AffixTag {
     None,
     Damage,
@@ -21,6 +23,8 @@ struct LootBias {
     float primaryWeightMultiplier = 1.0f;
     AffixTag secondaryTag = AffixTag::None;
     float secondaryWeightMultiplier = 1.0f;
+    ItemBuildTheme baseTheme = ItemBuildTheme::General;
+    float baseThemeWeightMultiplier = 1.0f;
 };
 
 inline const char* affixTagName(AffixTag tag) {

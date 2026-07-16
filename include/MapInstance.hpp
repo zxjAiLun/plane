@@ -628,6 +628,8 @@ private:
         templates[0].signatureDamageType = DamageType::Fire;
         templates[0].signatureAilment = {AilmentType::Ignite, 2.5f, 0.20f};
         templates[0].signatureLootBias = {AffixTag::Fire, 1.35f};
+        templates[0].signatureLootBias.baseTheme = ItemBuildTheme::Area;
+        templates[0].signatureLootBias.baseThemeWeightMultiplier = 2.0f;
         templates[0].bossArenaEffect = {
             "Magma Ring",
             "The arena marks the player before a burning ring erupts",
@@ -642,6 +644,8 @@ private:
         templates[1].signatureDamageType = DamageType::Lightning;
         templates[1].signatureAilment = {AilmentType::Shock, 2.0f, 0.0f, 1.15f};
         templates[1].signatureLootBias = {AffixTag::Lightning, 1.35f};
+        templates[1].signatureLootBias.baseTheme = ItemBuildTheme::Projectile;
+        templates[1].signatureLootBias.baseThemeWeightMultiplier = 2.0f;
         templates[1].bossArenaEffect = {
             "Storm Convergence",
             "Lightning converges on the player after a short warning",
@@ -657,6 +661,8 @@ private:
         templates[2].signatureDamageType = DamageType::Poison;
         templates[2].signatureAilment = {AilmentType::Poison, 2.5f, 0.35f};
         templates[2].signatureLootBias = {AffixTag::Poison, 1.35f};
+        templates[2].signatureLootBias.baseTheme = ItemBuildTheme::Area;
+        templates[2].signatureLootBias.baseThemeWeightMultiplier = 2.0f;
         templates[2].bossArenaEffect = {
             "Sporeburst",
             "Toxic spores linger where the player was standing",
@@ -671,6 +677,8 @@ private:
         templates[3].signatureDamageType = DamageType::Cold;
         templates[3].signatureAilment = {AilmentType::Chill, 2.0f, 0.0f, 0.65f};
         templates[3].signatureLootBias = {AffixTag::Cold, 1.35f};
+        templates[3].signatureLootBias.baseTheme = ItemBuildTheme::Area;
+        templates[3].signatureLootBias.baseThemeWeightMultiplier = 2.0f;
         templates[3].bossArenaEffect = {
             "Glacial Fracture",
             "Cold fractures slow the arena after a clear telegraph",
@@ -684,6 +692,8 @@ private:
         templates[4].signatureDamageType = DamageType::Cold;
         templates[4].signatureAilment = {AilmentType::Chill, 2.5f, 0.0f, 0.60f};
         templates[4].signatureLootBias = {AffixTag::Cold, 1.35f, AffixTag::Area, 1.15f};
+        templates[4].signatureLootBias.baseTheme = ItemBuildTheme::Projectile;
+        templates[4].signatureLootBias.baseThemeWeightMultiplier = 2.0f;
         templates[4].bossArenaEffect = {
             "Archive Undertow",
             "Cold rings pull the player toward the marked center",
@@ -698,6 +708,8 @@ private:
         templates[5].signatureDamageType = DamageType::Fire;
         templates[5].signatureAilment = {AilmentType::Ignite, 2.5f, 0.20f};
         templates[5].signatureLootBias = {AffixTag::Armor, 1.35f, AffixTag::Damage, 1.15f};
+        templates[5].signatureLootBias.baseTheme = ItemBuildTheme::Survival;
+        templates[5].signatureLootBias.baseThemeWeightMultiplier = 2.0f;
         templates[5].bossArenaEffect = {
             "Obsidian Collapse",
             "Burning shards close in around the player",

@@ -13,18 +13,42 @@
 namespace {
 LootBias bossLootBias(BossLootTheme theme) {
     switch (theme) {
-        case BossLootTheme::Brimstone:
-            return {AffixTag::Fire, 1.45f, AffixTag::Area, 1.20f};
-        case BossLootTheme::Storm:
-            return {AffixTag::Lightning, 1.45f, AffixTag::Projectile, 1.20f};
-        case BossLootTheme::Brood:
-            return {AffixTag::Poison, 1.45f, AffixTag::Area, 1.20f};
-        case BossLootTheme::Frost:
-            return {AffixTag::Cold, 1.45f, AffixTag::Area, 1.20f};
-        case BossLootTheme::Archive:
-            return {AffixTag::Cold, 1.50f, AffixTag::Projectile, 1.25f};
-        case BossLootTheme::Obsidian:
-            return {AffixTag::Fire, 1.50f, AffixTag::Area, 1.25f};
+        case BossLootTheme::Brimstone: {
+            LootBias bias{AffixTag::Fire, 1.45f, AffixTag::Area, 1.20f};
+            bias.baseTheme = ItemBuildTheme::Area;
+            bias.baseThemeWeightMultiplier = 2.5f;
+            return bias;
+        }
+        case BossLootTheme::Storm: {
+            LootBias bias{AffixTag::Lightning, 1.45f, AffixTag::Projectile, 1.20f};
+            bias.baseTheme = ItemBuildTheme::Projectile;
+            bias.baseThemeWeightMultiplier = 2.5f;
+            return bias;
+        }
+        case BossLootTheme::Brood: {
+            LootBias bias{AffixTag::Poison, 1.45f, AffixTag::Area, 1.20f};
+            bias.baseTheme = ItemBuildTheme::Area;
+            bias.baseThemeWeightMultiplier = 2.5f;
+            return bias;
+        }
+        case BossLootTheme::Frost: {
+            LootBias bias{AffixTag::Cold, 1.45f, AffixTag::Area, 1.20f};
+            bias.baseTheme = ItemBuildTheme::Area;
+            bias.baseThemeWeightMultiplier = 2.5f;
+            return bias;
+        }
+        case BossLootTheme::Archive: {
+            LootBias bias{AffixTag::Cold, 1.50f, AffixTag::Projectile, 1.25f};
+            bias.baseTheme = ItemBuildTheme::Projectile;
+            bias.baseThemeWeightMultiplier = 2.5f;
+            return bias;
+        }
+        case BossLootTheme::Obsidian: {
+            LootBias bias{AffixTag::Fire, 1.50f, AffixTag::Area, 1.25f};
+            bias.baseTheme = ItemBuildTheme::Area;
+            bias.baseThemeWeightMultiplier = 2.5f;
+            return bias;
+        }
     }
     return {};
 }
@@ -61,6 +85,16 @@ void mergeLootBias(LootBias& target, const LootBias& extra) {
 
     add(extra.primaryTag, extra.primaryWeightMultiplier);
     add(extra.secondaryTag, extra.secondaryWeightMultiplier);
+
+    if (extra.baseTheme != ItemBuildTheme::General
+        && extra.baseThemeWeightMultiplier > 0.0f) {
+        if (target.baseTheme == ItemBuildTheme::General) {
+            target.baseTheme = extra.baseTheme;
+            target.baseThemeWeightMultiplier = extra.baseThemeWeightMultiplier;
+        } else if (target.baseTheme == extra.baseTheme) {
+            target.baseThemeWeightMultiplier *= extra.baseThemeWeightMultiplier;
+        }
+    }
 }
 
 LootBias mapDropLootBias(
@@ -83,6 +117,16 @@ LootBias mapDropLootBias(
     } else {
         result.secondaryTag = themeBias.primaryTag;
         result.secondaryWeightMultiplier = themeBias.primaryWeightMultiplier;
+    }
+
+    if (themeBias.baseTheme != ItemBuildTheme::General
+        && themeBias.baseThemeWeightMultiplier > 0.0f) {
+        if (result.baseTheme == ItemBuildTheme::General) {
+            result.baseTheme = themeBias.baseTheme;
+            result.baseThemeWeightMultiplier = themeBias.baseThemeWeightMultiplier;
+        } else if (result.baseTheme == themeBias.baseTheme) {
+            result.baseThemeWeightMultiplier *= themeBias.baseThemeWeightMultiplier;
+        }
     }
 
     return result;

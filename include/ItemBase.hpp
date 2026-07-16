@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "EquipmentSlot.hpp"
+#include "ItemBuildTheme.hpp"
 #include "Stats.hpp"
 
 enum class ItemBaseKind {
@@ -20,35 +21,6 @@ enum class ItemBaseTheme {
     Archive,
     Obsidian
 };
-
-enum class ItemBuildTheme {
-    General,
-    Projectile,
-    Area,
-    Survival,
-    Loot,
-    Mana,
-    Fire,
-    Cold,
-    Lightning,
-    Poison
-};
-
-inline const char* itemBuildThemeName(ItemBuildTheme theme) {
-    switch (theme) {
-        case ItemBuildTheme::General: return "General";
-        case ItemBuildTheme::Projectile: return "Projectile";
-        case ItemBuildTheme::Area: return "Area";
-        case ItemBuildTheme::Survival: return "Survival";
-        case ItemBuildTheme::Loot: return "Loot";
-        case ItemBuildTheme::Mana: return "Mana";
-        case ItemBuildTheme::Fire: return "Fire";
-        case ItemBuildTheme::Cold: return "Cold";
-        case ItemBuildTheme::Lightning: return "Lightning";
-        case ItemBuildTheme::Poison: return "Poison";
-    }
-    return "Unknown";
-}
 
 struct ItemBaseDefinition {
     std::string id;
