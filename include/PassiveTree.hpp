@@ -94,12 +94,12 @@ public:
         nodes_[21] = {"Venomous Focus", "+10% Poison damage", poisonStats(1.10f), 20, false, {135.0f, 0.0f}, PassiveBranch::Poison, PassiveNodeSize::Small};
         nodes_[22] = {"Antidote Veins", "+12% Poison resistance", poisonStats(1.0f, 12), 21, false, {200.0f, 0.0f}, PassiveBranch::Poison, PassiveNodeSize::Small};
         nodes_[23] = {"Lingering Rot", "+12% Poison damage", poisonStats(1.12f), 22, false, {260.0f, 0.0f}, PassiveBranch::Poison, PassiveNodeSize::Small};
-        nodes_[24] = {"Toxic Bloom", "+30% Poison damage and +10% Poison resistance", poisonStats(1.30f, 10), 23, false, {318.0f, 0.0f}, PassiveBranch::Poison, PassiveNodeSize::Notable};
+        nodes_[24] = {"Toxic Bloom", "+30% Poison damage, +20% Poison duration, +10% Poison resistance", poisonStats(1.30f, 10, 1.20f), 23, false, {318.0f, 0.0f}, PassiveBranch::Poison, PassiveNodeSize::Notable};
 
         // Keep the existing Poison route stable and add independent elemental roots.
-        nodes_[25] = {"Ember Attunement", "+18% Fire damage, +5 Fire resistance", fireStats(1.18f, 5), -1, false, {0.0f, -196.0f}, PassiveBranch::Fire, PassiveNodeSize::Notable};
-        nodes_[26] = {"Glacial Attunement", "+18% Cold damage, +5 Cold resistance", coldStats(1.18f, 5), -1, false, {0.0f, 196.0f}, PassiveBranch::Cold, PassiveNodeSize::Notable};
-        nodes_[27] = {"Storm Attunement", "+18% Lightning damage, +5 Lightning resistance", lightningStats(1.18f, 5), -1, false, {-70.0f, 0.0f}, PassiveBranch::Lightning, PassiveNodeSize::Notable};
+        nodes_[25] = {"Ember Attunement", "+18% Fire damage, +15% Ignite damage, +5 Fire resistance", fireStats(1.18f, 5, 1.15f, 1.10f), -1, false, {0.0f, -196.0f}, PassiveBranch::Fire, PassiveNodeSize::Notable};
+        nodes_[26] = {"Glacial Attunement", "+18% Cold damage, +15% Chill effect/duration, +5 Cold resistance", coldStats(1.18f, 5, 1.15f, 1.15f), -1, false, {0.0f, 196.0f}, PassiveBranch::Cold, PassiveNodeSize::Notable};
+        nodes_[27] = {"Storm Attunement", "+18% Lightning damage, +15% Shock effect/duration, +5 Lightning resistance", lightningStats(1.18f, 5, 1.15f, 1.15f), -1, false, {-70.0f, 0.0f}, PassiveBranch::Lightning, PassiveNodeSize::Notable};
     }
 
     bool allocate(std::size_t index) {
@@ -231,31 +231,57 @@ private:
         return stats;
     }
 
-    static Stats poisonStats(float poisonDamageMultiplier, int poisonResistance = 0) {
+    static Stats poisonStats(
+        float poisonDamageMultiplier,
+        int poisonResistance = 0,
+        float poisonDurationMultiplier = 1.0f
+    ) {
         Stats stats;
         stats.poisonDamageMultiplier = poisonDamageMultiplier;
         stats.poisonResistance = poisonResistance;
+        stats.poisonDurationMultiplier = poisonDurationMultiplier;
         return stats;
     }
 
-    static Stats fireStats(float damageMultiplier, int resistance) {
+    static Stats fireStats(
+        float damageMultiplier,
+        int resistance,
+        float igniteDamageMultiplier = 1.0f,
+        float igniteDurationMultiplier = 1.0f
+    ) {
         Stats stats;
         stats.fireDamageMultiplier = damageMultiplier;
         stats.fireResistance = resistance;
+        stats.igniteDamageMultiplier = igniteDamageMultiplier;
+        stats.igniteDurationMultiplier = igniteDurationMultiplier;
         return stats;
     }
 
-    static Stats coldStats(float damageMultiplier, int resistance) {
+    static Stats coldStats(
+        float damageMultiplier,
+        int resistance,
+        float chillMagnitudeMultiplier = 1.0f,
+        float chillDurationMultiplier = 1.0f
+    ) {
         Stats stats;
         stats.coldDamageMultiplier = damageMultiplier;
         stats.coldResistance = resistance;
+        stats.chillMagnitudeMultiplier = chillMagnitudeMultiplier;
+        stats.chillDurationMultiplier = chillDurationMultiplier;
         return stats;
     }
 
-    static Stats lightningStats(float damageMultiplier, int resistance) {
+    static Stats lightningStats(
+        float damageMultiplier,
+        int resistance,
+        float shockMagnitudeMultiplier = 1.0f,
+        float shockDurationMultiplier = 1.0f
+    ) {
         Stats stats;
         stats.lightningDamageMultiplier = damageMultiplier;
         stats.lightningResistance = resistance;
+        stats.shockMagnitudeMultiplier = shockMagnitudeMultiplier;
+        stats.shockDurationMultiplier = shockDurationMultiplier;
         return stats;
     }
 

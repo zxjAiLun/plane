@@ -158,7 +158,14 @@ bool statsEqual(const Stats& lhs, const Stats& rhs) {
         && lhs.poisonResistance == rhs.poisonResistance
         && std::abs(lhs.maxManaMultiplier - rhs.maxManaMultiplier) < 0.0001f
         && std::abs(lhs.manaRegenMultiplier - rhs.manaRegenMultiplier) < 0.0001f
-        && std::abs(lhs.skillCostMultiplier - rhs.skillCostMultiplier) < 0.0001f;
+        && std::abs(lhs.skillCostMultiplier - rhs.skillCostMultiplier) < 0.0001f
+        && std::abs(lhs.igniteDamageMultiplier - rhs.igniteDamageMultiplier) < 0.0001f
+        && std::abs(lhs.igniteDurationMultiplier - rhs.igniteDurationMultiplier) < 0.0001f
+        && std::abs(lhs.chillMagnitudeMultiplier - rhs.chillMagnitudeMultiplier) < 0.0001f
+        && std::abs(lhs.chillDurationMultiplier - rhs.chillDurationMultiplier) < 0.0001f
+        && std::abs(lhs.shockMagnitudeMultiplier - rhs.shockMagnitudeMultiplier) < 0.0001f
+        && std::abs(lhs.shockDurationMultiplier - rhs.shockDurationMultiplier) < 0.0001f
+        && std::abs(lhs.poisonDurationMultiplier - rhs.poisonDurationMultiplier) < 0.0001f;
 }
 
 void section(const std::string& title) {
@@ -327,6 +334,13 @@ void testPassiveKeystones() {
             && elementalStats.coldResistance == 5
             && elementalStats.lightningResistance == 5,
         "elemental mastery roots add damage and matching resistance");
+    expect(elementalStats.igniteDamageMultiplier > 1.0f
+            && elementalStats.igniteDurationMultiplier > 1.0f
+            && elementalStats.chillMagnitudeMultiplier > 1.0f
+            && elementalStats.chillDurationMultiplier > 1.0f
+            && elementalStats.shockMagnitudeMultiplier > 1.0f
+            && elementalStats.shockDurationMultiplier > 1.0f,
+        "elemental mastery roots add matching ailment specialization");
     expect(skillDamage(SkillLibrary::emberLance(), elementalStats, nullptr)
             > skillDamage(SkillLibrary::emberLance(), Stats{}, nullptr)
             && skillDamage(SkillLibrary::glacialShard(), elementalStats, nullptr)
@@ -999,6 +1013,36 @@ void testSkillAilments() {
     expect(skillDamage(toxicBurst, poisonStats, nullptr)
             > skillDamage(toxicBurst, Stats{}, nullptr),
         "Poison specialization increases Poison skill damage");
+
+    Stats ailmentStats;
+    ailmentStats.igniteDamageMultiplier = 1.25f;
+    ailmentStats.igniteDurationMultiplier = 1.20f;
+    ailmentStats.chillMagnitudeMultiplier = 1.30f;
+    ailmentStats.chillDurationMultiplier = 1.40f;
+    ailmentStats.shockMagnitudeMultiplier = 1.25f;
+    ailmentStats.shockDurationMultiplier = 1.35f;
+    ailmentStats.poisonDurationMultiplier = 1.50f;
+    const AilmentDefinition scaledIgnite = scaleAilmentWithStats(
+        meteor.ailment, ailmentStats
+    );
+    const AilmentDefinition scaledChill = scaleAilmentWithStats(
+        frostBomb.ailment, ailmentStats
+    );
+    const AilmentDefinition scaledShock = scaleAilmentWithStats(
+        SkillLibrary::pulse().ailment, ailmentStats
+    );
+    const AilmentDefinition scaledPoison = scaleAilmentWithStats(
+        toxicBurst.ailment, ailmentStats
+    );
+    expect(scaledIgnite.damageMultiplier > meteor.ailment.damageMultiplier
+            && scaledIgnite.duration > meteor.ailment.duration
+            && scaledChill.speedMultiplier < frostBomb.ailment.speedMultiplier
+            && scaledChill.duration > frostBomb.ailment.duration
+            && scaledShock.damageTakenMultiplier
+                > SkillLibrary::pulse().ailment.damageTakenMultiplier
+            && scaledShock.duration > SkillLibrary::pulse().ailment.duration
+            && scaledPoison.duration > toxicBurst.ailment.duration,
+        "elemental ailment stats scale damage, magnitude, and duration");
 
     Enemy enemy({0.0f, 0.0f}, 10, 1);
     enemy.applyIgnite(2, 2.0f);

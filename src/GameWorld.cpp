@@ -4038,7 +4038,10 @@ float GameWorld::spreadAngleForPlayerSkill(const SkillDefinition& skill) const {
 }
 
 AilmentDefinition GameWorld::ailmentForPlayerSkill(const SkillDefinition& skill) const {
-    AilmentDefinition ailment = skillAilment(skill, skillBar_.supportDefinitionsFor(skill));
+    AilmentDefinition ailment = scaleAilmentWithStats(
+        skillAilment(skill, skillBar_.supportDefinitionsFor(skill)),
+        player_.stats()
+    );
     if (skill.damageType == DamageType::Fire
         && ailment.type == AilmentType::Ignite
         && hasBossRelicTheme(ItemBaseTheme::Brimstone)) {

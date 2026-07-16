@@ -419,6 +419,44 @@ inline AilmentDefinition skillAilment(
     return skillAilment(skill, SupportList{support, nullptr});
 }
 
+inline AilmentDefinition scaleAilmentWithStats(
+    const AilmentDefinition& base,
+    const Stats& stats
+) {
+    AilmentDefinition result = base;
+    switch (result.type) {
+        case AilmentType::Ignite:
+            result.damageMultiplier *= stats.igniteDamageMultiplier;
+            result.duration *= stats.igniteDurationMultiplier;
+            break;
+        case AilmentType::Chill:
+            result.speedMultiplier = std::clamp(
+                1.0f - (1.0f - result.speedMultiplier)
+                    * stats.chillMagnitudeMultiplier,
+                0.20f,
+                1.0f
+            );
+            result.duration *= stats.chillDurationMultiplier;
+            break;
+        case AilmentType::Shock:
+            result.damageTakenMultiplier = std::clamp(
+                1.0f + (result.damageTakenMultiplier - 1.0f)
+                    * stats.shockMagnitudeMultiplier,
+                1.0f,
+                2.0f
+            );
+            result.duration *= stats.shockDurationMultiplier;
+            break;
+        case AilmentType::Poison:
+            result.duration *= stats.poisonDurationMultiplier;
+            break;
+        case AilmentType::None:
+        case AilmentType::Count:
+            break;
+    }
+    return result;
+}
+
 inline int ailmentTickDamage(const AilmentDefinition& ailment, int hitDamage) {
     if ((ailment.type != AilmentType::Ignite && ailment.type != AilmentType::Poison)
         || ailment.damageMultiplier <= 0.0f || hitDamage <= 0) {

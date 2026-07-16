@@ -26,6 +26,13 @@ struct Stats {
     float maxManaMultiplier = 1.0f;
     float manaRegenMultiplier = 1.0f;
     float skillCostMultiplier = 1.0f;
+    float igniteDamageMultiplier = 1.0f;
+    float igniteDurationMultiplier = 1.0f;
+    float chillMagnitudeMultiplier = 1.0f;
+    float chillDurationMultiplier = 1.0f;
+    float shockMagnitudeMultiplier = 1.0f;
+    float shockDurationMultiplier = 1.0f;
+    float poisonDurationMultiplier = 1.0f;
 };
 
 inline Stats combineStats(const Stats& base, const Stats& bonus) {
@@ -54,5 +61,12 @@ inline Stats combineStats(const Stats& base, const Stats& bonus) {
         base.maxManaMultiplier * bonus.maxManaMultiplier,
         base.manaRegenMultiplier * bonus.manaRegenMultiplier,
         base.skillCostMultiplier * bonus.skillCostMultiplier,
+        base.igniteDamageMultiplier * bonus.igniteDamageMultiplier,
+        base.igniteDurationMultiplier * bonus.igniteDurationMultiplier,
+        base.chillMagnitudeMultiplier * bonus.chillMagnitudeMultiplier,
+        base.chillDurationMultiplier * bonus.chillDurationMultiplier,
+        base.shockMagnitudeMultiplier * bonus.shockMagnitudeMultiplier,
+        base.shockDurationMultiplier * bonus.shockDurationMultiplier,
+        base.poisonDurationMultiplier * bonus.poisonDurationMultiplier,
     };
 }

@@ -1242,6 +1242,20 @@ void Renderer::render(const GameWorld& world) {
         + "%  AREA +" + std::to_string(multiplierPercent(stats.areaRadiusMultiplier))
         + "%  ARM " + std::to_string(stats.armor), 72),
         {16.0f, 84.0f}, 14, sf::Color(210, 220, 255));
+    const auto ailmentPercent = [](float multiplier) {
+        const int value = multiplierPercent(multiplier);
+        return (value >= 0 ? "+" : "") + std::to_string(value) + "%";
+    };
+    const std::string ailmentBuildLine = "AIL I "
+        + ailmentPercent(stats.igniteDamageMultiplier) + "/"
+        + ailmentPercent(stats.igniteDurationMultiplier)
+        + "  C " + ailmentPercent(stats.chillMagnitudeMultiplier) + "/"
+        + ailmentPercent(stats.chillDurationMultiplier)
+        + "  S " + ailmentPercent(stats.shockMagnitudeMultiplier) + "/"
+        + ailmentPercent(stats.shockDurationMultiplier)
+        + "  P dur " + ailmentPercent(stats.poisonDurationMultiplier);
+    drawText(truncateText(ailmentBuildLine, 58),
+        {16.0f, 102.0f}, 12, sf::Color(255, 210, 170));
     std::string elementalLine = "ELEM F/C/L/P DMG "
         + std::to_string(multiplierPercent(stats.fireDamageMultiplier)) + "/"
         + std::to_string(multiplierPercent(stats.coldDamageMultiplier)) + "/"
@@ -2647,7 +2661,7 @@ void Renderer::drawPassiveTree(const GameWorld& world) {
         const std::string keystoneLabel = node.keystone == PassiveKeystone::None
             ? ""
             : " [" + std::string(passiveKeystoneName(node.keystone)) + "]";
-        drawText(node.name + keystoneLabel + " - " + node.description,
+        drawText(truncateText(node.name + keystoneLabel + " - " + node.description, 76),
             {center.x - 350.0f, center.y + 238.0f}, 14, passiveBranchColor(node.branch));
     } else {
         drawText("Hover a node to inspect it",
