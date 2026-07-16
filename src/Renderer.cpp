@@ -433,6 +433,9 @@ std::string passiveBranchName(PassiveBranch branch) {
 }
 
 std::string passiveKeyLabel(std::size_t index) {
+    if (index >= 25) {
+        return "M";
+    }
     if (index < 9) {
         return std::to_string(index + 1);
     }
