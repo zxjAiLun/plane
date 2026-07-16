@@ -317,6 +317,19 @@ public:
             }
         }
 
+        // Start offering one compatible Support as soon as the run reaches
+        // map level two. A build should be able to combine a newly unlocked
+        // skill with a meaningful link before the entire skill library is
+        // exhausted.
+        if (includeUpgrades && rewardIndex < contentLimit && !lockedSupports.empty()) {
+            const std::size_t supportIndex = random.nextIndex(lockedSupports.size());
+            rewards[rewardIndex] = supportUnlockReward(*lockedSupports[supportIndex]);
+            lockedSupports.erase(
+                lockedSupports.begin() + static_cast<std::ptrdiff_t>(supportIndex)
+            );
+            ++rewardIndex;
+        }
+
         while (rewardIndex < contentLimit && !lockedSkills.empty()) {
             const auto randomIndex = random.nextIndex(lockedSkills.size());
             rewards[rewardIndex] = skillUnlockReward(*lockedSkills[randomIndex]);

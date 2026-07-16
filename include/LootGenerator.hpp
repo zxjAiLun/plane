@@ -776,6 +776,25 @@ private:
             {"of Meditation", false, EquipmentSlot::Ring, AffixStat::ManaRegenMultiplier, {0.10f, 0.18f, 0.26f}},
             {"Arcane", true, EquipmentSlot::Amulet, AffixStat::MaxManaMultiplier, {0.10f, 0.16f, 0.22f}},
             {"of Meditation", false, EquipmentSlot::Amulet, AffixStat::ManaRegenMultiplier, {0.12f, 0.20f, 0.28f}},
+
+            // Elemental build affixes for secondary gear slots. These are
+            // appended to preserve the stable ids of the original pool.
+            {"Emberwake", true, EquipmentSlot::Ring, AffixStat::FireDamageMultiplier, {0.03f, 0.06f, 0.09f}},
+            {"of Cinders", false, EquipmentSlot::Ring, AffixStat::FireDamageMultiplier, {0.02f, 0.05f, 0.08f}},
+            {"Rimebound", true, EquipmentSlot::Ring, AffixStat::ColdDamageMultiplier, {0.03f, 0.06f, 0.09f}},
+            {"of Rime", false, EquipmentSlot::Ring, AffixStat::ColdDamageMultiplier, {0.02f, 0.05f, 0.08f}},
+            {"Tempestuous", true, EquipmentSlot::Ring, AffixStat::LightningDamageMultiplier, {0.03f, 0.06f, 0.09f}},
+            {"of Sparks", false, EquipmentSlot::Ring, AffixStat::LightningDamageMultiplier, {0.02f, 0.05f, 0.08f}},
+            {"Venomous", true, EquipmentSlot::Ring, AffixStat::PoisonDamageMultiplier, {0.03f, 0.06f, 0.09f}},
+            {"of Toxins", false, EquipmentSlot::Ring, AffixStat::PoisonDamageMultiplier, {0.02f, 0.05f, 0.08f}},
+            {"Emberheart", true, EquipmentSlot::Amulet, AffixStat::FireDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"of Embers", false, EquipmentSlot::Amulet, AffixStat::FireDamageMultiplier, {0.03f, 0.06f, 0.09f}},
+            {"Rimeheart", true, EquipmentSlot::Amulet, AffixStat::ColdDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"of Winter", false, EquipmentSlot::Amulet, AffixStat::ColdDamageMultiplier, {0.03f, 0.06f, 0.09f}},
+            {"Stormheart", true, EquipmentSlot::Amulet, AffixStat::LightningDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"of Storms", false, EquipmentSlot::Amulet, AffixStat::LightningDamageMultiplier, {0.03f, 0.06f, 0.09f}},
+            {"Venomheart", true, EquipmentSlot::Amulet, AffixStat::PoisonDamageMultiplier, {0.04f, 0.07f, 0.10f}},
+            {"of Toxins", false, EquipmentSlot::Amulet, AffixStat::PoisonDamageMultiplier, {0.03f, 0.06f, 0.09f}},
         };
 
         for (auto& affix : pool) {

@@ -148,6 +148,12 @@ bool statsEqual(const Stats& lhs, const Stats& rhs) {
         && std::abs(lhs.lifeFlaskEffectMultiplier - rhs.lifeFlaskEffectMultiplier) < 0.0001f
         && std::abs(lhs.itemQuantityMultiplier - rhs.itemQuantityMultiplier) < 0.0001f
         && std::abs(lhs.incomingDamageMultiplier - rhs.incomingDamageMultiplier) < 0.0001f
+        && std::abs(lhs.fireDamageMultiplier - rhs.fireDamageMultiplier) < 0.0001f
+        && std::abs(lhs.coldDamageMultiplier - rhs.coldDamageMultiplier) < 0.0001f
+        && std::abs(lhs.lightningDamageMultiplier - rhs.lightningDamageMultiplier) < 0.0001f
+        && lhs.fireResistance == rhs.fireResistance
+        && lhs.coldResistance == rhs.coldResistance
+        && lhs.lightningResistance == rhs.lightningResistance
         && std::abs(lhs.poisonDamageMultiplier - rhs.poisonDamageMultiplier) < 0.0001f
         && lhs.poisonResistance == rhs.poisonResistance
         && std::abs(lhs.maxManaMultiplier - rhs.maxManaMultiplier) < 0.0001f
@@ -2036,6 +2042,24 @@ void testAffixTagsAndWeights() {
     );
     expect(maxManaIt != affixes.end() && manaRegenIt != affixes.end(),
         "affix library exposes Max Mana and Mana Regen definitions");
+    const auto hasElementalSlotCoverage = [&](EquipmentSlot slot, AffixStat stat) {
+        return std::any_of(
+            affixes.begin(),
+            affixes.end(),
+            [slot, stat](const AffixDefinition& affix) {
+                return affix.slot == slot && affix.stat == stat;
+            }
+        );
+    };
+    expect(hasElementalSlotCoverage(EquipmentSlot::Ring, AffixStat::FireDamageMultiplier)
+            && hasElementalSlotCoverage(EquipmentSlot::Ring, AffixStat::ColdDamageMultiplier)
+            && hasElementalSlotCoverage(EquipmentSlot::Ring, AffixStat::LightningDamageMultiplier)
+            && hasElementalSlotCoverage(EquipmentSlot::Ring, AffixStat::PoisonDamageMultiplier)
+            && hasElementalSlotCoverage(EquipmentSlot::Amulet, AffixStat::FireDamageMultiplier)
+            && hasElementalSlotCoverage(EquipmentSlot::Amulet, AffixStat::ColdDamageMultiplier)
+            && hasElementalSlotCoverage(EquipmentSlot::Amulet, AffixStat::LightningDamageMultiplier)
+            && hasElementalSlotCoverage(EquipmentSlot::Amulet, AffixStat::PoisonDamageMultiplier),
+        "Ring and Amulet affix pools cover all four elemental damage types");
     if (maxManaIt != affixes.end() && manaRegenIt != affixes.end()) {
         const Stats maxManaContribution = LootGenerator::contributionFor(
             maxManaIt->id, 5, 3
@@ -2153,17 +2177,7 @@ void testCraftingChoiceOperations() {
     const Stats beforeImprove = item.affixes[0].stats;
     expect(LootGenerator::improveAffix(item, 0) == CraftingResult::Success,
         "ImproveAffix changes a craftable affix");
-    expect(item.affixes[0].stats.damageMultiplier != beforeImprove.damageMultiplier
-            || item.affixes[0].stats.attackSpeedMultiplier != beforeImprove.attackSpeedMultiplier
-            || item.affixes[0].stats.moveSpeedMultiplier != beforeImprove.moveSpeedMultiplier
-            || item.affixes[0].stats.maxHp != beforeImprove.maxHp
-            || item.affixes[0].stats.armor != beforeImprove.armor
-            || item.affixes[0].stats.projectileDamageMultiplier != beforeImprove.projectileDamageMultiplier
-            || item.affixes[0].stats.areaDamageMultiplier != beforeImprove.areaDamageMultiplier
-            || item.affixes[0].stats.areaRadiusMultiplier != beforeImprove.areaRadiusMultiplier
-            || item.affixes[0].stats.poisonDamageMultiplier != beforeImprove.poisonDamageMultiplier
-            || item.affixes[0].stats.poisonResistance != beforeImprove.poisonResistance
-            || item.affixes[0].stats.pickupRangeMultiplier != beforeImprove.pickupRangeMultiplier,
+    expect(!statsEqual(item.affixes[0].stats, beforeImprove),
         "ImproveAffix changes only the target contribution");
     expect(item.baseId == baseId && item.baseName == baseName
             && statsEqual(item.implicitStats, implicit)
@@ -3280,6 +3294,25 @@ void testMapRewardGeneration() {
         }
     }
     expect(skillUnlocks >= 1, "at least one reward unlocks a new skill while skills remain locked");
+
+    RandomService earlySupportRandom(8);
+    const auto earlySupportRewards = MapRewardLibrary::generateOptions(
+        unlockedSkills,
+        unlockedSupports,
+        std::map<std::string, int>{},
+        std::map<std::string, int>{},
+        2,
+        DamageType::Physical,
+        earlySupportRandom
+    );
+    const bool hasEarlySupport = std::any_of(
+        earlySupportRewards.begin(), earlySupportRewards.end(),
+        [](const MapRewardDefinition& reward) {
+            return reward.type == MapRewardType::UnlockSupport;
+        }
+    );
+    expect(hasEarlySupport,
+        "map level two rewards can unlock a Support compatible with the starter build");
 
     const auto themedReward = [&](DamageType theme, std::uint64_t seed) {
         RandomService themedRandom(seed);
