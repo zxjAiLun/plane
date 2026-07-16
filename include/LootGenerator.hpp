@@ -90,7 +90,8 @@ public:
         const int tier = tierForLevel(monsterLevel);
         const int maxVariant = (theme == BossLootTheme::Bloodletting
                 || theme == BossLootTheme::Storm
-                || theme == BossLootTheme::Frost) ? 2 : 1;
+                || theme == BossLootTheme::Frost
+                || theme == BossLootTheme::Brimstone) ? 2 : 1;
         const int normalizedVariant = std::clamp(variant, 0, maxVariant);
         Item item;
         item.itemLevel = monsterLevel;
@@ -114,7 +115,7 @@ public:
                         areaDamageContribution(relativeMultiplier(
                             1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
                             item.implicitStats.areaDamageMultiplier)), {AffixTag::Area});
-                } else {
+                } else if (normalizedVariant == 1) {
                     item.name = "Ashen Crucible";
                     addBossAffix(item, "Ashen might", tier + 1,
                         damageContribution(relativeMultiplier(
@@ -127,6 +128,20 @@ public:
                     addBossAffix(item, "Erupting reach", tier + 1,
                         areaRadiusContribution(relativeMultiplier(
                             1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.areaRadiusMultiplier)), {AffixTag::Fire, AffixTag::Area});
+                } else {
+                    item.name = "Cinderheart Core";
+                    addBossAffix(item, "Cinderwake might", tier + 1,
+                        damageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.12f, 0.18f, 0.24f}[tier],
+                            item.implicitStats.damageMultiplier)), {AffixTag::Fire, AffixTag::Damage});
+                    addBossAffix(item, "Recursive ignition", tier + 1,
+                        fireDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.16f, 0.24f, 0.32f}[tier],
+                            item.implicitStats.fireDamageMultiplier)), {AffixTag::Fire});
+                    addBossAffix(item, "Crucible reach", tier + 1,
+                        areaRadiusContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.15f, 0.20f}[tier],
                             item.implicitStats.areaRadiusMultiplier)), {AffixTag::Fire, AffixTag::Area});
                 }
                 break;

@@ -50,7 +50,8 @@ enum class MapEncounterType {
     BloodlettingPit,
     IronheartTrial,
     StormglassGauntlet,
-    FrostveilCitadel
+    FrostveilCitadel,
+    CinderwakeCrucible
 };
 
 struct MapEncounterSkillDefinition {
@@ -100,8 +101,8 @@ struct MapEncounterDefinition {
 
 class MapEncounterLibrary {
 public:
-    static const std::array<MapEncounterDefinition, 15>& all() {
-        static const std::array<MapEncounterDefinition, 15> definitions = {{
+    static const std::array<MapEncounterDefinition, 16>& all() {
+        static const std::array<MapEncounterDefinition, 16> definitions = {{
             {
                 MapEncounterType::EnhancedCache,
                 "enhanced-cache",
@@ -544,6 +545,44 @@ public:
                 },
                 3,
                 11
+            },
+            {
+                MapEncounterType::CinderwakeCrucible,
+                "cinderwake-crucible",
+                "Cinderwake Crucible",
+                "Cross the burning forge while Ashbound Chargers close every safe lane",
+                160.0f,
+                0,
+                2,
+                3,
+                2.15f,
+                {"Cinderwake Ward", 164.0f, 9.0f, 0.60f, 3,
+                    DamageType::Fire, {AilmentType::Ignite, 2.8f, 0.30f},
+                    GroundHazardTarget::Player},
+                false,
+                5,
+                EnemyType::Charger,
+                EnemyType::Summoner,
+                {AffixTag::Fire, 2.25f, AffixTag::Area, 1.60f},
+                6,
+                true,
+                DamageType::Fire,
+                {AilmentType::Ignite, 2.8f, 0.30f},
+                {
+                    "Furnace Verdict",
+                    "The Ashbound leader marks the player before a burning ring closes",
+                    3.6f,
+                    0.60f,
+                    134.0f,
+                    6,
+                    DamageType::Fire,
+                    {AilmentType::Ignite, 2.8f, 0.30f},
+                    {"Verdict Brand", 118.0f, 3.2f, 0.60f, 4,
+                        DamageType::Fire, {AilmentType::Ignite, 2.8f, 0.30f},
+                        GroundHazardTarget::Player}
+                },
+                3,
+                12
             }
         }};
         return definitions;
@@ -567,6 +606,7 @@ public:
         const int templateCount = MapLayoutLibrary::TemplateCount;
         const int normalizedTemplate = ((templateIndex % templateCount) + templateCount)
             % templateCount;
+        const int normalizedLayout = MapLayoutLibrary::normalizeVariantIndex(layoutIndex);
         if (normalizedTemplate == 3 && mapLevel >= 9 && layoutIndex == 2) {
             return forType(MapEncounterType::FrostveilCitadel);
         }
@@ -577,6 +617,10 @@ public:
 
         if (normalizedTemplate == 4) {
             return forType(MapEncounterType::ArchivePurge);
+        }
+
+        if (normalizedTemplate == 5 && mapLevel >= 10 && normalizedLayout == 1) {
+            return forType(MapEncounterType::CinderwakeCrucible);
         }
 
         if (normalizedTemplate == 5) {

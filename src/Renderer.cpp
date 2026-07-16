@@ -906,6 +906,7 @@ sf::Color mapEventColor(const MapEventInstance& event) {
                 case MapEncounterType::IronheartTrial: return sf::Color(235, 190, 85);
                 case MapEncounterType::StormglassGauntlet: return sf::Color(110, 210, 255);
                 case MapEncounterType::FrostveilCitadel: return sf::Color(175, 225, 255);
+                case MapEncounterType::CinderwakeCrucible: return sf::Color(255, 130, 70);
                 case MapEncounterType::None: break;
             }
             break;
@@ -1035,7 +1036,8 @@ std::string activeElitePackModifierDescription(const GameWorld& world) {
                     || event.encounterType == MapEncounterType::NecroticOssuary
                     || event.encounterType == MapEncounterType::IronheartTrial
                     || event.encounterType == MapEncounterType::StormglassGauntlet
-                    || event.encounterType == MapEncounterType::FrostveilCitadel));
+                    || event.encounterType == MapEncounterType::FrostveilCitadel
+                    || event.encounterType == MapEncounterType::CinderwakeCrucible));
         if (isEliteEncounter && event.triggered && !event.completed) {
             activeEvent = &event;
             activeEventIndex = index;

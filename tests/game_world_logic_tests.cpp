@@ -4294,6 +4294,85 @@ void testCombinationMapEvents() {
         }
     }
 
+    {
+        GameWorld world(21015);
+        prepareCombinationFixture(world, path, 5, 1, 12, 0);
+        const auto eventIt = std::find_if(
+            world.map().events().begin(), world.map().events().end(),
+            [](const MapEventInstance& event) {
+                return event.type == MapEventType::Combination
+                    && event.encounterType == MapEncounterType::CinderwakeCrucible;
+            }
+        );
+        expect(eventIt != world.map().events().end(),
+            "map level twelve exposes the Cinderwake Crucible encounter");
+        if (eventIt != world.map().events().end()) {
+            const std::size_t eventIndex = static_cast<std::size_t>(
+                std::distance(world.map().events().begin(), eventIt)
+            );
+            const Vector2 position = eventIt->position;
+            Input input;
+            expect(moveToMapEvent(world, input, {650.0f, 700.0f})
+                    && moveToMapEvent(world, input, position),
+                "player can reach the Cinderwake Crucible encounter");
+            const auto ownedEnemyCount = [&](EnemyType type) {
+                return std::count_if(
+                    world.enemies().begin(), world.enemies().end(),
+                    [eventIndex, type](const Enemy& enemy) {
+                        return enemy.mapEventIndex() == static_cast<int>(eventIndex)
+                            && enemy.type() == type;
+                    }
+                );
+            };
+            const auto cinderwakeHazard = std::find_if(
+                world.groundHazards().begin(), world.groundHazards().end(),
+                [](const GroundHazard& hazard) {
+                    return hazard.definition().source == "Cinderwake Ward";
+                }
+            );
+            expect(world.activeEliteEventEnemiesRemaining() == 5
+                    && ownedEnemyCount(EnemyType::Charger) == 2
+                    && ownedEnemyCount(EnemyType::Summoner) == 3
+                    && cinderwakeHazard != world.groundHazards().end(),
+                "Cinderwake Crucible spawns its Fire pack and burning ward");
+
+            for (int cast = 0; cast < 10
+                && world.activeEliteEventEnemiesRemaining() > 0; ++cast) {
+                const Vector2 camera = world.cameraTopLeft();
+                input.handleMousePressed(
+                    sf::Mouse::Button::Right,
+                    {static_cast<int>(std::lround(position.x - camera.x)),
+                     static_cast<int>(std::lround(position.y - camera.y))}
+                );
+                world.update(0.05f, input);
+                resolvePendingSkillEffects(world, input);
+                for (int frame = 0; frame < 35; ++frame) {
+                    world.update(0.05f, input);
+                }
+            }
+            expect(world.activeEliteEventEnemiesRemaining() == 0
+                    && world.mapEventsCompleted() == 1,
+                "Cinderwake Crucible completes after its owned enemies die");
+
+            Input bossInput;
+            const bool reachedBoss = moveToMapEvent(world, bossInput, {930.0f, 450.0f})
+                && moveToBoss(world, bossInput);
+            expect(reachedBoss
+                    && world.bossDefinition().name == "Cinderwake Sovereign"
+                    && world.bossDefinition().relicVariant == 2,
+                "Cinderwake Crucible routes to the Cinderwake Sovereign Boss");
+            const bool bossDefeated = defeatBossWithAreaSkill(world, bossInput);
+            const bool dedicatedRelicDropped = std::any_of(
+                world.droppedItems().begin(), world.droppedItems().end(),
+                [](const DroppedItem& dropped) {
+                    return dropped.item().baseId == "boss.cinderheart-core";
+                }
+            );
+            expect(bossDefeated && dedicatedRelicDropped,
+                "Cinderwake Sovereign drops the dedicated Cinderheart Core relic");
+        }
+    }
+
     std::filesystem::remove(path);
 }
 

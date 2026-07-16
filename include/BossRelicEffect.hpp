@@ -17,7 +17,8 @@ enum class BossRelicEffectType {
     BloodPrice,
     IronheartVerdict,
     StormglassCircuit,
-    Permafrost
+    Permafrost,
+    Cinderheart
 };
 
 struct BossRelicEffectDefinition {
@@ -342,6 +343,19 @@ public:
                 1.85f
             };
             return permafrost;
+        }
+
+        if (base.variant == 2
+            && base.theme == ItemBaseTheme::Brimstone) {
+            static const BossRelicEffectDefinition cinderheart{
+                ItemBaseTheme::Brimstone,
+                BossRelicEffectType::Cinderheart,
+                "Cinderheart",
+                "Fire skills deal 70% more Ignite damage and Ignite lasts 75% longer",
+                1.70f,
+                1.75f
+            };
+            return cinderheart;
         }
 
         return forTheme(base.theme);

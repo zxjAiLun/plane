@@ -1860,6 +1860,20 @@ void testLootGeneration() {
                 > permafrost.implicitStats.areaDamageMultiplier,
         "Permafrost Diadem carries Cold and Area stats");
 
+    const Item cinderheart = gen.generateBossReward(10, BossLootTheme::Brimstone, 2);
+    const auto* cinderheartBase = ItemBaseLibrary::find(cinderheart.baseId);
+    expect(cinderheart.rarity == Rarity::Unique
+            && cinderheart.name == "Cinderheart Core"
+            && cinderheart.slot == EquipmentSlot::Ring
+            && cinderheartBase != nullptr
+            && cinderheartBase->variant == 2,
+        "Cinderwake Boss relic generates its dedicated Ring chase item");
+    expect(cinderheart.stats.fireDamageMultiplier
+                > cinderheart.implicitStats.fireDamageMultiplier
+            && cinderheart.stats.areaRadiusMultiplier
+                > cinderheart.implicitStats.areaRadiusMultiplier,
+        "Cinderheart Core carries Fire and Area stats");
+
     expect(LootGenerator::rarityForRoll(1, 20) == Rarity::Magic,
         "low-level rarity roll 20 is Magic");
     expect(LootGenerator::rarityForRoll(5, 20) == Rarity::Rare,
@@ -2232,6 +2246,7 @@ void testBossRelicEffects() {
     const auto* ironheartBastionBase = ItemBaseLibrary::find("boss.ironheart-bastion");
     const auto* stormglassLensBase = ItemBaseLibrary::find("boss.stormglass-lens");
     const auto* permafrostBase = ItemBaseLibrary::find("boss.permafrost-diadem");
+    const auto* cinderheartBase = ItemBaseLibrary::find("boss.cinderheart-core");
     const auto& ashen = ashenBase == nullptr
         ? none : BossRelicEffectLibrary::forBase(*ashenBase);
     const auto& tempest = tempestBase == nullptr
@@ -2252,6 +2267,8 @@ void testBossRelicEffects() {
         ? none : BossRelicEffectLibrary::forBase(*stormglassLensBase);
     const auto& permafrost = permafrostBase == nullptr
         ? none : BossRelicEffectLibrary::forBase(*permafrostBase);
+    const auto& cinderheart = cinderheartBase == nullptr
+        ? none : BossRelicEffectLibrary::forBase(*cinderheartBase);
     expect(ashenBase != nullptr
             && ashen.name == "Ashen Bloom"
             && ashen.igniteDamageMultiplier > molten.igniteDamageMultiplier,
@@ -2309,6 +2326,12 @@ void testBossRelicEffects() {
             && permafrost.chillSpeedMultiplier < winterheart.chillSpeedMultiplier
             && permafrost.chillDurationMultiplier > winterheart.chillDurationMultiplier,
         "Permafrost Diadem selects the strongest Chill effect");
+    expect(cinderheartBase != nullptr
+            && cinderheart.name == "Cinderheart"
+            && cinderheart.type == BossRelicEffectType::Cinderheart
+            && cinderheart.igniteDamageMultiplier > ashen.igniteDamageMultiplier
+            && cinderheart.igniteDurationMultiplier > ashen.igniteDurationMultiplier,
+        "Cinderheart Core selects the strongest Brimstone Ignite effect");
     expect(none.type == BossRelicEffectType::None && none.name.empty(),
         "non-relic themes have no Boss relic effect");
 }
@@ -3000,6 +3023,12 @@ void testBossSummonDefinitions() {
             return boss.name == "Frostveil Regent";
         }
     );
+    const auto cinderwakeIt = std::find_if(
+        bosses.begin(), bosses.end(),
+        [](const BossDefinition& boss) {
+            return boss.name == "Cinderwake Sovereign";
+        }
+    );
     expect(frostveilIt != bosses.end()
             && frostveilIt->lootTheme == BossLootTheme::Frost
             && frostveilIt->coldResistance == 80
@@ -3023,6 +3052,30 @@ void testBossSummonDefinitions() {
                 && frostveilIt->finalPhase.recurringHazard.hazard.ailment.type
                     == AilmentType::Chill,
             "Frostveil Regent final phase creates a Ring Chill hazard");
+    }
+    expect(cinderwakeIt != bosses.end()
+            && cinderwakeIt->lootTheme == BossLootTheme::Brimstone
+            && cinderwakeIt->fireResistance == 85
+            && cinderwakeIt->igniteResistance == 90
+            && cinderwakeIt->guaranteedDrops == 3
+            && cinderwakeIt->relicVariant == 2,
+        "Cinderwake Sovereign defines the high-tier Fire Ignite boss profile");
+    if (cinderwakeIt != bosses.end()) {
+        const auto summonIt = std::find_if(
+            cinderwakeIt->skills.begin(), cinderwakeIt->skills.end(),
+            [](const BossSkillDefinition& skill) {
+                return skill.name == "Summon Ashbound";
+            }
+        );
+        expect(summonIt != cinderwakeIt->skills.end()
+                && summonIt->summonType == EnemyType::Charger
+                && summonIt->summonCount == 2,
+            "Cinderwake Sovereign summons Ashbound Chargers in its normal pattern");
+        expect(cinderwakeIt->finalPhase.recurringHazard.pattern
+                == BossPhaseHazardPattern::Ring
+                && cinderwakeIt->finalPhase.recurringHazard.hazard.ailment.type
+                    == AilmentType::Ignite,
+            "Cinderwake Sovereign final phase creates a Ring Ignite hazard");
     }
 
     expect(availableBossSummonCount(4, 0, 10) == 4,
@@ -3088,7 +3141,7 @@ void testGroundHazardLifecycle() {
             configuredHazards += skill.groundHazard.isValid() ? 1 : 0;
         }
     }
-    expect(configuredHazards == 10,
+    expect(configuredHazards == 11,
         "Boss skills define the current ground hazard set");
 }
 
@@ -3574,8 +3627,15 @@ void testMapEncounterDefinitions() {
             return encounter.type == MapEncounterType::FrostveilCitadel;
         }
     );
-    expect(encounters.size() == 15,
-        "map encounter library contains fifteen data-driven encounter definitions");
+    const auto cinderwakeIt = std::find_if(
+        encounters.begin(),
+        encounters.end(),
+        [](const MapEncounterDefinition& encounter) {
+            return encounter.type == MapEncounterType::CinderwakeCrucible;
+        }
+    );
+    expect(encounters.size() == 16,
+        "map encounter library contains sixteen data-driven encounter definitions");
     expect(std::all_of(
                 encounters.begin(), encounters.end(),
                 [](const MapEncounterDefinition& encounter) {
@@ -3750,6 +3810,21 @@ void testMapEncounterDefinitions() {
             && frostveilIt->bossDropBonus == 3
             && frostveilIt->bossDefinitionIndex == 11,
         "Frostveil Citadel defines its high-tier Cold/Area encounter data");
+    expect(cinderwakeIt != encounters.end()
+            && cinderwakeIt->eliteCount == 2
+            && cinderwakeIt->normalCount == 3
+            && cinderwakeIt->primaryEnemyType == EnemyType::Charger
+            && cinderwakeIt->secondaryEnemyType == EnemyType::Summoner
+            && cinderwakeIt->completionDropCount == 5
+            && cinderwakeIt->rewardLootBias.primaryTag == AffixTag::Fire
+            && cinderwakeIt->rewardLootBias.secondaryTag == AffixTag::Area
+            && cinderwakeIt->hazard.damageType == DamageType::Fire
+            && cinderwakeIt->hazard.ailment.type == AilmentType::Ignite
+            && cinderwakeIt->leaderSkill.isValid()
+            && cinderwakeIt->leaderSkill.ailment.type == AilmentType::Ignite
+            && cinderwakeIt->bossDropBonus == 3
+            && cinderwakeIt->bossDefinitionIndex == 12,
+        "Cinderwake Crucible defines its high-tier Fire/Area encounter data");
 }
 
 // --- Map layout variants ---
@@ -3863,6 +3938,15 @@ void testMapLayoutVariants() {
     expect(frostveilMap.encounterDefinition().type == MapEncounterType::FrostveilCitadel
             && frostveilMap.encounterDefinition().bossDefinitionIndex == 11,
         "high-tier Frostbound Pass variant exposes the Frostveil Citadel encounter");
+    const auto cinderwakeOptions = MapOptionLibrary::generateOptions(12);
+    expect(cinderwakeOptions[2].templateIndex == 5
+            && MapInstance(12, cinderwakeOptions[2].templateIndex, 1)
+                .encounterDefinition().type == MapEncounterType::CinderwakeCrucible,
+        "map level twelve offers the Cinderwake Crucible route through a held map option");
+    const MapInstance cinderwakeMap(12, 5, 1);
+    expect(cinderwakeMap.encounterDefinition().type == MapEncounterType::CinderwakeCrucible
+            && cinderwakeMap.encounterDefinition().bossDefinitionIndex == 12,
+        "high-tier Obsidian Reliquary variant exposes the Cinderwake Crucible encounter");
     expect(MapTemplateLibrary::forIndex(0).ambientEffect.isValid()
             && MapTemplateLibrary::forIndex(0).ambientEffect.hazard.damageType == DamageType::Fire
             && MapTemplateLibrary::forIndex(1).ambientEffect.hazard.damageType == DamageType::Lightning

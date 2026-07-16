@@ -1173,6 +1173,128 @@ private:
         return definition;
     }
 
+    static BossDefinition cinderwakeBoss() {
+        const AilmentDefinition ignite{
+            AilmentType::Ignite, 2.8f, 0.30f
+        };
+        BossSkillDefinition crucibleSlam = elementalSkill({
+            BossSkillType::CircularAoe,
+            "Crucible Slam",
+            178.0f,
+            4,
+            0.55f,
+            0.25f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Normal,
+            0,
+            {"Cinder Pool", 154.0f, 6.0f, 0.60f, 5,
+                DamageType::Fire, ignite}
+        }, DamageType::Fire, ignite);
+        BossSkillDefinition cinderFan = elementalSkill({
+            BossSkillType::Projectile,
+            "Cinder Fan",
+            Config::BossProjectileRadius,
+            4,
+            0.0f,
+            0.0f,
+            500.0f,
+            5,
+            32.0f
+        }, DamageType::Fire, ignite);
+        BossSkillDefinition summonAshbound = elementalSkill({
+            BossSkillType::SummonAdds,
+            "Summon Ashbound",
+            140.0f,
+            0,
+            0.65f,
+            0.25f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Charger,
+            2
+        }, DamageType::Fire, ignite);
+        BossSkillDefinition eruptionStep = elementalSkill({
+            BossSkillType::Dash,
+            "Eruption Step",
+            60.0f,
+            4,
+            0.45f,
+            0.30f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Normal,
+            0,
+            {},
+            {400.0f, 760.0f}
+        }, DamageType::Fire, ignite);
+
+        BossDefinition definition;
+        definition.name = "Cinderwake Sovereign";
+        definition.theme = "A furnace kingdom of ash and recursive fire";
+        definition.lootTheme = BossLootTheme::Brimstone;
+        definition.lootRewardDescription =
+            "Unique relic: the Cinderheart Core turns every Ignite into a longer burn";
+        definition.hpMultiplier = 40.0f;
+        definition.damageBonus = 4;
+        definition.dropMultiplier = 5.4f;
+        definition.skillInterval = 1.40f;
+        definition.guaranteedDrops = 3;
+        definition.enrageHealthRatio = 0.48f;
+        definition.enragedSkillIntervalMultiplier = 0.52f;
+        definition.enragedDamageMultiplier = 1.32f;
+        definition.patternDescription =
+            "Crucible Slam zones and Cinder Fans punish stationary builds";
+        definition.enragedPatternDescription =
+            "Ashbound Chargers close exits while the furnace accelerates";
+        definition.skills = {crucibleSlam, cinderFan, summonAshbound, eruptionStep};
+        definition.normalSkillOrder = {0, 1, 3, 2, 0};
+        definition.enragedSkillOrder = {1, 0, 2, 3, 1};
+        definition.igniteResistance = 90;
+        definition.chillResistance = 30;
+        definition.lightningResistance = 30;
+        definition.fireResistance = 85;
+        definition.coldResistance = 25;
+        definition.shockResistance = 35;
+        definition.poisonResistance = 25;
+        definition.bleedResistance = 25;
+        definition.physicalResistance = 25;
+        definition.relicVariant = 2;
+        definition.enrageTransitionDescription =
+            "The crown ignites: Ashbound Chargers close the arena exits";
+        definition.enrageSummonType = EnemyType::Charger;
+        definition.enrageSummonCount = 2;
+        definition.enrageHazard = elementalHazard(
+            {"Cinder Crown", 188.0f, 9.0f, 0.60f, 9},
+            DamageType::Fire,
+            ignite
+        );
+        definition.finalPhase = {
+            0.20f,
+            0.40f,
+            1.55f,
+            "Absolute cinder: every furnace pattern overlaps",
+            "The Sovereign opens the heart of the crucible for one final cycle",
+            {0, 3, 1, 2, 0},
+            EnemyType::Charger,
+            3,
+            {"Absolute Cinder", 202.0f, 10.0f, 0.55f, 11,
+                DamageType::Fire, ignite}
+        };
+        definition.finalPhase.recurringHazard = {
+            2.7f,
+            0.48f,
+            {"Sovereign's Ring", 108.0f, 5.0f, 0.55f, 7,
+                DamageType::Fire, ignite},
+            BossPhaseHazardPattern::Ring,
+            195.0f
+        };
+        return definition;
+    }
+
     static std::vector<BossDefinition> buildBosses() {
         auto bosses = std::vector<BossDefinition>{
             {
@@ -1379,7 +1501,8 @@ private:
             bloodlettingBoss(),
             ironheartBoss(),
             stormglassBoss(),
-            frostveilBoss()
+            frostveilBoss(),
+            cinderwakeBoss()
         };
 
         bosses[0].bleedResistance = 25;
