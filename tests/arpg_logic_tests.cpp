@@ -2975,6 +2975,44 @@ void testMapScalingProgression() {
             }
         }
     }
+
+    GroundHazardDefinition baseHazard;
+    baseHazard.source = "Scaling Test";
+    baseHazard.radius = 100.0f;
+    baseHazard.duration = 3.0f;
+    baseHazard.tickInterval = 0.75f;
+    baseHazard.damage = 4;
+    baseHazard.damageType = DamageType::Fire;
+    baseHazard.ailment = {AilmentType::Ignite, 2.0f, 0.2f};
+
+    const MapModifier baseline = MapModifierLibrary::empty();
+    const auto levelOne = MapScaling::ambientHazard(1, baseline, baseHazard);
+    expect(levelOne.damage == baseHazard.damage,
+        "map level one ambient hazard keeps its authored damage");
+
+    MapModifier dangerous = baseline;
+    dangerous.monsterDamageBonus = 2;
+    dangerous.bossDamageMultiplier = 1.25f;
+    int previousFieldDamage = 0;
+    for (int mapLevel = 1; mapLevel <= 5; ++mapLevel) {
+        const auto fieldHazard = MapScaling::ambientHazard(
+            mapLevel, dangerous, baseHazard
+        );
+        expect(fieldHazard.damage >= previousFieldDamage
+                && fieldHazard.damage >= baseHazard.damage,
+            "ambient field hazard damage scales monotonically at map level "
+                + std::to_string(mapLevel));
+        previousFieldDamage = fieldHazard.damage;
+    }
+
+    const auto arenaHazard = MapScaling::ambientHazard(
+        5, dangerous, baseHazard, true
+    );
+    expect(arenaHazard.damage > previousFieldDamage,
+        "Boss arena hazard carries additional Boss danger scaling");
+    expect(arenaHazard.damageType == baseHazard.damageType
+            && arenaHazard.ailment.type == baseHazard.ailment.type,
+        "ambient hazard scaling preserves its elemental identity");
 }
 
 void testMapEncounterDefinitions() {

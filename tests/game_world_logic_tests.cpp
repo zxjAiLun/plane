@@ -3202,6 +3202,18 @@ void testCombinationMapEvents() {
             );
             expect(ambientHazardSpawned,
                 "Frost field periodically spawns its telegraphed Rimefall hazard");
+            const auto ambientHazard = std::find_if(
+                world.groundHazards().begin(),
+                world.groundHazards().end(),
+                [](const GroundHazard& candidate) {
+                    return candidate.definition().source == "Rimefall";
+                }
+            );
+            expect(ambientHazard != world.groundHazards().end()
+                    && ambientHazard->definition().damage
+                        > MapTemplateLibrary::forIndex(3)
+                            .ambientEffect.hazard.damage,
+                "Frost field hazard damage scales with its map level");
         }
     }
 

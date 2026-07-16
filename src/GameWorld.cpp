@@ -1775,8 +1775,14 @@ void GameWorld::updateAmbientThreat(float dt) {
             0.0f, ambientHazardWarningTimer_ - dt
         );
         if (ambientHazardWarningTimer_ == 0.0f) {
+            const GroundHazardDefinition scaledHazard = MapScaling::ambientHazard(
+                mapLevel_,
+                mapModifier_,
+                effect.hazard,
+                bossArenaActive
+            );
             for (const auto& position : ambientHazardWarningPositions_) {
-                groundHazards_.emplace_back(position, effect.hazard);
+                groundHazards_.emplace_back(position, scaledHazard);
             }
             ambientHazardWarningPositions_.clear();
         }

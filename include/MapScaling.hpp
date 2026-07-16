@@ -49,4 +49,28 @@ inline int bossContactDamage(
     )));
 }
 
+inline GroundHazardDefinition ambientHazard(
+    int mapLevel,
+    const MapModifier& modifier,
+    const GroundHazardDefinition& baseHazard,
+    bool bossArena = false
+) {
+    const float levelMultiplier = 1.0f
+        + static_cast<float>(std::max(1, mapLevel) - 1) * 0.12f;
+    const float modifierMultiplier = 1.0f
+        + static_cast<float>(std::max(0, modifier.monsterDamageBonus)) * 0.05f;
+    const float bossMultiplier = bossArena
+        ? std::max(1.0f, modifier.bossDamageMultiplier)
+        : 1.0f;
+
+    GroundHazardDefinition scaledHazard = baseHazard;
+    scaledHazard.damage = std::max(1, static_cast<int>(std::ceil(
+        static_cast<float>(baseHazard.damage)
+            * levelMultiplier
+            * modifierMultiplier
+            * bossMultiplier
+    )));
+    return scaledHazard;
+}
+
 } // namespace MapScaling
