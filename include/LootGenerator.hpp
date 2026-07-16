@@ -89,7 +89,8 @@ public:
     ) const {
         const int tier = tierForLevel(monsterLevel);
         const int maxVariant = (theme == BossLootTheme::Bloodletting
-                || theme == BossLootTheme::Storm) ? 2 : 1;
+                || theme == BossLootTheme::Storm
+                || theme == BossLootTheme::Frost) ? 2 : 1;
         const int normalizedVariant = std::clamp(variant, 0, maxVariant);
         Item item;
         item.itemLevel = monsterLevel;
@@ -211,7 +212,7 @@ public:
                         areaRadiusContribution(relativeMultiplier(
                             1.0f + std::array<float, 3>{0.06f, 0.10f, 0.14f}[tier],
                             item.implicitStats.areaRadiusMultiplier)), {AffixTag::Cold, AffixTag::Area});
-                } else {
+                } else if (normalizedVariant == 1) {
                     item.name = "Winterheart Pendant";
                     addBossAffix(item, "Winterheart bite", tier + 1,
                         coldDamageContribution(relativeMultiplier(
@@ -221,6 +222,20 @@ public:
                         areaRadiusContribution(relativeMultiplier(
                             1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
                             item.implicitStats.areaRadiusMultiplier)), {AffixTag::Cold, AffixTag::Area});
+                } else {
+                    item.name = "Permafrost Diadem";
+                    addBossAffix(item, "Regent's bite", tier + 1,
+                        coldDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.14f, 0.20f, 0.26f}[tier],
+                            item.implicitStats.coldDamageMultiplier)), {AffixTag::Cold, AffixTag::Damage});
+                    addBossAffix(item, "Crown's reach", tier + 1,
+                        areaRadiusContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.10f, 0.15f, 0.20f}[tier],
+                            item.implicitStats.areaRadiusMultiplier)), {AffixTag::Cold, AffixTag::Area});
+                    addBossAffix(item, "Lingering winter", tier + 1,
+                        areaDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
+                            item.implicitStats.areaDamageMultiplier)), {AffixTag::Cold, AffixTag::Area});
                 }
                 break;
 

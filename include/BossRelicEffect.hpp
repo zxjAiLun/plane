@@ -16,7 +16,8 @@ enum class BossRelicEffectType {
     SableRot,
     BloodPrice,
     IronheartVerdict,
-    StormglassCircuit
+    StormglassCircuit,
+    Permafrost
 };
 
 struct BossRelicEffectDefinition {
@@ -321,6 +322,26 @@ public:
                 0.55f
             };
             return stormglassCircuit;
+        }
+
+        if (base.variant == 2
+            && base.theme == ItemBaseTheme::Frost) {
+            static const BossRelicEffectDefinition permafrost{
+                ItemBaseTheme::Frost,
+                BossRelicEffectType::Permafrost,
+                "Permafrost",
+                "Cold skills Chill 45% harder and last 85% longer",
+                1.0f,
+                1.0f,
+                0,
+                0.0f,
+                1.0f,
+                0.0f,
+                0.0f,
+                0.55f,
+                1.85f
+            };
+            return permafrost;
         }
 
         return forTheme(base.theme);

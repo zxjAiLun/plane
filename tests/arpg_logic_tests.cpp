@@ -1844,6 +1844,22 @@ void testLootGeneration() {
                 > stormglass.implicitStats.projectileDamageMultiplier,
         "Stormglass Lens carries Lightning and Projectile stats");
 
+    const Item permafrost = gen.generateBossReward(9, BossLootTheme::Frost, 2);
+    const auto* permafrostBase = ItemBaseLibrary::find(permafrost.baseId);
+    expect(permafrost.rarity == Rarity::Unique
+            && permafrost.name == "Permafrost Diadem"
+            && permafrost.slot == EquipmentSlot::Amulet
+            && permafrostBase != nullptr
+            && permafrostBase->variant == 2,
+        "Frostveil Boss relic generates its dedicated Amulet chase item");
+    expect(permafrost.stats.coldDamageMultiplier
+                > permafrost.implicitStats.coldDamageMultiplier
+            && permafrost.stats.areaRadiusMultiplier
+                > permafrost.implicitStats.areaRadiusMultiplier
+            && permafrost.stats.areaDamageMultiplier
+                > permafrost.implicitStats.areaDamageMultiplier,
+        "Permafrost Diadem carries Cold and Area stats");
+
     expect(LootGenerator::rarityForRoll(1, 20) == Rarity::Magic,
         "low-level rarity roll 20 is Magic");
     expect(LootGenerator::rarityForRoll(5, 20) == Rarity::Rare,
@@ -2215,6 +2231,7 @@ void testBossRelicEffects() {
     const auto* hemorrhageSignetBase = ItemBaseLibrary::find("boss.hemorrhage-signet");
     const auto* ironheartBastionBase = ItemBaseLibrary::find("boss.ironheart-bastion");
     const auto* stormglassLensBase = ItemBaseLibrary::find("boss.stormglass-lens");
+    const auto* permafrostBase = ItemBaseLibrary::find("boss.permafrost-diadem");
     const auto& ashen = ashenBase == nullptr
         ? none : BossRelicEffectLibrary::forBase(*ashenBase);
     const auto& tempest = tempestBase == nullptr
@@ -2233,6 +2250,8 @@ void testBossRelicEffects() {
         ? none : BossRelicEffectLibrary::forBase(*ironheartBastionBase);
     const auto& stormglassLens = stormglassLensBase == nullptr
         ? none : BossRelicEffectLibrary::forBase(*stormglassLensBase);
+    const auto& permafrost = permafrostBase == nullptr
+        ? none : BossRelicEffectLibrary::forBase(*permafrostBase);
     expect(ashenBase != nullptr
             && ashen.name == "Ashen Bloom"
             && ashen.igniteDamageMultiplier > molten.igniteDamageMultiplier,
@@ -2284,6 +2303,12 @@ void testBossRelicEffects() {
             && stormglassLens.lightningChainDamageMultiplier
                 < storm.lightningChainDamageMultiplier,
         "Stormglass Lens selects a wider, denser Lightning chain effect");
+    expect(permafrostBase != nullptr
+            && permafrost.name == "Permafrost"
+            && permafrost.type == BossRelicEffectType::Permafrost
+            && permafrost.chillSpeedMultiplier < winterheart.chillSpeedMultiplier
+            && permafrost.chillDurationMultiplier > winterheart.chillDurationMultiplier,
+        "Permafrost Diadem selects the strongest Chill effect");
     expect(none.type == BossRelicEffectType::None && none.name.empty(),
         "non-relic themes have no Boss relic effect");
 }
@@ -2969,6 +2994,37 @@ void testBossSummonDefinitions() {
             "Stormglass Herald final phase creates a Cross Shock hazard");
     }
 
+    const auto frostveilIt = std::find_if(
+        bosses.begin(), bosses.end(),
+        [](const BossDefinition& boss) {
+            return boss.name == "Frostveil Regent";
+        }
+    );
+    expect(frostveilIt != bosses.end()
+            && frostveilIt->lootTheme == BossLootTheme::Frost
+            && frostveilIt->coldResistance == 80
+            && frostveilIt->chillResistance == 85
+            && frostveilIt->guaranteedDrops == 3
+            && frostveilIt->relicVariant == 2,
+        "Frostveil Regent defines the high-tier Cold boss profile");
+    if (frostveilIt != bosses.end()) {
+        const auto summonIt = std::find_if(
+            frostveilIt->skills.begin(), frostveilIt->skills.end(),
+            [](const BossSkillDefinition& skill) {
+                return skill.name == "Summon Icebound";
+            }
+        );
+        expect(summonIt != frostveilIt->skills.end()
+                && summonIt->summonType == EnemyType::Warden
+                && summonIt->summonCount == 2,
+            "Frostveil Regent summons Icebound Wardens in its normal pattern");
+        expect(frostveilIt->finalPhase.recurringHazard.pattern
+                == BossPhaseHazardPattern::Ring
+                && frostveilIt->finalPhase.recurringHazard.hazard.ailment.type
+                    == AilmentType::Chill,
+            "Frostveil Regent final phase creates a Ring Chill hazard");
+    }
+
     expect(availableBossSummonCount(4, 0, 10) == 4,
         "summon count is unchanged below the population cap");
     expect(availableBossSummonCount(4, 8, 10) == 2,
@@ -3032,7 +3088,7 @@ void testGroundHazardLifecycle() {
             configuredHazards += skill.groundHazard.isValid() ? 1 : 0;
         }
     }
-    expect(configuredHazards == 9,
+    expect(configuredHazards == 10,
         "Boss skills define the current ground hazard set");
 }
 
@@ -3511,8 +3567,15 @@ void testMapEncounterDefinitions() {
             return encounter.type == MapEncounterType::StormglassGauntlet;
         }
     );
-    expect(encounters.size() == 14,
-        "map encounter library contains fourteen data-driven encounter definitions");
+    const auto frostveilIt = std::find_if(
+        encounters.begin(),
+        encounters.end(),
+        [](const MapEncounterDefinition& encounter) {
+            return encounter.type == MapEncounterType::FrostveilCitadel;
+        }
+    );
+    expect(encounters.size() == 15,
+        "map encounter library contains fifteen data-driven encounter definitions");
     expect(std::all_of(
                 encounters.begin(), encounters.end(),
                 [](const MapEncounterDefinition& encounter) {
@@ -3672,6 +3735,21 @@ void testMapEncounterDefinitions() {
             && stormglassIt->bossDropBonus == 3
             && stormglassIt->bossDefinitionIndex == 10,
         "Stormglass Gauntlet defines its high-tier Lightning/Projectile encounter data");
+    expect(frostveilIt != encounters.end()
+            && frostveilIt->eliteCount == 2
+            && frostveilIt->normalCount == 3
+            && frostveilIt->primaryEnemyType == EnemyType::Warden
+            && frostveilIt->secondaryEnemyType == EnemyType::Charger
+            && frostveilIt->completionDropCount == 5
+            && frostveilIt->rewardLootBias.primaryTag == AffixTag::Cold
+            && frostveilIt->rewardLootBias.secondaryTag == AffixTag::Area
+            && frostveilIt->hazard.damageType == DamageType::Cold
+            && frostveilIt->hazard.ailment.type == AilmentType::Chill
+            && frostveilIt->leaderSkill.isValid()
+            && frostveilIt->leaderSkill.ailment.type == AilmentType::Chill
+            && frostveilIt->bossDropBonus == 3
+            && frostveilIt->bossDefinitionIndex == 11,
+        "Frostveil Citadel defines its high-tier Cold/Area encounter data");
 }
 
 // --- Map layout variants ---
@@ -3781,6 +3859,10 @@ void testMapLayoutVariants() {
             == MapEncounterType::StormglassGauntlet
             && MapInstance(9, 1, 2).encounterDefinition().bossDefinitionIndex == 10,
         "high-tier Stormscar Expanse variant exposes the Stormglass Gauntlet encounter");
+    const MapInstance frostveilMap(9, 3, 2);
+    expect(frostveilMap.encounterDefinition().type == MapEncounterType::FrostveilCitadel
+            && frostveilMap.encounterDefinition().bossDefinitionIndex == 11,
+        "high-tier Frostbound Pass variant exposes the Frostveil Citadel encounter");
     expect(MapTemplateLibrary::forIndex(0).ambientEffect.isValid()
             && MapTemplateLibrary::forIndex(0).ambientEffect.hazard.damageType == DamageType::Fire
             && MapTemplateLibrary::forIndex(1).ambientEffect.hazard.damageType == DamageType::Lightning

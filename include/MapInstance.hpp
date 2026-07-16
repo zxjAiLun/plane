@@ -49,7 +49,8 @@ enum class MapEncounterType {
     NecroticOssuary,
     BloodlettingPit,
     IronheartTrial,
-    StormglassGauntlet
+    StormglassGauntlet,
+    FrostveilCitadel
 };
 
 struct MapEncounterSkillDefinition {
@@ -99,8 +100,8 @@ struct MapEncounterDefinition {
 
 class MapEncounterLibrary {
 public:
-    static const std::array<MapEncounterDefinition, 14>& all() {
-        static const std::array<MapEncounterDefinition, 14> definitions = {{
+    static const std::array<MapEncounterDefinition, 15>& all() {
+        static const std::array<MapEncounterDefinition, 15> definitions = {{
             {
                 MapEncounterType::EnhancedCache,
                 "enhanced-cache",
@@ -503,6 +504,46 @@ public:
                 },
                 3,
                 10
+            },
+            {
+                MapEncounterType::FrostveilCitadel,
+                "frostveil-citadel",
+                "Frostveil Citadel",
+                "Cross the frozen wards while Icebound Wardens lock the safe lanes",
+                156.0f,
+                0,
+                2,
+                3,
+                2.10f,
+                {"Frostveil Ward", 158.0f, 9.0f, 0.65f, 3,
+                    DamageType::Cold,
+                    {AilmentType::Chill, 2.8f, 0.0f, 0.50f},
+                    GroundHazardTarget::Player},
+                false,
+                5,
+                EnemyType::Warden,
+                EnemyType::Charger,
+                {AffixTag::Cold, 2.20f, AffixTag::Area, 1.65f},
+                6,
+                true,
+                DamageType::Cold,
+                {AilmentType::Chill, 2.8f, 0.0f, 0.50f},
+                {
+                    "Absolute Bind",
+                    "The frozen leader marks the player before an ice ring closes",
+                    3.8f,
+                    0.65f,
+                    132.0f,
+                    6,
+                    DamageType::Cold,
+                    {AilmentType::Chill, 2.8f, 0.0f, 0.50f},
+                    {"Bind Scar", 116.0f, 3.2f, 0.65f, 4,
+                        DamageType::Cold,
+                        {AilmentType::Chill, 2.8f, 0.0f, 0.50f},
+                        GroundHazardTarget::Player}
+                },
+                3,
+                11
             }
         }};
         return definitions;
@@ -526,6 +567,10 @@ public:
         const int templateCount = MapLayoutLibrary::TemplateCount;
         const int normalizedTemplate = ((templateIndex % templateCount) + templateCount)
             % templateCount;
+        if (normalizedTemplate == 3 && mapLevel >= 9 && layoutIndex == 2) {
+            return forType(MapEncounterType::FrostveilCitadel);
+        }
+
         if (normalizedTemplate == 3) {
             return forType(MapEncounterType::FrozenReliquary);
         }

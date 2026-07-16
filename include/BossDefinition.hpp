@@ -1051,6 +1051,128 @@ private:
         return definition;
     }
 
+    static BossDefinition frostveilBoss() {
+        const AilmentDefinition chill{
+            AilmentType::Chill, 2.6f, 0.0f, 0.48f, 0, 0, 1.0f, 0, 0
+        };
+        BossSkillDefinition crownfall = elementalSkill({
+            BossSkillType::CircularAoe,
+            "Crownfall",
+            172.0f,
+            4,
+            0.55f,
+            0.25f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Normal,
+            0,
+            {"Crown Ice", 150.0f, 6.0f, 0.60f, 5,
+                DamageType::Cold, chill}
+        }, DamageType::Cold, chill);
+        BossSkillDefinition iceboundLance = elementalSkill({
+            BossSkillType::Projectile,
+            "Icebound Lance",
+            Config::BossProjectileRadius,
+            4,
+            0.0f,
+            0.0f,
+            500.0f,
+            5,
+            35.0f
+        }, DamageType::Cold, chill);
+        BossSkillDefinition summonWardens = elementalSkill({
+            BossSkillType::SummonAdds,
+            "Summon Icebound",
+            138.0f,
+            0,
+            0.65f,
+            0.25f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Warden,
+            2
+        }, DamageType::Cold, chill);
+        BossSkillDefinition glacialStep = elementalSkill({
+            BossSkillType::Dash,
+            "Glacial Step",
+            60.0f,
+            4,
+            0.45f,
+            0.30f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Normal,
+            0,
+            {},
+            {380.0f, 720.0f}
+        }, DamageType::Cold, chill);
+
+        BossDefinition definition;
+        definition.name = "Frostveil Regent";
+        definition.theme = "Permafrost seals and collapsing ice";
+        definition.lootTheme = BossLootTheme::Frost;
+        definition.lootRewardDescription =
+            "Unique relic: the Permafrost Diadem makes Chill linger across the arena";
+        definition.hpMultiplier = 38.0f;
+        definition.damageBonus = 4;
+        definition.dropMultiplier = 5.2f;
+        definition.skillInterval = 1.45f;
+        definition.guaranteedDrops = 3;
+        definition.enrageHealthRatio = 0.48f;
+        definition.enragedSkillIntervalMultiplier = 0.54f;
+        definition.enragedDamageMultiplier = 1.30f;
+        definition.patternDescription =
+            "Crownfall zones and fan-shaped lances punish stationary builds";
+        definition.enragedPatternDescription =
+            "Icebound Wardens close the safe lanes while Chill slows every escape";
+        definition.skills = {crownfall, iceboundLance, summonWardens, glacialStep};
+        definition.normalSkillOrder = {0, 1, 3, 2, 0};
+        definition.enragedSkillOrder = {1, 0, 2, 3, 1};
+        definition.igniteResistance = 25;
+        definition.chillResistance = 85;
+        definition.lightningResistance = 25;
+        definition.fireResistance = 25;
+        definition.coldResistance = 80;
+        definition.shockResistance = 45;
+        definition.poisonResistance = 30;
+        definition.bleedResistance = 30;
+        definition.physicalResistance = 25;
+        definition.relicVariant = 2;
+        definition.enrageTransitionDescription =
+            "The crown cracks: frost zones expand and the Wardens seal the exits";
+        definition.enrageSummonType = EnemyType::Warden;
+        definition.enrageSummonCount = 2;
+        definition.enrageHazard = elementalHazard(
+            {"Shattered Crown", 182.0f, 9.0f, 0.60f, 9},
+            DamageType::Cold,
+            chill
+        );
+        definition.finalPhase = {
+            0.20f,
+            0.42f,
+            1.50f,
+            "Absolute winter: lances, dashes and Crownfall overlap",
+            "The veil freezes solid: the Regent begins its final procession",
+            {0, 3, 1, 2, 0},
+            EnemyType::Warden,
+            3,
+            {"Absolute Permafrost", 196.0f, 10.0f, 0.55f, 11,
+                DamageType::Cold, chill}
+        };
+        definition.finalPhase.recurringHazard = {
+            2.8f,
+            0.50f,
+            {"Regent's Ring", 104.0f, 5.0f, 0.55f, 7,
+                DamageType::Cold, chill},
+            BossPhaseHazardPattern::Ring,
+            190.0f
+        };
+        return definition;
+    }
+
     static std::vector<BossDefinition> buildBosses() {
         auto bosses = std::vector<BossDefinition>{
             {
@@ -1256,7 +1378,8 @@ private:
             sableBoss(),
             bloodlettingBoss(),
             ironheartBoss(),
-            stormglassBoss()
+            stormglassBoss(),
+            frostveilBoss()
         };
 
         bosses[0].bleedResistance = 25;
