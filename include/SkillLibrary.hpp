@@ -416,6 +416,24 @@ public:
         return skill;
     }
 
+    static SkillDefinition manaWard() {
+        SkillDefinition skill = {
+            SkillSlot::Utility,
+            SkillCastType::SelfCenteredArea,
+            "Mana Ward",
+            Config::ManaWardCooldown,
+            Config::ManaWardRadius,
+            0,
+            Config::ManaWardEffectDuration,
+            1,
+            0.0f,
+            {},
+            Config::ManaWardManaCost
+        };
+        skill.wardManaRatio = Config::ManaWardManaRatio;
+        return skill;
+    }
+
 private:
     static std::vector<SkillDefinition> buildSkills() {
         return {
@@ -437,7 +455,8 @@ private:
             blightRing(),
             dash(),
             siphonPulse(),
-            guardingPulse()
+            guardingPulse(),
+            manaWard()
         };
     }
 };

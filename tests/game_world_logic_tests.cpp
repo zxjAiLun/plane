@@ -1613,6 +1613,103 @@ void testGuardingPulseProtection() {
     std::filesystem::remove(path);
 }
 
+void testManaWardProtection() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_mana_ward_protection_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(17606);
+    SaveData data;
+    std::string error;
+    const auto utilityIndex = static_cast<std::size_t>(SkillSlot::Utility);
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Mana Ward fixture starts from a valid run save");
+
+    data.player.hp = 1000;
+    data.player.upgradeStats.maxHp = 1000;
+    data.player.upgradeStats.moveSpeedMultiplier = 8.0f;
+    data.player.upgradeStats.incomingDamageMultiplier = 2.0f;
+    data.player.mana = Config::PlayerMaxMana;
+    data.fieldPacksCleared = Config::BossGateRequiredFieldPacks;
+    data.unlockedSkills.insert("Mana Ward");
+    data.skillLevels["Mana Ward"] = 1;
+    data.skillBar.skills[utilityIndex] = "Mana Ward";
+    data.state = SavedRunState::Playing;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Mana Ward fixture restores the resource shield skill");
+
+    Input input;
+    expect(moveToBoss(world, input),
+        "Mana Ward fixture reaches the Boss Arena through real movement");
+    if (!world.map().bossTriggered()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    const auto liveBoss = std::find_if(
+        world.enemies().begin(),
+        world.enemies().end(),
+        [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+    );
+    if (liveBoss == world.enemies().end()) {
+        expect(false, "Mana Ward fixture keeps a live Boss for mitigation");
+        std::filesystem::remove(path);
+        return;
+    }
+    const_cast<Player&>(world.player()).setPosition(liveBoss->position());
+    for (int frame = 0; frame < 20 && world.playerHitDamage() == 0; ++frame) {
+        world.update(0.05f, input);
+    }
+    const int unwardedDamage = world.playerHitDamage();
+    const_cast<Player&>(world.player()).setPosition(world.map().playerStart());
+    for (int frame = 0; frame < 30; ++frame) {
+        world.update(0.05f, input);
+    }
+
+    const auto bossAfterWait = std::find_if(
+        world.enemies().begin(),
+        world.enemies().end(),
+        [](const Enemy& enemy) { return enemy.isBoss() && !enemy.isDead(); }
+    );
+    if (bossAfterWait == world.enemies().end()) {
+        expect(false, "Mana Ward fixture keeps the Boss alive after cooldown");
+        std::filesystem::remove(path);
+        return;
+    }
+    const_cast<Player&>(world.player()).setPosition(bossAfterWait->position());
+    const int hpBeforeWard = world.player().hp();
+    const std::size_t feedbackStart = world.combatFeedback().size();
+    input.handleKeyPressed(sf::Keyboard::Key::Q);
+    world.update(0.05f, input);
+    input.handleKeyReleased(sf::Keyboard::Key::Q);
+
+    const auto feedbackBegin = world.combatFeedback().begin()
+        + static_cast<std::ptrdiff_t>(feedbackStart);
+    const bool wardFeedback = std::any_of(
+        feedbackBegin,
+        world.combatFeedback().end(),
+        [](const CombatFeedback& feedback) {
+            return feedback.type == CombatFeedbackType::Status
+                && feedback.source.find("Mana Ward absorbed ") == 0;
+        }
+    );
+    expect(unwardedDamage > 0 && world.player().hp() == hpBeforeWard
+            && world.manaWardCapacity() > world.manaWardAmount()
+            && world.manaWardAmount() > 0
+            && world.manaWardTimeRemaining() > 0.0f
+            && wardFeedback,
+        "Mana Ward absorbs a real Boss hit before HP and reports the remaining Ward");
+
+    const_cast<Player&>(world.player()).setPosition(world.map().playerStart());
+    world.update(Config::ManaWardEffectDuration + 0.1f, input);
+    expect(world.manaWardAmount() == 0
+            && world.manaWardCapacity() == 0
+            && world.manaWardTimeRemaining() == 0.0f,
+        "Mana Ward expires cleanly after its temporary duration");
+
+    std::filesystem::remove(path);
+}
+
 void testIgniteFeedbackMatchesWorldDamage() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_ignite_feedback_world_test.bin";
@@ -1909,6 +2006,7 @@ void testExpandedSkillWorldHits() {
             && !world.isSkillUnlocked("Blight Ring")
             && !world.isSkillUnlocked("Siphon Pulse")
             && !world.isSkillUnlocked("Guarding Pulse")
+            && !world.isSkillUnlocked("Mana Ward")
             && !world.isSupportUnlocked("Barrage")
             && !world.isSupportUnlocked("Concentration"),
         "expanded skills and Supports start locked");
@@ -1931,6 +2029,7 @@ void testExpandedSkillWorldHits() {
     data.unlockedSkills.insert("Blight Ring");
     data.unlockedSkills.insert("Siphon Pulse");
     data.unlockedSkills.insert("Guarding Pulse");
+    data.unlockedSkills.insert("Mana Ward");
     data.unlockedSupports.insert("Barrage");
     data.unlockedSupports.insert("Concentration");
     data.unlockedSupports.insert("Echo");
@@ -2134,6 +2233,10 @@ void testExpandedSkillWorldHits() {
     world.update(0.05f, input);
     expect(world.skillBar().definition(SkillSlot::Utility).name == "Guarding Pulse",
         "Skill Panel F15 assigns the appended defensive skill entry");
+    input.handleKeyPressed(sf::Keyboard::Key::Y);
+    world.update(0.05f, input);
+    expect(world.skillBar().definition(SkillSlot::Utility).name == "Mana Ward",
+        "Skill Panel Y assigns the final skill entry when F16 is unavailable");
     input.handleKeyPressed(sf::Keyboard::Key::F12);
     world.update(0.05f, input);
     expect(world.skillBar().definition(SkillSlot::Utility).name == "Blight Ring",
@@ -3792,6 +3895,7 @@ int main() {
     testPulseShockFlow();
     testSiphonPulseRecovery();
     testGuardingPulseProtection();
+    testManaWardProtection();
     testIgniteFeedbackMatchesWorldDamage();
     testBuildMathMatchesWorldHits();
     testExpandedSkillWorldHits();

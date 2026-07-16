@@ -590,6 +590,11 @@ std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& sta
             + std::to_string(static_cast<int>(skill.selfDamageTakenMultiplier * 100.0f))
             + "%/" + formatFloat(skill.effectDuration, 1) + "s";
     }
+    if (skill.wardManaRatio > 0.0f) {
+        summary += "  Ward "
+            + std::to_string(static_cast<int>(skill.wardManaRatio * 100.0f))
+            + "% Mana/" + formatFloat(skill.effectDuration, 1) + "s";
+    }
     return summary;
 }
 
@@ -1253,6 +1258,14 @@ void Renderer::render(const GameWorld& world) {
             + std::to_string(static_cast<int>(world.guardBuffTimeRemaining() + 0.99f))
             + "s",
             {16.0f, hudY}, 14, sf::Color(180, 220, 255));
+        hudY += 18.0f;
+    }
+    if (world.manaWardTimeRemaining() > 0.0f && world.manaWardCapacity() > 0) {
+        drawText("Mana Ward " + std::to_string(world.manaWardAmount()) + "/"
+            + std::to_string(world.manaWardCapacity()) + "  "
+            + std::to_string(static_cast<int>(world.manaWardTimeRemaining() + 0.99f))
+            + "s",
+            {16.0f, hudY}, 14, sf::Color(170, 210, 255));
         hudY += 18.0f;
     }
     drawText(truncateText("Build: " + world.passiveBuildSummary()
@@ -2709,7 +2722,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
 
     drawBox({center.x, center.y}, {760.0f, 560.0f}, sf::Color(24, 30, 40));
     drawCenteredText("Skill Panel", {center.x, center.y - 248.0f}, 24, sf::Color::White);
-    drawCenteredText("1-0 / F7-F15 assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
+    drawCenteredText("1-0 / F7-F15 / Y assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
         {center.x, center.y - 220.0f}, 14, sf::Color(210, 230, 255));
 
     const SkillSlot slots[] = {

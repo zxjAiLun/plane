@@ -232,6 +232,9 @@ public:
     float shrineBuffTimeRemaining() const;
     float guardBuffTimeRemaining() const;
     float guardBuffDamageTakenMultiplier() const;
+    int manaWardAmount() const;
+    int manaWardCapacity() const;
+    float manaWardTimeRemaining() const;
     const Vector2& ambientHazardWarningPosition() const;
     const std::vector<Vector2>& ambientHazardWarningPositions() const;
     float ambientHazardWarningProgress() const;
@@ -564,6 +567,9 @@ private:
     float shrineBuffTimer_;
     float guardBuffTimer_ = 0.0f;
     float guardBuffDamageMultiplier_ = 1.0f;
+    int manaWardAmount_ = 0;
+    int manaWardCapacity_ = 0;
+    float manaWardTimer_ = 0.0f;
     Vector2 ambientHazardWarningPosition_;
     std::vector<Vector2> ambientHazardWarningPositions_;
     float ambientHazardTimer_ = 0.0f;

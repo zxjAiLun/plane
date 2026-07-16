@@ -30,6 +30,13 @@ inline SkillDefinition skillAtLevel(const SkillDefinition& base, int level) {
         result.radius *= 1.0f + Config::SkillGemRadiusPerLevelMultiplier
             * static_cast<float>(levelDelta);
     }
+    if (base.wardManaRatio > 0.0f) {
+        result.wardManaRatio = std::min(
+            0.90f,
+            base.wardManaRatio + Config::SkillGemWardManaPerLevel
+                * static_cast<float>(levelDelta)
+        );
+    }
 
     for (int levelIndex = 0; levelIndex < levelDelta; ++levelIndex) {
         result.cooldown *= Config::SkillGemCooldownPerLevelMultiplier;

@@ -473,6 +473,9 @@ GameWorld::GameWorld(std::uint64_t runSeed)
     , shrineBuffTimer_(0.0f)
     , guardBuffTimer_(0.0f)
     , guardBuffDamageMultiplier_(1.0f)
+    , manaWardAmount_(0)
+    , manaWardCapacity_(0)
+    , manaWardTimer_(0.0f)
     , lifeFlaskCharges_(Config::LifeFlaskMaxCharges)
     , lifeFlaskStatusMessage_()
     , lifeFlaskStatusTimer_(0.0f)
@@ -1142,6 +1145,9 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     shrineBuffTimer_ = 0.0f;
     guardBuffTimer_ = 0.0f;
     guardBuffDamageMultiplier_ = 1.0f;
+    manaWardAmount_ = 0;
+    manaWardCapacity_ = 0;
+    manaWardTimer_ = 0.0f;
     passiveTreeOpen_ = false;
     skillPanelOpen_ = false;
     selectedSupportLink_ = 0;
@@ -1221,6 +1227,11 @@ void GameWorld::updatePlaying(float dt, Input& input) {
     guardBuffTimer_ = std::max(0.0f, guardBuffTimer_ - dt);
     if (guardBuffTimer_ == 0.0f) {
         guardBuffDamageMultiplier_ = 1.0f;
+    }
+    manaWardTimer_ = std::max(0.0f, manaWardTimer_ - dt);
+    if (manaWardTimer_ == 0.0f) {
+        manaWardAmount_ = 0;
+        manaWardCapacity_ = 0;
     }
     updateGroundHazards(dt);
     updatePendingSkillEffects(dt);
@@ -1429,6 +1440,9 @@ void GameWorld::reset(std::uint64_t runSeed) {
     shrineBuffTimer_ = 0.0f;
     guardBuffTimer_ = 0.0f;
     guardBuffDamageMultiplier_ = 1.0f;
+    manaWardAmount_ = 0;
+    manaWardCapacity_ = 0;
+    manaWardTimer_ = 0.0f;
     lifeFlaskCharges_ = Config::LifeFlaskMaxCharges;
     lifeFlaskStatusMessage_.clear();
     lifeFlaskStatusTimer_ = 0.0f;
@@ -1591,6 +1605,9 @@ void GameWorld::startNextMap() {
     shrineBuffTimer_ = 0.0f;
     guardBuffTimer_ = 0.0f;
     guardBuffDamageMultiplier_ = 1.0f;
+    manaWardAmount_ = 0;
+    manaWardCapacity_ = 0;
+    manaWardTimer_ = 0.0f;
     lifeFlaskCharges_ = Config::LifeFlaskMaxCharges;
     lifeFlaskStatusMessage_.clear();
     lifeFlaskStatusTimer_ = 0.0f;
@@ -3094,6 +3111,21 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
             return;
         }
     }
+    if (skill.wardManaRatio > 0.0f) {
+        manaWardCapacity_ = std::max(1, static_cast<int>(std::ceil(
+            player_.maxMana() * skill.wardManaRatio
+        )));
+        manaWardAmount_ = manaWardCapacity_;
+        manaWardTimer_ = std::max(0.0f, skill.effectDuration);
+        addCombatFeedback(
+            player_.position(),
+            manaWardAmount_,
+            skill.name + ": " + std::to_string(manaWardAmount_) + " Ward",
+            CombatFeedbackType::Status
+        );
+        novaEffectTimer_ = skill.effectDuration;
+        return;
+    }
     const int repeatCount = skillRepeatCount(
         skill, skillBar_.supportDefinitionsFor(skill)
     );
@@ -4442,6 +4474,9 @@ void GameWorld::tryAssignSkill(Input& input) {
     const auto& skills = SkillLibrary::all();
     int skillIndex = input.numberChoice() - 1;
     const int functionChoice = input.functionChoice();
+    if (input.skillPanelAlternateChoice()) {
+        skillIndex = static_cast<int>(skills.size()) - 1;
+    }
     if (skillIndex < 0 && functionChoice >= 7 && functionChoice <= 15) {
         // Number keys cover the first ten entries. F7-F15 extend the panel
         // to later skills without colliding with the support link controls.
@@ -5377,8 +5412,33 @@ void GameWorld::damagePlayer(
     effectiveStats.poisonResistance += mapElementalResistanceAdjustment(
         mapModifier_, DamageType::Poison, false
     );
-    playerHitDamage_ = player_.takeDamage(incomingDamage(damage, effectiveStats, damageType));
+    int incoming = incomingDamage(damage, effectiveStats, damageType);
+    if (incoming <= 0) {
+        return;
+    }
+
+    const int wardAbsorbed = std::min(manaWardAmount_, incoming);
+    if (wardAbsorbed > 0) {
+        manaWardAmount_ -= wardAbsorbed;
+        incoming -= wardAbsorbed;
+        addCombatFeedback(
+            player_.position(),
+            wardAbsorbed,
+            "Mana Ward absorbed " + std::to_string(wardAbsorbed),
+            CombatFeedbackType::Status
+        );
+        if (manaWardAmount_ == 0) {
+            manaWardCapacity_ = 0;
+            manaWardTimer_ = 0.0f;
+        }
+    }
+
+    playerHitDamage_ = player_.takeDamage(incoming);
     if (playerHitDamage_ <= 0) {
+        if (wardAbsorbed > 0) {
+            playerHitSource_ = source;
+            playerHitCooldown_ = Config::PlayerHitCooldown;
+        }
         return;
     }
 
@@ -6071,6 +6131,9 @@ float GameWorld::guardBuffTimeRemaining() const { return guardBuffTimer_; }
 float GameWorld::guardBuffDamageTakenMultiplier() const {
     return guardBuffTimer_ > 0.0f ? guardBuffDamageMultiplier_ : 1.0f;
 }
+int GameWorld::manaWardAmount() const { return manaWardAmount_; }
+int GameWorld::manaWardCapacity() const { return manaWardCapacity_; }
+float GameWorld::manaWardTimeRemaining() const { return manaWardTimer_; }
 float GameWorld::inventoryFullPromptTimeRemaining() const { return inventoryFullTimer_; }
 std::string GameWorld::eventStatusMessage() const { return eventStatusMessage_; }
 float GameWorld::eventStatusTimeRemaining() const { return eventStatusTimer_; }

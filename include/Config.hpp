@@ -123,6 +123,12 @@ namespace Config {
     constexpr float GuardingPulseManaCost = 15.0f;
     constexpr float GuardingPulseEffectDuration = 3.0f;
     constexpr float GuardingPulseDamageTakenMultiplier = 0.50f;
+    constexpr float ManaWardCooldown = 5.0f;
+    constexpr float ManaWardRadius = 95.0f;
+    constexpr float ManaWardManaCost = 20.0f;
+    constexpr float ManaWardEffectDuration = 5.0f;
+    constexpr float ManaWardManaRatio = 0.35f;
+    constexpr float SkillGemWardManaPerLevel = 0.03f;
 
     constexpr float EnemySpeed = 120.0f;
     constexpr float EnemyRadius = 20.0f;

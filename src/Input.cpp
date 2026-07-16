@@ -11,6 +11,7 @@ void Input::update() {
     pickup_ = false;
     passiveTreeToggle_ = false;
     skillPanelToggle_ = false;
+    skillPanelAlternateChoice_ = false;
     nextMap_ = false;
     inventorySelectNext_ = false;
     inventoryDropSelected_ = false;
@@ -46,6 +47,7 @@ void Input::handleKeyPressed(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::F:     pickup_ = true; break;
         case sf::Keyboard::Key::P:     passiveTreeToggle_ = true; break;
         case sf::Keyboard::Key::K:     skillPanelToggle_ = true; break;
+        case sf::Keyboard::Key::Y:     skillPanelAlternateChoice_ = true; break;
         case sf::Keyboard::Key::E:     nextMap_ = true; break;
         case sf::Keyboard::Key::R:     restart_ = true; break;
         case sf::Keyboard::Key::Escape: escapePressed_ = true; cancel_ = true; break;
@@ -154,6 +156,7 @@ bool Input::secondarySkill() const { return secondarySkill_; }
 bool Input::pickup() const { return pickup_; }
 bool Input::passiveTreeToggle() const { return passiveTreeToggle_; }
 bool Input::skillPanelToggle() const { return skillPanelToggle_; }
+bool Input::skillPanelAlternateChoice() const { return skillPanelAlternateChoice_; }
 bool Input::nextMap() const { return nextMap_; }
 bool Input::restart() const { return restart_; }
 bool Input::quit() const { return quit_; }

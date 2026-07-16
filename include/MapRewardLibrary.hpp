@@ -59,6 +59,12 @@ public:
                 + "% damage for " + std::to_string(static_cast<int>(skill.effectDuration))
                 + "s";
         }
+        if (skill.wardManaRatio > 0.0f) {
+            reward.description += "  Ward "
+                + std::to_string(static_cast<int>(skill.wardManaRatio * 100.0f))
+                + "% of Max Mana for " + std::to_string(static_cast<int>(skill.effectDuration))
+                + "s";
+        }
         return reward;
     }
 

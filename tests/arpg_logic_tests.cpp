@@ -498,7 +498,7 @@ void testManaResourceAndSkillCastGates() {
         "resource Stats combine multiplicatively");
 
     const auto& skills = SkillLibrary::all();
-    expect(skills.size() == 19, "skill library exposes the elemental build skill set");
+    expect(skills.size() == 20, "skill library exposes the elemental build skill set");
     const auto& primary = SkillLibrary::spreadShot();
     const auto& secondary = SkillLibrary::meteor();
     const auto& utility = SkillLibrary::pulse();
@@ -513,6 +513,7 @@ void testManaResourceAndSkillCastGates() {
     const auto& blightRing = SkillLibrary::blightRing();
     const auto& siphonPulse = SkillLibrary::siphonPulse();
     const auto& guardingPulse = SkillLibrary::guardingPulse();
+    const auto& manaWard = SkillLibrary::manaWard();
     expect(primary.manaCost > 0.0f && primary.manaCost < secondary.manaCost,
         "Primary has a lower Mana cost than Meteor");
     expect(secondary.manaCost > 0.0f && utility.manaCost > 0.0f,
@@ -576,6 +577,12 @@ void testManaResourceAndSkillCastGates() {
                 == Config::GuardingPulseDamageTakenMultiplier
             && guardingPulse.effectDuration == Config::GuardingPulseEffectDuration,
         "Guarding Pulse defines a temporary defensive Utility skill");
+    expect(manaWard.slot == SkillSlot::Utility
+            && manaWard.castType == SkillCastType::SelfCenteredArea
+            && manaWard.baseDamage == 0
+            && manaWard.wardManaRatio == Config::ManaWardManaRatio
+            && manaWard.manaCost == Config::ManaWardManaCost,
+        "Mana Ward defines a Mana-powered defensive Utility skill");
     const auto* vitality = SupportLibrary::find("Vitality");
     expect(vitality != nullptr
             && SupportLibrary::supportsSkill(*vitality, siphonPulse)
@@ -3521,6 +3528,12 @@ void testMapRewardGeneration() {
     expect(guardingReward.description.find("Take 50% damage for 3s")
                 != std::string::npos,
         "Guarding Pulse reward preview exposes its mitigation effect");
+    const auto manaWardReward = MapRewardLibrary::skillUnlockReward(
+        SkillLibrary::manaWard()
+    );
+    expect(manaWardReward.description.find("Ward 35% of Max Mana for 5s")
+                != std::string::npos,
+        "Mana Ward reward preview exposes its resource shield");
 
     RandomService earlySupportRandom(8);
     const auto earlySupportRewards = MapRewardLibrary::generateOptions(
@@ -3743,6 +3756,12 @@ void testGemProgression() {
             && levelThreeSkill.radius > levelOneSkill.radius
             && levelThreeSkill.cooldown < levelOneSkill.cooldown,
         "skill gem levels increase damage/radius and reduce cooldown");
+    const SkillDefinition levelOneWard = SkillLibrary::manaWard();
+    const SkillDefinition levelThreeWard = SkillProgression::skillAtLevel(
+        levelOneWard, 3
+    );
+    expect(levelThreeWard.wardManaRatio > levelOneWard.wardManaRatio,
+        "skill gem levels increase Mana Ward capacity scaling");
 
     const auto* quickcast = SupportLibrary::find("Quickcast");
     const auto* amplify = SupportLibrary::find("Amplify");

@@ -47,4 +47,5 @@ struct SkillDefinition {
     float repeatInterval = 0.0f;
     int healOnHit = 0;
     float selfDamageTakenMultiplier = 1.0f;
+    float wardManaRatio = 0.0f;
 };
