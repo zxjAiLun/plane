@@ -25,7 +25,8 @@ enum class SupportKind {
     ArcaneEfficiency,
     ElementalFocus,
     Vitality,
-    Bloodletting
+    Bloodletting,
+    Rupture
 };
 
 struct SupportDefinition {
@@ -228,6 +229,17 @@ public:
                 support.physicalPenetration = 20;
                 return support;
             }(),
+            [] {
+                SupportDefinition support;
+                support.kind = SupportKind::Rupture;
+                support.name = "Rupture";
+                support.description = "-25% hit damage, +35% Bleed damage, +40% duration, +10% Bleed penetration";
+                support.damageMultiplier = 0.75f;
+                support.ailmentDamageMultiplier = 1.35f;
+                support.ailmentDurationMultiplier = 1.40f;
+                support.bleedPenetration = 10;
+                return support;
+            }(),
         };
         return supports;
     }
@@ -281,6 +293,9 @@ public:
             case SupportKind::Vitality:
                 return skill.healOnHit > 0;
             case SupportKind::Bloodletting:
+                return skill.damageType == DamageType::Physical
+                    && skill.ailment.type == AilmentType::Bleed;
+            case SupportKind::Rupture:
                 return skill.damageType == DamageType::Physical
                     && skill.ailment.type == AilmentType::Bleed;
         }

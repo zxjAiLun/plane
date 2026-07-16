@@ -287,10 +287,15 @@ public:
         // normal random reward pool. Prefer one matching unlock first; when
         // the library is already unlocked, the upgrade pass below can provide
         // the matching gem instead.
-        if (rewardTheme != DamageType::Physical && rewardIndex < contentLimit) {
+        if (rewardIndex < contentLimit) {
             std::vector<std::size_t> themedSkillIndices;
             for (std::size_t index = 0; index < lockedSkills.size(); ++index) {
-                if (lockedSkills[index]->damageType == rewardTheme) {
+                const auto& skill = *lockedSkills[index];
+                const bool matchesTheme = rewardTheme == DamageType::Physical
+                    ? skill.damageType == DamageType::Physical
+                        && skill.ailment.type == AilmentType::Bleed
+                    : skill.damageType == rewardTheme;
+                if (matchesTheme) {
                     themedSkillIndices.push_back(index);
                 }
             }
@@ -323,8 +328,7 @@ public:
         // If the themed skill/support is already unlocked, use a matching
         // level upgrade before filling the remaining choices with unrelated
         // unlocks. This keeps later maps on the same build path.
-        if (rewardTheme != DamageType::Physical && rewardIndex == 0
-            && !upgrades.empty()) {
+        if (rewardIndex == 0 && !upgrades.empty()) {
             std::vector<std::size_t> themedUpgradeIndices;
             for (std::size_t index = 0; index < upgrades.size(); ++index) {
                 if (rewardMatchesTheme(upgrades[index], rewardTheme)) {
@@ -431,7 +435,8 @@ private:
                 return support.kind == SupportKind::Toxicity
                     || support.kind == SupportKind::Contagion;
             case DamageType::Physical:
-                return support.kind == SupportKind::Bloodletting;
+                return support.kind == SupportKind::Bloodletting
+                    || support.kind == SupportKind::Rupture;
         }
         return false;
     }
@@ -440,7 +445,11 @@ private:
         if (reward.type == MapRewardType::UnlockSkill
             || reward.type == MapRewardType::UpgradeSkill) {
             const auto* skill = SkillLibrary::find(reward.skillName);
-            return skill != nullptr && skill->damageType == theme;
+            return skill != nullptr
+                && (theme == DamageType::Physical
+                    ? skill->damageType == DamageType::Physical
+                        && skill->ailment.type == AilmentType::Bleed
+                    : skill->damageType == theme);
         }
 
         if (reward.type == MapRewardType::UnlockSupport

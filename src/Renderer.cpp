@@ -788,6 +788,7 @@ std::string rewardThemeLabel(const MapRewardDefinition& reward) {
                 case SupportKind::ArcaneEfficiency:
                 case SupportKind::Vitality:
                 case SupportKind::Bloodletting:
+                case SupportKind::Rupture:
                     break;
                 case SupportKind::ElementalFocus:
                     theme = support->requiredDamageType;

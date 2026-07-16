@@ -604,6 +604,7 @@ void testManaResourceAndSkillCastGates() {
             && manaWard.manaCost == Config::ManaWardManaCost,
         "Mana Ward defines a Mana-powered defensive Utility skill");
     const auto* bloodletting = SupportLibrary::find("Bloodletting");
+    const auto* rupture = SupportLibrary::find("Rupture");
     expect(rendingVolley.slot == SkillSlot::Primary
             && rendingVolley.damageType == DamageType::Physical
             && rendingVolley.projectileCount == Config::RendingVolleyProjectileCount
@@ -612,6 +613,13 @@ void testManaResourceAndSkillCastGates() {
             && bloodletting->physicalPenetration == 20
             && SupportLibrary::supportsSkill(*bloodletting, rendingVolley),
         "Rending Volley and Bloodletting define the physical Bleed path");
+    expect(rupture != nullptr
+            && rupture->ailmentDamageMultiplier > 1.0f
+            && rupture->ailmentDurationMultiplier > 1.0f
+            && rupture->bleedPenetration == 10
+            && SupportLibrary::supportsSkill(*rupture, rendingVolley)
+            && !SupportLibrary::supportsSkill(*rupture, SkillLibrary::flare()),
+        "Rupture offers an alternative hit tradeoff for Physical Bleed skills");
     const auto* vitality = SupportLibrary::find("Vitality");
     expect(vitality != nullptr
             && SupportLibrary::supportsSkill(*vitality, siphonPulse)
@@ -1085,6 +1093,15 @@ void testSkillAilments() {
             && bloodlettingBleed.bleedPenetration == 20
             && skillPhysicalPenetration(bloodletting) == 20,
         "Bloodletting increases Bleed damage and penetration");
+    const AilmentDefinition ruptureBleed = skillAilment(
+        SkillLibrary::rendingVolley(), SupportLibrary::find("Rupture")
+    );
+    expect(ruptureBleed.type == AilmentType::Bleed
+            && ruptureBleed.damageMultiplier
+                > SkillLibrary::rendingVolley().ailment.damageMultiplier
+            && ruptureBleed.duration > SkillLibrary::rendingVolley().ailment.duration
+            && ruptureBleed.bleedPenetration == 10,
+        "Rupture scales Bleed damage, duration, and penetration");
     Stats poisonStats;
     poisonStats.poisonDamageMultiplier = 1.50f;
     expect(skillDamage(toxicBurst, poisonStats, nullptr)
@@ -3768,6 +3785,23 @@ void testMapRewardGeneration() {
         "Storm-themed rewards lead with a Lightning skill unlock");
     expect(rewardHasSkillTheme(poisonRewards[0], DamageType::Poison),
         "Brood-themed rewards lead with a Poison skill unlock");
+
+    std::set<std::string> physicalBuildSkills = unlockedSkills;
+    physicalBuildSkills.insert(SkillLibrary::rendingVolley().name);
+    RandomService physicalSupportRandom(15);
+    const auto physicalRewards = MapRewardLibrary::generateOptions(
+        physicalBuildSkills,
+        unlockedSupports,
+        std::map<std::string, int>{},
+        std::map<std::string, int>{},
+        1,
+        DamageType::Physical,
+        physicalSupportRandom
+    );
+    expect(physicalRewards[0].type == MapRewardType::UnlockSupport
+            && (physicalRewards[0].supportName == "Bloodletting"
+                || physicalRewards[0].supportName == "Rupture"),
+        "Bloodletting-themed rewards lead with a Physical Bleed support");
 
     std::set<std::string> allSkills;
     for (const auto& skill : SkillLibrary::all()) {
