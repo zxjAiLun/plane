@@ -5492,11 +5492,12 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
                 mergeLootBias(dropBias, completedEncounter->rewardLootBias);
             }
         }
+        const int bossRelicVariant = bossDefinition_->relicVariant > 0
+            ? bossDefinition_->relicVariant
+            : LootGenerator::bossRelicVariantForMapLevel(mapLevel_);
         Item item = enemy.isBoss() && i == 0
             ? lootGenerator_.generateBossReward(
-                itemLevelForMap(),
-                bossDefinition_->lootTheme,
-                LootGenerator::bossRelicVariantForMapLevel(mapLevel_)
+                itemLevelForMap(), bossDefinition_->lootTheme, bossRelicVariant
             )
             : lootGenerator_.generate(
                 itemLevelForMap(), random_, mapModifier_.itemRarityMultiplier, dropBias

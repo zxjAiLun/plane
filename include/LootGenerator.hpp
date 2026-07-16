@@ -88,7 +88,8 @@ public:
         int variant = 0
     ) const {
         const int tier = tierForLevel(monsterLevel);
-        const int normalizedVariant = ((variant % 2) + 2) % 2;
+        const int maxVariant = theme == BossLootTheme::Bloodletting ? 2 : 1;
+        const int normalizedVariant = std::clamp(variant, 0, maxVariant);
         Item item;
         item.itemLevel = monsterLevel;
         item.rarity = Rarity::Unique;
@@ -353,7 +354,7 @@ public:
                             1.0f + std::array<float, 3>{0.10f, 0.16f, 0.22f}[tier],
                             item.implicitStats.bleedDamageMultiplier)),
                         {AffixTag::Bleed, AffixTag::Damage});
-                } else {
+                } else if (normalizedVariant == 1) {
                     item.name = "Hemorrhage Signet";
                     addBossAffix(item, "Blood price", tier + 1,
                         bleedDamageContribution(relativeMultiplier(
@@ -365,6 +366,18 @@ public:
                             1.0f + std::array<float, 3>{0.08f, 0.14f, 0.20f}[tier],
                             item.implicitStats.physicalDamageMultiplier)),
                         {AffixTag::Physical, AffixTag::Damage});
+                } else {
+                    item.name = "Ironheart Bastion";
+                    addBossAffix(item, "Sealed heart", tier + 1,
+                        physicalDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.08f, 0.14f, 0.20f}[tier],
+                            item.implicitStats.physicalDamageMultiplier)),
+                        {AffixTag::Physical, AffixTag::Damage});
+                    addBossAffix(item, "Verdict wounds", tier + 1,
+                        bleedDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.16f, 0.24f, 0.32f}[tier],
+                            item.implicitStats.bleedDamageMultiplier)),
+                        {AffixTag::Bleed, AffixTag::Damage});
                 }
                 break;
         }

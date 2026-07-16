@@ -14,7 +14,8 @@ enum class BossRelicEffectType {
     ObsidianFurnace,
     AetherReserve,
     SableRot,
-    BloodPrice
+    BloodPrice,
+    IronheartVerdict
 };
 
 struct BossRelicEffectDefinition {
@@ -278,6 +279,31 @@ public:
                 case ItemBaseTheme::Bloodletting: return hemorrhageSignet;
                 case ItemBaseTheme::None: break;
             }
+        }
+
+        if (base.variant == 2
+            && base.theme == ItemBaseTheme::Bloodletting) {
+            static const BossRelicEffectDefinition ironheartVerdict{
+                ItemBaseTheme::Bloodletting,
+                BossRelicEffectType::IronheartVerdict,
+                "Ironheart Verdict",
+                "Physical skills deal 35% more Bleed damage; Bleeding enemies burst harder "
+                "in a tighter radius",
+                1.0f,
+                1.0f,
+                0,
+                0.0f,
+                1.0f,
+                0.0f,
+                0.0f,
+                1.0f,
+                1.0f,
+                1.35f,
+                1.15f,
+                90.0f,
+                0.75f
+            };
+            return ironheartVerdict;
         }
 
         return forTheme(base.theme);

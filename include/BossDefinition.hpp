@@ -122,6 +122,7 @@ struct BossDefinition {
     BossPhaseDefinition finalPhase;
     int bleedResistance = 0;
     int physicalResistance = 0;
+    int relicVariant = 0;
 
     const BossSkillDefinition& skillForCast(std::size_t castIndex, bool enraged) const {
         return skillForCast(castIndex, enraged ? 1 : 0);
@@ -856,6 +857,8 @@ private:
         BossDefinition definition = bloodlettingBoss();
         definition.name = "Ironheart Warden";
         definition.theme = "Chains, measured wounds and a sealed heart";
+        definition.lootRewardDescription =
+            "Unique relic: the Ironheart Bastion turns Bleed into a close-range verdict";
         definition.hpMultiplier = 38.0f;
         definition.damageBonus = 4;
         definition.dropMultiplier = 5.0f;
@@ -894,6 +897,7 @@ private:
         definition.enragedSkillOrder = {3, 0, 2, 1, 3};
         definition.bleedResistance = 75;
         definition.physicalResistance = 45;
+        definition.relicVariant = 2;
         definition.enrageTransitionDescription = "The sealed heart cracks: Ironbound Wardens lock the arena";
         definition.enrageSummonType = EnemyType::Warden;
         definition.enrageSummonCount = 2;

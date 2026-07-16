@@ -1814,6 +1814,22 @@ void testLootGeneration() {
         expect(affix.tier == 3, "boss ilvl5 relic rolls T3 affixes");
     }
 
+    const Item ironheart = gen.generateBossReward(9, BossLootTheme::Bloodletting, 2);
+    const auto* ironheartBase = ItemBaseLibrary::find(ironheart.baseId);
+    expect(ironheart.rarity == Rarity::Unique
+            && ironheart.name == "Ironheart Bastion"
+            && ironheart.slot == EquipmentSlot::Armor
+            && ironheartBase != nullptr
+            && ironheartBase->variant == 2,
+        "Ironheart Boss relic generates its dedicated Armor chase item");
+    expect(ironheart.stats.maxHp >= ironheart.implicitStats.maxHp
+            && ironheart.stats.armor >= ironheart.implicitStats.armor
+            && ironheart.stats.physicalDamageMultiplier
+                > ironheart.implicitStats.physicalDamageMultiplier
+            && ironheart.stats.bleedDamageMultiplier
+                > ironheart.implicitStats.bleedDamageMultiplier,
+        "Ironheart Bastion carries defensive and Physical Bleed stats");
+
     expect(LootGenerator::rarityForRoll(1, 20) == Rarity::Magic,
         "low-level rarity roll 20 is Magic");
     expect(LootGenerator::rarityForRoll(5, 20) == Rarity::Rare,
@@ -2183,6 +2199,7 @@ void testBossRelicEffects() {
     const auto* drownedCompassBase = ItemBaseLibrary::find("boss.drowned-compass");
     const auto* blackglassHeartBase = ItemBaseLibrary::find("boss.blackglass-heart");
     const auto* hemorrhageSignetBase = ItemBaseLibrary::find("boss.hemorrhage-signet");
+    const auto* ironheartBastionBase = ItemBaseLibrary::find("boss.ironheart-bastion");
     const auto& ashen = ashenBase == nullptr
         ? none : BossRelicEffectLibrary::forBase(*ashenBase);
     const auto& tempest = tempestBase == nullptr
@@ -2197,6 +2214,8 @@ void testBossRelicEffects() {
         ? none : BossRelicEffectLibrary::forBase(*blackglassHeartBase);
     const auto& hemorrhageSignet = hemorrhageSignetBase == nullptr
         ? none : BossRelicEffectLibrary::forBase(*hemorrhageSignetBase);
+    const auto& ironheartBastion = ironheartBastionBase == nullptr
+        ? none : BossRelicEffectLibrary::forBase(*ironheartBastionBase);
     expect(ashenBase != nullptr
             && ashen.name == "Ashen Bloom"
             && ashen.igniteDamageMultiplier > molten.igniteDamageMultiplier,
@@ -2232,6 +2251,14 @@ void testBossRelicEffects() {
             && hemorrhageSignet.bleedBurstDamageMultiplier
                 > bloodletting.bleedBurstDamageMultiplier,
         "Hemorrhage Signet selects its stronger Bleed death-burst effect");
+    expect(ironheartBastionBase != nullptr
+            && ironheartBastion.name == "Ironheart Verdict"
+            && ironheartBastion.type == BossRelicEffectType::IronheartVerdict
+            && ironheartBastion.bleedDamageMultiplier > bloodletting.bleedDamageMultiplier
+            && ironheartBastion.bleedBurstRadius < bloodletting.bleedBurstRadius
+            && ironheartBastion.bleedBurstDamageMultiplier
+                > bloodletting.bleedBurstDamageMultiplier,
+        "Ironheart Bastion selects a tighter, harder Bleed verdict effect");
     expect(none.type == BossRelicEffectType::None && none.name.empty(),
         "non-relic themes have no Boss relic effect");
 }

@@ -4104,8 +4104,18 @@ void testCombinationMapEvents() {
             Input bossInput;
             expect(moveToBoss(world, bossInput)
                     && world.bossDefinition().name == "Ironheart Warden"
-                    && world.bossDefinition().guaranteedDrops == 3,
+                    && world.bossDefinition().guaranteedDrops == 3
+                    && world.bossDefinition().relicVariant == 2,
                 "Ironheart Trial routes to the Ironheart Warden Boss");
+            const bool bossDefeated = defeatBossWithAreaSkill(world, bossInput);
+            const bool dedicatedRelicDropped = std::any_of(
+                world.droppedItems().begin(), world.droppedItems().end(),
+                [](const DroppedItem& dropped) {
+                    return dropped.item().baseId == "boss.ironheart-bastion";
+                }
+            );
+            expect(bossDefeated && dedicatedRelicDropped,
+                "Ironheart Warden drops the dedicated Ironheart Bastion relic");
         }
     }
 

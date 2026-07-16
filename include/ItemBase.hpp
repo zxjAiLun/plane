@@ -255,6 +255,10 @@ private:
                     1.04f, 1.10f),
                 ItemBaseKind::BossRelic, ItemBaseTheme::Bloodletting, 1,
                 ItemBuildTheme::Physical, 1},
+            {"boss.ironheart-bastion", "Ironheart Bastion", EquipmentSlot::Armor,
+                makeStats(16, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 6),
+                ItemBaseKind::BossRelic, ItemBaseTheme::Bloodletting, 1,
+                ItemBuildTheme::Physical, 2},
         };
     }
 };
