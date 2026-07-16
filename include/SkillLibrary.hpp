@@ -267,6 +267,102 @@ public:
         return skill;
     }
 
+    static SkillDefinition emberLance() {
+        SkillDefinition skill = {
+            SkillSlot::Primary,
+            SkillCastType::Projectile,
+            "Ember Lance",
+            Config::EmberLanceCooldown,
+            0.0f,
+            Config::EmberLanceDamage,
+            0.0f,
+            1,
+            0.0f,
+            {AilmentType::Ignite, 3.0f, 0.45f},
+            Config::EmberLanceManaCost
+        };
+        skill.damageType = DamageType::Fire;
+        return skill;
+    }
+
+    static SkillDefinition glacialShard() {
+        SkillDefinition skill = {
+            SkillSlot::Primary,
+            SkillCastType::Projectile,
+            "Glacial Shard",
+            Config::GlacialShardCooldown,
+            0.0f,
+            Config::GlacialShardDamage,
+            0.0f,
+            Config::GlacialShardProjectileCount,
+            Config::GlacialShardSpreadAngle,
+            {AilmentType::Chill, 3.0f, 0.0f, 0.55f},
+            Config::GlacialShardManaCost
+        };
+        skill.damageType = DamageType::Cold;
+        return skill;
+    }
+
+    static SkillDefinition stormfield() {
+        SkillDefinition skill = {
+            SkillSlot::Secondary,
+            SkillCastType::MouseTargetedArea,
+            "Stormfield",
+            Config::StormfieldCooldown,
+            Config::StormfieldRadius,
+            Config::StormfieldDamage,
+            Config::StormfieldEffectDuration,
+            1,
+            0.0f,
+            {AilmentType::Shock, 2.6f, 0.0f, 1.0f, 0, 0, 1.20f},
+            Config::StormfieldManaCost
+        };
+        skill.damageType = DamageType::Lightning;
+        skill.delivery = SkillDeliveryType::DelayedArea;
+        skill.castDelay = Config::StormfieldCastDelay;
+        skill.groundHazard = {
+            "Stormfield Residue",
+            86.0f,
+            Config::StormfieldGroundHazardDuration,
+            Config::StormfieldGroundHazardTickInterval,
+            Config::StormfieldGroundHazardDamage,
+            DamageType::Lightning,
+            {AilmentType::Shock, 2.0f, 0.0f, 1.15f},
+            GroundHazardTarget::Enemies
+        };
+        return skill;
+    }
+
+    static SkillDefinition blightRing() {
+        SkillDefinition skill = {
+            SkillSlot::Utility,
+            SkillCastType::SelfCenteredArea,
+            "Blight Ring",
+            Config::BlightRingCooldown,
+            Config::BlightRingRadius,
+            Config::BlightRingDamage,
+            Config::BlightRingEffectDuration,
+            1,
+            0.0f,
+            {AilmentType::Poison, 3.2f, 0.35f},
+            Config::BlightRingManaCost
+        };
+        skill.damageType = DamageType::Poison;
+        skill.delivery = SkillDeliveryType::DelayedArea;
+        skill.castDelay = Config::BlightRingCastDelay;
+        skill.groundHazard = {
+            "Blight Mire",
+            92.0f,
+            Config::BlightRingGroundHazardDuration,
+            Config::BlightRingGroundHazardTickInterval,
+            Config::BlightRingGroundHazardDamage,
+            DamageType::Poison,
+            {AilmentType::Poison, 2.5f, 0.35f},
+            GroundHazardTarget::Enemies
+        };
+        return skill;
+    }
+
     static SkillDefinition dash() {
         return {
             SkillSlot::Movement,
@@ -298,6 +394,10 @@ private:
             shockwave(),
             aftershock(),
             toxicBurst(),
+            emberLance(),
+            glacialShard(),
+            stormfield(),
+            blightRing(),
             dash()
         };
     }

@@ -86,6 +86,33 @@ namespace Config {
     constexpr float AftershockEffectDuration = 0.35f;
     constexpr float AftershockCastDelay = 0.60f;
 
+    constexpr float EmberLanceCooldown = 0.72f;
+    constexpr int EmberLanceDamage = 4;
+    constexpr float EmberLanceManaCost = 4.0f;
+    constexpr float GlacialShardCooldown = 0.85f;
+    constexpr int GlacialShardDamage = 3;
+    constexpr int GlacialShardProjectileCount = 3;
+    constexpr float GlacialShardSpreadAngle = 24.0f;
+    constexpr float GlacialShardManaCost = 4.0f;
+    constexpr float StormfieldRadius = 115.0f;
+    constexpr int StormfieldDamage = 3;
+    constexpr float StormfieldCooldown = 1.60f;
+    constexpr float StormfieldManaCost = 11.0f;
+    constexpr float StormfieldEffectDuration = 0.30f;
+    constexpr float StormfieldCastDelay = 0.35f;
+    constexpr float StormfieldGroundHazardDuration = 2.20f;
+    constexpr float StormfieldGroundHazardTickInterval = 0.55f;
+    constexpr int StormfieldGroundHazardDamage = 1;
+    constexpr float BlightRingRadius = 120.0f;
+    constexpr int BlightRingDamage = 2;
+    constexpr float BlightRingCooldown = 1.80f;
+    constexpr float BlightRingManaCost = 10.0f;
+    constexpr float BlightRingEffectDuration = 0.30f;
+    constexpr float BlightRingCastDelay = 0.15f;
+    constexpr float BlightRingGroundHazardDuration = 2.20f;
+    constexpr float BlightRingGroundHazardTickInterval = 0.55f;
+    constexpr int BlightRingGroundHazardDamage = 1;
+
     constexpr float EnemySpeed = 120.0f;
     constexpr float EnemyRadius = 20.0f;
     constexpr int EnemyHp = 1;

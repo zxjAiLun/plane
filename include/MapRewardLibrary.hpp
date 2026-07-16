@@ -380,6 +380,10 @@ private:
     }
 
     static bool supportMatchesTheme(const SupportDefinition& support, DamageType theme) {
+        if (support.kind == SupportKind::ElementalFocus) {
+            return support.requiredDamageType == theme;
+        }
+
         switch (theme) {
             case DamageType::Fire:
                 return support.kind == SupportKind::Combustion;

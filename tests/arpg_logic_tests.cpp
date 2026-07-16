@@ -454,7 +454,7 @@ void testManaResourceAndSkillCastGates() {
         "resource Stats combine multiplicatively");
 
     const auto& skills = SkillLibrary::all();
-    expect(skills.size() == 13, "skill library exposes all thirteen Mana-aware skills");
+    expect(skills.size() == 17, "skill library exposes the elemental build skill set");
     const auto& primary = SkillLibrary::spreadShot();
     const auto& secondary = SkillLibrary::meteor();
     const auto& utility = SkillLibrary::pulse();
@@ -463,6 +463,10 @@ void testManaResourceAndSkillCastGates() {
     const auto& shockwave = SkillLibrary::shockwave();
     const auto& splitArrow = SkillLibrary::splitArrow();
     const auto& aftershock = SkillLibrary::aftershock();
+    const auto& emberLance = SkillLibrary::emberLance();
+    const auto& glacialShard = SkillLibrary::glacialShard();
+    const auto& stormfield = SkillLibrary::stormfield();
+    const auto& blightRing = SkillLibrary::blightRing();
     expect(primary.manaCost > 0.0f && primary.manaCost < secondary.manaCost,
         "Primary has a lower Mana cost than Meteor");
     expect(secondary.manaCost > 0.0f && utility.manaCost > 0.0f,
@@ -496,6 +500,23 @@ void testManaResourceAndSkillCastGates() {
             && aftershock.delivery == SkillDeliveryType::DelayedArea
             && aftershock.castDelay > 0.0f,
         "Split Arrow and Aftershock expose their intended build roles");
+    expect(emberLance.slot == SkillSlot::Primary
+            && emberLance.damageType == DamageType::Fire
+            && emberLance.ailment.type == AilmentType::Ignite
+            && glacialShard.slot == SkillSlot::Primary
+            && glacialShard.damageType == DamageType::Cold
+            && glacialShard.projectileCount == Config::GlacialShardProjectileCount
+            && glacialShard.ailment.type == AilmentType::Chill,
+        "Ember Lance and Glacial Shard define Fire and Cold projectile paths");
+    expect(stormfield.slot == SkillSlot::Secondary
+            && stormfield.damageType == DamageType::Lightning
+            && stormfield.delivery == SkillDeliveryType::DelayedArea
+            && stormfield.groundHazard.isValid()
+            && blightRing.slot == SkillSlot::Utility
+            && blightRing.damageType == DamageType::Poison
+            && blightRing.delivery == SkillDeliveryType::DelayedArea
+            && blightRing.groundHazard.isValid(),
+        "Stormfield and Blight Ring define persistent Lightning and Poison area paths");
     expect(std::abs(SkillLibrary::flare().manaCost - Config::FlareManaCost) < 0.0001f,
         "Flare exposes its configured Mana cost");
     expect(std::abs(SkillLibrary::meteor().manaCost - Config::MeteorManaCost) < 0.0001f,
@@ -577,11 +598,17 @@ void testCombatMathDamageRadiusPierce() {
     const SupportDefinition* concentration = SupportLibrary::find("Concentration");
     const SupportDefinition* echo = SupportLibrary::find("Echo");
     const SupportDefinition* pinpoint = SupportLibrary::find("Pinpoint");
+    const SupportDefinition* emberFocus = SupportLibrary::find("Ember Focus");
+    const SupportDefinition* glacialFocus = SupportLibrary::find("Glacial Focus");
+    const SupportDefinition* stormFocus = SupportLibrary::find("Storm Focus");
+    const SupportDefinition* venomFocus = SupportLibrary::find("Venom Focus");
     expect(pierce != nullptr && amplify != nullptr && quickcast != nullptr
             && volley != nullptr && trailblazer != nullptr
             && combustion != nullptr && deepChill != nullptr
             && barrage != nullptr && concentration != nullptr
-            && echo != nullptr && pinpoint != nullptr && contagion != nullptr,
+            && echo != nullptr && pinpoint != nullptr && contagion != nullptr
+            && emberFocus != nullptr && glacialFocus != nullptr
+            && stormFocus != nullptr && venomFocus != nullptr,
         "existing and expanded supports exist in library");
 
     Stats stats;
@@ -722,6 +749,20 @@ void testCombatMathDamageRadiusPierce() {
             && !SupportLibrary::supportsSkill(*pinpoint, shockwave)
             && !SupportLibrary::supportsSkill(*concentration, SkillLibrary::dash()),
         "expanded Supports expose only their intended CastType compatibility");
+    expect(SupportLibrary::supportsSkill(*emberFocus, SkillLibrary::flare())
+            && SupportLibrary::supportsSkill(*emberFocus, SkillLibrary::emberLance())
+            && !SupportLibrary::supportsSkill(*emberFocus, SkillLibrary::frostBomb())
+            && SupportLibrary::supportsSkill(*glacialFocus, SkillLibrary::frostBomb())
+            && SupportLibrary::supportsSkill(*stormFocus, SkillLibrary::arcBolt())
+            && SupportLibrary::supportsSkill(*venomFocus, SkillLibrary::toxicBurst()),
+        "elemental Focus supports only their matching damage types");
+    expect(skillDamage(SkillLibrary::emberLance(), Stats{}, emberFocus)
+                > skillDamage(SkillLibrary::emberLance(), Stats{}, nullptr)
+            && skillDamage(SkillLibrary::frostBomb(), Stats{}, emberFocus)
+                == skillDamage(SkillLibrary::frostBomb(), Stats{}, nullptr)
+            && skillDamage(SkillLibrary::toxicBurst(), Stats{}, venomFocus)
+                > skillDamage(SkillLibrary::toxicBurst(), Stats{}, nullptr),
+        "elemental Focus supports change only matching skill damage");
 
     expect(skillPierceCount(nullptr) == 0, "no support => 0 pierce");
     expect(skillPierceCount(pierce) == 1, "Pierce support => 1 pierce");
@@ -3255,11 +3296,17 @@ void testMapRewardGeneration() {
     const auto fireRewards = themedReward(DamageType::Fire, 11);
     const auto lightningRewards = themedReward(DamageType::Lightning, 12);
     const auto poisonRewards = themedReward(DamageType::Poison, 13);
-    expect(fireRewards[0].skillName == SkillLibrary::flare().name,
+    const auto rewardHasSkillTheme = [](const MapRewardDefinition& reward, DamageType theme) {
+        const auto* skill = SkillLibrary::find(reward.skillName);
+        return reward.type == MapRewardType::UnlockSkill
+            && skill != nullptr
+            && skill->damageType == theme;
+    };
+    expect(rewardHasSkillTheme(fireRewards[0], DamageType::Fire),
         "Brimstone-themed rewards lead with a Fire skill unlock");
-    expect(lightningRewards[0].skillName == SkillLibrary::arcBolt().name,
+    expect(rewardHasSkillTheme(lightningRewards[0], DamageType::Lightning),
         "Storm-themed rewards lead with a Lightning skill unlock");
-    expect(poisonRewards[0].skillName == SkillLibrary::toxicBurst().name,
+    expect(rewardHasSkillTheme(poisonRewards[0], DamageType::Poison),
         "Brood-themed rewards lead with a Poison skill unlock");
 
     std::set<std::string> allSkills;
@@ -3280,10 +3327,21 @@ void testMapRewardGeneration() {
         DamageType::Lightning,
         themedUpgradeRandom
     );
-    expect((lightningUpgrades[0].type == MapRewardType::UpgradeSkill
-                && lightningUpgrades[0].skillName == SkillLibrary::arcBolt().name)
-            || (lightningUpgrades[0].type == MapRewardType::UpgradeSupport
-                && lightningUpgrades[0].supportName == "Conductivity"),
+    const auto lightningUpgrade = [&]() {
+        if (lightningUpgrades[0].type == MapRewardType::UpgradeSkill) {
+            const auto* skill = SkillLibrary::find(lightningUpgrades[0].skillName);
+            return skill != nullptr && skill->damageType == DamageType::Lightning;
+        }
+        if (lightningUpgrades[0].type == MapRewardType::UpgradeSupport) {
+            const auto* support = SupportLibrary::find(lightningUpgrades[0].supportName);
+            return support != nullptr
+                && (support->kind == SupportKind::Conductivity
+                    || (support->kind == SupportKind::ElementalFocus
+                        && support->requiredDamageType == DamageType::Lightning));
+        }
+        return false;
+    };
+    expect(lightningUpgrade(),
         "later Storm maps prefer a Lightning skill or support upgrade");
 
     const std::string arcBoltName = SkillLibrary::arcBolt().name;

@@ -1734,6 +1734,10 @@ void testExpandedSkillWorldHits() {
             && !world.isSkillUnlocked("Shockwave")
             && !world.isSkillUnlocked("Split Arrow")
             && !world.isSkillUnlocked("Aftershock")
+            && !world.isSkillUnlocked("Ember Lance")
+            && !world.isSkillUnlocked("Glacial Shard")
+            && !world.isSkillUnlocked("Stormfield")
+            && !world.isSkillUnlocked("Blight Ring")
             && !world.isSupportUnlocked("Barrage")
             && !world.isSupportUnlocked("Concentration"),
         "expanded skills and Supports start locked");
@@ -1750,6 +1754,10 @@ void testExpandedSkillWorldHits() {
     data.unlockedSkills.insert("Toxic Burst");
     data.unlockedSkills.insert("Shockwave");
     data.unlockedSkills.insert("Aftershock");
+    data.unlockedSkills.insert("Ember Lance");
+    data.unlockedSkills.insert("Glacial Shard");
+    data.unlockedSkills.insert("Stormfield");
+    data.unlockedSkills.insert("Blight Ring");
     data.unlockedSupports.insert("Barrage");
     data.unlockedSupports.insert("Concentration");
     data.unlockedSupports.insert("Echo");
@@ -1936,8 +1944,32 @@ void testExpandedSkillWorldHits() {
     world.update(0.05f, input);
     expect(world.skillBar().definition(SkillSlot::Utility).name == "Aftershock",
         "Skill Panel F7 assigns the eleventh skill entry");
+
+    input.handleKeyPressed(sf::Keyboard::Key::F9);
+    world.update(0.05f, input);
+    expect(world.skillBar().definition(SkillSlot::Primary).name == "Ember Lance",
+        "Skill Panel F9 assigns the first elemental skill entry");
+    input.handleKeyPressed(sf::Keyboard::Key::F12);
+    world.update(0.05f, input);
+    expect(world.skillBar().definition(SkillSlot::Utility).name == "Blight Ring",
+        "Skill Panel F12 assigns the later Poison skill entry");
     input.handleKeyPressed(sf::Keyboard::Key::K);
     world.update(0.05f, input);
+
+    input.handleKeyPressed(sf::Keyboard::Key::Q);
+    world.update(0.05f, input);
+    input.handleKeyReleased(sf::Keyboard::Key::Q);
+    for (int frame = 0; frame < 8; ++frame) {
+        world.update(0.05f, input);
+    }
+    const bool blightHazardCreated = std::any_of(
+        world.groundHazards().begin(), world.groundHazards().end(),
+        [](const GroundHazard& hazard) {
+            return hazard.definition().source == "Blight Mire";
+        }
+    );
+    expect(blightHazardCreated,
+        "Blight Ring creates its Poison ground hazard through the real Utility path");
 
     std::filesystem::remove(path);
 }

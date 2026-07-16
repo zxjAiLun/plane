@@ -159,6 +159,9 @@ inline int skillDamage(
     for (const auto* support : supports) {
         if (support != nullptr) {
             damage *= support->damageMultiplier;
+            if (support->requiredDamageType == skill.damageType) {
+                damage *= support->elementalDamageMultiplier;
+            }
         }
     }
 

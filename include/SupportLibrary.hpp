@@ -22,7 +22,8 @@ enum class SupportKind {
     Pinpoint,
     Toxicity,
     Contagion,
-    ArcaneEfficiency
+    ArcaneEfficiency,
+    ElementalFocus
 };
 
 struct SupportDefinition {
@@ -50,6 +51,8 @@ struct SupportDefinition {
     float poisonSpreadRadius = 0.0f;
     float poisonSpreadMultiplier = 0.0f;
     float manaCostMultiplier = 1.0f;
+    DamageType requiredDamageType = DamageType::Physical;
+    float elementalDamageMultiplier = 1.0f;
 };
 
 inline constexpr std::size_t SupportLinkCount = 2;
@@ -159,6 +162,46 @@ public:
                 support.manaCostMultiplier = 0.75f;
                 return support;
             }(),
+            [] {
+                SupportDefinition support;
+                support.kind = SupportKind::ElementalFocus;
+                support.name = "Ember Focus";
+                support.description = "+28% Fire damage, -10% Ignite duration";
+                support.requiredDamageType = DamageType::Fire;
+                support.elementalDamageMultiplier = 1.28f;
+                support.ailmentDurationMultiplier = 0.90f;
+                return support;
+            }(),
+            [] {
+                SupportDefinition support;
+                support.kind = SupportKind::ElementalFocus;
+                support.name = "Glacial Focus";
+                support.description = "+26% Cold damage, -10% Chill strength";
+                support.requiredDamageType = DamageType::Cold;
+                support.elementalDamageMultiplier = 1.26f;
+                support.chillMagnitudeMultiplier = 0.90f;
+                return support;
+            }(),
+            [] {
+                SupportDefinition support;
+                support.kind = SupportKind::ElementalFocus;
+                support.name = "Storm Focus";
+                support.description = "+26% Lightning damage, +10% cooldown";
+                support.requiredDamageType = DamageType::Lightning;
+                support.elementalDamageMultiplier = 1.26f;
+                support.cooldownMultiplier = 1.10f;
+                return support;
+            }(),
+            [] {
+                SupportDefinition support;
+                support.kind = SupportKind::ElementalFocus;
+                support.name = "Venom Focus";
+                support.description = "+28% Poison damage, -12% hit damage";
+                support.requiredDamageType = DamageType::Poison;
+                support.elementalDamageMultiplier = 1.28f;
+                support.damageMultiplier = 0.88f;
+                return support;
+            }(),
         };
         return supports;
     }
@@ -207,6 +250,8 @@ public:
                 return skill.castType == SkillCastType::Projectile;
             case SupportKind::ArcaneEfficiency:
                 return skill.castType != SkillCastType::Dash;
+            case SupportKind::ElementalFocus:
+                return skill.damageType == support.requiredDamageType;
         }
 
         return false;

@@ -3088,6 +3088,7 @@ void GameWorld::tryCastUtilitySkill(Input& input) {
             skill.damageType
         );
     }
+    spawnPlayerSkillHazard(skill, player_.position());
     novaEffectTimer_ = skill.effectDuration;
 }
 
@@ -4343,9 +4344,9 @@ void GameWorld::tryAssignSkill(Input& input) {
     const auto& skills = SkillLibrary::all();
     int skillIndex = input.numberChoice() - 1;
     const int functionChoice = input.functionChoice();
-    if (skillIndex < 0 && functionChoice >= 7 && functionChoice <= 8) {
-        // Number keys cover the first ten entries. F7/F8 extend the panel to
-        // the two entries that cannot fit in the 1-0 key range.
+    if (skillIndex < 0 && functionChoice >= 7 && functionChoice <= 13) {
+        // Number keys cover the first ten entries. F7-F13 extend the panel
+        // to later skills without colliding with the support link controls.
         skillIndex = functionChoice + 3;
     }
     if (skillIndex < 0) {

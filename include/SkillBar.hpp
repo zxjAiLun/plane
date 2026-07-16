@@ -124,6 +124,10 @@ public:
             }
         }
         actualCooldowns_[idx] = skill->cooldown;
+        // A newly equipped skill must not inherit the previous skill's
+        // cooldown. The player is choosing a new action, so its first cast
+        // should be immediately available.
+        elapsed_[idx] = 999.0f;
         return true;
     }
 

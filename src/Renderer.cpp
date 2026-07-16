@@ -692,6 +692,9 @@ std::string rewardThemeLabel(const MapRewardDefinition& reward) {
                 case SupportKind::Pinpoint:
                 case SupportKind::ArcaneEfficiency:
                     break;
+                case SupportKind::ElementalFocus:
+                    theme = support->requiredDamageType;
+                    break;
             }
         }
     }
@@ -2651,7 +2654,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
 
     drawBox({center.x, center.y}, {760.0f, 560.0f}, sf::Color(24, 30, 40));
     drawCenteredText("Skill Panel", {center.x, center.y - 248.0f}, 24, sf::Color::White);
-    drawCenteredText("1-0 / F7-F8 assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
+    drawCenteredText("1-0 / F7-F13 assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
         {center.x, center.y - 220.0f}, 14, sf::Color(210, 230, 255));
 
     const SkillSlot slots[] = {
@@ -2692,22 +2695,21 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         const std::string state = equipped ? "Equipped" : unlocked ? "Available" : "Locked";
         const std::string marker = equipped ? "> " : "  ";
         const float columnX = i % 2 == 0 ? leftColumn : rightColumn;
-        const float rowY = skillsY + 22.0f + static_cast<float>(i / 2) * 36.0f;
+        const float rowY = skillsY + 22.0f + static_cast<float>(i / 2) * 27.0f;
         drawText(marker + skillChoiceLabel(i) + ". " + skill.name
                 + " Lv" + std::to_string(world.skillLevel(skill.name))
                 + " [" + state + "]",
             {columnX, rowY}, 14, color);
-        drawText("     " + skillSlotName(skill.slot) + " / " + skillCastTypeName(skill.castType),
-            {columnX, rowY + 17.0f}, 11,
-            unlocked ? sf::Color(190, 205, 220) : sf::Color(105, 112, 122));
         const auto supports = world.skillBar().supportDefinitionsFor(skill);
         std::string summary = skillEffectiveSummary(skill, world.player().stats(), supports);
         const std::string ailment = ailmentSummary(world.effectiveSkillAilment(skill));
         if (!ailment.empty()) {
             summary += "  " + ailment;
         }
-        drawText("     " + truncateText(summary, 48),
-            {columnX, rowY + 32.0f}, 10,
+        drawText("     " + skillSlotName(skill.slot) + " / "
+                + skillCastTypeName(skill.castType) + "  "
+                + truncateText(summary, 25),
+            {columnX, rowY + 16.0f}, 10,
             unlocked ? sf::Color(190, 205, 220) : sf::Color(105, 112, 122));
     }
 
