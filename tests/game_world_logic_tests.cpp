@@ -4044,6 +4044,20 @@ void testCombinationMapEvents() {
     {
         GameWorld world(21012);
         prepareCombinationFixture(world, path, 0, 2, 9, 0);
+        SaveData atlasData;
+        std::string atlasError;
+        expect(world.saveRun(path) && SaveService::load(path, atlasData, &atlasError),
+            "Ironheart Atlas fixture starts from a valid high-tier save");
+        for (int index = 0; index < 12; ++index) {
+            atlasData.completedMapIds.insert(
+                "ironheart-atlas-fixture-" + std::to_string(index)
+            );
+        }
+        atlasData.allocatedAtlasNodes = {9, 10, 11, 12};
+        expect(SaveService::save(path, atlasData, &atlasError)
+                && world.loadRun(path)
+                && world.atlasBonuses().ironheartBossDropBonus == 1,
+            "Ironheart Atlas fixture restores the dedicated drop node");
         const auto eventIt = std::find_if(
             world.map().events().begin(), world.map().events().end(),
             [](const MapEventInstance& event) {
@@ -4116,6 +4130,8 @@ void testCombinationMapEvents() {
             );
             expect(bossDefeated && dedicatedRelicDropped,
                 "Ironheart Warden drops the dedicated Ironheart Bastion relic");
+            expect(world.mapBossItemsDropped() >= 14,
+                "Ironheart Atlas node increases the real Ironheart Boss drop count");
         }
     }
 

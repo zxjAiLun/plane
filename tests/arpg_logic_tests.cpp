@@ -3257,6 +3257,20 @@ void testMapItemsAndAtlas() {
             && atlas.isNodeAllocated(1)
             && atlas.availablePoints() == 1,
         "atlas allows a chained node after another map is completed");
+
+    MapAtlas highTierAtlas;
+    for (int index = 0; index < 12; ++index) {
+        MapItem completion = map;
+        completion.id = map.id + ":ironheart:" + std::to_string(index);
+        highTierAtlas.record(completion);
+    }
+    expect(highTierAtlas.atlasPoints() == 12
+            && highTierAtlas.allocateNode(9)
+            && highTierAtlas.allocateNode(10)
+            && highTierAtlas.allocateNode(11)
+            && highTierAtlas.allocateNode(12)
+            && highTierAtlas.bonuses().ironheartBossDropBonus == 1,
+        "Conqueror's Atlas branch unlocks the Ironheart Trial drop bonus");
     atlas.clear();
     expect(atlas.completedCount() == 0
             && atlas.allocatedNodeCount() == 0

@@ -4558,7 +4558,7 @@ void GameWorld::trySpendAtlasPoint(Input& input) {
     }
 
     int nodeIndex = input.numberChoice() - 1;
-    if (nodeIndex < 0 && input.functionChoice() >= 1 && input.functionChoice() <= 2) {
+    if (nodeIndex < 0 && input.functionChoice() >= 1 && input.functionChoice() <= 3) {
         nodeIndex = 10 + input.functionChoice() - 1;
     }
     if (nodeIndex < 0 || !atlas_.allocateNode(nodeIndex)) {
@@ -5451,7 +5451,10 @@ void GameWorld::rewardEnemyKill(Enemy& enemy) {
     if (enemy.isBoss()) {
         const int guaranteedDrops = bossDefinition_->guaranteedDrops
             + mapModifier_.bossDropBonus
-            + (completedEncounter == nullptr ? 0 : completedEncounter->bossDropBonus);
+            + (completedEncounter == nullptr ? 0 : completedEncounter->bossDropBonus)
+            + (completedEncounter != nullptr
+                    && completedEncounter->type == MapEncounterType::IronheartTrial
+                ? atlas_.bonuses().ironheartBossDropBonus : 0);
         const int scaledGuaranteedDrops = std::max(guaranteedDrops, static_cast<int>(std::ceil(
             static_cast<float>(guaranteedDrops) * player_.stats().itemQuantityMultiplier
         )));
@@ -6221,8 +6224,12 @@ std::string GameWorld::bossRewardSummary() const {
         return "";
     }
 
+    int bossDropBonus = encounter->bossDropBonus;
+    if (encounter->type == MapEncounterType::IronheartTrial) {
+        bossDropBonus += atlas_.bonuses().ironheartBossDropBonus;
+    }
     std::string summary = encounter->name + ": +"
-        + std::to_string(encounter->bossDropBonus) + " Boss Drop";
+        + std::to_string(bossDropBonus) + " Boss Drop";
     const auto appendTag = [&summary](AffixTag tag) {
         if (tag == AffixTag::None) {
             return;

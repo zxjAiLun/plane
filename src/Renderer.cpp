@@ -3459,10 +3459,11 @@ void Renderer::drawMapDevicePanel(const GameWorld& world) {
             "Current bonus: Q+" + std::to_string(multiplierPercent(atlas.itemQuantityMultiplier))
                 + "% R+" + std::to_string(multiplierPercent(atlas.itemRarityMultiplier))
                 + "% Elite+" + std::to_string(atlas.eliteWeightBonus)
-                + " Boss+" + std::to_string(atlas.bossDropBonus), 82),
+                + " Boss+" + std::to_string(atlas.bossDropBonus)
+                + " Ironheart+" + std::to_string(atlas.ironheartBossDropBonus), 82),
             {width / 2.0f, 96.0f}, 11, sf::Color(255, 220, 150)
         );
-        drawCenteredText("1-0 / F1-F2 Allocate   T / M / Esc Close",
+        drawCenteredText("1-0 / F1-F3 Allocate   T / M / Esc Close",
             {width / 2.0f, 114.0f}, 12, sf::Color(160, 170, 185));
 
         const auto& nodes = AtlasPassiveLibrary::all();
@@ -3505,7 +3506,8 @@ void Renderer::drawMapDevicePanel(const GameWorld& world) {
         "Atlas bonus: Q+" + std::to_string(multiplierPercent(atlas.itemQuantityMultiplier))
             + "% R+" + std::to_string(multiplierPercent(atlas.itemRarityMultiplier))
             + "% Elite+" + std::to_string(atlas.eliteWeightBonus)
-            + " Boss+" + std::to_string(atlas.bossDropBonus), 82),
+            + " Boss+" + std::to_string(atlas.bossDropBonus)
+            + " Ironheart+" + std::to_string(atlas.ironheartBossDropBonus), 82),
         {width / 2.0f, 94.0f}, 11, sf::Color(255, 220, 150)
     );
     drawCenteredText("1-0 Select  Tab Cycle  E Enter  M / Esc Close",

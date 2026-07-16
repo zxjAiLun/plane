@@ -9,6 +9,7 @@ struct AtlasPassiveEffect {
     float itemRarityMultiplierBonus = 1.0f;
     int eliteWeightBonus = 0;
     int bossDropBonus = 0;
+    int ironheartBossDropBonus = 0;
 };
 
 enum class AtlasBranch {
@@ -29,7 +30,7 @@ struct AtlasPassiveNode {
 
 class AtlasPassiveLibrary {
 public:
-    static constexpr std::size_t NodeCount = 12;
+    static constexpr std::size_t NodeCount = 13;
 
     static const std::array<AtlasPassiveNode, NodeCount>& all() {
         static const std::array<AtlasPassiveNode, NodeCount> nodes = {{
@@ -56,7 +57,9 @@ public:
             {10, "Conqueror's Claim", "+1 Boss drop", AtlasBranch::Conqueror, 9,
                 {1.0f, 1.0f, 0, 1}},
             {11, "Conqueror's Spoils", "+1 Boss drop", AtlasBranch::Conqueror, 10,
-                {1.0f, 1.0f, 0, 1}}
+                {1.0f, 1.0f, 0, 1}},
+            {12, "Ironheart's Claim", "+1 Ironheart Trial Boss drop",
+                AtlasBranch::Conqueror, 11, {1.0f, 1.0f, 0, 0, 1}}
         }};
         return nodes;
     }

@@ -174,6 +174,7 @@ struct AtlasBonuses {
     float itemRarityMultiplier = 1.0f;
     int eliteWeightBonus = 0;
     int bossDropBonus = 0;
+    int ironheartBossDropBonus = 0;
 };
 
 class MapAtlas {
@@ -207,7 +208,8 @@ public:
             1.0f + static_cast<float>(quantityPoints) * 0.03f,
             1.0f + static_cast<float>(rarityPoints) * 0.02f,
             points / 2,
-            points / 3
+            points / 3,
+            0
         };
         for (const int nodeIndex : allocatedNodes_) {
             const auto* node = AtlasPassiveLibrary::find(nodeIndex);
@@ -218,6 +220,7 @@ public:
             result.itemRarityMultiplier *= node->effect.itemRarityMultiplierBonus;
             result.eliteWeightBonus += node->effect.eliteWeightBonus;
             result.bossDropBonus += node->effect.bossDropBonus;
+            result.ironheartBossDropBonus += node->effect.ironheartBossDropBonus;
         }
         return result;
     }
