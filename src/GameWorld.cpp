@@ -5818,6 +5818,9 @@ std::string GameWorld::passiveBuildSummary() const {
         + " / Survival " + std::to_string(tree.allocatedCount(PassiveBranch::Survival))
         + " / Loot " + std::to_string(tree.allocatedCount(PassiveBranch::Loot))
         + " / Poison " + std::to_string(tree.allocatedCount(PassiveBranch::Poison))
+        + " / Fire " + std::to_string(tree.allocatedCount(PassiveBranch::Fire))
+        + " / Cold " + std::to_string(tree.allocatedCount(PassiveBranch::Cold))
+        + " / Lightning " + std::to_string(tree.allocatedCount(PassiveBranch::Lightning))
         + " / Keystone " + tree.keystoneSummary();
 }
 std::string GameWorld::bossRelicEffectSummary() const {

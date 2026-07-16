@@ -310,6 +310,30 @@ void testPassiveKeystones() {
     expect(skillDamage(SkillLibrary::toxicBurst(), poisonStats, nullptr)
             > skillDamage(SkillLibrary::toxicBurst(), Stats{}, nullptr),
         "Poison branch increases actual Toxic Burst damage");
+
+    PassiveTree elemental;
+    expect(elemental.allocate(25), "allocate Ember Attunement root");
+    expect(elemental.allocate(26), "allocate Glacial Attunement root");
+    expect(elemental.allocate(27), "allocate Storm Attunement root");
+    expect(elemental.nodes()[25].branch == PassiveBranch::Fire
+            && elemental.nodes()[26].branch == PassiveBranch::Cold
+            && elemental.nodes()[27].branch == PassiveBranch::Lightning,
+        "elemental mastery roots use their matching branches");
+    const Stats elementalStats = elemental.combinedStats();
+    expect(elementalStats.fireDamageMultiplier > 1.0f
+            && elementalStats.coldDamageMultiplier > 1.0f
+            && elementalStats.lightningDamageMultiplier > 1.0f
+            && elementalStats.fireResistance == 5
+            && elementalStats.coldResistance == 5
+            && elementalStats.lightningResistance == 5,
+        "elemental mastery roots add damage and matching resistance");
+    expect(skillDamage(SkillLibrary::emberLance(), elementalStats, nullptr)
+            > skillDamage(SkillLibrary::emberLance(), Stats{}, nullptr)
+            && skillDamage(SkillLibrary::glacialShard(), elementalStats, nullptr)
+                > skillDamage(SkillLibrary::glacialShard(), Stats{}, nullptr)
+            && skillDamage(SkillLibrary::stormfield(), elementalStats, nullptr)
+                > skillDamage(SkillLibrary::stormfield(), Stats{}, nullptr),
+        "elemental mastery roots increase matching elemental skills");
 }
 
 // --- Skill bar ---

@@ -401,6 +401,9 @@ sf::Color passiveBranchColor(PassiveBranch branch) {
         case PassiveBranch::Survival: return sf::Color(120, 235, 145);
         case PassiveBranch::Loot: return sf::Color(245, 215, 90);
         case PassiveBranch::Poison: return sf::Color(105, 220, 105);
+        case PassiveBranch::Fire: return sf::Color(255, 115, 65);
+        case PassiveBranch::Cold: return sf::Color(120, 220, 255);
+        case PassiveBranch::Lightning: return sf::Color(190, 150, 255);
     }
     return sf::Color::White;
 }
@@ -422,6 +425,9 @@ std::string passiveBranchName(PassiveBranch branch) {
         case PassiveBranch::Survival: return "Survival";
         case PassiveBranch::Loot: return "Loot";
         case PassiveBranch::Poison: return "Poison";
+        case PassiveBranch::Fire: return "Fire";
+        case PassiveBranch::Cold: return "Cold";
+        case PassiveBranch::Lightning: return "Lightning";
     }
     return "Unknown";
 }
@@ -2545,7 +2551,7 @@ void Renderer::drawPassiveTree(const GameWorld& world) {
     drawBox({center.x, center.y}, {760.0f, 520.0f}, sf::Color(22, 28, 36));
     drawCenteredText("Passive Tree", {center.x, center.y - 238.0f}, 24, sf::Color::White);
     drawCenteredText("SP " + std::to_string(world.player().talentPoints())
-        + "  |  Left click node  |  1-0/F1-F15 allocate  |  P close",
+        + "  |  Left click node  |  1-0/F1-F15 or mouse allocate  |  P close",
         {center.x, center.y - 210.0f}, 14, sf::Color(210, 230, 255));
 
     const auto& nodes = world.player().passiveTree().nodes();

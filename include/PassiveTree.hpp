@@ -12,7 +12,10 @@ enum class PassiveBranch {
     Area,
     Survival,
     Loot,
-    Poison
+    Poison,
+    Fire,
+    Cold,
+    Lightning
 };
 
 enum class PassiveNodeSize {
@@ -54,7 +57,8 @@ struct PassiveNode {
 class PassiveTree {
 public:
     static constexpr std::size_t LegacyNodeCount = 20;
-    static constexpr std::size_t NodeCount = 25;
+    static constexpr std::size_t PreviousNodeCount = 25;
+    static constexpr std::size_t NodeCount = 28;
 
     PassiveTree() {
         // Projectile branch (0-4)
@@ -91,6 +95,11 @@ public:
         nodes_[22] = {"Antidote Veins", "+12% Poison resistance", poisonStats(1.0f, 12), 21, false, {200.0f, 0.0f}, PassiveBranch::Poison, PassiveNodeSize::Small};
         nodes_[23] = {"Lingering Rot", "+12% Poison damage", poisonStats(1.12f), 22, false, {260.0f, 0.0f}, PassiveBranch::Poison, PassiveNodeSize::Small};
         nodes_[24] = {"Toxic Bloom", "+30% Poison damage and +10% Poison resistance", poisonStats(1.30f, 10), 23, false, {318.0f, 0.0f}, PassiveBranch::Poison, PassiveNodeSize::Notable};
+
+        // Keep the existing Poison route stable and add independent elemental roots.
+        nodes_[25] = {"Ember Attunement", "+18% Fire damage, +5 Fire resistance", fireStats(1.18f, 5), -1, false, {0.0f, -196.0f}, PassiveBranch::Fire, PassiveNodeSize::Notable};
+        nodes_[26] = {"Glacial Attunement", "+18% Cold damage, +5 Cold resistance", coldStats(1.18f, 5), -1, false, {0.0f, 196.0f}, PassiveBranch::Cold, PassiveNodeSize::Notable};
+        nodes_[27] = {"Storm Attunement", "+18% Lightning damage, +5 Lightning resistance", lightningStats(1.18f, 5), -1, false, {-70.0f, 0.0f}, PassiveBranch::Lightning, PassiveNodeSize::Notable};
     }
 
     bool allocate(std::size_t index) {
@@ -226,6 +235,27 @@ private:
         Stats stats;
         stats.poisonDamageMultiplier = poisonDamageMultiplier;
         stats.poisonResistance = poisonResistance;
+        return stats;
+    }
+
+    static Stats fireStats(float damageMultiplier, int resistance) {
+        Stats stats;
+        stats.fireDamageMultiplier = damageMultiplier;
+        stats.fireResistance = resistance;
+        return stats;
+    }
+
+    static Stats coldStats(float damageMultiplier, int resistance) {
+        Stats stats;
+        stats.coldDamageMultiplier = damageMultiplier;
+        stats.coldResistance = resistance;
+        return stats;
+    }
+
+    static Stats lightningStats(float damageMultiplier, int resistance) {
+        Stats stats;
+        stats.lightningDamageMultiplier = damageMultiplier;
+        stats.lightningResistance = resistance;
         return stats;
     }
 
