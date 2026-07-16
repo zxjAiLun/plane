@@ -1830,6 +1830,20 @@ void testLootGeneration() {
                 > ironheart.implicitStats.bleedDamageMultiplier,
         "Ironheart Bastion carries defensive and Physical Bleed stats");
 
+    const Item stormglass = gen.generateBossReward(9, BossLootTheme::Storm, 2);
+    const auto* stormglassBase = ItemBaseLibrary::find(stormglass.baseId);
+    expect(stormglass.rarity == Rarity::Unique
+            && stormglass.name == "Stormglass Lens"
+            && stormglass.slot == EquipmentSlot::Amulet
+            && stormglassBase != nullptr
+            && stormglassBase->variant == 2,
+        "Stormglass Boss relic generates its dedicated Amulet chase item");
+    expect(stormglass.stats.lightningDamageMultiplier
+                > stormglass.implicitStats.lightningDamageMultiplier
+            && stormglass.stats.projectileDamageMultiplier
+                > stormglass.implicitStats.projectileDamageMultiplier,
+        "Stormglass Lens carries Lightning and Projectile stats");
+
     expect(LootGenerator::rarityForRoll(1, 20) == Rarity::Magic,
         "low-level rarity roll 20 is Magic");
     expect(LootGenerator::rarityForRoll(5, 20) == Rarity::Rare,
@@ -2200,6 +2214,7 @@ void testBossRelicEffects() {
     const auto* blackglassHeartBase = ItemBaseLibrary::find("boss.blackglass-heart");
     const auto* hemorrhageSignetBase = ItemBaseLibrary::find("boss.hemorrhage-signet");
     const auto* ironheartBastionBase = ItemBaseLibrary::find("boss.ironheart-bastion");
+    const auto* stormglassLensBase = ItemBaseLibrary::find("boss.stormglass-lens");
     const auto& ashen = ashenBase == nullptr
         ? none : BossRelicEffectLibrary::forBase(*ashenBase);
     const auto& tempest = tempestBase == nullptr
@@ -2216,6 +2231,8 @@ void testBossRelicEffects() {
         ? none : BossRelicEffectLibrary::forBase(*hemorrhageSignetBase);
     const auto& ironheartBastion = ironheartBastionBase == nullptr
         ? none : BossRelicEffectLibrary::forBase(*ironheartBastionBase);
+    const auto& stormglassLens = stormglassLensBase == nullptr
+        ? none : BossRelicEffectLibrary::forBase(*stormglassLensBase);
     expect(ashenBase != nullptr
             && ashen.name == "Ashen Bloom"
             && ashen.igniteDamageMultiplier > molten.igniteDamageMultiplier,
@@ -2259,6 +2276,14 @@ void testBossRelicEffects() {
             && ironheartBastion.bleedBurstDamageMultiplier
                 > bloodletting.bleedBurstDamageMultiplier,
         "Ironheart Bastion selects a tighter, harder Bleed verdict effect");
+    expect(stormglassLensBase != nullptr
+            && stormglassLens.name == "Stormglass Circuit"
+            && stormglassLens.type == BossRelicEffectType::StormglassCircuit
+            && stormglassLens.lightningChainCount > storm.lightningChainCount
+            && stormglassLens.lightningChainRadius > storm.lightningChainRadius
+            && stormglassLens.lightningChainDamageMultiplier
+                < storm.lightningChainDamageMultiplier,
+        "Stormglass Lens selects a wider, denser Lightning chain effect");
     expect(none.type == BossRelicEffectType::None && none.name.empty(),
         "non-relic themes have no Boss relic effect");
 }
@@ -2913,6 +2938,37 @@ void testBossSummonDefinitions() {
             "Ironheart Warden final phase seals the arena with a Bleed ring");
     }
 
+    const auto stormglassIt = std::find_if(
+        bosses.begin(), bosses.end(),
+        [](const BossDefinition& boss) {
+            return boss.name == "Stormglass Herald";
+        }
+    );
+    expect(stormglassIt != bosses.end()
+            && stormglassIt->lootTheme == BossLootTheme::Storm
+            && stormglassIt->lightningResistance == 75
+            && stormglassIt->shockResistance == 75
+            && stormglassIt->guaranteedDrops == 3
+            && stormglassIt->relicVariant == 2,
+        "Stormglass Herald defines the high-tier Lightning boss profile");
+    if (stormglassIt != bosses.end()) {
+        const auto summonIt = std::find_if(
+            stormglassIt->skills.begin(), stormglassIt->skills.end(),
+            [](const BossSkillDefinition& skill) {
+                return skill.name == "Call Glassbound";
+            }
+        );
+        expect(summonIt != stormglassIt->skills.end()
+                && summonIt->summonType == EnemyType::Warden
+                && summonIt->summonCount == 2,
+            "Stormglass Herald summons Glassbound Wardens in its normal pattern");
+        expect(stormglassIt->finalPhase.recurringHazard.pattern
+                == BossPhaseHazardPattern::Cross
+                && stormglassIt->finalPhase.recurringHazard.hazard.ailment.type
+                    == AilmentType::Shock,
+            "Stormglass Herald final phase creates a Cross Shock hazard");
+    }
+
     expect(availableBossSummonCount(4, 0, 10) == 4,
         "summon count is unchanged below the population cap");
     expect(availableBossSummonCount(4, 8, 10) == 2,
@@ -2976,7 +3032,7 @@ void testGroundHazardLifecycle() {
             configuredHazards += skill.groundHazard.isValid() ? 1 : 0;
         }
     }
-    expect(configuredHazards == 8,
+    expect(configuredHazards == 9,
         "Boss skills define the current ground hazard set");
 }
 
@@ -3448,8 +3504,15 @@ void testMapEncounterDefinitions() {
             return encounter.type == MapEncounterType::IronheartTrial;
         }
     );
-    expect(encounters.size() == 13,
-        "map encounter library contains thirteen data-driven encounter definitions");
+    const auto stormglassIt = std::find_if(
+        encounters.begin(),
+        encounters.end(),
+        [](const MapEncounterDefinition& encounter) {
+            return encounter.type == MapEncounterType::StormglassGauntlet;
+        }
+    );
+    expect(encounters.size() == 14,
+        "map encounter library contains fourteen data-driven encounter definitions");
     expect(std::all_of(
                 encounters.begin(), encounters.end(),
                 [](const MapEncounterDefinition& encounter) {
@@ -3594,6 +3657,21 @@ void testMapEncounterDefinitions() {
             && ironheartIt->bossDropBonus == 3
             && ironheartIt->bossDefinitionIndex == 9,
         "Ironheart Trial defines its high-tier Physical/Bleed encounter data");
+    expect(stormglassIt != encounters.end()
+            && stormglassIt->eliteCount == 2
+            && stormglassIt->normalCount == 3
+            && stormglassIt->primaryEnemyType == EnemyType::Ranged
+            && stormglassIt->secondaryEnemyType == EnemyType::Warden
+            && stormglassIt->completionDropCount == 5
+            && stormglassIt->rewardLootBias.primaryTag == AffixTag::Lightning
+            && stormglassIt->rewardLootBias.secondaryTag == AffixTag::Projectile
+            && stormglassIt->hazard.damageType == DamageType::Lightning
+            && stormglassIt->hazard.ailment.type == AilmentType::Shock
+            && stormglassIt->leaderSkill.isValid()
+            && stormglassIt->leaderSkill.ailment.type == AilmentType::Shock
+            && stormglassIt->bossDropBonus == 3
+            && stormglassIt->bossDefinitionIndex == 10,
+        "Stormglass Gauntlet defines its high-tier Lightning/Projectile encounter data");
 }
 
 // --- Map layout variants ---
@@ -3699,6 +3777,10 @@ void testMapLayoutVariants() {
             == MapEncounterType::IronheartTrial
             && MapInstance(9, 0, 2).encounterDefinition().bossDefinitionIndex == 9,
         "high-tier Ashen Causeway variant exposes the Ironheart Trial encounter");
+    expect(MapInstance(9, 1, 2).encounterDefinition().type
+            == MapEncounterType::StormglassGauntlet
+            && MapInstance(9, 1, 2).encounterDefinition().bossDefinitionIndex == 10,
+        "high-tier Stormscar Expanse variant exposes the Stormglass Gauntlet encounter");
     expect(MapTemplateLibrary::forIndex(0).ambientEffect.isValid()
             && MapTemplateLibrary::forIndex(0).ambientEffect.hazard.damageType == DamageType::Fire
             && MapTemplateLibrary::forIndex(1).ambientEffect.hazard.damageType == DamageType::Lightning

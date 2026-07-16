@@ -4135,6 +4135,88 @@ void testCombinationMapEvents() {
         }
     }
 
+    {
+        GameWorld world(21013);
+        prepareCombinationFixture(world, path, 1, 2, 9, 0);
+        const auto eventIt = std::find_if(
+            world.map().events().begin(), world.map().events().end(),
+            [](const MapEventInstance& event) {
+                return event.type == MapEventType::Combination
+                    && event.encounterType == MapEncounterType::StormglassGauntlet;
+            }
+        );
+        expect(eventIt != world.map().events().end(),
+            "map level nine exposes the Stormglass Gauntlet encounter");
+        if (eventIt != world.map().events().end()) {
+            const std::size_t eventIndex = static_cast<std::size_t>(
+                std::distance(world.map().events().begin(), eventIt)
+            );
+            const Vector2 position = eventIt->position;
+            Input input;
+            const bool reachedEvent = moveToMapEvent(world, input, {800.0f, 850.0f})
+                && moveToMapEvent(world, input, position);
+            expect(reachedEvent,
+                "player can reach the Stormglass Gauntlet encounter");
+            const auto ownedEnemyCount = [&](EnemyType type) {
+                return std::count_if(
+                    world.enemies().begin(), world.enemies().end(),
+                    [eventIndex, type](const Enemy& enemy) {
+                        return enemy.mapEventIndex() == static_cast<int>(eventIndex)
+                            && enemy.type() == type;
+                    }
+                );
+            };
+            const auto stormglassHazard = std::find_if(
+                world.groundHazards().begin(), world.groundHazards().end(),
+                [](const GroundHazard& hazard) {
+                    return hazard.definition().source == "Stormglass Field";
+                }
+            );
+            expect(world.activeEliteEventEnemiesRemaining() == 5
+                    && ownedEnemyCount(EnemyType::Ranged) == 2
+                    && ownedEnemyCount(EnemyType::Warden) == 3
+                    && stormglassHazard != world.groundHazards().end(),
+                "Stormglass Gauntlet spawns its Lightning pack and field hazard");
+
+            for (int cast = 0; cast < 10
+                && world.activeEliteEventEnemiesRemaining() > 0; ++cast) {
+                const Vector2 camera = world.cameraTopLeft();
+                input.handleMousePressed(
+                    sf::Mouse::Button::Right,
+                    {static_cast<int>(std::lround(position.x - camera.x)),
+                     static_cast<int>(std::lround(position.y - camera.y))}
+                );
+                world.update(0.05f, input);
+                resolvePendingSkillEffects(world, input);
+                for (int frame = 0; frame < 35; ++frame) {
+                    world.update(0.05f, input);
+                }
+            }
+            expect(world.activeEliteEventEnemiesRemaining() == 0
+                    && world.mapEventsCompleted() == 1,
+                "Stormglass Gauntlet completes after its owned enemies die");
+
+            Input bossInput;
+            // Route around the central prism obstacle in Stormscar variant 2.
+            const bool reachedBoss = moveToMapEvent(world, bossInput, {1100.0f, 700.0f})
+                && moveToBoss(world, bossInput);
+            expect(reachedBoss,
+                "Stormglass Gauntlet reaches its Boss arena");
+            expect(world.bossDefinition().name == "Stormglass Herald"
+                    && world.bossDefinition().relicVariant == 2,
+                "Stormglass Gauntlet routes to the Stormglass Herald Boss");
+            const bool bossDefeated = defeatBossWithAreaSkill(world, bossInput);
+            const bool dedicatedRelicDropped = std::any_of(
+                world.droppedItems().begin(), world.droppedItems().end(),
+                [](const DroppedItem& dropped) {
+                    return dropped.item().baseId == "boss.stormglass-lens";
+                }
+            );
+            expect(bossDefeated && dedicatedRelicDropped,
+                "Stormglass Herald drops the dedicated Stormglass Lens relic");
+        }
+    }
+
     std::filesystem::remove(path);
 }
 

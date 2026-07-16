@@ -929,6 +929,128 @@ private:
         return definition;
     }
 
+    static BossDefinition stormglassBoss() {
+        const AilmentDefinition shock{
+            AilmentType::Shock, 2.2f, 0.0f, 1.0f, 0, 0, 1.18f, 0, 0
+        };
+        BossSkillDefinition prismCrash = elementalSkill({
+            BossSkillType::CircularAoe,
+            "Prism Crash",
+            164.0f,
+            4,
+            0.55f,
+            0.25f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Normal,
+            0,
+            {"Prism Field", 142.0f, 6.0f, 0.65f, 5,
+                DamageType::Lightning, shock}
+        }, DamageType::Lightning, shock);
+        BossSkillDefinition shardFan = elementalSkill({
+            BossSkillType::Projectile,
+            "Shard Fan",
+            Config::BossProjectileRadius,
+            3,
+            0.0f,
+            0.0f,
+            520.0f,
+            7,
+            50.0f
+        }, DamageType::Lightning, shock);
+        BossSkillDefinition glassboundCall = elementalSkill({
+            BossSkillType::SummonAdds,
+            "Call Glassbound",
+            132.0f,
+            0,
+            0.65f,
+            0.25f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Warden,
+            2
+        }, DamageType::Lightning, shock);
+        BossSkillDefinition phaseShift = elementalSkill({
+            BossSkillType::Dash,
+            "Phase Shift",
+            58.0f,
+            4,
+            0.45f,
+            0.30f,
+            0.0f,
+            1,
+            0.0f,
+            EnemyType::Normal,
+            0,
+            {},
+            {410.0f, 740.0f}
+        }, DamageType::Lightning, shock);
+
+        BossDefinition definition;
+        definition.name = "Stormglass Herald";
+        definition.theme = "Lightning, mirrored shards and unstable space";
+        definition.lootTheme = BossLootTheme::Storm;
+        definition.lootRewardDescription =
+            "Unique relic: the Stormglass Lens chains Shock through crowded packs";
+        definition.hpMultiplier = 36.0f;
+        definition.damageBonus = 4;
+        definition.dropMultiplier = 5.0f;
+        definition.skillInterval = 1.50f;
+        definition.guaranteedDrops = 3;
+        definition.enrageHealthRatio = 0.50f;
+        definition.enragedSkillIntervalMultiplier = 0.55f;
+        definition.enragedDamageMultiplier = 1.28f;
+        definition.patternDescription =
+            "Prism fields and shard fans force movement through intersecting lanes";
+        definition.enragedPatternDescription =
+            "Glassbound Wardens stabilize the storm while every Shock compounds";
+        definition.skills = {prismCrash, shardFan, glassboundCall, phaseShift};
+        definition.normalSkillOrder = {0, 1, 3, 2, 0};
+        definition.enragedSkillOrder = {1, 0, 2, 3, 1};
+        definition.igniteResistance = 25;
+        definition.chillResistance = 25;
+        definition.lightningResistance = 75;
+        definition.fireResistance = 25;
+        definition.coldResistance = 25;
+        definition.shockResistance = 75;
+        definition.poisonResistance = 25;
+        definition.bleedResistance = 25;
+        definition.physicalResistance = 25;
+        definition.relicVariant = 2;
+        definition.enrageTransitionDescription =
+            "The prism fractures: Glassbound Wardens lock the firing lanes";
+        definition.enrageSummonType = EnemyType::Warden;
+        definition.enrageSummonCount = 2;
+        definition.enrageHazard = elementalHazard(
+            {"Fractured Sky", 176.0f, 9.0f, 0.60f, 9},
+            DamageType::Lightning,
+            shock
+        );
+        definition.finalPhase = {
+            0.20f,
+            0.43f,
+            1.45f,
+            "The storm opens: shards, fields and phase shifts overlap",
+            "The Herald breaks the lens for one final cascade",
+            {0, 3, 1, 2, 0},
+            EnemyType::Warden,
+            3,
+            {"Final Prism", 190.0f, 10.0f, 0.55f, 11,
+                DamageType::Lightning, shock}
+        };
+        definition.finalPhase.recurringHazard = {
+            2.9f,
+            0.50f,
+            {"Stormglass Cross", 104.0f, 5.0f, 0.55f, 7,
+                DamageType::Lightning, shock},
+            BossPhaseHazardPattern::Cross,
+            182.0f
+        };
+        return definition;
+    }
+
     static std::vector<BossDefinition> buildBosses() {
         auto bosses = std::vector<BossDefinition>{
             {
@@ -1133,7 +1255,8 @@ private:
             aetherBoss(),
             sableBoss(),
             bloodlettingBoss(),
-            ironheartBoss()
+            ironheartBoss(),
+            stormglassBoss()
         };
 
         bosses[0].bleedResistance = 25;

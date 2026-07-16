@@ -48,7 +48,8 @@ enum class MapEncounterType {
     AetherConvergence,
     NecroticOssuary,
     BloodlettingPit,
-    IronheartTrial
+    IronheartTrial,
+    StormglassGauntlet
 };
 
 struct MapEncounterSkillDefinition {
@@ -98,8 +99,8 @@ struct MapEncounterDefinition {
 
 class MapEncounterLibrary {
 public:
-    static const std::array<MapEncounterDefinition, 13>& all() {
-        static const std::array<MapEncounterDefinition, 13> definitions = {{
+    static const std::array<MapEncounterDefinition, 14>& all() {
+        static const std::array<MapEncounterDefinition, 14> definitions = {{
             {
                 MapEncounterType::EnhancedCache,
                 "enhanced-cache",
@@ -462,6 +463,46 @@ public:
                 },
                 3,
                 9
+            },
+            {
+                MapEncounterType::StormglassGauntlet,
+                "stormglass-gauntlet",
+                "Stormglass Gauntlet",
+                "Cross the mirrored firing lanes while Glassbound Wardens turn Shock into chain damage",
+                150.0f,
+                0,
+                2,
+                3,
+                2.05f,
+                {"Stormglass Field", 152.0f, 8.0f, 0.60f, 3,
+                    DamageType::Lightning,
+                    {AilmentType::Shock, 2.5f, 0.0f, 1.15f},
+                    GroundHazardTarget::Player},
+                false,
+                5,
+                EnemyType::Ranged,
+                EnemyType::Warden,
+                {AffixTag::Lightning, 2.15f, AffixTag::Projectile, 1.55f},
+                6,
+                true,
+                DamageType::Lightning,
+                {AilmentType::Shock, 2.5f, 0.0f, 1.15f},
+                {
+                    "Prism Verdict",
+                    "The Glassbound leader marks the player before a Shock burst crosses the lane",
+                    3.6f,
+                    0.60f,
+                    128.0f,
+                    6,
+                    DamageType::Lightning,
+                    {AilmentType::Shock, 2.5f, 0.0f, 1.15f},
+                    {"Prism Scar", 112.0f, 3.0f, 0.60f, 4,
+                        DamageType::Lightning,
+                        {AilmentType::Shock, 2.5f, 0.0f, 1.15f},
+                        GroundHazardTarget::Player}
+                },
+                3,
+                10
             }
         }};
         return definitions;
@@ -509,6 +550,10 @@ public:
             return forType(mapLevel >= 9
                 ? MapEncounterType::IronheartTrial
                 : MapEncounterType::BloodlettingPit);
+        }
+
+        if (normalizedTemplate == 1 && mapLevel >= 9 && layoutIndex == 2) {
+            return forType(MapEncounterType::StormglassGauntlet);
         }
 
         constexpr int LegacyEncounterCount = 6;

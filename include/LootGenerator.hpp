@@ -88,7 +88,8 @@ public:
         int variant = 0
     ) const {
         const int tier = tierForLevel(monsterLevel);
-        const int maxVariant = theme == BossLootTheme::Bloodletting ? 2 : 1;
+        const int maxVariant = (theme == BossLootTheme::Bloodletting
+                || theme == BossLootTheme::Storm) ? 2 : 1;
         const int normalizedVariant = std::clamp(variant, 0, maxVariant);
         Item item;
         item.itemLevel = monsterLevel;
@@ -144,7 +145,7 @@ public:
                         projectileDamageContribution(relativeMultiplier(
                             1.0f + std::array<float, 3>{0.08f, 0.12f, 0.16f}[tier],
                             item.implicitStats.projectileDamageMultiplier)), {AffixTag::Projectile, AffixTag::Damage});
-                } else {
+                } else if (normalizedVariant == 1) {
                     item.name = "Tempest Bow";
                     addBossAffix(item, "Tempest cadence", tier + 1,
                         attackSpeedContribution(relativeMultiplier(
@@ -158,6 +159,20 @@ public:
                         projectileDamageContribution(relativeMultiplier(
                             1.0f + std::array<float, 3>{0.10f, 0.16f, 0.22f}[tier],
                             item.implicitStats.projectileDamageMultiplier)), {AffixTag::Projectile, AffixTag::Damage});
+                } else {
+                    item.name = "Stormglass Lens";
+                    addBossAffix(item, "Prismatic cadence", tier + 1,
+                        attackSpeedContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.07f, 0.11f, 0.15f}[tier],
+                            item.implicitStats.attackSpeedMultiplier)), {AffixTag::AttackSpeed});
+                    addBossAffix(item, "Mirrored current", tier + 1,
+                        lightningDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.12f, 0.18f, 0.24f}[tier],
+                            item.implicitStats.lightningDamageMultiplier)), {AffixTag::Lightning, AffixTag::Damage});
+                    addBossAffix(item, "Glass volleys", tier + 1,
+                        projectileDamageContribution(relativeMultiplier(
+                            1.0f + std::array<float, 3>{0.12f, 0.19f, 0.26f}[tier],
+                            item.implicitStats.projectileDamageMultiplier)), {AffixTag::Lightning, AffixTag::Projectile});
                 }
                 break;
 

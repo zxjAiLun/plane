@@ -3788,6 +3788,7 @@ void GameWorld::updateMapEvents(float /*dt*/, Input& input) {
                     case MapEncounterType::AetherConvergence:
                     case MapEncounterType::BloodlettingPit:
                     case MapEncounterType::IronheartTrial:
+                    case MapEncounterType::StormglassGauntlet:
                     case MapEncounterType::NecroticOssuary:
                         if (!event.triggered
                             && activeMapEventIndex_ >= 0
@@ -3943,6 +3944,7 @@ void GameWorld::triggerCombinationEvent(std::size_t eventIndex) {
         case MapEncounterType::AetherConvergence:
         case MapEncounterType::BloodlettingPit:
         case MapEncounterType::IronheartTrial:
+        case MapEncounterType::StormglassGauntlet:
         case MapEncounterType::NecroticOssuary:
             activeMapEventIndex_ = static_cast<int>(eventIndex);
             mapEventEnemiesRemaining_ = encounter.eliteCount + encounter.normalCount;

@@ -15,7 +15,8 @@ enum class BossRelicEffectType {
     AetherReserve,
     SableRot,
     BloodPrice,
-    IronheartVerdict
+    IronheartVerdict,
+    StormglassCircuit
 };
 
 struct BossRelicEffectDefinition {
@@ -304,6 +305,22 @@ public:
                 0.75f
             };
             return ironheartVerdict;
+        }
+
+        if (base.variant == 2
+            && base.theme == ItemBaseTheme::Storm) {
+            static const BossRelicEffectDefinition stormglassCircuit{
+                ItemBaseTheme::Storm,
+                BossRelicEffectType::StormglassCircuit,
+                "Stormglass Circuit",
+                "Lightning hits arc to 4 nearby enemies for 55% damage",
+                1.0f,
+                1.0f,
+                4,
+                220.0f,
+                0.55f
+            };
+            return stormglassCircuit;
         }
 
         return forTheme(base.theme);
