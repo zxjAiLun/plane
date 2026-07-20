@@ -416,8 +416,15 @@ inline int skillSummonDamage(
 
     SkillDefinition damageSkill = skill;
     damageSkill.baseDamage = skill.summonDamage;
+    // Summon Wisp uses an area cast type only to occupy the Utility slot. Its
+    // minions are not area hits, so Projectile/Area specialization must not
+    // leak into their attack damage.
+    Stats summonStats = stats;
+    summonStats.projectileDamageMultiplier = 1.0f;
+    summonStats.areaDamageMultiplier = 1.0f;
+    summonStats.areaRadiusMultiplier = 1.0f;
     float damage = static_cast<float>(skillDamage(
-        damageSkill, stats, supports, shrineMultiplier
+        damageSkill, summonStats, supports, shrineMultiplier
     ));
     for (const auto* support : supports) {
         if (support != nullptr) {

@@ -1119,6 +1119,11 @@ void testSummonSkillMathAndLifecycle() {
         "Minion Mastery multiplies Wisp duration");
     expect(skillSummonDamage(summon, Stats{}, supports) == 5,
         "minion damage applies the support multiplier without mutating Stats");
+    Stats areaSpecialized;
+    areaSpecialized.areaDamageMultiplier = 2.0f;
+    expect(skillSummonDamage(summon, areaSpecialized, supports)
+            == skillSummonDamage(summon, Stats{}, supports),
+        "Area specialization does not leak into minion attack damage");
     expect(skillSummonMaxHp(summon, supports) == 38,
         "Minion Mastery scales Wisp maximum HP");
     expect(std::abs(skillSummonAttackInterval(summon, supports) - 1.14f) < 0.0001f,
