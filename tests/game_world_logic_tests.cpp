@@ -1515,6 +1515,24 @@ void testPlayerMinionWorldFlow() {
             ),
         "Summon Emberling creates a distinct supported Fire minion pair");
 
+    data.unlockedSkills.insert("Summon Stoneguard");
+    data.skillLevels["Summon Stoneguard"] = 1;
+    data.unlockedSupports.insert("Minion Fortification");
+    data.supportLevels["Minion Fortification"] = 1;
+    data.skillBar.skills[utilityIndex] = "Summon Stoneguard";
+    data.skillBar.supports[utilityIndex] = {"Minion Fortification", ""};
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Player minion fixture can switch to the unlocked Stoneguard skill");
+    Input stoneguardInput;
+    stoneguardInput.handleKeyPressed(sf::Keyboard::Key::Q);
+    world.update(0.05f, stoneguardInput);
+    stoneguardInput.handleKeyReleased(sf::Keyboard::Key::Q);
+    expect(world.playerMinions().size() == 1
+            && world.playerMinions().front().name() == "Stoneguard"
+            && world.playerMinions().front().damageType() == DamageType::Physical
+            && world.playerMinions().front().maxHp() == 171,
+        "Minion Fortification creates one durable Stoneguard through the real world path");
+
     std::filesystem::remove(path);
 }
 

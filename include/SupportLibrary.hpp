@@ -30,7 +30,8 @@ enum class SupportKind {
     Rupture,
     GlacialLock,
     ShatteringIce,
-    MinionMastery
+    MinionMastery,
+    MinionFortification
 };
 
 struct SupportDefinition {
@@ -277,6 +278,16 @@ public:
             }(),
             [] {
                 SupportDefinition support;
+                support.kind = SupportKind::MinionFortification;
+                support.name = "Minion Fortification";
+                support.description = "+55% minion HP, -20% minion damage, +25% attack interval";
+                support.damageMultiplier = 0.80f;
+                support.summonHpMultiplier = 1.55f;
+                support.summonAttackIntervalMultiplier = 1.25f;
+                return support;
+            }(),
+            [] {
+                SupportDefinition support;
                 support.kind = SupportKind::Bloodletting;
                 support.name = "Bloodletting";
                 support.description = "+70% Bleed damage, +25% duration, +20% Bleed and Physical penetration, -15% hit damage";
@@ -337,6 +348,8 @@ public:
             case SupportKind::ShatteringIce:
                 return skill.ailment.type == AilmentType::Chill;
             case SupportKind::MinionMastery:
+                return skill.summonCount > 0;
+            case SupportKind::MinionFortification:
                 return skill.summonCount > 0;
             case SupportKind::Toxicity:
                 return skill.ailment.type == AilmentType::Poison;

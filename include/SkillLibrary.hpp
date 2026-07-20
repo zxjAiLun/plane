@@ -298,6 +298,31 @@ public:
         return skill;
     }
 
+    static SkillDefinition summonStoneguard() {
+        SkillDefinition skill = {
+            SkillSlot::Utility,
+            SkillCastType::SelfCenteredArea,
+            "Summon Stoneguard",
+            13.0f,
+            0.0f,
+            4,
+            24.0f,
+            1,
+            0.0f,
+            {},
+            15.0f
+        };
+        skill.damageType = DamageType::Physical;
+        skill.summonCount = 1;
+        skill.summonDuration = 24.0f;
+        skill.summonDamage = 4;
+        skill.summonMaxHp = 110;
+        skill.summonAttackInterval = 1.55f;
+        skill.summonAttackRange = 48.0f;
+        skill.summonName = "Stoneguard";
+        return skill;
+    }
+
     static SkillDefinition aftershock() {
         SkillDefinition skill = {
             SkillSlot::Utility,
@@ -548,7 +573,8 @@ private:
             manaWard(),
             rendingVolley(),
             crimsonSweep(),
-            summonEmberling()
+            summonEmberling(),
+            summonStoneguard()
         };
     }
 };

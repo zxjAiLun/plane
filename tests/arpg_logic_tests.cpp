@@ -518,7 +518,7 @@ void testManaResourceAndSkillCastGates() {
         "resource Stats combine multiplicatively");
 
     const auto& skills = SkillLibrary::all();
-    expect(skills.size() == 24, "skill library exposes the complete build skill set");
+    expect(skills.size() == 25, "skill library exposes the complete build skill set");
     const auto& primary = SkillLibrary::spreadShot();
     const auto& secondary = SkillLibrary::meteor();
     const auto& utility = SkillLibrary::pulse();
@@ -1105,6 +1105,7 @@ void testSummonSkillMathAndLifecycle() {
             && summon.damageType == DamageType::Lightning,
         "Summon Wisp exposes its data-driven Utility summon payload");
     const SkillDefinition emberling = SkillLibrary::summonEmberling();
+    const SkillDefinition stoneguard = SkillLibrary::summonStoneguard();
     expect(emberling.slot == SkillSlot::Utility
             && emberling.summonName == "Emberling"
             && emberling.damageType == DamageType::Fire
@@ -1112,6 +1113,13 @@ void testSummonSkillMathAndLifecycle() {
             && emberling.summonAttackRange < summon.summonAttackRange
             && emberling.summonMaxHp > summon.summonMaxHp,
         "Summon Emberling exposes a distinct melee Fire summon payload");
+    expect(stoneguard.slot == SkillSlot::Utility
+            && stoneguard.summonName == "Stoneguard"
+            && stoneguard.damageType == DamageType::Physical
+            && stoneguard.summonCount == 1
+            && stoneguard.summonMaxHp > emberling.summonMaxHp
+            && stoneguard.summonAttackInterval > emberling.summonAttackInterval,
+        "Summon Stoneguard exposes a high-health slow Physical summon payload");
     expect(mastery != nullptr
             && SupportLibrary::supportsSkill(*mastery, summon)
             && SupportLibrary::supportsSkill(*mastery, emberling)
@@ -1122,6 +1130,11 @@ void testSummonSkillMathAndLifecycle() {
     }
 
     const SupportList supports{mastery, nullptr};
+    const auto* fortification = SupportLibrary::find("Minion Fortification");
+    expect(fortification != nullptr
+            && SupportLibrary::supportsSkill(*fortification, stoneguard)
+            && !SupportLibrary::supportsSkill(*fortification, SkillLibrary::pulse()),
+        "Minion Fortification is restricted to summon skills");
     expect(skillSummonCount(summon, supports) == 3,
         "Minion Mastery adds one Wisp to the summon count");
     expect(std::abs(skillSummonDuration(summon, supports) - 22.5f) < 0.0001f,
@@ -1142,6 +1155,15 @@ void testSummonSkillMathAndLifecycle() {
             && skillSummonMaxHp(emberling, supports) == 98
             && std::abs(skillSummonAttackInterval(emberling, supports) - 1.50f) < 0.0001f,
         "Minion Mastery scales Emberling count, damage, survivability and attack interval");
+    if (fortification != nullptr) {
+        const SupportList fortificationSupports{fortification, nullptr};
+        expect(skillSummonDamage(stoneguard, Stats{}, fortificationSupports) == 4
+                && skillSummonMaxHp(stoneguard, fortificationSupports) == 171
+                && std::abs(skillSummonAttackInterval(
+                    stoneguard, fortificationSupports
+                ) - 1.9375f) < 0.0001f,
+            "Minion Fortification trades Stoneguard damage for health and endurance");
+    }
 
     const SkillDefinition leveledSummon = SkillProgression::skillAtLevel(summon, 3);
     expect(leveledSummon.summonDamage > summon.summonDamage
@@ -4465,6 +4487,26 @@ void testMapRewardGeneration() {
                 return option.skillName == aftershockName;
             }),
         "new skills remain eligible for map unlock rewards");
+
+    std::set<std::string> allSkillsExceptStoneguard = allSkills;
+    allSkillsExceptStoneguard.erase(SkillLibrary::summonStoneguard().name);
+    std::set<std::string> allSupportsExceptFortification = allSupports;
+    allSupportsExceptFortification.erase("Minion Fortification");
+    RandomService minionRewardRandom(103);
+    const auto minionRewards = MapRewardLibrary::generateOptions(
+        allSkillsExceptStoneguard,
+        allSupportsExceptFortification,
+        minionRewardRandom
+    );
+    expect(std::any_of(minionRewards.begin(), minionRewards.end(),
+            [](const MapRewardDefinition& option) {
+                return option.skillName == "Summon Stoneguard";
+            })
+            && std::any_of(minionRewards.begin(), minionRewards.end(),
+            [](const MapRewardDefinition& option) {
+                return option.supportName == "Minion Fortification";
+            }),
+        "Stoneguard and Minion Fortification remain data-driven map rewards");
 
     RandomService noRepeatRandom(101);
     const auto noRepeatRewards = MapRewardLibrary::generateOptions(
