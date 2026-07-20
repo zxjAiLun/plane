@@ -57,6 +57,7 @@ struct EnemyProjectile {
     std::string source;
     DamageType damageType = DamageType::Physical;
     AilmentDefinition ailment;
+    int targetMinionId = -1;
     bool alive = true;
 };
 
@@ -105,6 +106,8 @@ public:
     const std::vector<PendingSkillEffect>& pendingSkillEffects() const;
     const std::vector<Enemy>& enemies() const;
     const std::vector<PlayerMinion>& playerMinions() const;
+    std::string playerMinionStatusMessage() const;
+    float playerMinionStatusTimeRemaining() const;
     const std::vector<CombatFeedback>& combatFeedback() const;
     const std::vector<GroundHazard>& groundHazards() const;
     const std::vector<DroppedItem>& droppedItems() const;
@@ -271,6 +274,13 @@ private:
     void updatePlayerMinions(float dt);
     void prunePlayerMinions();
     void spawnPlayerMinions(const SkillDefinition& skill);
+    int minionTargetIndex(const Enemy& enemy) const;
+    Vector2 enemyTargetPosition(const Enemy& enemy) const;
+    void damagePlayerMinion(
+        int minionIndex,
+        int damage,
+        const std::string& source
+    );
     void updateGroundHazards(float dt);
     void updatePendingSkillEffects(float dt);
     void updateAmbientThreat(float dt);
@@ -609,6 +619,8 @@ private:
     int mapEventEnemiesRemaining_;
     std::string eventStatusMessage_;
     float eventStatusTimer_ = 0.0f;
+    std::string playerMinionStatusMessage_;
+    float playerMinionStatusTimer_ = 0.0f;
     MapAtlas atlas_;
     std::vector<MapItem> mapItems_;
     int selectedMapItemIndex_ = -1;

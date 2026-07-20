@@ -23,6 +23,7 @@ public:
         std::string name
     )
         : position_(position)
+        , id_(nextId_++)
         , hp_(std::max(1, maxHp))
         , maxHp_(std::max(1, maxHp))
         , damage_(std::max(1, damage))
@@ -54,6 +55,10 @@ public:
         attackTimer_ = 0.0f;
     }
 
+    void delayInitialAttack() {
+        attackTimer_ = 0.0f;
+    }
+
     int takeDamage(int damage) {
         if (damage <= 0 || isDead()) {
             return 0;
@@ -70,6 +75,7 @@ public:
     void kill() { hp_ = 0; }
 
     const Vector2& position() const { return position_; }
+    int id() const { return id_; }
     int hp() const { return hp_; }
     int maxHp() const { return maxHp_; }
     int damage() const { return damage_; }
@@ -83,6 +89,7 @@ public:
 
 private:
     Vector2 position_;
+    int id_;
     int hp_;
     int maxHp_;
     int damage_;
@@ -95,4 +102,6 @@ private:
     int physicalPenetration_;
     std::string name_;
     float radius_ = 14.0f;
+
+    inline static int nextId_ = 1;
 };

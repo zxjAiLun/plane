@@ -1411,7 +1411,9 @@ void testPlayerMinionWorldFlow() {
     advanceIntoTheField(world, input);
     auto targetIt = std::find_if(
         world.enemies().begin(), world.enemies().end(),
-        [](const Enemy& enemy) { return !enemy.isBoss() && !enemy.isDead(); }
+        [](const Enemy& enemy) {
+            return enemy.isElite() && !enemy.isDead();
+        }
     );
     expect(targetIt != world.enemies().end(),
         "Player minion fixture reaches a live field enemy");
@@ -1443,6 +1445,31 @@ void testPlayerMinionWorldFlow() {
                 }
             ),
         "Summon Wisp reports its spawned minion count");
+
+    const int minionHpBefore = world.playerMinions().front().hp();
+    target.moveBy(
+        world.playerMinions().front().position() - target.position(),
+        world.map()
+    );
+    bool minionDamageObserved = false;
+    for (int frame = 0; frame < 12; ++frame) {
+        world.update(0.05f, input);
+        minionDamageObserved = minionDamageObserved || std::any_of(
+            world.combatFeedback().begin(), world.combatFeedback().end(),
+            [](const CombatFeedback& feedback) {
+                return feedback.source.find(" strike") != std::string::npos
+                    || feedback.source.find(" shot") != std::string::npos
+                    || feedback.source.find(" charge") != std::string::npos;
+            }
+        );
+        if (world.playerMinions().empty()
+            || world.playerMinions().front().hp() < minionHpBefore) {
+            break;
+        }
+    }
+    expect(minionDamageObserved && !world.playerMinions().empty()
+            && world.playerMinions().front().hp() < minionHpBefore,
+        "nearby enemies can target and damage a live player minion");
 
     const int targetHpBefore = target.hp();
     bool wispAttackObserved = false;

@@ -565,6 +565,12 @@ void GameWorld::update(float dt, Input& input) {
                 eventStatusMessage_.clear();
             }
         }
+        if (playerMinionStatusTimer_ > 0.0f) {
+            playerMinionStatusTimer_ = std::max(0.0f, playerMinionStatusTimer_ - dt);
+            if (playerMinionStatusTimer_ == 0.0f) {
+                playerMinionStatusMessage_.clear();
+            }
+        }
     }
 
     switch (state_) {
@@ -1192,6 +1198,8 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     mapEventEnemiesRemaining_ = 0;
     eventStatusMessage_.clear();
     eventStatusTimer_ = 0.0f;
+    playerMinionStatusMessage_.clear();
+    playerMinionStatusTimer_ = 0.0f;
     updateSelectedInventoryIndex();
     return true;
 }
@@ -1507,6 +1515,8 @@ void GameWorld::reset(std::uint64_t runSeed) {
     mapEventEnemiesRemaining_ = 0;
     eventStatusMessage_.clear();
     eventStatusTimer_ = 0.0f;
+    playerMinionStatusMessage_.clear();
+    playerMinionStatusTimer_ = 0.0f;
 }
 
 void GameWorld::startNextMap() {
@@ -1671,6 +1681,8 @@ void GameWorld::startNextMap() {
     mapEventEnemiesRemaining_ = 0;
     eventStatusMessage_.clear();
     eventStatusTimer_ = 0.0f;
+    playerMinionStatusMessage_.clear();
+    playerMinionStatusTimer_ = 0.0f;
 }
 
 void GameWorld::updateObjects(float dt) {
@@ -1702,12 +1714,26 @@ void GameWorld::updateObjects(float dt) {
             continue;
         }
         if (!enemy.isBoss() || !bossDashState_.isActive()) {
-            enemy.update(dt, player_.position(), map_, mapModifier_.monsterSpeedMultiplier);
+            enemy.update(
+                dt,
+                enemyTargetPosition(enemy),
+                map_,
+                mapModifier_.monsterSpeedMultiplier
+            );
         }
     }
 }
 
 void GameWorld::prunePlayerMinions() {
+    for (const auto& minion : playerMinions_) {
+        if (minion.isDead()) {
+            playerMinionStatusMessage_ = minion.name() + " defeated";
+            playerMinionStatusTimer_ = 2.0f;
+        } else if (minion.isExpired()) {
+            playerMinionStatusMessage_ = minion.name() + " expired";
+            playerMinionStatusTimer_ = 2.0f;
+        }
+    }
     playerMinions_.erase(
         std::remove_if(
             playerMinions_.begin(),
@@ -1716,6 +1742,66 @@ void GameWorld::prunePlayerMinions() {
         ),
         playerMinions_.end()
     );
+}
+
+int GameWorld::minionTargetIndex(const Enemy& enemy) const {
+    if (enemy.isBoss() || enemy.isSummoner()) {
+        return -1;
+    }
+
+    const float aggroRange = Config::PlayerMinionAggroRange + enemy.radius();
+    const float aggroRangeSquared = aggroRange * aggroRange;
+    int closestIndex = -1;
+    float closestDistanceSquared = aggroRangeSquared;
+    for (std::size_t index = 0; index < playerMinions_.size(); ++index) {
+        const auto& minion = playerMinions_[index];
+        if (!minion.isAlive()) {
+            continue;
+        }
+
+        const float distanceSquared =
+            (minion.position() - enemy.position()).lengthSquared();
+        if (distanceSquared < closestDistanceSquared) {
+            closestDistanceSquared = distanceSquared;
+            closestIndex = static_cast<int>(index);
+        }
+    }
+    return closestIndex;
+}
+
+Vector2 GameWorld::enemyTargetPosition(const Enemy& enemy) const {
+    const int targetIndex = minionTargetIndex(enemy);
+    if (targetIndex >= 0) {
+        return playerMinions_[static_cast<std::size_t>(targetIndex)].position();
+    }
+    return player_.position();
+}
+
+void GameWorld::damagePlayerMinion(
+    int minionIndex,
+    int damage,
+    const std::string& source
+) {
+    if (minionIndex < 0
+        || minionIndex >= static_cast<int>(playerMinions_.size())) {
+        return;
+    }
+
+    auto& minion = playerMinions_[static_cast<std::size_t>(minionIndex)];
+    if (!minion.isAlive() || damage <= 0) {
+        return;
+    }
+
+    const int dealtDamage = minion.takeDamage(damage);
+    if (dealtDamage <= 0) {
+        return;
+    }
+
+    addCombatFeedback(minion.position(), dealtDamage, source);
+    if (minion.isDead()) {
+        playerMinionStatusMessage_ = minion.name() + " defeated";
+        playerMinionStatusTimer_ = 2.0f;
+    }
 }
 
 void GameWorld::updatePlayerMinions(float dt) {
@@ -1834,6 +1920,7 @@ void GameWorld::spawnPlayerMinions(const SkillDefinition& skill) {
             physicalPenetrationForPlayerSkill(skill),
             "Wisp"
         );
+        playerMinions_.back().delayInitialAttack();
         ++spawned;
     }
 
@@ -2957,10 +3044,20 @@ void GameWorld::handleCollisions() {
         }
 
         if (enemy.isCharger()) {
-            if (enemy.isCharging() && Collision::circleCircle(
-                    player_.position(), player_.radius(),
-                    enemy.position(), enemy.radius()
-                ) && enemy.consumeChargeHit()) {
+            const int minionIndex = minionTargetIndex(enemy);
+            const bool hitsMinion = minionIndex >= 0
+                && Collision::circleCircle(
+                    playerMinions_[static_cast<std::size_t>(minionIndex)].position(),
+                    playerMinions_[static_cast<std::size_t>(minionIndex)].radius(),
+                    enemy.position(),
+                    enemy.radius()
+                );
+            const bool hitsPlayer = Collision::circleCircle(
+                player_.position(), player_.radius(),
+                enemy.position(), enemy.radius()
+            );
+            if (enemy.isCharging() && (hitsMinion || hitsPlayer)
+                && enemy.consumeChargeHit()) {
                 const auto& definition = EnemyLibrary::forType(enemy.type());
                 const EnemyAttackProfile attack = mapEnemyAttackProfile(
                     map_,
@@ -2968,12 +3065,20 @@ void GameWorld::handleCollisions() {
                     definition.contactDamageType,
                     definition.contactAilment
                 );
-                damagePlayer(
-                    enemyAttackDamage(enemy),
-                    definition.name + " charge",
-                    attack.damageType,
-                    attack.ailment
-                );
+                if (hitsMinion) {
+                    damagePlayerMinion(
+                        minionIndex,
+                        enemyAttackDamage(enemy),
+                        definition.name + " charge"
+                    );
+                } else {
+                    damagePlayer(
+                        enemyAttackDamage(enemy),
+                        definition.name + " charge",
+                        attack.damageType,
+                        attack.ailment
+                    );
+                }
             }
             continue;
         }
@@ -2989,10 +3094,14 @@ void GameWorld::handleCollisions() {
             continue;
         }
 
-        const Vector2 toPlayer = player_.position() - enemy.position();
+        const int minionIndex = minionTargetIndex(enemy);
+        const Vector2 targetPosition = minionIndex >= 0
+            ? playerMinions_[static_cast<std::size_t>(minionIndex)].position()
+            : player_.position();
+        const Vector2 toTarget = targetPosition - enemy.position();
         const auto& definition = EnemyLibrary::forType(enemy.type());
         if (enemy.isRanged()) {
-            const Vector2 direction = toPlayer.normalized();
+            const Vector2 direction = toTarget.normalized();
             if (direction.lengthSquared() > 0.0f) {
                 const EnemyAttackProfile attack = mapEnemyAttackProfile(
                     map_,
@@ -3008,22 +3117,33 @@ void GameWorld::handleCollisions() {
                     definition.name + " shot",
                     attack.damageType,
                     attack.ailment,
+                    minionIndex >= 0
+                        ? playerMinions_[static_cast<std::size_t>(minionIndex)].id()
+                        : -1,
                     true
                 });
             }
-        } else if (toPlayer.lengthSquared() <= enemy.attackRange() * enemy.attackRange()) {
+        } else if (toTarget.lengthSquared() <= enemy.attackRange() * enemy.attackRange()) {
             const EnemyAttackProfile attack = mapEnemyAttackProfile(
                 map_,
                 enemy,
                 definition.contactDamageType,
                 definition.contactAilment
             );
-            damagePlayer(
-                enemyAttackDamage(enemy),
-                definition.name + " strike",
-                attack.damageType,
-                attack.ailment
-            );
+            if (minionIndex >= 0) {
+                damagePlayerMinion(
+                    minionIndex,
+                    enemyAttackDamage(enemy),
+                    definition.name + " strike"
+                );
+            } else {
+                damagePlayer(
+                    enemyAttackDamage(enemy),
+                    definition.name + " strike",
+                    attack.damageType,
+                    attack.ailment
+                );
+            }
         }
     }
 
@@ -3206,6 +3326,34 @@ void GameWorld::handleBossProjectileCollisions() {
 void GameWorld::handleEnemyProjectileCollisions() {
     for (auto& projectile : enemyProjectiles_) {
         if (!projectile.alive) {
+            continue;
+        }
+
+        if (projectile.targetMinionId >= 0) {
+            const int minionId = projectile.targetMinionId;
+            const auto minionIt = std::find_if(
+                playerMinions_.begin(),
+                playerMinions_.end(),
+                [minionId](const PlayerMinion& minion) {
+                    return minion.id() == minionId;
+                }
+            );
+            if (minionIt == playerMinions_.end() || !minionIt->isAlive()) {
+                projectile.alive = false;
+                continue;
+            }
+
+            if (Collision::circleCircle(
+                    minionIt->position(), minionIt->radius(),
+                    projectile.position, projectile.radius
+                )) {
+                damagePlayerMinion(
+                    static_cast<int>(std::distance(playerMinions_.begin(), minionIt)),
+                    projectile.damage,
+                    projectile.source
+                );
+                projectile.alive = false;
+            }
             continue;
         }
 
@@ -6268,6 +6416,12 @@ const std::vector<PendingSkillEffect>& GameWorld::pendingSkillEffects() const {
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
 const std::vector<PlayerMinion>& GameWorld::playerMinions() const {
     return playerMinions_;
+}
+std::string GameWorld::playerMinionStatusMessage() const {
+    return playerMinionStatusMessage_;
+}
+float GameWorld::playerMinionStatusTimeRemaining() const {
+    return playerMinionStatusTimer_;
 }
 const std::vector<CombatFeedback>& GameWorld::combatFeedback() const { return combatFeedback_; }
 const std::vector<GroundHazard>& GameWorld::groundHazards() const { return groundHazards_; }

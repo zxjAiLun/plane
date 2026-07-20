@@ -1248,6 +1248,24 @@ void Renderer::render(const GameWorld& world) {
         + "/" + std::to_string(world.mapEventsTotal()),
         {16.0f, hudY}, 14, sf::Color(210, 255, 210));
     hudY += 18.0f;
+    const int activePlayerMinions = static_cast<int>(std::count_if(
+        world.playerMinions().begin(),
+        world.playerMinions().end(),
+        [](const PlayerMinion& minion) { return minion.isAlive(); }
+    ));
+    drawText("Minions " + std::to_string(activePlayerMinions)
+        + "/" + std::to_string(Config::MaxPlayerMinions),
+        {16.0f, hudY}, 14,
+        activePlayerMinions > 0
+            ? sf::Color(130, 225, 255)
+            : sf::Color(150, 160, 180));
+    hudY += 18.0f;
+    if (!world.playerMinionStatusMessage().empty()
+        && world.playerMinionStatusTimeRemaining() > 0.0f) {
+        drawText("Minion: " + truncateText(world.playerMinionStatusMessage(), 28),
+            {16.0f, hudY}, 14, sf::Color(255, 200, 150));
+        hudY += 18.0f;
+    }
     const bool gateUnlocked = world.bossGateUnlocked();
     drawText("Field Progress " + std::to_string(world.fieldPacksCleared())
         + "/" + std::to_string(world.fieldPacksRequired())

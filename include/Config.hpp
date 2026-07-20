@@ -165,6 +165,7 @@ namespace Config {
     constexpr float SummonerMinionSpreadRadius = 64.0f;
     constexpr int MaxPlayerMinions = 8;
     constexpr float PlayerMinionMoveSpeed = 250.0f;
+    constexpr float PlayerMinionAggroRange = 260.0f;
     constexpr float EnemySpawnMinDistance = 520.0f;
     constexpr float EnemySpawnMaxDistance = 760.0f;
     constexpr float WardenAuraRadius = 180.0f;
