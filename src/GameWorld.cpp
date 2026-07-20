@@ -1120,6 +1120,7 @@ bool GameWorld::restoreFromSaveData(const SaveData& data) {
     bossProjectiles_.clear();
     enemyProjectiles_.clear();
     enemies_.clear();
+    playerMinions_.clear();
     groundHazards_.clear();
     droppedItems_ = std::move(restoredDroppedItems);
     spawner_.reset();
@@ -1330,6 +1331,7 @@ void GameWorld::updatePlaying(float dt, Input& input) {
 
     spawnEnemies(dt);
     updateObjects(dt);
+    updatePlayerMinions(dt);
     updateRareLeaderEffects(dt);
     updateMapEncounterSkill(dt);
     updateBossSkills(dt);
@@ -1386,6 +1388,7 @@ void GameWorld::reset(std::uint64_t runSeed) {
     bossProjectiles_.clear();
     enemyProjectiles_.clear();
     enemies_.clear();
+    playerMinions_.clear();
     groundHazards_.clear();
     droppedItems_.clear();
     inventory_.clear();
@@ -1590,6 +1593,7 @@ void GameWorld::startNextMap() {
     bossProjectiles_.clear();
     enemyProjectiles_.clear();
     enemies_.clear();
+    playerMinions_.clear();
     groundHazards_.clear();
     droppedItems_.clear();
     spawner_.reset();
@@ -1700,6 +1704,146 @@ void GameWorld::updateObjects(float dt) {
         if (!enemy.isBoss() || !bossDashState_.isActive()) {
             enemy.update(dt, player_.position(), map_, mapModifier_.monsterSpeedMultiplier);
         }
+    }
+}
+
+void GameWorld::prunePlayerMinions() {
+    playerMinions_.erase(
+        std::remove_if(
+            playerMinions_.begin(),
+            playerMinions_.end(),
+            [](const PlayerMinion& minion) { return !minion.isAlive(); }
+        ),
+        playerMinions_.end()
+    );
+}
+
+void GameWorld::updatePlayerMinions(float dt) {
+    if (dt <= 0.0f) {
+        prunePlayerMinions();
+        return;
+    }
+
+    for (auto& minion : playerMinions_) {
+        minion.update(dt);
+        if (!minion.isAlive()) {
+            continue;
+        }
+
+        Enemy* target = nullptr;
+        float closestDistanceSquared = 1000000000.0f;
+        for (auto& enemy : enemies_) {
+            if (enemy.isDead()) {
+                continue;
+            }
+
+            const float distanceSquared =
+                (enemy.position() - minion.position()).lengthSquared();
+            if (distanceSquared < closestDistanceSquared) {
+                closestDistanceSquared = distanceSquared;
+                target = &enemy;
+            }
+        }
+        if (target == nullptr) {
+            continue;
+        }
+
+        const Vector2 toTarget = target->position() - minion.position();
+        const float attackDistance = minion.attackRange() + target->radius();
+        if (toTarget.lengthSquared() > attackDistance * attackDistance) {
+            const Vector2 direction = toTarget.normalized();
+            const Vector2 nextPosition = map_.resolveMovement(
+                minion.position(),
+                minion.radius(),
+                direction * Config::PlayerMinionMoveSpeed * dt
+            );
+            minion.moveBy(nextPosition - minion.position());
+            continue;
+        }
+
+        if (!minion.canAttack()) {
+            continue;
+        }
+
+        minion.consumeAttack();
+        const int mitigatedDamage = damageToEnemy(
+            *target,
+            minion.damage(),
+            minion.damageType(),
+            minion.physicalPenetration()
+        );
+        const int dealtDamage = target->takeDamage(mitigatedDamage);
+        if (dealtDamage > 0) {
+            addCombatFeedback(target->position(), dealtDamage, minion.name());
+            if (minion.ailment().type != AilmentType::None) {
+                applySkillAilment(*target, minion.ailment(), dealtDamage);
+            }
+        }
+        if (target->isDead()) {
+            rewardEnemyKill(*target);
+        }
+    }
+
+    prunePlayerMinions();
+}
+
+void GameWorld::spawnPlayerMinions(const SkillDefinition& skill) {
+    const auto supports = skillBar_.supportDefinitionsFor(skill);
+    const int requested = skillSummonCount(skill, supports);
+    const int available = std::max(
+        0,
+        Config::MaxPlayerMinions - static_cast<int>(playerMinions_.size())
+    );
+    const int spawnCount = std::min(requested, available);
+    if (spawnCount <= 0) {
+        return;
+    }
+
+    const int maxHp = skillSummonMaxHp(skill, supports);
+    const int damage = skillSummonDamage(
+        skill,
+        player_.stats(),
+        supports,
+        shrineBuffTimer_ > 0.0f ? Config::ShrineDamageMultiplier : 1.0f
+    );
+    const float lifetime = skillSummonDuration(skill, supports);
+    const float attackInterval = skillSummonAttackInterval(skill, supports);
+    const AilmentDefinition ailment = ailmentForPlayerSkill(skill);
+    const float angleStep = 6.28318530f / static_cast<float>(std::max(1, spawnCount));
+    int spawned = 0;
+    for (int index = 0; index < spawnCount; ++index) {
+        const float angle = angleStep * static_cast<float>(index);
+        const Vector2 desired = player_.position()
+            + Vector2(std::cos(angle) * 38.0f, std::sin(angle) * 38.0f);
+        Vector2 position = map_.resolveMovement(
+            desired, 14.0f, Vector2()
+        );
+        if (map_.intersectsObstacle(position, 14.0f)) {
+            position = player_.position();
+        }
+
+        playerMinions_.emplace_back(
+            position,
+            maxHp,
+            damage,
+            lifetime,
+            attackInterval,
+            skill.summonAttackRange,
+            skill.damageType,
+            ailment,
+            physicalPenetrationForPlayerSkill(skill),
+            "Wisp"
+        );
+        ++spawned;
+    }
+
+    if (spawned > 0) {
+        addCombatFeedback(
+            player_.position(),
+            spawned,
+            skill.name + " x" + std::to_string(spawned),
+            CombatFeedbackType::Status
+        );
     }
 }
 
@@ -3149,12 +3293,30 @@ void GameWorld::tryCastMovementSkill(Input& input) {
 }
 
 void GameWorld::tryCastUtilitySkill(Input& input) {
-    if (!input.nova() || !tryStartPlayerSkill(SkillSlot::Utility)) {
+    if (!input.nova()) {
         return;
     }
 
     const auto& skill = skillBar_.definition(SkillSlot::Utility);
+    const auto supports = skillBar_.supportDefinitionsFor(skill);
+    if (skillSummonCount(skill, supports) > 0) {
+        prunePlayerMinions();
+        if (playerMinions_.size() >= static_cast<std::size_t>(Config::MaxPlayerMinions)) {
+            addSkillRejectedFeedback("Minion limit reached: " + skill.name);
+            return;
+        }
+    }
+
+    if (!tryStartPlayerSkill(SkillSlot::Utility)) {
+        return;
+    }
+
     const AilmentDefinition ailment = ailmentForPlayerSkill(skill);
+    if (skillSummonCount(skill, supports) > 0) {
+        spawnPlayerMinions(skill);
+        return;
+    }
+
     const bool defensiveSkill = skill.selfDamageTakenMultiplier < 1.0f;
     if (defensiveSkill) {
         guardBuffTimer_ = std::max(0.0f, skill.effectDuration);
@@ -4667,18 +4829,19 @@ void GameWorld::updateSkillPanelHover(const Input& input) {
     const float centerX = static_cast<float>(Config::WindowWidth) / 2.0f;
     const float centerY = static_cast<float>(Config::WindowHeight) / 2.0f;
     const float leftColumn = centerX - 350.0f;
-    const float rightColumn = centerX + 20.0f;
     const float skillsY = centerY - 132.0f;
-    const float rowHeight = 24.0f;
+    const float rowHeight = 28.0f;
     const float firstRowY = skillsY + 22.0f;
     const float mouseX = static_cast<float>(input.mousePosition().x);
     const float mouseY = static_cast<float>(input.mousePosition().y);
 
     int column = -1;
-    if (mouseX >= leftColumn - 8.0f && mouseX < rightColumn - 12.0f) {
+    if (mouseX >= leftColumn - 8.0f && mouseX < centerX - 112.0f) {
         column = 0;
-    } else if (mouseX >= rightColumn - 8.0f && mouseX < centerX + 350.0f) {
+    } else if (mouseX >= centerX - 112.0f && mouseX < centerX + 138.0f) {
         column = 1;
+    } else if (mouseX >= centerX + 138.0f && mouseX < centerX + 350.0f) {
+        column = 2;
     }
     if (column < 0 || mouseY < firstRowY - 2.0f) {
         return;
@@ -4691,7 +4854,7 @@ void GameWorld::updateSkillPanelHover(const Input& input) {
         return;
     }
 
-    const int index = row * 2 + column;
+    const int index = row * 3 + column;
     if (index >= 0 && static_cast<std::size_t>(index) < skills.size()) {
         const float rowY = firstRowY + static_cast<float>(row) * rowHeight;
         if (mouseY <= rowY + 28.0f) {
@@ -4712,9 +4875,9 @@ void GameWorld::tryAssignSkill(Input& input) {
         skillIndex = hoveredSkillIndex_;
     }
     if (skillIndex < 0 && functionChoice >= 7 && functionChoice <= 15) {
-        // Number keys cover the first ten entries. F7-F15 extend the panel
-        // to later skills without colliding with the support link controls.
-        skillIndex = functionChoice + 3;
+        // Keep the established F7-F15 assignments stable as new skills are
+        // inserted into the library. Newly added entries remain mouse-selectable.
+        skillIndex = functionChoice + 4;
     }
     if (skillIndex < 0) {
         return;
@@ -6103,6 +6266,9 @@ const std::vector<PendingSkillEffect>& GameWorld::pendingSkillEffects() const {
     return pendingSkillEffects_;
 }
 const std::vector<Enemy>& GameWorld::enemies() const { return enemies_; }
+const std::vector<PlayerMinion>& GameWorld::playerMinions() const {
+    return playerMinions_;
+}
 const std::vector<CombatFeedback>& GameWorld::combatFeedback() const { return combatFeedback_; }
 const std::vector<GroundHazard>& GameWorld::groundHazards() const { return groundHazards_; }
 const std::vector<DroppedItem>& GameWorld::droppedItems() const { return droppedItems_; }

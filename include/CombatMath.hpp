@@ -374,6 +374,89 @@ inline int skillRepeatCount(const SkillDefinition& skill, const SupportDefinitio
     return skillRepeatCount(skill, SupportList{support, nullptr});
 }
 
+inline int skillSummonCount(
+    const SkillDefinition& skill,
+    const SupportList& supports
+) {
+    if (skill.summonCount <= 0) {
+        return 0;
+    }
+
+    int count = skill.summonCount;
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            count += support->summonCountBonus;
+        }
+    }
+    return std::max(0, count);
+}
+
+inline float skillSummonDuration(
+    const SkillDefinition& skill,
+    const SupportList& supports
+) {
+    float duration = std::max(0.0f, skill.summonDuration);
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            duration *= support->summonDurationMultiplier;
+        }
+    }
+    return duration;
+}
+
+inline int skillSummonDamage(
+    const SkillDefinition& skill,
+    const Stats& stats,
+    const SupportList& supports,
+    float shrineMultiplier = 1.0f
+) {
+    if (skill.summonCount <= 0 || skill.summonDamage <= 0) {
+        return 0;
+    }
+
+    SkillDefinition damageSkill = skill;
+    damageSkill.baseDamage = skill.summonDamage;
+    float damage = static_cast<float>(skillDamage(
+        damageSkill, stats, supports, shrineMultiplier
+    ));
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            damage *= support->summonDamageMultiplier;
+        }
+    }
+    return std::max(1, static_cast<int>(std::ceil(damage)));
+}
+
+inline float skillSummonAttackInterval(
+    const SkillDefinition& skill,
+    const SupportList& supports
+) {
+    float interval = std::max(0.05f, skill.summonAttackInterval);
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            interval *= support->summonAttackIntervalMultiplier;
+        }
+    }
+    return interval;
+}
+
+inline int skillSummonMaxHp(
+    const SkillDefinition& skill,
+    const SupportList& supports
+) {
+    if (skill.summonCount <= 0 || skill.summonMaxHp <= 0) {
+        return 0;
+    }
+
+    float maxHp = static_cast<float>(skill.summonMaxHp);
+    for (const auto* support : supports) {
+        if (support != nullptr) {
+            maxHp *= support->summonHpMultiplier;
+        }
+    }
+    return std::max(1, static_cast<int>(std::ceil(maxHp)));
+}
+
 inline int supportAreaDamage(
     const SupportDefinition& support,
     const Stats& stats,

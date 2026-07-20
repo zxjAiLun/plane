@@ -26,6 +26,20 @@ inline SkillDefinition skillAtLevel(const SkillDefinition& base, int level) {
             * Config::SkillGemDamagePerLevelMultiplier
             * static_cast<float>(levelDelta)
     )));
+    if (base.summonDamage > 0) {
+        result.summonDamage += std::max(1, static_cast<int>(std::ceil(
+            static_cast<float>(base.summonDamage)
+                * Config::SkillGemDamagePerLevelMultiplier
+                * static_cast<float>(levelDelta)
+        )));
+    }
+    if (base.summonMaxHp > 0) {
+        result.summonMaxHp += std::max(1, static_cast<int>(std::ceil(
+            static_cast<float>(base.summonMaxHp)
+                * Config::SkillGemDamagePerLevelMultiplier
+                * static_cast<float>(levelDelta)
+        )));
+    }
     if (base.radius > 0.0f) {
         result.radius *= 1.0f + Config::SkillGemRadiusPerLevelMultiplier
             * static_cast<float>(levelDelta);
@@ -117,6 +131,32 @@ inline SupportDefinition supportAtLevel(const SupportDefinition& base, int level
             1.50f,
             result.shatterDamageMultiplier
                 + Config::SupportGemAilmentStep * static_cast<float>(levelDelta)
+        );
+    }
+    result.summonCountBonus += levelDelta / 3;
+    if (result.summonDurationMultiplier > 1.0f) {
+        result.summonDurationMultiplier +=
+            Config::SupportGemAilmentStep * static_cast<float>(levelDelta);
+    }
+    if (result.summonDamageMultiplier > 1.0f) {
+        result.summonDamageMultiplier = std::min(
+            3.0f,
+            result.summonDamageMultiplier
+                + Config::SupportGemDamageStep * static_cast<float>(levelDelta)
+        );
+    }
+    if (result.summonAttackIntervalMultiplier > 1.0f) {
+        result.summonAttackIntervalMultiplier = std::max(
+            1.0f,
+            result.summonAttackIntervalMultiplier
+                - Config::SupportGemCooldownStep * static_cast<float>(levelDelta)
+        );
+    }
+    if (result.summonHpMultiplier > 1.0f) {
+        result.summonHpMultiplier = std::min(
+            3.0f,
+            result.summonHpMultiplier
+                + Config::SupportGemDamageStep * static_cast<float>(levelDelta)
         );
     }
     result.healOnHitBonus += levelDelta * Config::SupportGemHealingStep;

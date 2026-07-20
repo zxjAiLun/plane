@@ -65,6 +65,13 @@ public:
                 + "% of Max Mana for " + std::to_string(static_cast<int>(skill.effectDuration))
                 + "s";
         }
+        if (skill.summonCount > 0) {
+            reward.description += "  Summons "
+                + std::to_string(skill.summonCount) + " minions for "
+                + std::to_string(static_cast<int>(skill.summonDuration)) + "s"
+                + "  Minion DMG " + std::to_string(skill.summonDamage)
+                + "  HP " + std::to_string(skill.summonMaxHp);
+        }
         if (skill.ailment.type == AilmentType::Bleed) {
             reward.description += "  Bleed "
                 + std::to_string(static_cast<int>(skill.ailment.damageMultiplier * 100.0f))

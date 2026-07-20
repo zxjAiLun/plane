@@ -1377,6 +1377,100 @@ void testUtilitySkillDelivery() {
     std::filesystem::remove(path);
 }
 
+void testPlayerMinionWorldFlow() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_player_minion_world_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(17604);
+    SaveData data;
+    std::string error;
+    const auto utilityIndex = static_cast<std::size_t>(SkillSlot::Utility);
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Player minion fixture starts from a valid run save");
+
+    data.unlockedSkills.insert("Summon Wisp");
+    data.unlockedSupports.insert("Minion Mastery");
+    data.skillBar.skills[utilityIndex] = "Summon Wisp";
+    data.skillBar.supports[utilityIndex] = {"Minion Mastery", ""};
+    data.player.hp = 1000;
+    data.player.upgradeStats.maxHp = 1000;
+    data.player.upgradeStats.moveSpeedMultiplier = 8.0f;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.player.mana = Config::PlayerMaxMana;
+    data.fieldPacksCleared = Config::BossGateRequiredFieldPacks;
+    data.state = SavedRunState::Playing;
+    data.mapRewardChosen = false;
+    data.nextMapOptionChosen = false;
+    data.selectedMapRewardOption = -1;
+    data.selectedNextMapOption = -1;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Player minion fixture restores Summon Wisp and Minion Mastery");
+
+    Input input;
+    advanceIntoTheField(world, input);
+    auto targetIt = std::find_if(
+        world.enemies().begin(), world.enemies().end(),
+        [](const Enemy& enemy) { return !enemy.isBoss() && !enemy.isDead(); }
+    );
+    expect(targetIt != world.enemies().end(),
+        "Player minion fixture reaches a live field enemy");
+    if (targetIt == world.enemies().end()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    Enemy& target = const_cast<Enemy&>(*targetIt);
+    const int targetId = target.id();
+    const Vector2 targetPosition = world.player().position() + Vector2(120.0f, 0.0f);
+    target.moveBy(targetPosition - target.position(), world.map());
+    for (auto& enemy : const_cast<std::vector<Enemy>&>(world.enemies())) {
+        if (enemy.id() != targetId && !enemy.isBoss()) {
+            enemy.moveBy(world.map().bossCenter() - enemy.position(), world.map());
+        }
+    }
+
+    input.handleKeyPressed(sf::Keyboard::Key::Q);
+    world.update(0.05f, input);
+    input.handleKeyReleased(sf::Keyboard::Key::Q);
+    expect(world.playerMinions().size() == 3,
+        "Summon Wisp creates the base count plus Minion Mastery");
+    expect(std::any_of(
+                world.combatFeedback().begin(), world.combatFeedback().end(),
+                [](const CombatFeedback& feedback) {
+                    return feedback.source == "Summon Wisp x3"
+                        && feedback.type == CombatFeedbackType::Status;
+                }
+            ),
+        "Summon Wisp reports its spawned minion count");
+
+    const int targetHpBefore = target.hp();
+    bool wispAttackObserved = false;
+    for (int frame = 0; frame < 24; ++frame) {
+        world.update(0.05f, input);
+        wispAttackObserved = wispAttackObserved || std::any_of(
+            world.combatFeedback().begin(), world.combatFeedback().end(),
+            [](const CombatFeedback& feedback) {
+                return feedback.source == "Wisp"
+                    && feedback.type == CombatFeedbackType::Damage;
+            }
+        );
+    }
+    const auto targetAfter = std::find_if(
+        world.enemies().begin(), world.enemies().end(),
+        [targetId](const Enemy& enemy) { return enemy.id() == targetId; }
+    );
+    expect(wispAttackObserved,
+        "live Wisp minions attack through the real GameWorld loop");
+    expect(targetAfter == world.enemies().end() || targetAfter->hp() < targetHpBefore,
+        "Wisp attacks reduce a live field enemy's HP");
+
+    expect(world.saveRun(path) && world.loadRun(path) && world.playerMinions().empty(),
+        "loading a run clears non-persistent player minions");
+
+    std::filesystem::remove(path);
+}
+
 void testPulseShockFlow() {
     const auto path = std::filesystem::temp_directory_path()
         / "plane_fight_pulse_shock_flow_test.bin";
@@ -2586,18 +2680,18 @@ void testExpandedSkillWorldHits() {
     world.update(0.05f, input);
     expect(world.skillBar().definition(SkillSlot::Utility).name == "Guarding Pulse",
         "Skill Panel F15 assigns the appended defensive skill entry");
-    input.handleMouseMoved({430, 410});
+    input.handleMouseMoved({650, 358});
     world.update(0.05f, input);
-    expect(world.hoveredSkillIndex() == 19,
-        "Skill Panel mouse hover selects the final skill entry");
+    expect(world.hoveredSkillIndex() == 20,
+        "Skill Panel mouse hover selects the Mana Ward entry");
     const std::size_t projectilesBeforeSkillClick = world.projectiles().size();
-    input.handleMousePressed(sf::Mouse::Button::Left, {430, 410});
+    input.handleMousePressed(sf::Mouse::Button::Left, {650, 358});
     world.update(0.05f, input);
-    input.handleMouseReleased(sf::Mouse::Button::Left, {430, 410});
+    input.handleMouseReleased(sf::Mouse::Button::Left, {650, 358});
     expect(world.projectiles().size() == projectilesBeforeSkillClick,
         "Skill Panel mouse click does not fire the primary skill");
     expect(world.skillBar().definition(SkillSlot::Utility).name == "Mana Ward",
-        "Skill Panel mouse click assigns the final skill entry");
+        "Skill Panel mouse click assigns the Mana Ward entry");
     input.handleKeyPressed(sf::Keyboard::Key::F12);
     world.update(0.05f, input);
     expect(world.skillBar().definition(SkillSlot::Utility).name == "Blight Ring",
@@ -4763,6 +4857,7 @@ int main() {
     testSkillFailureFeedback();
     testDelayedSkillEffects();
     testUtilitySkillDelivery();
+    testPlayerMinionWorldFlow();
     testPulseShockFlow();
     testRendingVolleyBleedFlow();
     testCrimsonSweepBleedFlow();

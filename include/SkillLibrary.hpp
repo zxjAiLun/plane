@@ -248,6 +248,30 @@ public:
         };
     }
 
+    static SkillDefinition summonWisp() {
+        SkillDefinition skill = {
+            SkillSlot::Utility,
+            SkillCastType::SelfCenteredArea,
+            "Summon Wisp",
+            9.0f,
+            0.0f,
+            3,
+            18.0f,
+            1,
+            0.0f,
+            {AilmentType::Shock, 2.0f, 0.0f, 1.0f, 0, 0, 1.12f},
+            10.0f
+        };
+        skill.damageType = DamageType::Lightning;
+        skill.summonCount = 2;
+        skill.summonDuration = 18.0f;
+        skill.summonDamage = 3;
+        skill.summonMaxHp = 28;
+        skill.summonAttackInterval = 0.95f;
+        skill.summonAttackRange = 220.0f;
+        return skill;
+    }
+
     static SkillDefinition aftershock() {
         SkillDefinition skill = {
             SkillSlot::Utility,
@@ -485,6 +509,7 @@ private:
             pulse(),
             bladestorm(),
             shockwave(),
+            summonWisp(),
             aftershock(),
             toxicBurst(),
             emberLance(),

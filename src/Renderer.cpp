@@ -513,10 +513,10 @@ std::string skillChoiceLabel(std::size_t index) {
     if (index == 9) {
         return "0";
     }
-    if (index >= 19) {
+    if (index == 10 || index >= 20) {
         return "Mouse";
     }
-    return "F" + std::to_string(index - 3);
+    return "F" + std::to_string(index - 4);
 }
 
 std::string skillSlotName(SkillSlot slot) {
@@ -679,6 +679,12 @@ std::string skillEffectiveSummary(const SkillDefinition& skill, const Stats& sta
             + std::to_string(static_cast<int>(skill.wardManaRatio * 100.0f))
             + "% Mana/" + formatFloat(skill.effectDuration, 1) + "s";
     }
+    if (skill.summonCount > 0) {
+        summary += "  Summons " + std::to_string(skillSummonCount(skill, supports))
+            + "  Minion " + std::to_string(skillSummonDamage(skill, stats, supports))
+            + " DMG/" + std::to_string(skillSummonMaxHp(skill, supports)) + " HP"
+            + " " + formatFloat(skillSummonDuration(skill, supports), 1) + "s";
+    }
     return summary;
 }
 
@@ -804,6 +810,7 @@ std::string rewardThemeLabel(const MapRewardDefinition& reward) {
                 case SupportKind::Echo:
                 case SupportKind::Pinpoint:
                 case SupportKind::ArcaneEfficiency:
+                case SupportKind::MinionMastery:
                 case SupportKind::Vitality:
                 case SupportKind::Bloodletting:
                 case SupportKind::Rupture:
@@ -1160,6 +1167,7 @@ void Renderer::render(const GameWorld& world) {
     drawBossDashEffect(world);
     drawVolatileExplosionEffect(world);
     drawPlayer(world);
+    drawPlayerMinions(world);
     drawAimIndicator(world);
     drawProjectiles(world);
     drawBossProjectiles(world);
@@ -2130,6 +2138,51 @@ void Renderer::drawEnemyProjectiles(const GameWorld& world) {
     }
 }
 
+void Renderer::drawPlayerMinions(const GameWorld& world) {
+    for (const auto& minion : world.playerMinions()) {
+        const sf::Vector2f screenPosition = worldToScreen(world, minion.position());
+        const float auraRadius = minion.radius() + 5.0f;
+        sf::CircleShape aura(auraRadius);
+        aura.setFillColor(sf::Color(70, 180, 255, 24));
+        aura.setOutlineColor(sf::Color(120, 225, 255, 180));
+        aura.setOutlineThickness(1.5f);
+        aura.setOrigin({auraRadius, auraRadius});
+        aura.setPosition(screenPosition);
+        window_.draw(aura);
+
+        sf::CircleShape shape(minion.radius());
+        shape.setFillColor(sf::Color(70, 150, 235));
+        shape.setOutlineColor(sf::Color(190, 240, 255));
+        shape.setOutlineThickness(2.0f);
+        shape.setOrigin({minion.radius(), minion.radius()});
+        shape.setPosition(screenPosition);
+        window_.draw(shape);
+
+        const float barWidth = minion.radius() * 2.6f;
+        const float hpRatio = minion.maxHp() > 0
+            ? static_cast<float>(std::max(0, minion.hp()))
+                / static_cast<float>(minion.maxHp())
+            : 0.0f;
+        sf::RectangleShape background({barWidth, 3.0f});
+        background.setFillColor(sf::Color(25, 30, 40, 220));
+        background.setOrigin({barWidth * 0.5f, 1.5f});
+        background.setPosition({
+            screenPosition.x,
+            screenPosition.y - minion.radius() - 6.0f
+        });
+        window_.draw(background);
+
+        sf::RectangleShape fill({barWidth * hpRatio, 3.0f});
+        fill.setFillColor(sf::Color(100, 220, 255));
+        fill.setOrigin({barWidth * 0.5f, 1.5f});
+        fill.setPosition({
+            screenPosition.x - barWidth * (1.0f - hpRatio) * 0.5f,
+            screenPosition.y - minion.radius() - 6.0f
+        });
+        window_.draw(fill);
+    }
+}
+
 void Renderer::drawEnemies(const GameWorld& world) {
     for (const auto& enemy : world.enemies()) {
         const auto& definition = EnemyLibrary::forType(enemy.type());
@@ -2868,7 +2921,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
 
     drawBox({center.x, center.y}, {760.0f, 560.0f}, sf::Color(24, 30, 40));
     drawCenteredText("Skill Panel", {center.x, center.y - 248.0f}, 24, sf::Color::White);
-    drawCenteredText("1-0 / F7-F15 / Click assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
+    drawCenteredText("1-0 / F7-F15 / Mouse assign unlocked skill  |  F1-F4 cycle  |  F5/F6 link  |  K close",
         {center.x, center.y - 220.0f}, 14, sf::Color(210, 230, 255));
 
     const SkillSlot slots[] = {
@@ -2896,6 +2949,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
     drawText("Skills", {leftColumn, skillsY}, 16, sf::Color::White);
 
     const auto& skills = SkillLibrary::all();
+    const float skillColumns[] = {leftColumn, center.x - 100.0f, center.x + 150.0f};
     for (std::size_t i = 0; i < skills.size(); ++i) {
         const auto& baseSkill = skills[i];
         const SkillDefinition skill = SkillProgression::skillAtLevel(
@@ -2910,22 +2964,22 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
             : sf::Color(220, 230, 240);
         const std::string state = equipped ? "Equipped" : unlocked ? "Available" : "Locked";
         const std::string marker = equipped ? "> " : hovered ? "* " : "  ";
-        const float columnX = i % 2 == 0 ? leftColumn : rightColumn;
-        const float rowY = skillsY + 22.0f + static_cast<float>(i / 2) * 24.0f;
-        drawText(marker + skillChoiceLabel(i) + ". " + skill.name
+        const float columnX = skillColumns[i % 3];
+        const float rowY = skillsY + 22.0f + static_cast<float>(i / 3) * 28.0f;
+        drawText(truncateText(marker + skillChoiceLabel(i) + ". " + skill.name
                 + " Lv" + std::to_string(world.skillLevel(skill.name))
-                + " [" + state + "]",
-            {columnX, rowY}, 14, color);
+                + " [" + state + "]", 31),
+            {columnX, rowY}, 11, color);
         const auto supports = world.skillBar().supportDefinitionsFor(skill);
         std::string summary = skillEffectiveSummary(skill, world.player().stats(), supports);
         const std::string ailment = ailmentSummary(world.effectiveSkillAilment(skill));
         if (!ailment.empty()) {
             summary += "  " + ailment;
         }
-        drawText("     " + skillSlotName(skill.slot) + " / "
+        drawText("  " + skillSlotName(skill.slot) + " / "
                 + skillCastTypeName(skill.castType) + "  "
                 + truncateText(summary, 25),
-            {columnX, rowY + 16.0f}, 10,
+            {columnX, rowY + 13.0f}, 9,
             unlocked ? sf::Color(190, 205, 220) : sf::Color(105, 112, 122));
     }
 
@@ -2935,7 +2989,7 @@ void Renderer::drawSkillPanel(const GameWorld& world) {
         SkillSlot::Utility,
         SkillSlot::Movement
     };
-    const float supportY = center.y + 138.0f;
+    const float supportY = center.y + 120.0f;
     drawText("Supports  E equipped A available L locked  |  F1-F4 cycle  |  F5/F6 link",
         {leftColumn, supportY}, 11, sf::Color::White);
     for (std::size_t i = 0; i < 4; ++i) {

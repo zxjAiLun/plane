@@ -12,6 +12,7 @@
 #include "CombatFeedback.hpp"
 #include "Crafting.hpp"
 #include "Player.hpp"
+#include "PlayerMinion.hpp"
 #include "Projectile.hpp"
 #include "Enemy.hpp"
 #include "DroppedItem.hpp"
@@ -103,6 +104,7 @@ public:
     const std::vector<EnemyProjectile>& enemyProjectiles() const;
     const std::vector<PendingSkillEffect>& pendingSkillEffects() const;
     const std::vector<Enemy>& enemies() const;
+    const std::vector<PlayerMinion>& playerMinions() const;
     const std::vector<CombatFeedback>& combatFeedback() const;
     const std::vector<GroundHazard>& groundHazards() const;
     const std::vector<DroppedItem>& droppedItems() const;
@@ -266,6 +268,9 @@ private:
     bool restoreFromSaveData(const SaveData& data);
     void movePlayerBy(const Vector2& delta);
     void updateObjects(float dt);
+    void updatePlayerMinions(float dt);
+    void prunePlayerMinions();
+    void spawnPlayerMinions(const SkillDefinition& skill);
     void updateGroundHazards(float dt);
     void updatePendingSkillEffects(float dt);
     void updateAmbientThreat(float dt);
@@ -453,6 +458,7 @@ private:
     std::vector<EnemyProjectile> enemyProjectiles_;
     std::vector<PendingSkillEffect> pendingSkillEffects_;
     std::vector<Enemy> enemies_;
+    std::vector<PlayerMinion> playerMinions_;
     std::vector<CombatFeedback> combatFeedback_;
     std::vector<GroundHazard> groundHazards_;
     std::vector<DroppedItem> droppedItems_;

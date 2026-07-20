@@ -28,6 +28,7 @@ private:
     void drawBossDashEffect(const GameWorld& world);
     void drawVolatileExplosionEffect(const GameWorld& world);
     void drawAimIndicator(const GameWorld& world);
+    void drawPlayerMinions(const GameWorld& world);
     void drawProjectiles(const GameWorld& world);
     void drawBossProjectiles(const GameWorld& world);
     void drawEnemyProjectiles(const GameWorld& world);

@@ -29,7 +29,8 @@ enum class SupportKind {
     Bloodletting,
     Rupture,
     GlacialLock,
-    ShatteringIce
+    ShatteringIce,
+    MinionMastery
 };
 
 struct SupportDefinition {
@@ -67,6 +68,11 @@ struct SupportDefinition {
     float freezeDuration = 0.0f;
     float shatterRadius = 0.0f;
     float shatterDamageMultiplier = 0.0f;
+    int summonCountBonus = 0;
+    float summonDurationMultiplier = 1.0f;
+    float summonDamageMultiplier = 1.0f;
+    float summonAttackIntervalMultiplier = 1.0f;
+    float summonHpMultiplier = 1.0f;
 };
 
 inline constexpr std::size_t SupportLinkCount = 2;
@@ -115,6 +121,18 @@ public:
                 support.damageMultiplier = 0.80f;
                 support.shatterRadius = 78.0f;
                 support.shatterDamageMultiplier = 0.55f;
+                return support;
+            }(),
+            [] {
+                SupportDefinition support;
+                support.kind = SupportKind::MinionMastery;
+                support.name = "Minion Mastery";
+                support.description = "+1 Wisp, +35% minion damage, +25% duration, -20% attack speed";
+                support.summonCountBonus = 1;
+                support.summonDurationMultiplier = 1.25f;
+                support.summonDamageMultiplier = 1.35f;
+                support.summonAttackIntervalMultiplier = 1.20f;
+                support.summonHpMultiplier = 1.35f;
                 return support;
             }(),
             {SupportKind::Barrage, "Barrage", "+1 projectile, wider spread, -12% damage", 0.88f, 1.0f, 1.0f, 0, 1, 12.0f},
@@ -318,6 +336,8 @@ public:
                 return skill.ailment.type == AilmentType::Chill;
             case SupportKind::ShatteringIce:
                 return skill.ailment.type == AilmentType::Chill;
+            case SupportKind::MinionMastery:
+                return skill.summonCount > 0;
             case SupportKind::Toxicity:
                 return skill.ailment.type == AilmentType::Poison;
             case SupportKind::Contagion:

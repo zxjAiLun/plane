@@ -37,6 +37,7 @@
 #include "MapScaling.hpp"
 #include "PassiveTree.hpp"
 #include "Player.hpp"
+#include "PlayerMinion.hpp"
 #include "RandomService.hpp"
 #include "SkillBar.hpp"
 #include "SkillLibrary.hpp"
@@ -517,7 +518,7 @@ void testManaResourceAndSkillCastGates() {
         "resource Stats combine multiplicatively");
 
     const auto& skills = SkillLibrary::all();
-    expect(skills.size() == 22, "skill library exposes the complete build skill set");
+    expect(skills.size() == 23, "skill library exposes the complete build skill set");
     const auto& primary = SkillLibrary::spreadShot();
     const auto& secondary = SkillLibrary::meteor();
     const auto& utility = SkillLibrary::pulse();
@@ -1089,6 +1090,66 @@ void testSkillBuildMathMatrix() {
     expect(std::abs(areaStats.areaDamageMultiplier - beforeShrine.areaDamageMultiplier) < 0.0001f
             && std::abs(areaStats.areaRadiusMultiplier - beforeShrine.areaRadiusMultiplier) < 0.0001f,
         "Shrine damage calculation does not mutate permanent Stats");
+}
+
+void testSummonSkillMathAndLifecycle() {
+    section("Summon skill math and minion lifecycle");
+
+    const SkillDefinition summon = SkillLibrary::summonWisp();
+    const auto* mastery = SupportLibrary::find("Minion Mastery");
+    expect(summon.slot == SkillSlot::Utility
+            && summon.summonCount == 2
+            && summon.summonDuration == 18.0f
+            && summon.summonDamage == 3
+            && summon.summonMaxHp == 28
+            && summon.damageType == DamageType::Lightning,
+        "Summon Wisp exposes its data-driven Utility summon payload");
+    expect(mastery != nullptr
+            && SupportLibrary::supportsSkill(*mastery, summon)
+            && !SupportLibrary::supportsSkill(*mastery, SkillLibrary::pulse()),
+        "Minion Mastery only supports summon skills");
+    if (mastery == nullptr) {
+        return;
+    }
+
+    const SupportList supports{mastery, nullptr};
+    expect(skillSummonCount(summon, supports) == 3,
+        "Minion Mastery adds one Wisp to the summon count");
+    expect(std::abs(skillSummonDuration(summon, supports) - 22.5f) < 0.0001f,
+        "Minion Mastery multiplies Wisp duration");
+    expect(skillSummonDamage(summon, Stats{}, supports) == 5,
+        "minion damage applies the support multiplier without mutating Stats");
+    expect(skillSummonMaxHp(summon, supports) == 38,
+        "Minion Mastery scales Wisp maximum HP");
+    expect(std::abs(skillSummonAttackInterval(summon, supports) - 1.14f) < 0.0001f,
+        "Minion Mastery applies its attack interval tradeoff");
+
+    const SkillDefinition leveledSummon = SkillProgression::skillAtLevel(summon, 3);
+    expect(leveledSummon.summonDamage > summon.summonDamage
+            && leveledSummon.summonMaxHp > summon.summonMaxHp,
+        "skill gem levels improve both Wisp damage and survivability");
+    const SupportDefinition leveledMastery = SkillProgression::supportAtLevel(*mastery, 4);
+    expect(leveledMastery.summonCountBonus == 2
+            && leveledMastery.summonDamageMultiplier > mastery->summonDamageMultiplier
+            && leveledMastery.summonHpMultiplier > mastery->summonHpMultiplier,
+        "support gem levels improve Minion Mastery effects");
+
+    PlayerMinion minion(
+        {100.0f, 100.0f}, 20, 4, 1.0f, 0.5f, 100.0f,
+        DamageType::Lightning, {}, 0, "Wisp"
+    );
+    expect(minion.isAlive() && minion.canAttack(),
+        "new PlayerMinion starts alive and attack-ready");
+    minion.consumeAttack();
+    minion.update(0.25f);
+    expect(!minion.canAttack(), "PlayerMinion respects its attack interval");
+    minion.update(0.25f);
+    expect(minion.canAttack(), "PlayerMinion becomes attack-ready after its interval");
+    expect(minion.takeDamage(7) == 7 && minion.hp() == 13,
+        "PlayerMinion reports actual damage and remaining HP");
+    minion.update(1.0f);
+    expect(minion.isExpired() && !minion.isAlive(),
+        "PlayerMinion expires cleanly after its lifetime");
 }
 
 // --- Ailments ---
@@ -4623,6 +4684,7 @@ int main() {
     testCombatMathDamageRadiusPierce();
     testSkillPreviewSupportCompatibility();
     testSkillBuildMathMatrix();
+    testSummonSkillMathAndLifecycle();
     testSkillAilments();
     testPlayerAilments();
     testAilmentResistances();

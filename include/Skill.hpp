@@ -48,4 +48,10 @@ struct SkillDefinition {
     int healOnHit = 0;
     float selfDamageTakenMultiplier = 1.0f;
     float wardManaRatio = 0.0f;
+    int summonCount = 0;
+    float summonDuration = 0.0f;
+    int summonDamage = 0;
+    int summonMaxHp = 0;
+    float summonAttackInterval = 0.0f;
+    float summonAttackRange = 0.0f;
 };
