@@ -50,6 +50,7 @@ public:
         float spreadMultiplier
     );
     void applyChill(float speedMultiplier, float duration);
+    void applyFreeze(float duration);
     void applyShock(float damageTakenMultiplier, float duration);
     void applyPoison(int damagePerTick, float duration);
     void applyPoison(
@@ -83,6 +84,7 @@ public:
     bool isCharging() const;
     bool isIgnited() const;
     bool isChilled() const;
+    bool isFrozen() const;
     bool isShocked() const;
     bool isPoisoned() const;
     bool isBleeding() const;
@@ -100,6 +102,7 @@ public:
     float poisonSpreadMultiplier() const;
     float damageTakenMultiplier() const;
     float movementSpeedMultiplier() const;
+    float freezeTimeRemaining() const;
     Vector2 chargeTargetPosition(float mapSpeedMultiplier = 1.0f) const;
     bool consumeChargeHit();
     bool isElite() const;
@@ -148,6 +151,7 @@ private:
     float igniteSpreadMultiplier_;
     float chillTimer_;
     float chillSpeedMultiplier_;
+    float freezeTimer_;
     float shockTimer_;
     float shockDamageTakenMultiplier_;
     int poisonDamagePerTick_;

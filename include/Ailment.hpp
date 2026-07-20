@@ -30,6 +30,7 @@ struct AilmentDefinition {
     int bleedPenetration = 0;
     float igniteSpreadRadius = 0.0f;
     float igniteSpreadMultiplier = 0.0f;
+    float freezeDuration = 0.0f;
 };
 
 struct AilmentTickResult {

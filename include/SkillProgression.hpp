@@ -107,6 +107,7 @@ inline SupportDefinition supportAtLevel(const SupportDefinition& base, int level
         result.igniteSpreadRadius *= 1.0f
             + Config::SkillGemRadiusPerLevelMultiplier * static_cast<float>(levelDelta);
     }
+    result.freezeDuration += levelDelta * 0.05f;
     result.healOnHitBonus += levelDelta * Config::SupportGemHealingStep;
     result.dashBaseDamage += levelDelta;
     if (result.dashRadius > 0.0f) {

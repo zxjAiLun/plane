@@ -592,6 +592,9 @@ std::string ailmentSummary(const AilmentDefinition& ailment) {
                 + std::to_string(static_cast<int>((1.0f - ailment.speedMultiplier) * 100.0f)) + "% slow"
                 + (ailment.chillPenetration > 0
                     ? " Pen " + std::to_string(ailment.chillPenetration) + "%"
+                    : "")
+                + (ailment.freezeDuration > 0.0f
+                    ? " Freeze " + formatFloat(ailment.freezeDuration, 2) + "s"
                     : "");
         case AilmentType::Shock:
             return "Shock " + formatFloat(ailment.duration, 1) + "s +"
@@ -780,6 +783,7 @@ std::string rewardThemeLabel(const MapRewardDefinition& reward) {
                 case SupportKind::Combustion: theme = DamageType::Fire; break;
                 case SupportKind::IgnitionSpread: theme = DamageType::Fire; break;
                 case SupportKind::DeepChill: theme = DamageType::Cold; break;
+                case SupportKind::GlacialLock: theme = DamageType::Cold; break;
                 case SupportKind::Conductivity: theme = DamageType::Lightning; break;
                 case SupportKind::Toxicity:
                 case SupportKind::Contagion: theme = DamageType::Poison; break;
@@ -2263,6 +2267,17 @@ void Renderer::drawEnemies(const GameWorld& world) {
             ring.setPosition(screenPosition);
             window_.draw(ring);
         }
+        if (enemy.isFrozen()) {
+            const float ringRadius = enemy.radius()
+                + (enemy.isChilled() ? 13.0f : 5.0f);
+            sf::CircleShape ring(ringRadius);
+            ring.setFillColor(sf::Color(170, 235, 255, 35));
+            ring.setOutlineColor(sf::Color(225, 250, 255, 245));
+            ring.setOutlineThickness(3.0f);
+            ring.setOrigin({ringRadius, ringRadius});
+            ring.setPosition(screenPosition);
+            window_.draw(ring);
+        }
         if (enemy.isShocked()) {
             const float ringRadius = enemy.radius()
                 + (enemy.isIgnited() ? 13.0f : enemy.isChilled() ? 9.0f : 5.0f);
@@ -2368,7 +2383,7 @@ void Renderer::drawCombatFeedback(const GameWorld& world) {
                 text = feedback.source;
                 if (feedback.source == "Ignite") {
                     color = sf::Color(255, 155, 90, alpha);
-                } else if (feedback.source == "Chill") {
+                } else if (feedback.source == "Chill" || feedback.source == "Freeze") {
                     color = sf::Color(105, 225, 255, alpha);
                 } else if (feedback.source == "Poison"
                     || feedback.source == "Contagion") {

@@ -429,7 +429,8 @@ private:
                 return support.kind == SupportKind::Combustion
                     || support.kind == SupportKind::IgnitionSpread;
             case DamageType::Cold:
-                return support.kind == SupportKind::DeepChill;
+                return support.kind == SupportKind::DeepChill
+                    || support.kind == SupportKind::GlacialLock;
             case DamageType::Lightning:
                 return support.kind == SupportKind::Conductivity;
             case DamageType::Poison:

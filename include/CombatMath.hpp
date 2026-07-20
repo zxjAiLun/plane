@@ -430,6 +430,10 @@ inline AilmentDefinition skillAilment(
                     0.20f,
                     1.0f
                 );
+                ailment.freezeDuration = std::max(
+                    ailment.freezeDuration,
+                    support->freezeDuration * support->ailmentDurationMultiplier
+                );
                 break;
             case AilmentType::Shock:
                 ailment.damageTakenMultiplier = std::clamp(

@@ -3608,19 +3608,29 @@ void GameWorld::applySkillAilment(
             );
             break;
         case AilmentType::Chill:
-            enemy.applyChill(
-                chillSpeedMultiplierAfterResistance(
-                    ailment.speedMultiplier,
-                    std::clamp(
-                        chillResistance + eliteAilmentResistance
-                            + mapModifier_.ailmentResistanceBonus,
-                        0,
-                        100
-                    ),
-                    ailment.chillPenetration
+        {
+            const float effectiveChillSpeed = chillSpeedMultiplierAfterResistance(
+                ailment.speedMultiplier,
+                std::clamp(
+                    chillResistance + eliteAilmentResistance
+                        + mapModifier_.ailmentResistanceBonus,
+                    0,
+                    100
                 ),
-                ailment.duration
+                ailment.chillPenetration
             );
+            enemy.applyChill(effectiveChillSpeed, ailment.duration);
+            if (ailment.freezeDuration > 0.0f
+                && effectiveChillSpeed < 1.0f
+                && !enemy.isBoss()) {
+                enemy.applyFreeze(ailment.freezeDuration);
+                addCombatFeedback(
+                    enemy.position(),
+                    0,
+                    "Freeze",
+                    CombatFeedbackType::Status
+                );
+            }
             addCombatFeedback(
                 enemy.position(),
                 0,
@@ -3628,6 +3638,7 @@ void GameWorld::applySkillAilment(
                 CombatFeedbackType::Status
             );
             break;
+        }
         case AilmentType::Shock:
             enemy.applyShock(
                 damageTakenMultiplierAfterResistance(

@@ -73,6 +73,7 @@ Enemy::Enemy(
     , igniteSpreadMultiplier_(0.0f)
     , chillTimer_(0.0f)
     , chillSpeedMultiplier_(1.0f)
+    , freezeTimer_(0.0f)
     , shockTimer_(0.0f)
     , shockDamageTakenMultiplier_(1.0f)
     , poisonDamagePerTick_(0)
@@ -109,6 +110,13 @@ void Enemy::update(
     }
 
     const auto& definition = EnemyLibrary::forType(type_);
+    freezeTimer_ = std::max(0.0f, freezeTimer_ - std::max(0.0f, dt));
+    if (freezeTimer_ > 0.0f) {
+        chargeTimer_ = 0.0f;
+        attackWindupTimer_ = 0.0f;
+        attackReady_ = false;
+        return;
+    }
     attackCooldownTimer_ = std::max(0.0f, attackCooldownTimer_ - dt);
     const float speedMultiplier = eliteSpeedMultiplier()
         * safeMapSpeedMultiplier * movementSpeedMultiplier();
@@ -299,6 +307,17 @@ void Enemy::applyChill(float speedMultiplier, float duration) {
     chillTimer_ = std::max(chillTimer_, duration);
 }
 
+void Enemy::applyFreeze(float duration) {
+    if (duration <= 0.0f || isBoss()) {
+        return;
+    }
+
+    freezeTimer_ = std::max(freezeTimer_, duration);
+    chargeTimer_ = 0.0f;
+    attackWindupTimer_ = 0.0f;
+    attackReady_ = false;
+}
+
 void Enemy::applyShock(float damageTakenMultiplier, float duration) {
     if (damageTakenMultiplier <= 1.0f || duration <= 0.0f) {
         return;
@@ -409,6 +428,7 @@ bool Enemy::isSummoned() const { return summoned_; }
 bool Enemy::isCharging() const { return chargeTimer_ > 0.0f; }
 bool Enemy::isIgnited() const { return igniteTimer_ > 0.0f; }
 bool Enemy::isChilled() const { return chillTimer_ > 0.0f; }
+bool Enemy::isFrozen() const { return freezeTimer_ > 0.0f; }
 bool Enemy::isShocked() const { return shockTimer_ > 0.0f; }
 bool Enemy::isPoisoned() const { return poisonTimer_ > 0.0f; }
 bool Enemy::isBleeding() const { return bleedTimer_ > 0.0f; }
@@ -430,6 +450,7 @@ float Enemy::damageTakenMultiplier() const {
 float Enemy::movementSpeedMultiplier() const {
     return isChilled() ? chillSpeedMultiplier_ : 1.0f;
 }
+float Enemy::freezeTimeRemaining() const { return freezeTimer_; }
 Vector2 Enemy::chargeTargetPosition(float mapSpeedMultiplier) const {
     if (!isCharger()) {
         return position_;

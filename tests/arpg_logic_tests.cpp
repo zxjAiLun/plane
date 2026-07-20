@@ -720,6 +720,7 @@ void testCombatMathDamageRadiusPierce() {
     const SupportDefinition* combustion = SupportLibrary::find("Combustion");
     const SupportDefinition* emberfall = SupportLibrary::find("Emberfall");
     const SupportDefinition* deepChill = SupportLibrary::find("Deep Chill");
+    const SupportDefinition* glacialLock = SupportLibrary::find("Glacial Lock");
     const SupportDefinition* contagion = SupportLibrary::find("Contagion");
     const SupportDefinition* barrage = SupportLibrary::find("Barrage");
     const SupportDefinition* concentration = SupportLibrary::find("Concentration");
@@ -732,6 +733,7 @@ void testCombatMathDamageRadiusPierce() {
     expect(pierce != nullptr && amplify != nullptr && quickcast != nullptr
             && volley != nullptr && trailblazer != nullptr
             && combustion != nullptr && emberfall != nullptr && deepChill != nullptr
+            && glacialLock != nullptr
             && barrage != nullptr && concentration != nullptr
             && echo != nullptr && pinpoint != nullptr && contagion != nullptr
             && emberFocus != nullptr && glacialFocus != nullptr
@@ -942,6 +944,14 @@ void testCombatMathDamageRadiusPierce() {
         "Deep Chill increases Chill duration");
     expect(specializedChill.speedMultiplier < baseChill.speedMultiplier,
         "Deep Chill increases Chill slow strength");
+    const AilmentDefinition lockedChill = skillAilment(
+        SkillLibrary::frostBomb(), glacialLock
+    );
+    expect(glacialLock != nullptr
+            && SupportLibrary::supportsSkill(*glacialLock, SkillLibrary::frostBomb())
+            && lockedChill.speedMultiplier < baseChill.speedMultiplier
+            && std::abs(lockedChill.freezeDuration - 0.55f) < 0.0001f,
+        "Glacial Lock adds a data-driven Freeze payload to Chill skills");
 
     expect(refilledFlaskCharges(0, 3, 1) == 1, "flask refill adds granted charge");
     expect(refilledFlaskCharges(2, 3, 3) == 3, "flask refill is capped at maximum charges");
@@ -1285,6 +1295,25 @@ void testSkillAilments() {
             && emberfallEnemy.igniteSpreadRadius() == 100.0f
             && std::abs(emberfallEnemy.igniteSpreadMultiplier() - 0.50f) < 0.0001f,
         "Ignited enemies retain Emberfall spread data for death handling");
+
+    MapInstance freezeMap;
+    Enemy frozenEnemy({200.0f, 200.0f}, 50, 1);
+    const Vector2 frozenPosition = frozenEnemy.position();
+    frozenEnemy.applyFreeze(0.5f);
+    frozenEnemy.update(0.25f, {500.0f, 200.0f}, freezeMap);
+    expect(frozenEnemy.isFrozen()
+            && (frozenEnemy.position() - frozenPosition).lengthSquared() == 0.0f,
+        "Freeze stops an enemy from moving during its control duration");
+    frozenEnemy.update(0.35f, {500.0f, 200.0f}, freezeMap);
+    expect(!frozenEnemy.isFrozen(), "Freeze expires and restores enemy movement");
+
+    Enemy freezeImmuneBoss({200.0f, 200.0f}, 50, 1, EnemyType::Boss);
+    const Vector2 bossPosition = freezeImmuneBoss.position();
+    freezeImmuneBoss.applyFreeze(0.5f);
+    freezeImmuneBoss.update(0.25f, {500.0f, 200.0f}, freezeMap);
+    expect(!freezeImmuneBoss.isFrozen()
+            && (freezeImmuneBoss.position() - bossPosition).lengthSquared() > 0.0f,
+        "Bosses ignore Freeze and continue moving");
 
     Enemy chillOnlyEnemy({0.0f, 0.0f}, 10, 1);
     chillOnlyEnemy.applyChill(0.55f, 2.0f);
