@@ -1918,7 +1918,7 @@ void GameWorld::spawnPlayerMinions(const SkillDefinition& skill) {
             skill.damageType,
             ailment,
             physicalPenetrationForPlayerSkill(skill),
-            "Wisp"
+            skill.summonName.empty() ? skill.name : skill.summonName
         );
         playerMinions_.back().delayInitialAttack();
         ++spawned;

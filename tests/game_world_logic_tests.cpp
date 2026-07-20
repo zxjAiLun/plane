@@ -1495,6 +1495,26 @@ void testPlayerMinionWorldFlow() {
     expect(world.saveRun(path) && world.loadRun(path) && world.playerMinions().empty(),
         "loading a run clears non-persistent player minions");
 
+    data.unlockedSkills.insert("Summon Emberling");
+    data.skillLevels["Summon Emberling"] = 1;
+    data.skillBar.skills[utilityIndex] = "Summon Emberling";
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Player minion fixture can switch to the unlocked Emberling skill");
+    Input emberlingInput;
+    emberlingInput.handleKeyPressed(sf::Keyboard::Key::Q);
+    world.update(0.05f, emberlingInput);
+    emberlingInput.handleKeyReleased(sf::Keyboard::Key::Q);
+    expect(world.playerMinions().size() == 2
+            && std::all_of(
+                world.playerMinions().begin(), world.playerMinions().end(),
+                [](const PlayerMinion& minion) {
+                    return minion.name() == "Emberling"
+                        && minion.damageType() == DamageType::Fire
+                        && minion.attackRange() == 52.0f;
+                }
+            ),
+        "Summon Emberling creates a distinct supported Fire minion pair");
+
     std::filesystem::remove(path);
 }
 

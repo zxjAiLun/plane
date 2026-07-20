@@ -54,4 +54,5 @@ struct SkillDefinition {
     int summonMaxHp = 0;
     float summonAttackInterval = 0.0f;
     float summonAttackRange = 0.0f;
+    std::string summonName;
 };

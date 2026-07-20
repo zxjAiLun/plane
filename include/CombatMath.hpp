@@ -416,9 +416,9 @@ inline int skillSummonDamage(
 
     SkillDefinition damageSkill = skill;
     damageSkill.baseDamage = skill.summonDamage;
-    // Summon Wisp uses an area cast type only to occupy the Utility slot. Its
-    // minions are not area hits, so Projectile/Area specialization must not
-    // leak into their attack damage.
+    // Summon skills use an area cast type only to occupy the Utility slot.
+    // Their minions are not area hits, so Projectile/Area specialization must
+    // not leak into their attack damage.
     Stats summonStats = stats;
     summonStats.projectileDamageMultiplier = 1.0f;
     summonStats.areaDamageMultiplier = 1.0f;

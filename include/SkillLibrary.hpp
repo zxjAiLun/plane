@@ -269,6 +269,32 @@ public:
         skill.summonMaxHp = 28;
         skill.summonAttackInterval = 0.95f;
         skill.summonAttackRange = 220.0f;
+        skill.summonName = "Wisp";
+        return skill;
+    }
+
+    static SkillDefinition summonEmberling() {
+        SkillDefinition skill = {
+            SkillSlot::Utility,
+            SkillCastType::SelfCenteredArea,
+            "Summon Emberling",
+            11.0f,
+            0.0f,
+            6,
+            22.0f,
+            1,
+            0.0f,
+            {AilmentType::Ignite, 3.0f, 0.45f},
+            14.0f
+        };
+        skill.damageType = DamageType::Fire;
+        skill.summonCount = 1;
+        skill.summonDuration = 22.0f;
+        skill.summonDamage = 6;
+        skill.summonMaxHp = 72;
+        skill.summonAttackInterval = 1.25f;
+        skill.summonAttackRange = 52.0f;
+        skill.summonName = "Emberling";
         return skill;
     }
 
@@ -521,7 +547,8 @@ private:
             guardingPulse(),
             manaWard(),
             rendingVolley(),
-            crimsonSweep()
+            crimsonSweep(),
+            summonEmberling()
         };
     }
 };

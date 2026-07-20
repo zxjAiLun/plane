@@ -127,7 +127,7 @@ public:
                 SupportDefinition support;
                 support.kind = SupportKind::MinionMastery;
                 support.name = "Minion Mastery";
-                support.description = "+1 Wisp, +35% minion damage, +25% duration, -20% attack speed";
+                support.description = "+1 minion, +35% minion damage, +25% duration, -20% attack speed";
                 support.summonCountBonus = 1;
                 support.summonDurationMultiplier = 1.25f;
                 support.summonDamageMultiplier = 1.35f;

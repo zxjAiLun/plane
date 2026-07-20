@@ -2160,17 +2160,35 @@ void Renderer::drawPlayerMinions(const GameWorld& world) {
     for (const auto& minion : world.playerMinions()) {
         const sf::Vector2f screenPosition = worldToScreen(world, minion.position());
         const float auraRadius = minion.radius() + 5.0f;
+        const sf::Color minionColor = damageTypeColor(minion.damageType());
+        sf::Color auraColor = minionColor;
+        auraColor.a = 24;
+        sf::Color auraOutline = minionColor;
+        auraOutline.r = static_cast<std::uint8_t>(std::min(
+            255, static_cast<int>(auraOutline.r) + 45
+        ));
+        auraOutline.g = static_cast<std::uint8_t>(std::min(
+            255, static_cast<int>(auraOutline.g) + 45
+        ));
+        auraOutline.b = static_cast<std::uint8_t>(std::min(
+            255, static_cast<int>(auraOutline.b) + 45
+        ));
+        auraOutline.a = 180;
         sf::CircleShape aura(auraRadius);
-        aura.setFillColor(sf::Color(70, 180, 255, 24));
-        aura.setOutlineColor(sf::Color(120, 225, 255, 180));
+        aura.setFillColor(auraColor);
+        aura.setOutlineColor(auraOutline);
         aura.setOutlineThickness(1.5f);
         aura.setOrigin({auraRadius, auraRadius});
         aura.setPosition(screenPosition);
         window_.draw(aura);
 
+        sf::Color bodyColor = minionColor;
+        bodyColor.a = 220;
+        sf::Color bodyOutline = auraOutline;
+        bodyOutline.a = 255;
         sf::CircleShape shape(minion.radius());
-        shape.setFillColor(sf::Color(70, 150, 235));
-        shape.setOutlineColor(sf::Color(190, 240, 255));
+        shape.setFillColor(bodyColor);
+        shape.setOutlineColor(bodyOutline);
         shape.setOutlineThickness(2.0f);
         shape.setOrigin({minion.radius(), minion.radius()});
         shape.setPosition(screenPosition);
@@ -2191,7 +2209,7 @@ void Renderer::drawPlayerMinions(const GameWorld& world) {
         window_.draw(background);
 
         sf::RectangleShape fill({barWidth * hpRatio, 3.0f});
-        fill.setFillColor(sf::Color(100, 220, 255));
+        fill.setFillColor(minionColor);
         fill.setOrigin({barWidth * 0.5f, 1.5f});
         fill.setPosition({
             screenPosition.x - barWidth * (1.0f - hpRatio) * 0.5f,

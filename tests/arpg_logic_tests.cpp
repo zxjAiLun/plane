@@ -518,7 +518,7 @@ void testManaResourceAndSkillCastGates() {
         "resource Stats combine multiplicatively");
 
     const auto& skills = SkillLibrary::all();
-    expect(skills.size() == 23, "skill library exposes the complete build skill set");
+    expect(skills.size() == 24, "skill library exposes the complete build skill set");
     const auto& primary = SkillLibrary::spreadShot();
     const auto& secondary = SkillLibrary::meteor();
     const auto& utility = SkillLibrary::pulse();
@@ -1104,10 +1104,19 @@ void testSummonSkillMathAndLifecycle() {
             && summon.summonMaxHp == 28
             && summon.damageType == DamageType::Lightning,
         "Summon Wisp exposes its data-driven Utility summon payload");
+    const SkillDefinition emberling = SkillLibrary::summonEmberling();
+    expect(emberling.slot == SkillSlot::Utility
+            && emberling.summonName == "Emberling"
+            && emberling.damageType == DamageType::Fire
+            && emberling.summonCount == 1
+            && emberling.summonAttackRange < summon.summonAttackRange
+            && emberling.summonMaxHp > summon.summonMaxHp,
+        "Summon Emberling exposes a distinct melee Fire summon payload");
     expect(mastery != nullptr
             && SupportLibrary::supportsSkill(*mastery, summon)
+            && SupportLibrary::supportsSkill(*mastery, emberling)
             && !SupportLibrary::supportsSkill(*mastery, SkillLibrary::pulse()),
-        "Minion Mastery only supports summon skills");
+        "Minion Mastery supports every summon skill and no regular area skill");
     if (mastery == nullptr) {
         return;
     }
@@ -1128,6 +1137,11 @@ void testSummonSkillMathAndLifecycle() {
         "Minion Mastery scales Wisp maximum HP");
     expect(std::abs(skillSummonAttackInterval(summon, supports) - 1.14f) < 0.0001f,
         "Minion Mastery applies its attack interval tradeoff");
+    expect(skillSummonCount(emberling, supports) == 2
+            && skillSummonDamage(emberling, Stats{}, supports) == 9
+            && skillSummonMaxHp(emberling, supports) == 98
+            && std::abs(skillSummonAttackInterval(emberling, supports) - 1.50f) < 0.0001f,
+        "Minion Mastery scales Emberling count, damage, survivability and attack interval");
 
     const SkillDefinition leveledSummon = SkillProgression::skillAtLevel(summon, 3);
     expect(leveledSummon.summonDamage > summon.summonDamage
