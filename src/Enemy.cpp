@@ -318,6 +318,15 @@ void Enemy::applyFreeze(float duration) {
     attackReady_ = false;
 }
 
+bool Enemy::shatterFreeze() {
+    if (freezeTimer_ <= 0.0f) {
+        return false;
+    }
+
+    freezeTimer_ = 0.0f;
+    return true;
+}
+
 void Enemy::applyShock(float damageTakenMultiplier, float duration) {
     if (damageTakenMultiplier <= 1.0f || duration <= 0.0f) {
         return;

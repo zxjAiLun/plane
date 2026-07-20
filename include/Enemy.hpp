@@ -51,6 +51,7 @@ public:
     );
     void applyChill(float speedMultiplier, float duration);
     void applyFreeze(float duration);
+    bool shatterFreeze();
     void applyShock(float damageTakenMultiplier, float duration);
     void applyPoison(int damagePerTick, float duration);
     void applyPoison(

@@ -377,6 +377,11 @@ private:
         int sourceDamage,
         const AilmentDefinition& ailment
     );
+    void triggerFreezeShatter(
+        Enemy& source,
+        int hitDamage,
+        const AilmentDefinition& ailment
+    );
     void noteMapEventEnemyDefeated(const Enemy& enemy);
     void tryPickupDroppedItem(Input& input);
     void trySpendPassivePoint(Input& input);

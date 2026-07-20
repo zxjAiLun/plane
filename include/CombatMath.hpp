@@ -434,6 +434,13 @@ inline AilmentDefinition skillAilment(
                     ailment.freezeDuration,
                     support->freezeDuration * support->ailmentDurationMultiplier
                 );
+                ailment.shatterRadius = std::max(
+                    ailment.shatterRadius, support->shatterRadius
+                );
+                ailment.shatterDamageMultiplier = std::max(
+                    ailment.shatterDamageMultiplier,
+                    support->shatterDamageMultiplier
+                );
                 break;
             case AilmentType::Shock:
                 ailment.damageTakenMultiplier = std::clamp(

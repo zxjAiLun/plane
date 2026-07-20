@@ -721,6 +721,7 @@ void testCombatMathDamageRadiusPierce() {
     const SupportDefinition* emberfall = SupportLibrary::find("Emberfall");
     const SupportDefinition* deepChill = SupportLibrary::find("Deep Chill");
     const SupportDefinition* glacialLock = SupportLibrary::find("Glacial Lock");
+    const SupportDefinition* shatteringIce = SupportLibrary::find("Shattering Ice");
     const SupportDefinition* contagion = SupportLibrary::find("Contagion");
     const SupportDefinition* barrage = SupportLibrary::find("Barrage");
     const SupportDefinition* concentration = SupportLibrary::find("Concentration");
@@ -734,6 +735,7 @@ void testCombatMathDamageRadiusPierce() {
             && volley != nullptr && trailblazer != nullptr
             && combustion != nullptr && emberfall != nullptr && deepChill != nullptr
             && glacialLock != nullptr
+            && shatteringIce != nullptr
             && barrage != nullptr && concentration != nullptr
             && echo != nullptr && pinpoint != nullptr && contagion != nullptr
             && emberFocus != nullptr && glacialFocus != nullptr
@@ -952,6 +954,19 @@ void testCombatMathDamageRadiusPierce() {
             && lockedChill.speedMultiplier < baseChill.speedMultiplier
             && std::abs(lockedChill.freezeDuration - 0.55f) < 0.0001f,
         "Glacial Lock adds a data-driven Freeze payload to Chill skills");
+    const AilmentDefinition shatteringChill = skillAilment(
+        SkillLibrary::frostBomb(), shatteringIce
+    );
+    const AilmentDefinition coldBuildChill = skillAilment(
+        SkillLibrary::frostBomb(), SupportList{glacialLock, shatteringIce}
+    );
+    expect(shatteringIce != nullptr
+            && SupportLibrary::supportsSkill(*shatteringIce, SkillLibrary::frostBomb())
+            && shatteringChill.shatterRadius == 78.0f
+            && std::abs(shatteringChill.shatterDamageMultiplier - 0.55f) < 0.0001f
+            && coldBuildChill.freezeDuration > 0.0f
+            && coldBuildChill.shatterRadius > 0.0f,
+        "Shattering Ice adds a data-driven Cold shatter payload");
 
     expect(refilledFlaskCharges(0, 3, 1) == 1, "flask refill adds granted charge");
     expect(refilledFlaskCharges(2, 3, 3) == 3, "flask refill is capped at maximum charges");
@@ -1306,6 +1321,10 @@ void testSkillAilments() {
         "Freeze stops an enemy from moving during its control duration");
     frozenEnemy.update(0.35f, {500.0f, 200.0f}, freezeMap);
     expect(!frozenEnemy.isFrozen(), "Freeze expires and restores enemy movement");
+
+    frozenEnemy.applyFreeze(0.5f);
+    expect(frozenEnemy.shatterFreeze() && !frozenEnemy.isFrozen(),
+        "Shattering a frozen enemy consumes its Freeze state");
 
     Enemy freezeImmuneBoss({200.0f, 200.0f}, 50, 1, EnemyType::Boss);
     const Vector2 bossPosition = freezeImmuneBoss.position();

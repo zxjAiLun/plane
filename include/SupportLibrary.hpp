@@ -28,7 +28,8 @@ enum class SupportKind {
     Vitality,
     Bloodletting,
     Rupture,
-    GlacialLock
+    GlacialLock,
+    ShatteringIce
 };
 
 struct SupportDefinition {
@@ -64,6 +65,8 @@ struct SupportDefinition {
     float igniteSpreadRadius = 0.0f;
     float igniteSpreadMultiplier = 0.0f;
     float freezeDuration = 0.0f;
+    float shatterRadius = 0.0f;
+    float shatterDamageMultiplier = 0.0f;
 };
 
 inline constexpr std::size_t SupportLinkCount = 2;
@@ -102,6 +105,16 @@ public:
                 support.damageMultiplier = 0.85f;
                 support.chillMagnitudeMultiplier = 1.20f;
                 support.freezeDuration = 0.55f;
+                return support;
+            }(),
+            [] {
+                SupportDefinition support;
+                support.kind = SupportKind::ShatteringIce;
+                support.name = "Shattering Ice";
+                support.description = "-20% hit damage; frozen enemies shatter for 55% Cold damage in 78 radius";
+                support.damageMultiplier = 0.80f;
+                support.shatterRadius = 78.0f;
+                support.shatterDamageMultiplier = 0.55f;
                 return support;
             }(),
             {SupportKind::Barrage, "Barrage", "+1 projectile, wider spread, -12% damage", 0.88f, 1.0f, 1.0f, 0, 1, 12.0f},
@@ -302,6 +315,8 @@ public:
             case SupportKind::Conductivity:
                 return skill.ailment.type == AilmentType::Shock;
             case SupportKind::GlacialLock:
+                return skill.ailment.type == AilmentType::Chill;
+            case SupportKind::ShatteringIce:
                 return skill.ailment.type == AilmentType::Chill;
             case SupportKind::Toxicity:
                 return skill.ailment.type == AilmentType::Poison;

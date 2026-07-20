@@ -2767,6 +2767,7 @@ void GameWorld::handleCollisions() {
                     projectile.damageType(),
                     projectile.physicalPenetration()
                 );
+                const bool wasFrozen = enemy.isFrozen();
                 const int dealtDamage = enemy.takeDamage(mitigatedDamage);
                 if (dealtDamage > 0) {
                     addCombatFeedback(
@@ -2778,6 +2779,9 @@ void GameWorld::handleCollisions() {
                     );
                 }
                 if (projectile.ailment().type != AilmentType::None && dealtDamage > 0) {
+                    if (wasFrozen) {
+                        triggerFreezeShatter(enemy, dealtDamage, projectile.ailment());
+                    }
                     applySkillAilment(enemy, projectile.ailment(), dealtDamage);
                 }
                 if (projectile.damageType() == DamageType::Lightning && dealtDamage > 0) {
@@ -3462,6 +3466,7 @@ void GameWorld::dealAreaDamage(
                 center, radius,
                 enemy.position(), enemy.radius()
             )) {
+            const bool wasFrozen = enemy.isFrozen();
             const int mitigatedDamage = damageToEnemy(
                 enemy, damage, damageType, physicalPenetration
             );
@@ -3470,6 +3475,9 @@ void GameWorld::dealAreaDamage(
                 addCombatFeedback(enemy.position(), dealtDamage, source);
             }
             if (ailment && dealtDamage > 0) {
+                if (wasFrozen) {
+                    triggerFreezeShatter(enemy, dealtDamage, *ailment);
+                }
                 applySkillAilment(enemy, *ailment, dealtDamage);
             }
             if (damageType == DamageType::Lightning && dealtDamage > 0) {
@@ -4431,12 +4439,16 @@ void GameWorld::triggerStormChain(
         const int chainDamage = std::max(1, static_cast<int>(std::ceil(
             static_cast<float>(sourceDamage) * effect.lightningChainDamageMultiplier
         )));
+        const bool wasFrozen = target->isFrozen();
         const int dealtDamage = target->takeDamage(
             damageToEnemy(*target, chainDamage, DamageType::Lightning)
         );
         if (dealtDamage > 0) {
             addCombatFeedback(target->position(), dealtDamage, effect.name);
             if (ailment.type != AilmentType::None) {
+                if (wasFrozen) {
+                    triggerFreezeShatter(*target, dealtDamage, ailment);
+                }
                 applySkillAilment(*target, ailment, dealtDamage);
             }
         }
@@ -4447,6 +4459,50 @@ void GameWorld::triggerStormChain(
             rewardEnemyKill(*target);
         }
     }
+}
+
+void GameWorld::triggerFreezeShatter(
+    Enemy& source,
+    int hitDamage,
+    const AilmentDefinition& ailment
+) {
+    if (hitDamage <= 0
+        || ailment.shatterRadius <= 0.0f
+        || ailment.shatterDamageMultiplier <= 0.0f
+        || !source.shatterFreeze()) {
+        return;
+    }
+
+    const int shatterDamage = std::max(1, static_cast<int>(std::ceil(
+        static_cast<float>(hitDamage) * ailment.shatterDamageMultiplier
+    )));
+    const float radiusSquared = ailment.shatterRadius * ailment.shatterRadius;
+    for (auto& enemy : enemies_) {
+        if (enemy.isDead() || enemy.id() == source.id()) {
+            continue;
+        }
+
+        if ((enemy.position() - source.position()).lengthSquared() > radiusSquared) {
+            continue;
+        }
+
+        const int dealtDamage = enemy.takeDamage(
+            damageToEnemy(enemy, shatterDamage, DamageType::Cold)
+        );
+        if (dealtDamage > 0) {
+            addCombatFeedback(enemy.position(), dealtDamage, "Shatter");
+        }
+        if (enemy.isDead()) {
+            rewardEnemyKill(enemy);
+        }
+    }
+
+    addCombatFeedback(
+        source.position(),
+        0,
+        "Shatter",
+        CombatFeedbackType::Status
+    );
 }
 
 void GameWorld::noteMapEventEnemyDefeated(const Enemy& enemy) {

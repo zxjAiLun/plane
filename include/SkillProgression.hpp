@@ -107,7 +107,18 @@ inline SupportDefinition supportAtLevel(const SupportDefinition& base, int level
         result.igniteSpreadRadius *= 1.0f
             + Config::SkillGemRadiusPerLevelMultiplier * static_cast<float>(levelDelta);
     }
+    if (result.shatterRadius > 0.0f) {
+        result.shatterRadius *= 1.0f
+            + Config::SkillGemRadiusPerLevelMultiplier * static_cast<float>(levelDelta);
+    }
     result.freezeDuration += levelDelta * 0.05f;
+    if (result.shatterDamageMultiplier > 0.0f) {
+        result.shatterDamageMultiplier = std::min(
+            1.50f,
+            result.shatterDamageMultiplier
+                + Config::SupportGemAilmentStep * static_cast<float>(levelDelta)
+        );
+    }
     result.healOnHitBonus += levelDelta * Config::SupportGemHealingStep;
     result.dashBaseDamage += levelDelta;
     if (result.dashRadius > 0.0f) {

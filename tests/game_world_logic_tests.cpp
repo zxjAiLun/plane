@@ -2030,7 +2030,6 @@ void testIgniteDeathSpreadWorldFlow() {
 
     Enemy& source = const_cast<Enemy&>(*sourceIt);
     Enemy& target = const_cast<Enemy&>(*targetIt);
-    const int sourceId = source.id();
     const int targetId = target.id();
     target.moveBy(
         source.position() + Vector2(120.0f, 0.0f) - target.position(),
@@ -2069,6 +2068,97 @@ void testIgniteDeathSpreadWorldFlow() {
             && spreadTarget->igniteSpreadRadius() == 100.0f
             && spreadFeedback,
         "Ignite death spread applies to a nearby live enemy through GameWorld");
+
+    std::filesystem::remove(path);
+}
+
+void testFreezeShatterWorldFlow() {
+    const auto path = std::filesystem::temp_directory_path()
+        / "plane_fight_shattering_ice_world_test.bin";
+    std::filesystem::remove(path);
+
+    GameWorld world(18004);
+    SaveData data;
+    std::string error;
+    expect(world.saveRun(path) && SaveService::load(path, data, &error),
+        "Shattering Ice fixture starts from a valid run save");
+
+    const std::size_t primaryIndex = static_cast<std::size_t>(SkillSlot::Primary);
+    data.unlockedSkills.insert("Glacial Shard");
+    data.unlockedSupports.insert("Glacial Lock");
+    data.unlockedSupports.insert("Shattering Ice");
+    data.skillLevels["Glacial Shard"] = 1;
+    data.supportLevels["Glacial Lock"] = 1;
+    data.supportLevels["Shattering Ice"] = 1;
+    data.skillBar.skills[primaryIndex] = "Glacial Shard";
+    data.skillBar.supports[primaryIndex] = {"Glacial Lock", "Shattering Ice"};
+    data.player.hp = 1000;
+    data.player.upgradeStats.maxHp = 1000;
+    data.player.upgradeStats.incomingDamageMultiplier = 0.01f;
+    data.player.mana = Config::PlayerMaxMana;
+    data.mapLevel = 1;
+    expect(SaveService::save(path, data, &error) && world.loadRun(path),
+        "Shattering Ice fixture restores Glacial Shard and both Cold Supports");
+
+    Input input;
+    advanceIntoTheField(world, input);
+    auto sourceIt = std::find_if(
+        world.enemies().begin(), world.enemies().end(),
+        [](const Enemy& enemy) { return !enemy.isBoss(); }
+    );
+    auto targetIt = sourceIt == world.enemies().end()
+        ? world.enemies().end()
+        : std::find_if(
+            sourceIt + 1, world.enemies().end(),
+            [](const Enemy& enemy) { return !enemy.isBoss(); }
+        );
+    expect(sourceIt != world.enemies().end() && targetIt != world.enemies().end(),
+        "Shattering Ice fixture reaches two non-Boss enemies");
+    if (sourceIt == world.enemies().end() || targetIt == world.enemies().end()) {
+        std::filesystem::remove(path);
+        return;
+    }
+
+    Enemy& source = const_cast<Enemy&>(*sourceIt);
+    Enemy& target = const_cast<Enemy&>(*targetIt);
+    const int targetId = target.id();
+    const Vector2 sourcePosition = world.player().position() + Vector2(150.0f, 0.0f);
+    source.moveBy(sourcePosition - source.position(), world.map());
+    target.moveBy(sourcePosition + Vector2(55.0f, 0.0f) - target.position(), world.map());
+    source.applyFreeze(1.0f);
+    const int targetHpBefore = target.hp();
+    const AilmentDefinition effectiveChill = world.effectiveSkillAilment(
+        world.skillBar().definition(SkillSlot::Primary)
+    );
+    expect(effectiveChill.freezeDuration > 0.0f
+            && effectiveChill.shatterRadius > 0.0f
+            && effectiveChill.shatterDamageMultiplier > 0.0f,
+        "real Glacial Shard snapshot contains Freeze and Shatter payloads");
+
+    input.handleMousePressed(sf::Mouse::Button::Left, worldToScreen(world, source.position()));
+    world.update(0.05f, input);
+    input.handleMouseReleased(sf::Mouse::Button::Left, worldToScreen(world, source.position()));
+    bool shatterObserved = false;
+    for (int frame = 0; frame < 30 && !shatterObserved; ++frame) {
+        world.update(0.05f, input);
+        shatterObserved = std::any_of(
+            world.combatFeedback().begin(),
+            world.combatFeedback().end(),
+            [](const CombatFeedback& feedback) {
+                return feedback.source == "Shatter"
+                    && feedback.type == CombatFeedbackType::Status;
+            }
+        );
+    }
+
+    const auto targetAfter = std::find_if(
+        world.enemies().begin(), world.enemies().end(),
+        [targetId](const Enemy& enemy) { return enemy.id() == targetId; }
+    );
+    expect(shatterObserved, "real Cold hit consumes Freeze and emits Shatter feedback");
+    expect(targetAfter == world.enemies().end()
+            || targetAfter->hp() < targetHpBefore,
+        "real Shatter damages a nearby enemy through GameWorld");
 
     std::filesystem::remove(path);
 }
@@ -4691,6 +4781,7 @@ int main() {
     testManaFlaskFlow();
     testElitePackEventFlow();
     testCombinationMapEvents();
+    testFreezeShatterWorldFlow();
     testStormRelicAreaChain();
     testBloodPriceBleedBurst();
 

@@ -595,6 +595,12 @@ std::string ailmentSummary(const AilmentDefinition& ailment) {
                     : "")
                 + (ailment.freezeDuration > 0.0f
                     ? " Freeze " + formatFloat(ailment.freezeDuration, 2) + "s"
+                    : "")
+                + (ailment.shatterRadius > 0.0f
+                    ? " Shatter " + formatFloat(ailment.shatterRadius, 0)
+                        + "@" + std::to_string(static_cast<int>(
+                            ailment.shatterDamageMultiplier * 100.0f
+                        )) + "%"
                     : "");
         case AilmentType::Shock:
             return "Shock " + formatFloat(ailment.duration, 1) + "s +"
@@ -784,6 +790,7 @@ std::string rewardThemeLabel(const MapRewardDefinition& reward) {
                 case SupportKind::IgnitionSpread: theme = DamageType::Fire; break;
                 case SupportKind::DeepChill: theme = DamageType::Cold; break;
                 case SupportKind::GlacialLock: theme = DamageType::Cold; break;
+                case SupportKind::ShatteringIce: theme = DamageType::Cold; break;
                 case SupportKind::Conductivity: theme = DamageType::Lightning; break;
                 case SupportKind::Toxicity:
                 case SupportKind::Contagion: theme = DamageType::Poison; break;

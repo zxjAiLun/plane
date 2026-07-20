@@ -31,6 +31,8 @@ struct AilmentDefinition {
     float igniteSpreadRadius = 0.0f;
     float igniteSpreadMultiplier = 0.0f;
     float freezeDuration = 0.0f;
+    float shatterRadius = 0.0f;
+    float shatterDamageMultiplier = 0.0f;
 };
 
 struct AilmentTickResult {
